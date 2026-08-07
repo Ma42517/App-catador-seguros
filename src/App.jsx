@@ -1,122 +1,66 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from 'react';
+import { ClipboardList, BarChart3, PlayCircle } from 'lucide-react';
+import { FinanceProvider, useFinance } from './context/FinanceContext';
+import { ReferralProvider } from './context/ReferralContext';
+import StepWizard from './components/Wizard/StepWizard';
+import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 
-function App() {
-  const [count, setCount] = useState(0)
+function AppContent() {
+  const [tab, setTab] = useState('wizard');
+  const { loadDemoData } = useFinance();
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+            DIAGNÓSTICO FINANCIERO 360
+          </h1>
+          <button
+            onClick={() => { loadDemoData(); setTab('dashboard'); }}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200"
+          >
+            <PlayCircle size={16} />
+            <span className="hidden sm:inline">Cargar Ejemplo (Demo)</span>
+            <span className="sm:hidden">Demo</span>
+          </button>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* Tabs */}
+      <div className="max-w-5xl mx-auto px-4 pt-4">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+          <button onClick={() => setTab('wizard')}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              tab === 'wizard' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}>
+            <ClipboardList size={16} /> Formulario
+          </button>
+          <button onClick={() => setTab('dashboard')}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              tab === 'dashboard' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}>
+            <BarChart3 size={16} /> Dashboard
+          </button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* Content */}
+      <main className="max-w-5xl mx-auto px-4 py-6">
+        {tab === 'wizard' && <StepWizard onComplete={() => setTab('dashboard')} />}
+        {tab === 'dashboard' && <ExecutiveDashboard />}
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default function App() {
+  return (
+    <FinanceProvider>
+      <ReferralProvider>
+        <AppContent />
+      </ReferralProvider>
+    </FinanceProvider>
+  );
+}
