@@ -1,91 +1,99 @@
 import { useState } from 'react';
 import { Lock, Unlock, UserPlus } from 'lucide-react';
 import { useReferral } from '../../context/ReferralContext';
+import { Card, Field, TextInput, Button } from '../ui';
 
-export default function ReferralGate({ children }) {
-  const { isUnlocked, addReferral } = useReferral();
-  const [ref1, setRef1] = useState({ name: '', phone: '' });
-  const [ref2, setRef2] = useState({ name: '', phone: '' });
+const EMPTY = { name: '', phone: '' };
+
+/**
+ * Candado de referidos. Envuelve contenido de alto valor y lo libera
+ * cuando el usuario comparte dos contactos.
+ */
+export default function ReferralGate({ children, title, description }) {
+  const { isUnlocked, addReferral, unlockDirectly } = useReferral();
+  const [rows, setRows] = useState([{ ...EMPTY }, { ...EMPTY }]);
   const [error, setError] = useState('');
 
-  if (isUnlocked) return <>{children}</>;
+  if (isUnlocked) return children;
 
-  const handleSubmit = (e) => {
+  const patch = (i, field, value) => {
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
+  };
+
+  const submit = (e) => {
     e.preventDefault();
+    const clean = rows.map((r) => ({ name: r.name.trim(), phone: r.phone.trim() }));
+
+    if (clean.some((r) => !r.name || !r.phone)) {
+      setError('Completa el nombre y el teléfono de ambos contactos.');
+      return;
+    }
+    if (clean.some((r) => r.phone.replace(/\D/g, '').length < 10)) {
+      setError('Verifica que ambos teléfonos tengan 10 dígitos.');
+      return;
+    }
+
     setError('');
-    if (!ref1.name.trim() || !ref1.phone.trim()) {
-      setError('Completa los datos del primer referido.');
-      return;
-    }
-    if (!ref2.name.trim() || !ref2.phone.trim()) {
-      setError('Completa los datos del segundo referido.');
-      return;
-    }
-    addReferral({ name: ref1.name.trim(), phone: ref1.phone.trim() });
-    addReferral({ name: ref2.name.trim(), phone: ref2.phone.trim() });
+    clean.forEach(addReferral);
   };
 
   return (
-    <div className="relative">
-      {/* Blurred preview */}
-      <div className="blur-sm opacity-30 pointer-events-none select-none"
-        aria-hidden="true">{children}</div>
-
-      {/* Gate overlay */}
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 sm:p-8 max-w-lg w-full">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-50 rounded-full mb-4">
-              <Lock className="text-blue-600" size={28} />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 leading-tight">
-              Desbloquea tu Plan de Optimización 360
-            </h3>
-            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-              Ingresa el contacto de 2 amigos o familiares a quienes
-              les pueda servir este diagnóstico gratuito.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Referido 1 */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <UserPlus size={14} /><span>Referido 1</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input type="text" placeholder="Nombre Completo"
-                  value={ref1.name} onChange={(e) => setRef1((r) => ({ ...r, name: e.target.value }))}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                <input type="tel" placeholder="WhatsApp"
-                  value={ref1.phone} onChange={(e) => setRef1((r) => ({ ...r, phone: e.target.value }))}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-              </div>
-            </div>
-            {/* Referido 2 */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <UserPlus size={14} /><span>Referido 2</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input type="text" placeholder="Nombre Completo"
-                  value={ref2.name} onChange={(e) => setRef2((r) => ({ ...r, name: e.target.value }))}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                <input type="tel" placeholder="WhatsApp"
-                  value={ref2.phone} onChange={(e) => setRef2((r) => ({ ...r, phone: e.target.value }))}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-              </div>
-            </div>
-
-            {error && <p className="text-red-500 text-xs text-center">{error}</p>}
-
-            <button type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-colors">
-              <Unlock size={18} /> Desbloquear mi Diagnóstico 360
-            </button>
-          </form>
-        </div>
+    <Card className="border-blue-200 bg-gradient-to-b from-blue-50/60 to-white">
+      <div className="mx-auto max-w-md text-center">
+        <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-blue-100">
+          <Lock size={22} className="text-blue-600" />
+        </span>
+        <h3 className="text-base font-bold leading-snug text-slate-900">
+          {title || 'Desbloquea tu Plan de Optimización 360'}
+        </h3>
+        <p className="mx-auto mt-2 text-xs leading-relaxed text-slate-500">
+          {description || 'Para liberar tu estrategia completa de optimización, comparte el contacto de 2 personas a quienes también les pueda servir este diagnóstico gratuito.'}
+        </p>
       </div>
-    </div>
+
+
+      <form onSubmit={submit} className="mx-auto mt-5 max-w-md space-y-4">
+        {rows.map((row, i) => (
+          <fieldset key={i} className="rounded-lg bg-white p-3 ring-1 ring-slate-200">
+            <legend className="flex items-center gap-1.5 px-1 text-[11px] font-semibold text-slate-500">
+              <UserPlus size={12} /> Contacto {i + 1}
+            </legend>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <Field label="Nombre completo">
+                <TextInput
+                  value={row.name}
+                  onChange={(v) => patch(i, 'name', v)}
+                  placeholder="Ana López"
+                />
+              </Field>
+              <Field label="WhatsApp">
+                <TextInput
+                  value={row.phone}
+                  onChange={(v) => patch(i, 'phone', v)}
+                  placeholder="55 1234 5678"
+                  inputMode="tel"
+                />
+              </Field>
+            </div>
+          </fieldset>
+        ))}
+
+        {error && (
+          <p role="alert" className="text-center text-[11px] font-medium text-red-600">{error}</p>
+        )}
+
+        <Button type="submit" icon={Unlock} full size="lg">
+          Desbloquear mi Diagnóstico 360
+        </Button>
+
+        <button
+          type="button"
+          onClick={unlockDirectly}
+          className="mx-auto block text-[11px] text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline"
+        >
+          Prefiero verlo sin compartir contactos
+        </button>
+      </form>
+    </Card>
   );
 }

@@ -1,200 +1,208 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import {
+  createContext, useContext, useReducer, useMemo, useEffect, useCallback,
+} from 'react';
+import { runDiagnosis, NEUTRAL_SCENARIO } from '../engine/finance';
+import { createEmptyState } from '../data/defaults';
+import { createDemoState } from '../data/demoData';
 
-// ─── Estado inicial por defecto ─────────────────────────────────────────────
+const STORAGE_KEY = 'df360:state:v1';
 
-const defaultState = {
-  profile: {
-    name: 'Marco García',
-    age: 30,
-    retirementAge: 65,
-    desiredRetirementIncome: 35000,
-    hasMedicalInsurance: false,
-    hasLifeInsurance: false,
-  },
-  incomes: [
-    {
-      id: '1',
-      name: 'Ingreso Principal',
-      amount: 45000,
-      type: 'stable',
-      frequency: 'monthly',
-    },
-  ],
-  expenses: [
-    {
-      id: '1',
-      name: 'Vivienda y Alimentación',
-      amount: 22000,
-      category: 'essential',
-      frequency: 'monthly',
-    },
-  ],
-  debts: [
-    {
-      id: '1',
-      name: 'Tarjeta / Crédito',
-      balance: 35000,
-      monthlyPayment: 3500,
-    },
-  ],
-  savings: {
-    emergencyFund: 20000,
-    retirementFund: 40000,
-  },
-};
+// ─── Estado raíz ────────────────────────────────────────────────────────────
 
-// ─── Datos demo: familia mexicana realista ──────────────────────────────────
+function createInitialState() {
+  return {
+    data: createEmptyState(),
+    scenario: { ...NEUTRAL_SCENARIO },
+    activeMode: 'current',
+    isDemo: false,
+  };
+}
 
-const demoData = {
-  profile: {
-    name: 'Familia Ramírez López',
-    age: 38,
-    retirementAge: 65,
-    desiredRetirementIncome: 45000,
-    hasMedicalInsurance: false, // Sin GMM privado
-    hasLifeInsurance: false,
-  },
-  incomes: [
-    {
-      id: '1',
-      name: 'Sueldo titular',
-      amount: 38000,
-      type: 'stable',
-      frequency: 'monthly',
-    },
-    {
-      id: '2',
-      name: 'Sueldo cónyuge',
-      amount: 17000,
-      type: 'stable',
-      frequency: 'monthly',
-    },
-  ],
-  expenses: [
-    {
-      id: '1',
-      name: 'Hipoteca',
-      amount: 14500,
-      category: 'essential',
-      frequency: 'monthly',
-    },
-    {
-      id: '2',
-      name: 'Colegiaturas (2 hijos)',
-      amount: 9000,
-      category: 'essential',
-      frequency: 'monthly',
-    },
-    {
-      id: '3',
-      name: 'Alimentación y hogar',
-      amount: 8500,
-      category: 'essential',
-      frequency: 'monthly',
-    },
-    {
-      id: '4',
-      name: 'Transporte y gasolina',
-      amount: 4000,
-      category: 'essential',
-      frequency: 'monthly',
-    },
-    {
-      id: '5',
-      name: 'Servicios (luz, agua, internet)',
-      amount: 2800,
-      category: 'essential',
-      frequency: 'monthly',
-    },
-    {
-      id: '6',
-      name: 'Entretenimiento y salidas',
-      amount: 3500,
-      category: 'discretionary',
-      frequency: 'monthly',
-    },
-  ],
-  debts: [
-    {
-      id: '1',
-      name: 'Crédito hipotecario',
-      balance: 1800000,
-      monthlyPayment: 14500,
-    },
-    {
-      id: '2',
-      name: 'Tarjeta de crédito',
-      balance: 42000,
-      monthlyPayment: 4200,
-    },
-    {
-      id: '3',
-      name: 'Crédito automotriz',
-      balance: 180000,
-      monthlyPayment: 5800,
-    },
-  ],
-  savings: {
-    emergencyFund: 35000, // Apenas ~0.8 meses de gastos esenciales
-    retirementFund: 85000, // Brecha significativa en PPR
-  },
-};
+/** Carga desde localStorage, tolerante a datos corruptos o de versión previa. */
+function loadPersisted() {
+  const fresh = createInitialState();
+  if (typeof window === 'undefined') return fresh;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return fresh;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return fresh;
+    return {
+      // Merge defensivo: cualquier campo nuevo del esquema conserva su default.
+      data: { ...fresh.data, ...(parsed.data || {}) },
+      scenario: { ...NEUTRAL_SCENARIO, ...(parsed.scenario || {}) },
+      activeMode: parsed.activeMode || 'current',
+      isDemo: !!parsed.isDemo,
+    };
+  } catch {
+    return fresh;
+  }
+}
 
-// ─── Context ────────────────────────────────────────────────────────────────
+
+// ─── Reducer ────────────────────────────────────────────────────────────────
+
+/** Actualiza un campo de un objeto anidado dentro de `data`. */
+function patchSection(state, section, patch) {
+  return {
+    ...state,
+    data: { ...state.data, [section]: { ...state.data[section], ...patch } },
+  };
+}
+
+/** Operaciones sobre colecciones (incomes, expenses, debts, assets, goals). */
+function collectionAdd(state, key, item) {
+  return { ...state, data: { ...state.data, [key]: [...state.data[key], item] } };
+}
+function collectionUpdate(state, key, id, patch) {
+  return {
+    ...state,
+    data: {
+      ...state.data,
+      [key]: state.data[key].map((row) => (row.id === id ? { ...row, ...patch } : row)),
+    },
+  };
+}
+function collectionRemove(state, key, id) {
+  return {
+    ...state,
+    data: { ...state.data, [key]: state.data[key].filter((row) => row.id !== id) },
+  };
+}
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'PATCH_SECTION':
+      return patchSection(state, action.section, action.patch);
+
+    case 'SET_FIELD':
+      return { ...state, data: { ...state.data, [action.field]: action.value } };
+
+    case 'ADD':
+      return collectionAdd(state, action.key, action.item);
+    case 'UPDATE':
+      return collectionUpdate(state, action.key, action.id, action.patch);
+    case 'REMOVE':
+      return collectionRemove(state, action.key, action.id);
+
+    case 'SET_SCENARIO':
+      return { ...state, scenario: { ...state.scenario, ...action.patch } };
+    case 'RESET_SCENARIO':
+      return { ...state, scenario: { ...NEUTRAL_SCENARIO } };
+    case 'SET_MODE':
+      return { ...state, activeMode: action.mode };
+
+    case 'LOAD_DEMO':
+      return { data: createDemoState(), scenario: { ...NEUTRAL_SCENARIO }, activeMode: 'current', isDemo: true };
+    case 'RESET':
+      return createInitialState();
+    case 'IMPORT':
+      return {
+        data: { ...createEmptyState(), ...action.data },
+        scenario: { ...NEUTRAL_SCENARIO },
+        activeMode: 'current',
+        isDemo: false,
+      };
+
+    default:
+      return state;
+  }
+}
+
+
+// ─── Contexto ───────────────────────────────────────────────────────────────
 
 const FinanceContext = createContext(undefined);
 
 export function FinanceProvider({ children }) {
-  const [profile, setProfile] = useState(defaultState.profile);
-  const [incomes, setIncomes] = useState(defaultState.incomes);
-  const [expenses, setExpenses] = useState(defaultState.expenses);
-  const [debts, setDebts] = useState(defaultState.debts);
-  const [savings, setSavings] = useState(defaultState.savings);
+  const [state, dispatch] = useReducer(reducer, undefined, loadPersisted);
 
-  // Carga los datos de demostración
-  const loadDemoData = useCallback(() => {
-    setProfile(demoData.profile);
-    setIncomes(demoData.incomes);
-    setExpenses(demoData.expenses);
-    setDebts(demoData.debts);
-    setSavings(demoData.savings);
-  }, []);
+  // Persistencia local. Silenciosa si el navegador la bloquea.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch { /* modo privado o cuota excedida: se ignora */ }
+  }, [state]);
 
-  // Resetea al estado por defecto
-  const resetData = useCallback(() => {
-    setProfile(defaultState.profile);
-    setIncomes(defaultState.incomes);
-    setExpenses(defaultState.expenses);
-    setDebts(defaultState.debts);
-    setSavings(defaultState.savings);
-  }, []);
+  /**
+   * MOTOR DE RECÁLCULO EN TIEMPO REAL.
+   * Cualquier cambio en `data`, `scenario` o `activeMode` recalcula
+   * la matriz completa. Es la única vía por la que la UI obtiene cifras.
+   */
+  const diagnosis = useMemo(
+    () => runDiagnosis(state.data, state.scenario, state.activeMode),
+    [state.data, state.scenario, state.activeMode]
+  );
 
-  const value = {
-    profile,
-    setProfile,
-    incomes,
-    setIncomes,
-    expenses,
-    setExpenses,
-    debts,
-    setDebts,
-    savings,
-    setSavings,
+  // ── Acciones ─────────────────────────────────────────────────────────────
+  const patchSectionAction = useCallback(
+    (section, patch) => dispatch({ type: 'PATCH_SECTION', section, patch }), []);
+  const setField = useCallback(
+    (field, value) => dispatch({ type: 'SET_FIELD', field, value }), []);
+
+  const add = useCallback((key, item) => dispatch({ type: 'ADD', key, item }), []);
+  const update = useCallback(
+    (key, id, patch) => dispatch({ type: 'UPDATE', key, id, patch }), []);
+  const remove = useCallback((key, id) => dispatch({ type: 'REMOVE', key, id }), []);
+
+  const setScenario = useCallback(
+    (patch) => dispatch({ type: 'SET_SCENARIO', patch }), []);
+  const resetScenario = useCallback(() => dispatch({ type: 'RESET_SCENARIO' }), []);
+  const setMode = useCallback((mode) => dispatch({ type: 'SET_MODE', mode }), []);
+
+  const loadDemoData = useCallback(() => dispatch({ type: 'LOAD_DEMO' }), []);
+  const resetAll = useCallback(() => dispatch({ type: 'RESET' }), []);
+  const importState = useCallback((data) => dispatch({ type: 'IMPORT', data }), []);
+
+
+  const value = useMemo(() => ({
+    // Datos crudos
+    data: state.data,
+    profile: state.data.profile,
+    incomes: state.data.incomes,
+    taxes: state.data.taxes,
+    expenses: state.data.expenses,
+    debts: state.data.debts,
+    assets: state.data.assets,
+    goals: state.data.goals,
+    retirement: state.data.retirement,
+
+    // Vista
+    scenario: state.scenario,
+    activeMode: state.activeMode,
+    isDemo: state.isDemo,
+
+    // Resultado del motor (siempre fresco)
+    diagnosis,
+    matrix: diagnosis.matrix,
+    scenarios: diagnosis.scenarios,
+    findings: diagnosis.findings,
+    recommendations: diagnosis.recommendations,
+
+    // Acciones
+    patchSection: patchSectionAction,
+    setField,
+    add,
+    update,
+    remove,
+    setScenario,
+    resetScenario,
+    setMode,
     loadDemoData,
-    resetData,
-  };
+    resetAll,
+    importState,
+  }), [state, diagnosis, patchSectionAction, setField, add, update, remove,
+    setScenario, resetScenario, setMode, loadDemoData, resetAll, importState]);
 
   return (
-    <FinanceContext.Provider value={value}>
-      {children}
-    </FinanceContext.Provider>
+    <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>
   );
 }
 
 export function useFinance() {
-  const context = useContext(FinanceContext);
-  if (context === undefined) {
+  const ctx = useContext(FinanceContext);
+  if (ctx === undefined) {
     throw new Error('useFinance debe usarse dentro de un FinanceProvider');
   }
-  return context;
+  return ctx;
 }

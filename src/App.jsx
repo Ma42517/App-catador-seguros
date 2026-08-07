@@ -1,56 +1,104 @@
 import { useState } from 'react';
-import { ClipboardList, BarChart3, PlayCircle } from 'lucide-react';
+import {
+  PlayCircle, RotateCcw, Download, FileJson, FileSpreadsheet, X,
+} from 'lucide-react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
 import StepWizard from './components/Wizard/StepWizard';
-import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
+import { Button } from './components/ui';
+import { exportJSON, exportCSV } from './data/exporters';
 
-function AppContent() {
-  const [tab, setTab] = useState('wizard');
-  const { loadDemoData } = useFinance();
+function Header() {
+  const { loadDemoData, resetAll, data, diagnosis, isDemo } = useFinance();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-sm font-bold tracking-tight text-slate-900 sm:text-base">
             DIAGNÓSTICO FINANCIERO 360
           </h1>
-          <button
-            onClick={() => { loadDemoData(); setTab('dashboard'); }}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200"
-          >
-            <PlayCircle size={16} />
-            <span className="hidden sm:inline">Cargar Ejemplo (Demo)</span>
-            <span className="sm:hidden">Demo</span>
-          </button>
+          {isDemo && (
+            <p className="text-[10px] font-medium text-emerald-600">Datos de ejemplo cargados</p>
+          )}
         </div>
-      </header>
 
-      {/* Tabs */}
-      <div className="max-w-5xl mx-auto px-4 pt-4">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
-          <button onClick={() => setTab('wizard')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              tab === 'wizard' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}>
-            <ClipboardList size={16} /> Formulario
-          </button>
-          <button onClick={() => setTab('dashboard')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              tab === 'dashboard' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}>
-            <BarChart3 size={16} /> Dashboard
-          </button>
+        <Button
+          size="sm"
+          variant="outline"
+          icon={PlayCircle}
+          onClick={loadDemoData}
+          className="shrink-0"
+        >
+          <span className="hidden sm:inline">Cargar ejemplo</span>
+          <span className="sm:hidden">Demo</span>
+        </Button>
+
+        <div className="relative shrink-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={menuOpen ? X : Download}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <span className="hidden sm:inline">Exportar</span>
+          </Button>
+
+
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+              <button
+                type="button"
+                onClick={() => { exportCSV(data, diagnosis); setMenuOpen(false); }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+              >
+                <FileSpreadsheet size={14} className="text-slate-400" />
+                Exportar diagnóstico (CSV)
+              </button>
+              <button
+                type="button"
+                onClick={() => { exportJSON(data); setMenuOpen(false); }}
+                className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+              >
+                <FileJson size={14} className="text-slate-400" />
+                Respaldar mis datos (JSON)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Esto borrará toda tu información capturada. ¿Continuar?')) {
+                    resetAll();
+                    setMenuOpen(false);
+                  }
+                }}
+                className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-left text-xs text-red-600 hover:bg-red-50"
+              >
+                <RotateCcw size={14} />
+                Empezar de cero
+              </button>
+            </div>
+          )}
         </div>
       </div>
+    </header>
+  );
+}
 
-      {/* Content */}
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        {tab === 'wizard' && <StepWizard onComplete={() => setTab('dashboard')} />}
-        {tab === 'dashboard' && <ExecutiveDashboard />}
+function Shell() {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Header />
+      <main className="mx-auto max-w-5xl px-4 py-5">
+        <StepWizard />
       </main>
+      <footer className="mx-auto max-w-5xl px-4 pb-8 pt-2">
+        <p className="text-center text-[10px] leading-relaxed text-slate-400">
+          Herramienta de diagnóstico y simulación. Los resultados son estimaciones basadas en los
+          supuestos que capturas y no constituyen asesoría financiera, fiscal ni de inversión.
+          Tu información se guarda únicamente en este navegador.
+        </p>
+      </footer>
     </div>
   );
 }
@@ -59,7 +107,7 @@ export default function App() {
   return (
     <FinanceProvider>
       <ReferralProvider>
-        <AppContent />
+        <Shell />
       </ReferralProvider>
     </FinanceProvider>
   );
