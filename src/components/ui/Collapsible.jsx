@@ -7,28 +7,32 @@ export default function Collapsible({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="surface overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50"
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-700/30"
       >
-        {Icon && <Icon size={16} className="shrink-0 text-slate-400" />}
+        {Icon && (
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-slate-700/60 bg-slate-900/60 text-indigo-400">
+            <Icon size={15} />
+          </span>
+        )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-slate-800">{title}</span>
+          <span className="block truncate text-sm font-semibold text-slate-100">{title}</span>
           {subtitle && (
-            <span className="block truncate text-[11px] text-slate-400">{subtitle}</span>
+            <span className="mt-0.5 block truncate text-[11px] text-slate-500">{subtitle}</span>
           )}
         </span>
         {badge}
         <ChevronDown
           size={16}
-          className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`shrink-0 text-slate-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
       {open && (
-        <div className="border-t border-slate-100 p-4">{children}</div>
+        <div className="animate-rise border-t border-slate-700/50 p-4">{children}</div>
       )}
     </div>
   );

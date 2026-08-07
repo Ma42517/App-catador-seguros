@@ -8,13 +8,13 @@ import { IconButton } from '../ui';
  */
 export default function RowShell({ title, derived, onRemove, children }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-      <div className="mb-2.5 flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+    <div className="surface-sunken p-3 transition-colors hover:border-slate-600/60">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-widest text-slate-400">
           {title}
         </span>
         {derived && (
-          <span className="shrink-0 rounded-md bg-white px-2 py-0.5 text-[11px] font-medium tabular-nums text-slate-600 ring-1 ring-slate-200">
+          <span className="shrink-0 rounded-lg bg-indigo-500/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-indigo-300 ring-1 ring-indigo-500/25">
             {derived}
           </span>
         )}

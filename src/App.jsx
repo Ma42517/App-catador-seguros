@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  PlayCircle, RotateCcw, Download, FileJson, FileSpreadsheet, X,
+  PlayCircle, RotateCcw, Download, FileJson, FileSpreadsheet, X, Gauge,
 } from 'lucide-react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
@@ -13,14 +13,29 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
+    <header className="sticky top-0 z-30 border-b border-slate-700/50 bg-slate-950/85 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
+        {/* Marca */}
+        <span
+          className="mr-1 hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30 sm:grid"
+          aria-hidden="true"
+        >
+          <Gauge size={17} className="text-white" />
+        </span>
+
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-bold tracking-tight text-slate-900 sm:text-base">
-            DIAGNÓSTICO FINANCIERO 360
+          <h1 className="truncate text-[13px] font-extrabold uppercase tracking-[0.14em] text-slate-50 sm:text-sm">
+            Diagnóstico Financiero <span className="text-indigo-400">360</span>
           </h1>
-          {isDemo && (
-            <p className="text-[10px] font-medium text-emerald-600">Datos de ejemplo cargados</p>
+          {isDemo ? (
+            <p className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgb(16_185_129/0.9)]" />
+              Datos de ejemplo cargados
+            </p>
+          ) : (
+            <p className="hidden text-[10px] text-slate-500 sm:block">
+              Sistema de inteligencia financiera personal
+            </p>
           )}
         </div>
 
@@ -47,21 +62,21 @@ function Header() {
 
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+            <div className="animate-rise absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-xl border border-slate-700/60 bg-slate-900/95 shadow-2xl shadow-slate-950/70 backdrop-blur-xl">
               <button
                 type="button"
                 onClick={() => { exportCSV(data, diagnosis); setMenuOpen(false); }}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-slate-300 hover:bg-slate-900/50"
               >
-                <FileSpreadsheet size={14} className="text-slate-400" />
+                <FileSpreadsheet size={14} className="text-slate-500" />
                 Exportar diagnóstico (CSV)
               </button>
               <button
                 type="button"
                 onClick={() => { exportJSON(data); setMenuOpen(false); }}
-                className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+                className="flex w-full items-center gap-2 border-t border-slate-700/50 px-3 py-2.5 text-left text-xs text-slate-300 hover:bg-slate-900/50"
               >
-                <FileJson size={14} className="text-slate-400" />
+                <FileJson size={14} className="text-slate-500" />
                 Respaldar mis datos (JSON)
               </button>
               <button
@@ -72,7 +87,7 @@ function Header() {
                     setMenuOpen(false);
                   }
                 }}
-                className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2.5 text-left text-xs text-red-600 hover:bg-red-50"
+                className="flex w-full items-center gap-2 border-t border-slate-700/50 px-3 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/10"
               >
                 <RotateCcw size={14} />
                 Empezar de cero
@@ -87,18 +102,28 @@ function Header() {
 
 function Shell() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header />
-      <main className="mx-auto max-w-5xl px-4 py-5">
-        <StepWizard />
-      </main>
-      <footer className="mx-auto max-w-5xl px-4 pb-8 pt-2">
-        <p className="text-center text-[10px] leading-relaxed text-slate-400">
-          Herramienta de diagnóstico y simulación. Los resultados son estimaciones basadas en los
-          supuestos que capturas y no constituyen asesoría financiera, fiscal ni de inversión.
-          Tu información se guarda únicamente en este navegador.
-        </p>
-      </footer>
+    <div className="relative min-h-screen bg-slate-950">
+      {/* Iluminación ambiental fija del fondo */}
+      <div
+        className="pointer-events-none fixed inset-x-0 top-0 h-[420px] bg-grid-fade"
+        aria-hidden="true"
+      />
+
+      <div className="relative">
+        <Header />
+        <main className="mx-auto max-w-5xl px-4 py-6">
+          <StepWizard />
+        </main>
+        <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4">
+          <div className="border-t border-slate-800 pt-5">
+            <p className="text-center text-[10px] leading-relaxed text-slate-600">
+              Herramienta de diagnóstico y simulación. Los resultados son estimaciones basadas en los
+              supuestos que capturas y no constituyen asesoría financiera, fiscal ni de inversión.
+              Tu información se guarda únicamente en este navegador.
+            </p>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

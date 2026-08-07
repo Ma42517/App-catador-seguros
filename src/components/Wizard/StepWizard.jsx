@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight, Check, UserRound, Wallet, ShoppingCart,
+  CreditCard, PiggyBank, Target, Gauge, SlidersHorizontal,
+} from 'lucide-react';
 import { Button } from '../ui';
 import LiveTotals from './LiveTotals';
 import ProfileStep from './ProfileStep';
@@ -12,14 +15,14 @@ import ExecutiveDashboard from '../Dashboard/ExecutiveDashboard';
 import OptimizationPanel from '../Dashboard/OptimizationPanel';
 
 export const STEPS = [
-  { key: 'profile', label: 'Perfil', short: 'Perfil', Component: ProfileStep },
-  { key: 'income', label: 'Ingresos', short: 'Ingr.', Component: IncomeStep },
-  { key: 'expenses', label: 'Gastos', short: 'Gastos', Component: ExpenseStep },
-  { key: 'debt', label: 'Deudas', short: 'Deuda', Component: DebtStep },
-  { key: 'assets', label: 'Activos', short: 'Activos', Component: AssetStep },
-  { key: 'goals', label: 'Metas', short: 'Metas', Component: GoalStep },
-  { key: 'diagnosis', label: 'Diagnóstico', short: 'Diag.', Component: ExecutiveDashboard },
-  { key: 'optimization', label: 'Optimización', short: 'Optim.', Component: OptimizationPanel },
+  { key: 'profile', label: 'Perfil', short: 'Perfil', Icon: UserRound, Component: ProfileStep },
+  { key: 'income', label: 'Ingresos', short: 'Ingr.', Icon: Wallet, Component: IncomeStep },
+  { key: 'expenses', label: 'Gastos', short: 'Gastos', Icon: ShoppingCart, Component: ExpenseStep },
+  { key: 'debt', label: 'Deudas', short: 'Deuda', Icon: CreditCard, Component: DebtStep },
+  { key: 'assets', label: 'Activos', short: 'Activos', Icon: PiggyBank, Component: AssetStep },
+  { key: 'goals', label: 'Metas', short: 'Metas', Icon: Target, Component: GoalStep },
+  { key: 'diagnosis', label: 'Diagnóstico', short: 'Diag.', Icon: Gauge, Component: ExecutiveDashboard },
+  { key: 'optimization', label: 'Optimización', short: 'Optim.', Icon: SlidersHorizontal, Component: OptimizationPanel },
 ];
 
 /** Lee el paso inicial del hash de la URL, para que sea enlazable y sobreviva recargas. */
@@ -58,28 +61,49 @@ export default function StepWizard() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      {/* Navegación por pasos: scrolleable en móvil */}
-      <nav aria-label="Pasos del diagnóstico" className="mb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
-        <ol className="flex items-center gap-1 overflow-x-auto pb-1">
+      {/* Stepper: cápsulas con icono y línea de conexión en degradado */}
+      <nav aria-label="Pasos del diagnóstico" className="relative mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
+        {/* Riel de fondo */}
+        <div
+          className="absolute left-4 right-4 top-1/2 h-px -translate-y-1/2 bg-slate-700/50 sm:left-0 sm:right-0"
+          aria-hidden="true"
+        />
+        {/* Progreso recorrido, con degradado índigo -> violeta */}
+        <div
+          className="absolute left-4 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500 sm:left-0"
+          style={{ width: `calc((100% - 2rem) * ${step / (STEPS.length - 1)})` }}
+          aria-hidden="true"
+        />
+
+        <ol className="relative flex items-center justify-between gap-1 overflow-x-auto pb-0.5">
           {STEPS.map((s, i) => {
             const done = i < step;
             const active = i === step;
+            const { Icon } = s;
             return (
-              <li key={s.key} className="flex shrink-0 items-center">
+              <li key={s.key} className="shrink-0">
                 <button
                   type="button"
                   onClick={() => go(i)}
                   aria-current={active ? 'step' : undefined}
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                    active ? 'bg-blue-600 text-white'
-                      : done ? 'text-blue-600 hover:bg-blue-50'
-                      : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                  className={`group flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-[11px] font-semibold transition-all duration-200 sm:px-2.5 ${
+                    active
+                      ? 'border-indigo-400/60 bg-indigo-500 text-white shadow-lg shadow-indigo-500/40'
+                      : done
+                        ? 'border-indigo-500/40 bg-slate-800 text-indigo-300 hover:border-indigo-400/70 hover:bg-slate-700/60'
+                        : 'border-slate-700/60 bg-slate-900 text-slate-500 hover:border-slate-600 hover:text-slate-300'
                   }`}
                 >
-                  <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full text-[10px] ${
-                    active ? 'bg-white/20' : done ? 'bg-blue-100' : 'bg-slate-200'
-                  }`}>
-                    {done ? <Check size={10} /> : i + 1}
+                  <span
+                    className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-bold transition-colors ${
+                      active
+                        ? 'bg-white/25 text-white'
+                        : done
+                          ? 'bg-indigo-500/20 text-indigo-300'
+                          : 'bg-slate-800 text-slate-500'
+                    }`}
+                  >
+                    {done ? <Check size={11} strokeWidth={3} /> : <Icon size={11} />}
                   </span>
                   <span className="hidden sm:inline">{s.label}</span>
                   <span className="sm:hidden">{s.short}</span>
@@ -92,14 +116,16 @@ export default function StepWizard() {
 
       {isInputStep && <LiveTotals />}
 
-      <Current />
+      <div key={current.key} className="animate-rise">
+        <Current />
+      </div>
 
       {/* Navegación inferior */}
-      <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-200 pt-4">
+      <div className="mt-8 flex items-center justify-between gap-3 border-t border-slate-700/50 pt-5">
         <Button variant="secondary" icon={ChevronLeft} onClick={() => go(step - 1)} disabled={isFirst}>
           Anterior
         </Button>
-        <span className="text-[11px] text-slate-400">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
           Paso {step + 1} de {STEPS.length}
         </span>
         <Button iconRight={ChevronRight} onClick={() => go(step + 1)} disabled={isLast}>

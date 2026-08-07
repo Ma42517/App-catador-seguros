@@ -120,8 +120,10 @@ export default function AssetStep() {
             />
           </Field>
           <Field label="Lo que tu flujo permite" hint="Calculado por el motor, no editable">
-            <div className={`flex h-[38px] items-center rounded-lg px-3 text-sm font-semibold tabular-nums ${
-              a.computedMonthlySavings < 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
+            <div className={`flex h-[42px] items-center rounded-xl border border-dashed px-3 text-sm font-bold tabular-nums ${
+              a.computedMonthlySavings < 0
+                ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
             }`}>
               {fmtMXN(a.computedMonthlySavings)}
             </div>
@@ -129,9 +131,9 @@ export default function AssetStep() {
         </RowGrid>
 
         {a.hasSavingsInconsistency && (
-          <div className="mt-3 rounded-lg bg-amber-50 p-3 ring-1 ring-amber-200">
-            <p className="text-xs font-semibold text-amber-900">Inconsistencia financiera detectada</p>
-            <p className="mt-1 text-[11px] leading-relaxed text-amber-800">
+          <div className="mt-3 rounded-lg bg-amber-500/10 p-3 ring-1 ring-amber-500/25">
+            <p className="text-xs font-semibold text-amber-200">Inconsistencia financiera detectada</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-amber-200">
               Hay una diferencia de {fmtMXN(Math.abs(a.savingsGap))} al mes entre tu ahorro declarado
               y tu flujo real. Revisa si falta registrar algún gasto o si ese ahorro proviene de
               ingresos extraordinarios que no forman parte de tu flujo sostenible.
@@ -139,14 +141,14 @@ export default function AssetStep() {
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs">
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-700/50 pt-3 text-xs">
           <div>
-            <p className="text-slate-500">Tasa de ahorro</p>
-            <p className="font-semibold tabular-nums text-slate-900">{fmtPct(a.savingsRate)}</p>
+            <p className="text-slate-400">Tasa de ahorro</p>
+            <p className="font-semibold tabular-nums text-slate-100">{fmtPct(a.savingsRate)}</p>
           </div>
           <div>
-            <p className="text-slate-500">Tasa de inversión</p>
-            <p className="font-semibold tabular-nums text-slate-900">{fmtPct(a.investmentRate)}</p>
+            <p className="text-slate-400">Tasa de inversión</p>
+            <p className="font-semibold tabular-nums text-slate-100">{fmtPct(a.investmentRate)}</p>
           </div>
         </div>
       </Card>
@@ -163,7 +165,7 @@ export default function AssetStep() {
               right={fmtMXN(a.emergencyFund)}
               height={8}
             />
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-[11px] text-slate-400">
               Tu gasto esencial es de {fmtMXN(matrix.expenses.essentialMonthly)} al mes. Para cubrir
               6 meses necesitas {fmtMXN(matrix.expenses.essentialMonthly * 6)}.
             </p>
@@ -191,18 +193,18 @@ export default function AssetStep() {
               centerLabel="patrimonio"
             />
 
-            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center text-xs">
+            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-700/50 pt-3 text-center text-xs">
               <div>
-                <p className="text-slate-500">Activos</p>
-                <p className="font-semibold tabular-nums text-slate-900">{fmtMXN(nw.totalAssets)}</p>
+                <p className="text-slate-400">Activos</p>
+                <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(nw.totalAssets)}</p>
               </div>
               <div>
-                <p className="text-slate-500">Pasivos</p>
-                <p className="font-semibold tabular-nums text-red-600">{fmtMXN(nw.totalLiabilities)}</p>
+                <p className="text-slate-400">Pasivos</p>
+                <p className="font-semibold tabular-nums text-red-400">{fmtMXN(nw.totalLiabilities)}</p>
               </div>
               <div>
-                <p className="text-slate-500">Neto</p>
-                <p className={`font-semibold tabular-nums ${nw.isNegative ? 'text-red-600' : 'text-emerald-600'}`}>
+                <p className="text-slate-400">Neto</p>
+                <p className={`font-semibold tabular-nums ${nw.isNegative ? 'text-red-400' : 'text-emerald-400'}`}>
                   {fmtMXN(nw.netWorth)}
                 </p>
               </div>

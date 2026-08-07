@@ -1,4 +1,4 @@
-import { Plus, ShoppingCart } from 'lucide-react';
+import { Plus, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { createExpense } from '../../data/defaults';
 import {
@@ -70,10 +70,13 @@ export default function ExpenseStep() {
         description="Clasifica cada gasto por destino y por prioridad. La prioridad define qué puede recortarse cuando optimicemos tu plan."
       />
 
-      <div className="rounded-lg bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900 ring-1 ring-amber-200">
-        <span className="font-semibold">Importante:</span> no registres aquí los pagos de créditos
-        (hipoteca, auto, tarjetas). Esos van en el paso de Deudas. Registrarlos en ambos lados
-        duplicaría el monto y distorsionaría todo tu diagnóstico.
+      <div className="flex items-start gap-2.5 rounded-xl bg-amber-500/10 p-3 ring-1 ring-amber-500/25">
+        <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-400" />
+        <p className="text-[11px] leading-relaxed text-amber-200">
+          <span className="font-semibold">Importante:</span> no registres aquí los pagos de créditos
+          (hipoteca, auto, tarjetas). Esos van en el paso de Deudas. Registrarlos en ambos lados
+          duplicaría el monto y distorsionaría todo tu diagnóstico.
+        </p>
       </div>
 
       <Card>
@@ -135,31 +138,31 @@ export default function ExpenseStep() {
             centerLabel="al mes"
           />
 
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs">
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-700/50 pt-3 text-xs">
             <div>
-              <p className="text-slate-500">Margen comprimible</p>
-              <p className="font-semibold tabular-nums text-slate-900">{fmtMXN(exp.compressibleMonthly)}</p>
-              <p className="text-[10px] text-slate-400">Discrecional + lujo</p>
+              <p className="text-slate-400">Margen comprimible</p>
+              <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(exp.compressibleMonthly)}</p>
+              <p className="text-[10px] text-slate-500">Discrecional + lujo</p>
             </div>
             <div>
-              <p className="text-slate-500">Piso de vida</p>
-              <p className="font-semibold tabular-nums text-slate-900">{fmtMXN(exp.essentialMonthly)}</p>
-              <p className="text-[10px] text-slate-400">Base del fondo de emergencia</p>
+              <p className="text-slate-400">Piso de vida</p>
+              <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(exp.essentialMonthly)}</p>
+              <p className="text-[10px] text-slate-500">Base del fondo de emergencia</p>
             </div>
           </div>
 
           {exp.topCategories.length > 0 && (
-            <div className="mt-4 border-t border-slate-100 pt-3">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <div className="mt-4 border-t border-slate-700/50 pt-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Top 5 categorías
               </p>
               <ul className="space-y-1.5">
                 {exp.topCategories.map((c) => (
                   <li key={c.value} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600">{c.label}</span>
-                    <span className="tabular-nums text-slate-900">
+                    <span className="text-slate-400">{c.label}</span>
+                    <span className="tabular-nums text-slate-100">
                       {fmtMXN(c.amount)}
-                      <span className="ml-2 text-slate-400">{Math.round(c.share * 100)}%</span>
+                      <span className="ml-2 text-slate-500">{Math.round(c.share * 100)}%</span>
                     </span>
                   </li>
                 ))}

@@ -1,8 +1,8 @@
-import { UserRound, Percent } from 'lucide-react';
+import { UserRound, Percent, ShieldCheck } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, NumberInput,
-  Select, SegmentedControl, PercentInput,
+  Select, SegmentedControl, PercentInput, Checkbox,
 } from '../ui';
 import { RowGrid } from './RowShell';
 
@@ -122,6 +122,29 @@ export default function ProfileStep() {
       </Card>
 
       <Card>
+        <CardTitle
+          icon={ShieldCheck}
+          help="El gasto en seguros no permite distinguir un gasto médico mayor de un seguro de auto, por eso se pregunta de forma explícita."
+        >
+          Coberturas actuales
+        </CardTitle>
+        <div className="space-y-3">
+          <Checkbox
+            checked={profile.hasMedicalInsurance}
+            onChange={(v) => set({ hasMedicalInsurance: v })}
+            label="Cuento con Gastos Médicos Mayores (GMM)"
+            help="Sin GMM, una hospitalización se paga con patrimonio o con deuda."
+          />
+          <Checkbox
+            checked={profile.hasLifeInsurance}
+            onChange={(v) => set({ hasLifeInsurance: v })}
+            label="Cuento con seguro de vida"
+            help="Protege el ingreso de tus dependientes si tú faltas."
+          />
+        </div>
+      </Card>
+
+      <Card>
         <CardTitle icon={UserRound}>Horizonte de retiro</CardTitle>
         <RowGrid cols={2}>
           <Field label="Edad deseada de retiro">
@@ -144,11 +167,11 @@ export default function ProfileStep() {
             />
           </Field>
         </RowGrid>
-        <p className="mt-3 text-[11px] text-slate-400">
-          Te quedan <span className="font-semibold text-slate-600">
+        <p className="mt-3 text-[11px] text-slate-500">
+          Te quedan <span className="font-semibold text-slate-400">
             {Math.max(0, profile.retirementAge - profile.age)} años
           </span> de acumulación y necesitarás cubrir{' '}
-          <span className="font-semibold text-slate-600">
+          <span className="font-semibold text-slate-400">
             {Math.max(0, data.retirement.lifeExpectancy - profile.retirementAge)} años
           </span> de retiro.
         </p>

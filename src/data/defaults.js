@@ -28,6 +28,10 @@ export function createEmptyState() {
       inputFrequency: 'monthly',
       incomeType: 'net',
       retirementAge: 65,
+      // Coberturas declaradas. El gasto en seguros no permite distinguir
+      // un GMM de un seguro de auto, así que se preguntan de forma explícita.
+      hasMedicalInsurance: false,
+      hasLifeInsurance: false,
     },
     /** Factor de uso del ingreso variable. Configurable. */
     variabilityFactor: 0.7,

@@ -2,9 +2,18 @@ import { ShieldCheck, XCircle, AlertTriangle, Info } from 'lucide-react';
 import { Card, CardTitle } from '../ui';
 
 const SEVERITY = {
-  error: { Icon: XCircle, box: 'bg-red-50 ring-red-200', title: 'text-red-900', body: 'text-red-800', icon: 'text-red-600' },
-  warning: { Icon: AlertTriangle, box: 'bg-amber-50 ring-amber-200', title: 'text-amber-900', body: 'text-amber-800', icon: 'text-amber-600' },
-  info: { Icon: Info, box: 'bg-blue-50 ring-blue-200', title: 'text-blue-900', body: 'text-blue-800', icon: 'text-blue-600' },
+  error: {
+    Icon: XCircle, box: 'bg-red-500/10 ring-red-500/25',
+    title: 'text-red-200', body: 'text-red-300/80', icon: 'text-red-400',
+  },
+  warning: {
+    Icon: AlertTriangle, box: 'bg-amber-500/10 ring-amber-500/25',
+    title: 'text-amber-200', body: 'text-amber-300/80', icon: 'text-amber-400',
+  },
+  info: {
+    Icon: Info, box: 'bg-indigo-500/10 ring-indigo-500/25',
+    title: 'text-indigo-200', body: 'text-indigo-300/80', icon: 'text-indigo-400',
+  },
 };
 
 /**
@@ -24,9 +33,9 @@ export default function FindingsPanel({ findings = [] }) {
       </CardTitle>
 
       {findings.length === 0 ? (
-        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-200">
-          <ShieldCheck size={16} className="shrink-0 text-emerald-600" />
-          <p className="text-xs text-emerald-800">
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3 ring-1 ring-emerald-500/25">
+          <ShieldCheck size={16} className="shrink-0 text-emerald-400" />
+          <p className="text-xs text-emerald-200">
             Sin contradicciones detectadas. Tu modelo financiero es internamente consistente.
           </p>
         </div>
@@ -49,7 +58,7 @@ export default function FindingsPanel({ findings = [] }) {
       )}
 
       {errors > 0 && (
-        <p className="mt-3 text-[11px] text-red-700">
+        <p className="mt-3 text-[11px] text-red-300">
           {errors} {errors === 1 ? 'error estructural requiere' : 'errores estructurales requieren'} corrección
           antes de confiar en el diagnóstico.
         </p>

@@ -125,23 +125,23 @@ export default function IncomeStep() {
         )}
 
         {incomes.length > 0 && (
-          <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-xs">
+          <div className="surface-sunken mt-4 space-y-2 p-3 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-500">Ingreso bruto recurrente</span>
-              <span className="tabular-nums font-medium text-slate-800">{fmtMXN(inc.grossMonthly)}</span>
+              <span className="text-slate-400">Ingreso bruto recurrente</span>
+              <span className="tabular-nums font-medium text-slate-200">{fmtMXN(inc.grossMonthly)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Ingreso sostenible</span>
-              <span className="tabular-nums font-semibold text-emerald-700">{fmtMXN(inc.sustainableMonthly)}</span>
+              <span className="text-slate-400">Ingreso sostenible</span>
+              <span className="tabular-nums font-semibold text-emerald-300">{fmtMXN(inc.sustainableMonthly)}</span>
             </div>
             {inc.extraordinaryAnnual > 0 && (
               <div className="flex justify-between">
-                <span className="text-slate-500">Extraordinario anual (excluido)</span>
-                <span className="tabular-nums font-medium text-slate-500">{fmtMXN(inc.extraordinaryAnnual)}</span>
+                <span className="text-slate-400">Extraordinario anual (excluido)</span>
+                <span className="tabular-nums font-medium text-slate-400">{fmtMXN(inc.extraordinaryAnnual)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-              <span className="text-slate-500">Concentración de ingreso</span>
+            <div className="flex items-center justify-between border-t border-slate-700/50 pt-2">
+              <span className="text-slate-400">Concentración de ingreso</span>
               <Badge status={inc.concentrationRisk === 'high' ? 'red'
                 : inc.concentrationRisk === 'medium' ? 'yellow' : 'green'}>
                 {fmtPct(inc.concentrationRatio)}{inc.topSourceName ? ` · ${inc.topSourceName}` : ''}
@@ -164,7 +164,7 @@ export default function IncomeStep() {
           </Badge>
         }
       >
-        <p className="mb-4 rounded-lg bg-blue-50 p-3 text-[11px] leading-relaxed text-blue-800">
+        <p className="mb-4 rounded-xl bg-indigo-500/10 p-3 text-[11px] leading-relaxed text-indigo-200 ring-1 ring-indigo-500/25">
           {data.profile.incomeType === 'net'
             ? 'Como tu ingreso se captura NETO, estos montos sólo sirven para estimar tu tasa efectiva. El motor no los resta otra vez: así se evita la doble deducción.'
             : 'Como tu ingreso se captura BRUTO, estos montos se descuentan de tu flujo disponible una sola vez.'}
@@ -195,15 +195,15 @@ export default function IncomeStep() {
             <MoneyInput value={taxes.refunds} onChange={(v) => patchSection('taxes', { refunds: v })} />
           </Field>
           <Field label="Saldo fiscal anual estimado" hint="Positivo = a cargo · Negativo = a favor">
-            <div className="flex h-[38px] items-center rounded-lg bg-slate-100 px-3 text-sm font-medium tabular-nums text-slate-700">
+            <div className="flex h-[42px] items-center rounded-xl border border-dashed border-slate-700 bg-slate-900/40 px-3 text-sm font-semibold tabular-nums text-slate-300">
               {fmtMXN(matrix.taxes.balanceAnnual)}
             </div>
           </Field>
         </RowGrid>
       </Collapsible>
 
-      <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
-        <TrendingUp size={13} className="shrink-0 text-slate-400" />
+      <div className="surface-sunken flex items-center gap-2 px-3 py-2.5 text-[11px] text-slate-400">
+        <TrendingUp size={13} className="shrink-0 text-slate-500" />
         Exposición a ingreso no garantizado: {fmtPct(inc.variableExposure)} de tu ingreso bruto.
       </div>
     </div>

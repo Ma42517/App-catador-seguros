@@ -9,20 +9,25 @@ import { fmtMXN, safeDiv } from '../../engine/finance';
  * @param {number} reference - Valor de referencia (p.ej. ingreso sostenible).
  */
 export default function StackedBar({ segments = [], reference, referenceLabel = 'Ingreso' }) {
-  const total = segments.reduce((s, x) => s + Math.max(0, x.value), 0);
+  const visible = segments.filter((s) => s.value > 0);
+  const total = visible.reduce((s, x) => s + x.value, 0);
   // La escala considera ambos para que el marcador siempre quede visible.
   const scale = Math.max(total, reference ?? 0) || 1;
   const refPct = safeDiv(reference, scale) * 100;
 
   return (
     <div>
-      <div className="relative">
-        <div className="flex h-7 w-full overflow-hidden rounded-lg bg-slate-100">
-          {segments.filter((s) => s.value > 0).map((s) => (
+      <div className="relative pt-5">
+        <div className="flex h-8 w-full overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900/60">
+          {visible.map((s) => (
             <div
               key={s.label}
-              className="h-full transition-all duration-300"
-              style={{ width: `${safeDiv(s.value, scale) * 100}%`, backgroundColor: s.color }}
+              className="h-full transition-all duration-500"
+              style={{
+                width: `${safeDiv(s.value, scale) * 100}%`,
+                backgroundColor: s.color,
+                boxShadow: `inset 0 0 12px ${s.color}66`,
+              }}
               title={`${s.label}: ${fmtMXN(s.value)}`}
             />
           ))}
@@ -30,26 +35,29 @@ export default function StackedBar({ segments = [], reference, referenceLabel = 
 
         {reference > 0 && (
           <div
-            className="absolute -top-1 bottom-[-4px] w-0.5 bg-slate-900"
-            style={{ left: `${Math.min(100, refPct)}%` }}
+            className="absolute top-3 bottom-[-5px] w-0.5 bg-slate-100"
+            style={{
+              left: `${Math.min(100, refPct)}%`,
+              boxShadow: '0 0 8px rgb(248 250 252 / 0.9)',
+            }}
           >
-            <span className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-semibold text-slate-900">
+            <span className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-900">
               {referenceLabel}
             </span>
           </div>
         )}
       </div>
 
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
-        {segments.filter((s) => s.value > 0).map((s) => (
+      <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+        {visible.map((s) => (
           <li key={s.label} className="flex items-center gap-1.5 text-[11px]">
             <span
-              className="h-2 w-2 shrink-0 rounded-sm"
-              style={{ backgroundColor: s.color }}
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: s.color, boxShadow: `0 0 6px ${s.color}99` }}
               aria-hidden="true"
             />
-            <span className="text-slate-500">{s.label}</span>
-            <span className="tabular-nums font-medium text-slate-800">{fmtMXN(s.value)}</span>
+            <span className="text-slate-400">{s.label}</span>
+            <span className="font-semibold tabular-nums text-slate-100">{fmtMXN(s.value)}</span>
           </li>
         ))}
       </ul>

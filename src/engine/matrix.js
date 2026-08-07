@@ -246,6 +246,31 @@ export function buildMatrix(state, options = {}) {
     .reduce((s, v) => s + (v === 'green' ? 2 : v === 'yellow' ? 1 : 0), 0);
   const healthScore = Math.round(safeDiv(lightScore, Object.keys(lights).length * 2) * 100);
 
+  // ── 13. COBERTURA DE RIESGO ───────────────────────────────────────────────
+  /**
+   * Señal derivada, no un dato capturado: si el hogar no destina nada a
+   * seguros, una eventualidad médica se paga con patrimonio o con deuda.
+   * Se deriva de la categoría de gasto para no duplicar información.
+   * No participa en `lights` ni en `healthScore`.
+   */
+  const insuranceMonthly = num(expenses.byCategory?.insurance);
+  const healthMonthly = num(expenses.byCategory?.health);
+  const hasMedicalCoverage = !!profile.hasMedicalInsurance;
+  const hasLifeCoverage = !!profile.hasLifeInsurance;
+
+  const protection = {
+    insuranceMonthly,
+    healthMonthly,
+    hasMedicalCoverage,
+    hasLifeCoverage,
+    medicalRisk: !hasMedicalCoverage,
+    lifeRisk: !hasLifeCoverage && num(profile.dependents) > 0,
+    /** Meses de gasto esencial que cubriría la liquidez ante un evento médico. */
+    liquidityRunwayMonths: assets.emergencyMonths,
+    /** Patrimonio expuesto si el evento se paga de bolsillo. */
+    exposedNetWorth: netWorth.netWorth,
+  };
+
 
   return {
     mode,
@@ -284,6 +309,7 @@ export function buildMatrix(state, options = {}) {
     // ── Diagnóstico ────────────────────────────────────────────────────────
     lights,
     healthScore,
+    protection,
   };
 }
 

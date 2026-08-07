@@ -17,14 +17,17 @@ export default function Tooltip({ text, children }) {
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onBlur={() => setOpen(false)}
-        className="text-slate-400 transition-colors hover:text-slate-600"
+        className="text-slate-500 transition-colors hover:text-indigo-400"
       >
         {children || <HelpCircle size={13} />}
       </button>
       {open && (
         <span
           role="tooltip"
-          className="absolute bottom-full left-1/2 z-50 mb-1.5 w-56 -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-normal leading-relaxed text-white shadow-xl"
+          className="animate-rise absolute bottom-full left-1/2 z-50 mb-2 w-60 -translate-x-1/2
+                     rounded-xl border border-slate-700 bg-slate-900/95 px-3 py-2.5 text-[11px]
+                     font-normal normal-case leading-relaxed tracking-normal text-slate-300
+                     shadow-2xl shadow-slate-950/80 backdrop-blur"
         >
           {text}
         </span>

@@ -25,6 +25,9 @@ export function createDemoState() {
       inputFrequency: 'monthly',
       incomeType: 'net',
       retirementAge: 65,
+      // La familia sólo tiene seguro de auto: sin GMM y sin seguro de vida.
+      hasMedicalInsurance: false,
+      hasLifeInsurance: false,
     },
     variabilityFactor: 0.7,
 

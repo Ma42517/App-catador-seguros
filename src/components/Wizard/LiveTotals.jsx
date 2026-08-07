@@ -1,38 +1,150 @@
+import { Wallet, TrendingDown, CreditCard, DollarSign, Activity } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
-import { fmtMXN } from '../../engine/finance';
+import { Badge } from '../ui';
+import { fmtMXN, fmtPct, clamp } from '../../engine/finance';
+
+/** Tarjeta compacta de métrica con resplandor de acento. */
+function MetricCard({ label, value, icon: Icon, accent, badge, note }) {
+  return (
+    <div
+      className="glow surface relative overflow-hidden p-3"
+      style={{ '--glow-from': accent.glow }}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="truncate text-[9px] font-bold uppercase tracking-widest text-slate-500">
+          {label}
+        </span>
+        <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg border ${accent.icon}`}>
+          <Icon size={12} />
+        </span>
+      </div>
+      <p className={`truncate text-base font-bold leading-none tabular-nums ${accent.text}`}>
+        {value}
+      </p>
+      <div className="mt-1.5 flex items-center gap-1.5">
+        {badge}
+        {note && <span className="truncate text-[10px] text-slate-500">{note}</span>}
+      </div>
+    </div>
+  );
+}
+
+const ACCENTS = {
+  indigo: {
+    text: 'text-slate-50', glow: 'rgb(99 102 241 / 0.5)',
+    icon: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+  },
+  amber: {
+    text: 'text-slate-50', glow: 'rgb(245 158 11 / 0.5)',
+    icon: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  },
+  red: {
+    text: 'text-slate-50', glow: 'rgb(239 68 68 / 0.5)',
+    icon: 'bg-red-500/10 text-red-400 border-red-500/30',
+  },
+  emerald: {
+    text: 'text-emerald-400', glow: 'rgb(16 185 129 / 0.55)',
+    icon: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  },
+  negative: {
+    text: 'text-red-400', glow: 'rgb(239 68 68 / 0.6)',
+    icon: 'bg-red-500/10 text-red-400 border-red-500/30',
+  },
+};
+
+
+/** Medidor de salud financiera 0-100 con barra brillante. */
+function HealthMeter({ score }) {
+  const pct = clamp(score / 100, 0, 1) * 100;
+  const tone = score >= 70
+    ? { bar: 'from-emerald-500 to-emerald-400', text: 'text-emerald-400', glow: 'rgb(16 185 129 / 0.7)' }
+    : score >= 40
+      ? { bar: 'from-amber-500 to-amber-400', text: 'text-amber-400', glow: 'rgb(245 158 11 / 0.7)' }
+      : { bar: 'from-red-500 to-red-400', text: 'text-red-400', glow: 'rgb(239 68 68 / 0.7)' };
+
+  return (
+    <div className="surface p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">
+          <Activity size={11} className="text-slate-500" />
+          Salud financiera
+        </span>
+        <span className="text-[10px] font-medium tabular-nums text-slate-500">
+          <span className={`text-sm font-bold ${tone.text}`}>{score}</span> / 100
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700/40">
+        <div
+          className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ${tone.bar}`}
+          style={{ width: `${Math.max(2, pct)}%`, boxShadow: `0 0 12px ${tone.glow}` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 /**
- * Cinta de totales en vivo. Existe para hacer visible el recálculo en
+ * Banda de métricas en vivo. Existe para hacer visible el recálculo en
  * tiempo real: cualquier tecla en cualquier campo mueve estos números.
  */
 export default function LiveTotals() {
-  const { matrix } = useFinance();
-
-  const items = [
-    { label: 'Ingreso sostenible', value: matrix.INCOME_SUSTAINABLE, tone: 'text-slate-900' },
-    { label: 'Gastos', value: matrix.EXPENSES_TOTAL, tone: 'text-slate-900' },
-    { label: 'Deuda', value: matrix.DEBT_SERVICE, tone: 'text-slate-900' },
-    {
-      label: 'Flujo libre',
-      value: matrix.NET_CASHFLOW,
-      tone: matrix.NET_CASHFLOW < 0 ? 'text-red-600' : 'text-emerald-600',
-    },
-  ];
+  const { matrix: m } = useFinance();
+  const deficit = m.NET_CASHFLOW < 0;
 
   return (
-    <div className="sticky top-[57px] z-20 -mx-4 mb-5 border-b border-slate-200 bg-white/95 px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:px-4">
-      <div className="flex items-center gap-3 overflow-x-auto">
-        {items.map((i) => (
-          <div key={i.label} className="min-w-0 shrink-0 pr-3 last:pr-0">
-            <p className="whitespace-nowrap text-[10px] uppercase tracking-wide text-slate-400">
-              {i.label}
-            </p>
-            <p className={`whitespace-nowrap text-sm font-bold tabular-nums ${i.tone}`}>
-              {fmtMXN(i.value)}
-            </p>
-          </div>
-        ))}
+    <div className="mb-6 space-y-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <MetricCard
+          label="Ingreso sostenible"
+          value={fmtMXN(m.INCOME_SUSTAINABLE)}
+          icon={Wallet}
+          accent={ACCENTS.indigo}
+          note="al mes"
+        />
+        <MetricCard
+          label="Gastos"
+          value={fmtMXN(m.EXPENSES_TOTAL)}
+          icon={TrendingDown}
+          accent={ACCENTS.amber}
+          badge={
+            m.INCOME_SUSTAINABLE > 0 && (
+              <Badge
+                status={m.expenses.expenseToIncomeRatio > 0.75 ? 'red'
+                  : m.expenses.expenseToIncomeRatio > 0.5 ? 'yellow' : 'green'}
+                showIcon={false}
+              >
+                {fmtPct(m.expenses.expenseToIncomeRatio)}
+              </Badge>
+            )
+          }
+        />
+        <MetricCard
+          label="Deuda"
+          value={fmtMXN(m.DEBT_SERVICE)}
+          icon={CreditCard}
+          accent={ACCENTS.red}
+          badge={
+            m.INCOME_SUSTAINABLE > 0 && (
+              <Badge status={m.lights.debt} showIcon={false}>
+                {fmtPct(m.debts.debtToIncomeRatio)}
+              </Badge>
+            )
+          }
+        />
+        <MetricCard
+          label="Flujo libre"
+          value={fmtMXN(m.NET_CASHFLOW)}
+          icon={DollarSign}
+          accent={deficit ? ACCENTS.negative : ACCENTS.emerald}
+          badge={
+            <Badge status={deficit ? 'red' : m.savingsRate < 0.1 ? 'yellow' : 'green'} showIcon={false}>
+              {deficit ? 'Déficit' : fmtPct(m.savingsRate)}
+            </Badge>
+          }
+        />
       </div>
+
+      <HealthMeter score={m.healthScore} />
     </div>
   );
 }

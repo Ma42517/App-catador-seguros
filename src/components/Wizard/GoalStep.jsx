@@ -121,25 +121,25 @@ export default function GoalStep() {
         )}
 
         {goals.length > 0 && (
-          <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-xs">
+          <div className="surface-sunken mt-4 space-y-2 p-3 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-500">Aportación total requerida</span>
-              <span className="tabular-nums font-semibold text-slate-900">{fmtMXN(g.totalMonthlyRequired)}</span>
+              <span className="text-slate-400">Aportación total requerida</span>
+              <span className="tabular-nums font-semibold text-slate-100">{fmtMXN(g.totalMonthlyRequired)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Excedente disponible</span>
-              <span className="tabular-nums font-medium text-slate-800">
+              <span className="text-slate-400">Excedente disponible</span>
+              <span className="tabular-nums font-medium text-slate-200">
                 {fmtMXN(Math.max(0, matrix.NET_CASHFLOW - matrix.assets.monthlyContributions))}
               </span>
             </div>
             {g.unfundedMonthly > 0 && (
-              <div className="flex justify-between border-t border-slate-200 pt-2">
-                <span className="text-slate-500">Faltante mensual</span>
-                <span className="tabular-nums font-semibold text-red-600">{fmtMXN(g.unfundedMonthly)}</span>
+              <div className="flex justify-between border-t border-slate-700/50 pt-2">
+                <span className="text-slate-400">Faltante mensual</span>
+                <span className="tabular-nums font-semibold text-red-400">{fmtMXN(g.unfundedMonthly)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-              <span className="text-slate-500">Viabilidad del conjunto</span>
+            <div className="flex items-center justify-between border-t border-slate-700/50 pt-2">
+              <span className="text-slate-400">Viabilidad del conjunto</span>
               <Badge status={g.overallFeasibility >= 0.999 ? 'green' : g.overallFeasibility >= 0.6 ? 'yellow' : 'red'}>
                 {g.feasibilityScore}/100
               </Badge>
@@ -192,7 +192,7 @@ export default function GoalStep() {
           </Field>
         </RowGrid>
 
-        <div className="mt-4 rounded-lg bg-blue-50 p-3 text-[11px] leading-relaxed text-blue-800">
+        <div className="mt-4 rounded-xl bg-indigo-500/10 p-3 text-[11px] leading-relaxed text-indigo-200 ring-1 ring-indigo-500/25">
           Tu capital de retiro y tu aportación mensual se toman automáticamente de los activos
           que marcaste como <span className="font-semibold">cuenta de retiro</span> en el paso anterior
           ({fmtMXN(r.currentSavings)} acumulados, {fmtMXN(r.monthlyContribution)} al mes).
@@ -202,27 +202,27 @@ export default function GoalStep() {
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
           <div>
-            <p className="text-slate-500">Capital necesario</p>
-            <p className="font-semibold tabular-nums text-slate-900">{fmtMXN(r.requiredCapital)}</p>
+            <p className="text-slate-400">Capital necesario</p>
+            <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(r.requiredCapital)}</p>
           </div>
           <div>
-            <p className="text-slate-500">Proyectado</p>
-            <p className="font-semibold tabular-nums text-slate-900">{fmtMXN(r.projectedCapital)}</p>
+            <p className="text-slate-400">Proyectado</p>
+            <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(r.projectedCapital)}</p>
           </div>
           <div>
-            <p className="text-slate-500">Brecha</p>
-            <p className={`font-semibold tabular-nums ${r.gap > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+            <p className="text-slate-400">Brecha</p>
+            <p className={`font-semibold tabular-nums ${r.gap > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
               {fmtMXN(r.gap)}
             </p>
           </div>
           <div>
-            <p className="text-slate-500">Aportación faltante</p>
-            <p className="font-semibold tabular-nums text-slate-900">{fmtMXN(r.additionalMonthlyNeeded)}/mes</p>
+            <p className="text-slate-400">Aportación faltante</p>
+            <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(r.additionalMonthlyNeeded)}/mes</p>
           </div>
         </div>
 
-        <div className="mt-4 border-t border-slate-100 pt-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <div className="mt-4 border-t border-slate-700/50 pt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             Trayectoria del capital (pesos de hoy)
           </p>
           <LineChart
@@ -233,11 +233,11 @@ export default function GoalStep() {
           />
         </div>
 
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
           Con tu trayectoria actual tu pensión sería de{' '}
-          <span className="font-semibold text-slate-700">{fmtMXN(r.sustainableIncomeAtRetirement)}</span> al mes
+          <span className="font-semibold text-slate-300">{fmtMXN(r.sustainableIncomeAtRetirement)}</span> al mes
           durante {r.yearsInRetirement} años, contra los{' '}
-          <span className="font-semibold text-slate-700">{fmtMXN(r.desiredMonthlyIncome)}</span> que deseas.
+          <span className="font-semibold text-slate-300">{fmtMXN(r.desiredMonthlyIncome)}</span> que deseas.
           Tasa real de acumulación: {fmtPct(r.preRealRate)}.
         </p>
       </Card>

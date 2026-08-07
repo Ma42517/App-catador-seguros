@@ -29,12 +29,13 @@ export default function DonutChart({
     });
 
   return (
-    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+    <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
       <div className="relative shrink-0" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+        <svg width={size} height={size} className="-rotate-90 overflow-visible">
+          {/* Riel de fondo */}
           <circle
             cx={center} cy={center} r={radius}
-            fill="none" stroke="rgb(241 245 249)" strokeWidth={thickness}
+            fill="none" stroke="rgb(51 65 85 / 0.55)" strokeWidth={thickness}
           />
           {segments.map((s) => (
             <circle
@@ -46,6 +47,7 @@ export default function DonutChart({
               strokeDasharray={s.dash}
               strokeLinecap="butt"
               transform={`rotate(${s.rotation} ${center} ${center})`}
+              style={{ filter: `drop-shadow(0 0 5px ${s.color}55)` }}
             />
           ))}
         </svg>
@@ -54,12 +56,12 @@ export default function DonutChart({
         <div className="absolute inset-0 grid place-items-center text-center">
           <div>
             {centerValue && (
-              <p className="text-base font-bold tabular-nums leading-none text-slate-900">
+              <p className="text-base font-bold leading-none tabular-nums text-slate-50">
                 {centerValue}
               </p>
             )}
             {centerLabel && (
-              <p className="mt-1 text-[10px] uppercase tracking-wide text-slate-400">
+              <p className="mt-1 text-[10px] uppercase tracking-widest text-slate-500">
                 {centerLabel}
               </p>
             )}
@@ -67,22 +69,22 @@ export default function DonutChart({
         </div>
       </div>
 
-      <ul className="w-full min-w-0 space-y-1.5">
+      <ul className="w-full min-w-0 space-y-2">
         {segments.length === 0 && (
-          <li className="text-xs text-slate-400">Sin datos para mostrar.</li>
+          <li className="text-xs text-slate-500">Sin datos para mostrar.</li>
         )}
         {segments.map((s) => (
-          <li key={s.label} className="flex items-center gap-2 text-xs">
+          <li key={s.label} className="flex items-center gap-2.5 text-xs">
             <span
-              className="h-2.5 w-2.5 shrink-0 rounded-sm"
-              style={{ backgroundColor: s.color }}
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: s.color, boxShadow: `0 0 7px ${s.color}99` }}
               aria-hidden="true"
             />
-            <span className="min-w-0 flex-1 truncate text-slate-600">{s.label}</span>
-            <span className="shrink-0 tabular-nums font-medium text-slate-900">
+            <span className="min-w-0 flex-1 truncate text-slate-400">{s.label}</span>
+            <span className="shrink-0 font-semibold tabular-nums text-slate-100">
               {fmtMXN(s.value)}
             </span>
-            <span className="w-9 shrink-0 text-right tabular-nums text-slate-400">
+            <span className="w-9 shrink-0 text-right tabular-nums text-slate-500">
               {Math.round(s.share * 100)}%
             </span>
           </li>

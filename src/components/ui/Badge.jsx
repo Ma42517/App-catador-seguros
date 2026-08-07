@@ -1,36 +1,56 @@
 import { CheckCircle2, AlertTriangle, ShieldAlert, Info } from 'lucide-react';
 
 const LIGHT_STYLES = {
-  green: { chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500', Icon: CheckCircle2 },
-  yellow: { chip: 'bg-amber-50 text-amber-700 ring-amber-200', dot: 'bg-amber-500', Icon: AlertTriangle },
-  red: { chip: 'bg-red-50 text-red-700 ring-red-200', dot: 'bg-red-500', Icon: ShieldAlert },
-  neutral: { chip: 'bg-slate-100 text-slate-600 ring-slate-200', dot: 'bg-slate-400', Icon: Info },
+  green: {
+    chip: 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30',
+    dot: 'bg-emerald-400', glow: 'shadow-[0_0_8px_rgb(16_185_129/0.7)]',
+    Icon: CheckCircle2,
+  },
+  yellow: {
+    chip: 'bg-amber-500/10 text-amber-300 ring-amber-500/30',
+    dot: 'bg-amber-400', glow: 'shadow-[0_0_8px_rgb(245_158_11/0.7)]',
+    Icon: AlertTriangle,
+  },
+  red: {
+    chip: 'bg-red-500/10 text-red-300 ring-red-500/30',
+    dot: 'bg-red-400', glow: 'shadow-[0_0_8px_rgb(239_68_68/0.7)]',
+    Icon: ShieldAlert,
+  },
+  neutral: {
+    chip: 'bg-slate-700/40 text-slate-300 ring-slate-600/50',
+    dot: 'bg-slate-400', glow: '',
+    Icon: Info,
+  },
 };
 
 export function Badge({ status = 'neutral', children, showIcon = true, className = '' }) {
   const s = LIGHT_STYLES[status] ?? LIGHT_STYLES.neutral;
   const { Icon } = s;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${s.chip} ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]
+        font-semibold uppercase tracking-wide ring-1 ${s.chip} ${className}`}
+    >
       {showIcon && <Icon size={11} className="shrink-0" />}
       {children}
     </span>
   );
 }
 
-/**
- * Fila del semáforo financiero: métrica, valor y veredicto.
- */
+/** Fila del semáforo financiero: métrica, valor y veredicto. */
 export function TrafficLightRow({ status = 'neutral', label, value, verdict, help }) {
   const s = LIGHT_STYLES[status] ?? LIGHT_STYLES.neutral;
   return (
-    <div className="flex items-center gap-3 border-b border-slate-100 py-2.5 last:border-0">
-      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.dot}`} aria-hidden="true" />
+    <div className="flex items-center gap-3 border-b border-slate-700/40 py-3 last:border-0">
+      <span
+        className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.dot} ${s.glow}`}
+        aria-hidden="true"
+      />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-slate-700">{label}</p>
-        {verdict && <p className="truncate text-[11px] text-slate-400">{verdict}</p>}
+        <p className="truncate text-xs font-semibold text-slate-200">{label}</p>
+        {verdict && <p className="mt-0.5 truncate text-[11px] text-slate-500">{verdict}</p>}
       </div>
-      <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">{value}</span>
+      <span className="shrink-0 text-sm font-bold tabular-nums text-slate-100">{value}</span>
       {help}
     </div>
   );

@@ -10,6 +10,7 @@ import {
 import { DonutChart, BarList, LineChart, StackedBar, ProgressBar } from '../charts';
 import FindingsPanel from './FindingsPanel';
 import Recommendations from './Recommendations';
+import RiskBanners from './RiskBanners';
 import {
   SCENARIO_MODES, EXPENSE_PRIORITIES, fmtMXN, fmtPct, safeDiv,
 } from '../../engine/finance';
@@ -24,7 +25,7 @@ function monthsLabel(months) {
 
 /** Puntaje global de salud con anillo. */
 function HealthScore({ score }) {
-  const tone = score >= 70 ? 'text-emerald-600' : score >= 40 ? 'text-amber-600' : 'text-red-600';
+  const tone = score >= 70 ? 'text-emerald-400' : score >= 40 ? 'text-amber-600' : 'text-red-400';
   const stroke = score >= 70 ? 'rgb(5 150 105)' : score >= 40 ? 'rgb(217 119 6)' : 'rgb(220 38 38)';
   const r = 30;
   const c = 2 * Math.PI * r;
@@ -44,8 +45,8 @@ function HealthScore({ score }) {
         </div>
       </div>
       <div>
-        <p className="text-xs font-semibold text-slate-800">Salud financiera global</p>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
+        <p className="text-xs font-semibold text-slate-200">Salud financiera global</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">
           Puntaje compuesto de flujo, deuda, liquidez, metas y retiro.
         </p>
       </div>
@@ -112,14 +113,15 @@ export default function ExecutiveDashboard() {
         description="Todas las cifras provienen de una sola matriz financiera. Cambia de escenario para ver cómo se reconfigura tu economía completa."
       />
 
-      {/* Selector de escenario */}
+      {/* Selector de escenario: puede desplazarse en pantallas estrechas */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SegmentedControl
-          value={activeMode}
-          onChange={setMode}
-          options={SCENARIO_MODES}
-          className="w-full sm:w-auto"
-        />
+        <div className="-mx-4 max-w-full overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 sm:pb-0">
+          <SegmentedControl
+            value={activeMode}
+            onChange={setMode}
+            options={SCENARIO_MODES}
+          />
+        </div>
         {activeMode === 'aspirational' && (
           <Badge status="yellow">Incluye la aportación al retiro que aún no haces</Badge>
         )}
@@ -127,6 +129,9 @@ export default function ExecutiveDashboard() {
           <Badge status="green">Con las palancas del paso de Optimización</Badge>
         )}
       </div>
+
+      {/* Riesgos que pueden destruir el patrimonio: van antes que cualquier cifra */}
+      <RiskBanners matrix={m} />
 
       {/* Matriz central */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -200,7 +205,7 @@ export default function ExecutiveDashboard() {
           referenceLabel="Tu ingreso"
         />
         <p className={`mt-4 rounded-lg p-3 text-[11px] leading-relaxed ${
-          m.INCOME_GAP > 0 ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-800'
+          m.INCOME_GAP > 0 ? 'bg-red-500/10 text-red-200' : 'bg-emerald-500/10 text-emerald-200'
         }`}>
           {m.INCOME_GAP > 0
             ? `Tu vida objetivo cuesta ${fmtMXN(m.REQUIRED_INCOME)} al mes y tu ingreso sostenible es de ${fmtMXN(m.INCOME_SUSTAINABLE)}. Faltan ${fmtMXN(m.INCOME_GAP)} mensuales, o ${fmtMXN(m.INCOME_GAP * 12)} al año.`
@@ -212,7 +217,7 @@ export default function ExecutiveDashboard() {
       {/* Semáforo */}
       <Card>
         <CardTitle icon={Gauge}>Semáforo financiero</CardTitle>
-        <div className="mb-4 border-b border-slate-100 pb-4">
+        <div className="mb-4 border-b border-slate-700/50 pb-4">
           <HealthScore score={m.healthScore} />
         </div>
         <div>
@@ -263,7 +268,7 @@ export default function ExecutiveDashboard() {
             emptyText="Sin deuda registrada."
           />
           {m.debts.totalBalance > 0 && (
-            <p className="mt-3 border-t border-slate-100 pt-2.5 text-[11px] text-slate-500">
+            <p className="mt-3 border-t border-slate-700/50 pt-2.5 text-[11px] text-slate-400">
               Saldo total {fmtMXN(m.debts.totalBalance)} · Intereses anuales {fmtMXN(m.debts.annualInterest)}
             </p>
           )}
@@ -285,7 +290,7 @@ export default function ExecutiveDashboard() {
             xLabel="Años a partir de hoy"
             color="rgb(16 185 129)"
           />
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
             Simulación con tu flujo libre actual de {fmtMXN(Math.max(0, m.NET_CASHFLOW))} al mes a una
             tasa real de {fmtPct(m.retirement.preRealRate)}. No es una promesa de rendimiento.
           </p>
@@ -306,17 +311,17 @@ export default function ExecutiveDashboard() {
           />
           <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
             <div>
-              <p className="text-slate-500">Brecha</p>
-              <p className="font-semibold tabular-nums text-red-600">{fmtMXN(m.retirement.gap)}</p>
+              <p className="text-slate-400">Brecha</p>
+              <p className="font-semibold tabular-nums text-red-400">{fmtMXN(m.retirement.gap)}</p>
             </div>
             <div>
-              <p className="text-slate-500">Aportación faltante</p>
-              <p className="font-semibold tabular-nums text-slate-900">
+              <p className="text-slate-400">Aportación faltante</p>
+              <p className="font-semibold tabular-nums text-slate-100">
                 {fmtMXN(m.retirement.additionalMonthlyNeeded)}/mes
               </p>
             </div>
           </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
             Te quedan {m.retirement.yearsToRetirement} años de acumulación para financiar{' '}
             {m.retirement.yearsInRetirement} años de retiro.
           </p>
