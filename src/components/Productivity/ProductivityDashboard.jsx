@@ -6,6 +6,7 @@ import ProspectaHero from './ProspectaHero';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
 import WorkplaceBoard from '../Workplace/WorkplaceBoard';
 import GoalsView from '../Goals/GoalsView';
+import TimeBlocks from '../Production/TimeBlocks';
 
 /**
  * Tarjetas de la cuadrícula. Los subtítulos son deliberadamente cortos: en
@@ -73,8 +74,16 @@ export default function ProductivityDashboard({ username }) {
       {/* Banner de ancho completo: acceso a las tres etapas de prospección */}
       <ProspectaHero onClick={() => setProspectaOpen(true)} />
 
-      {/* Workplace a ancho completo, con su tamaño original */}
+      {/*
+        Bloques de tiempo justo bajo el banner: es la herramienta con la que se
+        arranca el día, así que va antes de los destinos de navegación.
+      */}
       <div className="mt-5">
+        <TimeBlocks username={username} />
+      </div>
+
+      {/* Workplace a ancho completo, con su tamaño original */}
+      <div className="mt-4">
         <WideCard
           title={WORKPLACE.title}
           subtitle={WORKPLACE.subtitle}
