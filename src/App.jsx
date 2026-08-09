@@ -12,6 +12,8 @@ import { exportJSON, exportCSV } from './data/exporters';
 
 /** Clave de sessionStorage para saber si el intro ya se mostró en esta pestaña/sesión. */
 const INTRO_KEY = 'hasSeenIntro';
+/** Duración mínima garantizada del splash en la primera visita de la sesión. */
+const FIRST_VISIT_SPLASH_MS = 3200;
 
 /**
  * Conmutador tipo pill entre las dos grandes fases de la app: captura
@@ -215,7 +217,7 @@ export default function App() {
   // tipo Facebook/Instagram, solo para evitar un "flash" de layout vacío.
   useEffect(() => {
     const isFirstVisit = !sessionStorage.getItem(INTRO_KEY);
-    const delay = isFirstVisit ? 3000 : 300 + Math.random() * 200;
+    const delay = isFirstVisit ? FIRST_VISIT_SPLASH_MS : 300 + Math.random() * 200;
 
     const timer = setTimeout(() => {
       if (isFirstVisit) sessionStorage.setItem(INTRO_KEY, 'true');
