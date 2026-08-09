@@ -1,9 +1,15 @@
-import { useState, useCallback } from 'react';
-import { Share2, FileText, Link2, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Share2, FileText, Loader2, PenSquare, Trash2 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
+import AccessBar from '../Access/AccessBar';
+import PublishSheet from './PublishSheet';
 import { readAdvisorProfile } from '../../data/advisorProfile';
 import { stampWatermark } from '../../data/watermark';
+import { useAccess } from '../../context/AccessContext';
+import {
+  readAnnouncements, addAnnouncement, removeAnnouncement, TAGS, relativeTime,
+} from '../../data/announcements';
 
 /** Imagen de prueba mientras la promotoría no suba flyers reales. */
 const FLYER_IMAGE_URL = 'https://picsum.photos/800/1200';
@@ -88,41 +94,10 @@ const ANNOUNCEMENTS = [
   },
 ];
 
-/** Campo de vinculación: aún no operativo, se muestra como adelanto. */
-function LinkPromoteria() {
-  return (
-    <div className="mb-6">
-      <div
-        className="flex items-center gap-3 rounded-xl border border-dashed border-zinc-300
-                   bg-zinc-50 px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-900/60"
-      >
-        <Link2 size={16} className="shrink-0 text-zinc-400" aria-hidden="true" />
-        <input
-          type="text"
-          disabled
-          readOnly
-          aria-label="Vincular promotoría con código de invitación"
-          placeholder="¿Tienes un código de invitación?"
-          className="min-w-0 flex-1 cursor-not-allowed bg-transparent text-sm text-zinc-500
-                     placeholder:text-zinc-400 focus:outline-none dark:placeholder:text-zinc-500"
-        />
-        <span
-          className="shrink-0 rounded-full border border-zinc-300 px-2 py-0.5 text-[10px]
-                     font-semibold uppercase tracking-wide text-zinc-400
-                     dark:border-zinc-700 dark:text-zinc-500"
-        >
-          Pronto
-        </span>
-      </div>
-      <p className="mt-1.5 px-1 text-[11px] text-zinc-500">
-        Vincular Promotoría para recibir sus comunicados.
-      </p>
-    </div>
-  );
-}
+
 
 /** Tarjeta de anuncio. */
-function AnnouncementCard({ announcement, onShare, isSharing }) {
+function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelete }) {
   const { tag, tagTone, title, time, flyer, description, action, share } = announcement;
   const ActionIcon = action?.icon;
 
@@ -131,7 +106,23 @@ function AnnouncementCard({ announcement, onShare, isSharing }) {
       className="mb-5 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5
                  dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <p className={`mb-1 text-xs font-bold ${tagTone}`}>{tag}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className={`mb-1 text-xs font-bold ${tagTone}`}>{tag}</p>
+
+        {/* Retirar un comunicado es privilegio de quien puede publicarlos. */}
+        {canDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="Eliminar comunicado"
+            title="Eliminar comunicado"
+            className="-mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-lg text-zinc-400
+                       transition-colors hover:bg-rose-500/10 hover:text-rose-500"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
 
       <h2 className="text-lg font-semibold leading-snug text-zinc-900 dark:text-white">
         {title}
@@ -190,10 +181,46 @@ function AnnouncementCard({ announcement, onShare, isSharing }) {
 
 /** Tablero de anuncios de la promotoría. */
 export default function WorkplaceBoard({ isOpen, onClose, username }) {
+  const { isPromoter } = useAccess();
   const [sharingId, setSharingId] = useState(null);
   const [toast, setToast] = useState('');
+  const [isPublishOpen, setPublishOpen] = useState(false);
+  const [published, setPublished] = useState([]);
+
+  // Se releen al abrir para reflejar lo que se haya publicado entretanto.
+  useEffect(() => {
+    if (isOpen) setPublished(readAnnouncements());
+  }, [isOpen]);
 
   const clearToast = useCallback(() => setToast(''), []);
+
+  const handlePublish = useCallback((draft) => {
+    addAnnouncement(draft);
+    setPublished(readAnnouncements());
+    setToast('Comunicado publicado al equipo');
+  }, []);
+
+  const handleDelete = useCallback((id) => {
+    removeAnnouncement(id);
+    setPublished(readAnnouncements());
+  }, []);
+
+  /*
+    Los comunicados del promotor van arriba de los de ejemplo: lo recién
+    publicado es lo que el asesor debe ver primero al abrir el tablero.
+  */
+  const feed = [
+    ...published.map((a) => ({
+      id: a.id,
+      tag: TAGS[a.tag].label,
+      tagTone: TAGS[a.tag].tone,
+      title: a.title,
+      time: relativeTime(a.createdAt),
+      description: a.description || undefined,
+      publishedByPromoter: true,
+    })),
+    ...ANNOUNCEMENTS,
+  ];
 
   const handleShare = useCallback(async (id, share) => {
     // Descargar y redibujar toma tiempo: sin este candado, tocar dos veces
@@ -225,16 +252,38 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
 
   return (
     <FullScreenView isOpen={isOpen} onClose={onClose} title="Workplace">
-      <LinkPromoteria />
+      <AccessBar onNotify={setToast} />
 
-      {ANNOUNCEMENTS.map((announcement) => (
+      {/* Publicar sólo existe para el promotor: el asesor únicamente lee */}
+      {isPromoter && (
+        <button
+          type="button"
+          onClick={() => setPublishOpen(true)}
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600
+                     px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30
+                     transition-all hover:bg-indigo-500 active:scale-[0.98]"
+        >
+          <PenSquare size={16} />
+          Publicar comunicado
+        </button>
+      )}
+
+      {feed.map((announcement) => (
         <AnnouncementCard
           key={announcement.id}
           announcement={announcement}
           isSharing={sharingId === announcement.id}
           onShare={(share) => handleShare(announcement.id, share)}
+          canDelete={isPromoter && announcement.publishedByPromoter}
+          onDelete={() => handleDelete(announcement.id)}
         />
       ))}
+
+      <PublishSheet
+        isOpen={isPublishOpen}
+        onClose={() => setPublishOpen(false)}
+        onPublish={handlePublish}
+      />
 
       <Toast message={toast} onDone={clearToast} />
     </FullScreenView>

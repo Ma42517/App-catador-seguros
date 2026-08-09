@@ -54,8 +54,9 @@ function MenuRow({ icon: Icon, label, hint, action, tone = 'default', onClick })
  * Aloja el acceso destacado al Diagnóstico 360 y las opciones de cuenta.
  */
 export default function MoreMenu({
-  open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile, onLogout,
-  onLoadDemo, onClearAgenda, canUsePreview = false, isDark = true, onToggleTheme,
+  open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile,
+  onLogout, onLoadDemo, onClearAgenda,
+  canUsePreview = false, isDark = true, onToggleTheme,
 }) {
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {

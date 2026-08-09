@@ -16,6 +16,7 @@ import TodayView from './components/Home/TodayView';
 import CalendarView from './components/Calendar/CalendarView';
 import ProductivityDashboard from './components/Productivity/ProductivityDashboard';
 import { EventProvider } from './context/EventContext';
+import { AccessProvider } from './context/AccessContext';
 import { readTheme, applyTheme, THEMES } from './theme';
 import AgentProfiler from './components/Onboarding/AgentProfiler';
 import { readProfile, saveProfile } from './components/Onboarding/storage';
@@ -367,12 +368,15 @@ export default function App() {
         {/* La agenda es por usuario, así que el provider vive dentro del área
             autenticada, donde ya se conoce quién entró. */}
         <EventProvider username={username}>
-          <Shell
+          {/* El vínculo con la promotoría también es por usuario. */}
+          <AccessProvider username={username}>
+            <Shell
             onLogout={handleLogout}
             isPreview={isPreview}
             role={role}
-            profileName={username}
-          />
+              profileName={username}
+            />
+          </AccessProvider>
         </EventProvider>
       </ReferralProvider>
     </FinanceProvider>

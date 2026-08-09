@@ -23,6 +23,7 @@ export default function AdminLayout({
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
   // Qué formulario está abierto: 'actividad' | 'recordatorio' | 'nota' | null.
   const [activeForm, setActiveForm] = useState(null);
 
@@ -70,6 +71,8 @@ export default function AdminLayout({
         onClose={() => setProfileOpen(false)}
         username={username}
       />
+
+
 
       <MoreMenu
         open={moreOpen}
