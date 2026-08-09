@@ -10,6 +10,7 @@ import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 import SplashScreen from './components/SplashScreen';
 import LoginScreen from './components/Auth/LoginScreen';
 import AdminLayout from './components/Layout/AdminLayout';
+import DevicePreview from './components/Layout/DevicePreview';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
@@ -19,6 +20,15 @@ const INTRO_KEY = 'hasSeenIntro';
 const AUTH_KEY = 'isAuthenticated';
 /** Duración mínima garantizada del splash en la primera visita de la sesión. */
 const FIRST_VISIT_SPLASH_MS = 3200;
+
+/**
+ * `?preview=1` indica que la app corre dentro del iframe del previsualizador:
+ * se omite el splash y se oculta la sección de vista previa para no anidarla.
+ */
+function isPreviewFrame() {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('preview') === '1';
+}
 
 /**
  * Conmutador tipo pill entre las dos grandes fases de la app: captura
@@ -169,7 +179,7 @@ function stepFromHash() {
  * pill del header y el stepper interno de StepWizard queden siempre en
  * sincronía: ambos leen y escriben el mismo `step`.
  */
-function Shell({ onLogout }) {
+function Shell({ onLogout, isPreview }) {
   const [section, setSection] = useState('wizard');
   const [step, setStep] = useState(stepFromHash);
 
@@ -189,42 +199,54 @@ function Shell({ onLogout }) {
   }, []);
 
   return (
-    <AdminLayout section={section} onNavigate={setSection} onLogout={onLogout}>
-      <div className="relative min-h-screen bg-slate-950">
-        {/* Iluminación ambiental fija del fondo */}
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-grid-fade"
-          aria-hidden="true"
-        />
+    <AdminLayout
+      section={section}
+      onNavigate={setSection}
+      onLogout={onLogout}
+      hiddenSections={isPreview ? ['preview'] : []}
+    >
+      {section === 'preview' ? (
+        <DevicePreview />
+      ) : (
+        <div className="relative min-h-screen bg-slate-950">
+          {/* Iluminación ambiental fija del fondo */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-grid-fade"
+            aria-hidden="true"
+          />
 
-        <div className="relative">
-          <Header step={step} onNavigate={go} />
-          <main className="mx-auto max-w-5xl px-4 py-6">
-            {section === 'wizard' ? (
-              <StepWizard step={step} onStepChange={go} />
-            ) : (
-              <div className="animate-rise">
-                <ExecutiveDashboard />
+          <div className="relative">
+            <Header step={step} onNavigate={go} />
+            <main className="mx-auto max-w-5xl px-4 py-6">
+              {section === 'wizard' ? (
+                <StepWizard step={step} onStepChange={go} />
+              ) : (
+                <div className="animate-rise">
+                  <ExecutiveDashboard />
+                </div>
+              )}
+            </main>
+            <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4">
+              <div className="border-t border-slate-800 pt-5">
+                <p className="text-center text-[10px] leading-relaxed text-slate-600">
+                  Herramienta de diagnóstico y simulación. Los resultados son estimaciones basadas en los
+                  supuestos que capturas y no constituyen asesoría financiera, fiscal ni de inversión.
+                  Tu información se guarda únicamente en este navegador.
+                </p>
               </div>
-            )}
-          </main>
-          <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4">
-            <div className="border-t border-slate-800 pt-5">
-              <p className="text-center text-[10px] leading-relaxed text-slate-600">
-                Herramienta de diagnóstico y simulación. Los resultados son estimaciones basadas en los
-                supuestos que capturas y no constituyen asesoría financiera, fiscal ni de inversión.
-                Tu información se guarda únicamente en este navegador.
-              </p>
-            </div>
-          </footer>
+            </footer>
+          </div>
         </div>
-      </div>
+      )}
     </AdminLayout>
   );
 }
 
 export default function App() {
-  const [isAppReady, setIsAppReady] = useState(false);
+  const [isPreview] = useState(isPreviewFrame);
+  // Dentro del iframe de vista previa no se repite el splash: molesta al
+  // estar cambiando de dispositivo constantemente.
+  const [isAppReady, setIsAppReady] = useState(isPreview);
   // La sesión se rehidrata desde sessionStorage para no pedir la clave
   // en cada recarga dentro de la misma pestaña.
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -235,6 +257,8 @@ export default function App() {
   // subsecuentes dentro de la misma pestaña: splash casi instantáneo,
   // tipo Facebook/Instagram, solo para evitar un "flash" de layout vacío.
   useEffect(() => {
+    if (isPreview) return undefined;
+
     const isFirstVisit = !sessionStorage.getItem(INTRO_KEY);
     const delay = isFirstVisit ? FIRST_VISIT_SPLASH_MS : 300 + Math.random() * 200;
 
@@ -244,7 +268,7 @@ export default function App() {
     }, delay);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isPreview]);
 
   const handleLoginSuccess = useCallback(() => {
     sessionStorage.setItem(AUTH_KEY, 'true');
@@ -263,7 +287,7 @@ export default function App() {
   return (
     <FinanceProvider>
       <ReferralProvider>
-        <Shell onLogout={handleLogout} />
+        <Shell onLogout={handleLogout} isPreview={isPreview} />
       </ReferralProvider>
     </FinanceProvider>
   );

@@ -1,9 +1,12 @@
-import { LayoutDashboard, FormInput, LogOut, ShieldCheck } from 'lucide-react';
+import {
+  LayoutDashboard, FormInput, LogOut, ShieldCheck, MonitorSmartphone,
+} from 'lucide-react';
 
 /** Secciones navegables del área autenticada. */
 export const SECTIONS = [
-  { key: 'wizard', label: 'Wizard', Icon: FormInput },
-  { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
+  { key: 'wizard', label: 'Wizard', short: 'Wizard', Icon: FormInput },
+  { key: 'dashboard', label: 'Dashboard', short: 'Dash', Icon: LayoutDashboard },
+  { key: 'preview', label: 'Vista previa', short: 'Vistas', Icon: MonitorSmartphone },
 ];
 
 /**
@@ -11,8 +14,15 @@ export const SECTIONS = [
  * - Escritorio/tablet (md+): sidebar lateral fijo.
  * - Móvil: barra de navegación inferior (bottom tab bar).
  * Es puramente de presentación/navegación: no toca los contexts ni el motor.
+ *
+ * `hiddenSections` permite ocultar entradas del menú en contextos donde no
+ * aplican (por ejemplo, la vista previa dentro de la propia vista previa).
  */
-export default function AdminLayout({ section, onNavigate, onLogout, children }) {
+export default function AdminLayout({
+  section, onNavigate, onLogout, children, hiddenSections = [],
+}) {
+  const sections = SECTIONS.filter((s) => !hiddenSections.includes(s.key));
+
   return (
     <div className="flex min-h-screen w-full max-w-full bg-slate-950">
       {/* Sidebar: sólo desde md hacia arriba */}
@@ -31,7 +41,7 @@ export default function AdminLayout({ section, onNavigate, onLogout, children })
         </div>
 
         <nav aria-label="Navegación principal" className="flex-1 space-y-1 p-3">
-          {SECTIONS.map(({ key, label, Icon }) => {
+          {sections.map(({ key, label, Icon }) => {
             const active = section === key;
             return (
               <button
@@ -72,7 +82,7 @@ export default function AdminLayout({ section, onNavigate, onLogout, children })
         aria-label="Navegación principal"
         className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-slate-800 bg-slate-900/90 backdrop-blur md:hidden"
       >
-        {SECTIONS.map(({ key, label, Icon }) => {
+        {sections.map(({ key, short, Icon }) => {
           const active = section === key;
           return (
             <button
@@ -85,7 +95,7 @@ export default function AdminLayout({ section, onNavigate, onLogout, children })
               }`}
             >
               <Icon size={19} />
-              {label}
+              {short}
             </button>
           );
         })}
