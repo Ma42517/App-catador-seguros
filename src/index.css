@@ -175,7 +175,10 @@
     .animate-pulse-glow,
     /* Latido del avatar y rebote de la flecha guía del asistente. */
     .animate-pulse,
-    .animate-bounce {
+    .animate-bounce,
+    /* Aro del asistente dorado: latido al escribir y respiración en reposo. */
+    .animate-ring-active,
+    .animate-breathe {
       animation: none;
     }
   }

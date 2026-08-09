@@ -1,4 +1,6 @@
-import PromoterAssistant from './PromoterAssistant';
+// TEMPORAL: se está evaluando el asistente dorado en el centro de la pantalla.
+// Para volver al anterior, reimporta PromoterAssistant y cámbialo abajo.
+import GoldenAssistant from './GoldenAssistant';
 
 const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
 
@@ -30,7 +32,7 @@ export default function TodayView({ name }) {
         central: cualquier tarjeta debajo cortaría la línea visual que va del
         mensaje al botón "+" de la barra inferior.
       */}
-      <PromoterAssistant name={name} />
+      <GoldenAssistant />
     </div>
   );
 }
