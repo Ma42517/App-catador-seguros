@@ -2,19 +2,26 @@ import { useState } from 'react';
 import BottomTabBar from './BottomTabBar';
 import MoreMenu from './MoreMenu';
 import QuickAddMenu from './QuickAddMenu';
+import ActivityForm from '../Activities/ActivityForm';
+import QuickNoteForm from '../Notes/QuickNoteForm';
+import NotesList from '../Notes/NotesList';
+import { addActivity, addNote } from '../../data/entries';
 
 /**
  * Chrome de navegación del área autenticada.
  *
  * La navegación es idéntica en celular, tableta y escritorio: una sola barra
  * inferior. El Diagnóstico 360 no ocupa un destino fijo, vive dentro del panel
- * "Ver más" junto con las opciones de cuenta.
+ * "Ver más" junto con las notas y las opciones de cuenta.
  */
 export default function AdminLayout({
-  onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme,
+  onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme, username,
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  // Qué formulario está abierto: 'actividad' | 'recordatorio' | 'nota' | null.
+  const [activeForm, setActiveForm] = useState(null);
 
   const goTo = (section) => {
     onNavigate(section);
@@ -35,6 +42,26 @@ export default function AdminLayout({
       <QuickAddMenu
         isOpen={isQuickAddOpen}
         onClose={() => setQuickAddOpen(false)}
+        onSelect={setActiveForm}
+      />
+
+      <ActivityForm
+        isOpen={activeForm === 'actividad' || activeForm === 'recordatorio'}
+        type={activeForm === 'recordatorio' ? 'recordatorio' : 'actividad'}
+        onClose={() => setActiveForm(null)}
+        onSave={(activity) => addActivity(username, activity)}
+      />
+
+      <QuickNoteForm
+        isOpen={activeForm === 'nota'}
+        onClose={() => setActiveForm(null)}
+        onSave={(text) => addNote(username, text)}
+      />
+
+      <NotesList
+        isOpen={notesOpen}
+        onClose={() => setNotesOpen(false)}
+        username={username}
       />
 
       <MoreMenu
@@ -42,6 +69,7 @@ export default function AdminLayout({
         onClose={() => setMoreOpen(false)}
         onOpenDiagnostico={() => goTo('wizard')}
         onOpenPreview={() => goTo('preview')}
+        onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onLogout={onLogout}
         canUsePreview={canUsePreview}
         isDark={isDark}
