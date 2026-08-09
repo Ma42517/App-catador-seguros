@@ -68,7 +68,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen w-full max-w-full bg-white dark:bg-black">
       {/* pb-24 evita que el contenido quede bajo la barra inferior */}
-      <div className="min-w-0 pb-24">{children}</div>
+      <div className="min-w-0 pb-28">{children}</div>
 
       <BottomTabBar
         onToday={() => goTo('home')}

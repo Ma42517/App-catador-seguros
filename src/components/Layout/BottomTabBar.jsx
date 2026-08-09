@@ -25,15 +25,24 @@ export default function BottomTabBar({ onToday, onProductivity, onAgenda, onAdd,
   const today = new Date().getDate();
 
   return (
+    /*
+      La barra flota en lugar de pegarse al borde: separada del fondo, el
+      desenfoque tiene contenido a ambos lados y el cristal se lee como cristal.
+      El contenedor exterior no intercepta toques para no robar el área que
+      queda a los lados de la pastilla.
+    */
     <nav
       aria-label="Navegación inferior"
-      className="fixed bottom-0 left-0 z-50 w-full border-t
-                 border-zinc-200/60 bg-white/60 px-2 pt-3 backdrop-blur-2xl backdrop-saturate-150
-                 pb-safe
-                 dark:border-white/10 dark:bg-black/50
-                 [box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.35)]
-                 dark:[box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.08)]"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-safe"
     >
+      <div
+        className="pointer-events-auto mx-auto mb-2 w-full max-w-lg rounded-[1.75rem] border
+                   border-zinc-200/70 bg-white/70 px-2 pt-3 pb-2 shadow-2xl shadow-zinc-950/10
+                   backdrop-blur-2xl backdrop-saturate-150
+                   dark:border-white/10 dark:bg-zinc-950/60 dark:shadow-black/40
+                   [box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.4)]
+                   dark:[box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.09)]"
+      >
       {/*
         Los grupos laterales usan flex-1 y el centro un ancho fijo, de modo que
         el botón "+" queda exactamente en el eje central del viewport (el
@@ -67,14 +76,21 @@ export default function BottomTabBar({ onToday, onProductivity, onAgenda, onAdd,
       <button
         type="button"
         onClick={onAdd}
-        className="flex flex-col items-center transition-transform hover:scale-105
+        className="group flex flex-col items-center transition-transform hover:scale-105
                    focus-visible:outline-none"
       >
+        {/*
+          Ancla de acción: es el único elemento con color saturado de toda la
+          barra, y por eso destaca sin necesitar tamaño extra.
+        */}
         <span
-          className="-mt-6 rounded-full bg-indigo-600 p-3 text-white shadow-lg shadow-indigo-500/30"
+          className="-mt-7 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500
+                     to-violet-600 p-3.5 text-white shadow-lg shadow-violet-600/45
+                     ring-1 ring-white/20 transition-shadow
+                     group-hover:shadow-xl group-hover:shadow-violet-500/60"
           aria-hidden="true"
         >
-          <Plus size={22} strokeWidth={2.2} />
+          <Plus size={23} strokeWidth={2.3} />
         </span>
         <span className={`${LABEL} mt-1 text-zinc-500 dark:text-zinc-400`}>Agregar</span>
       </button>
@@ -93,6 +109,7 @@ export default function BottomTabBar({ onToday, onProductivity, onAgenda, onAdd,
         <span className={LABEL}>Ver más</span>
       </button>
         </div>
+      </div>
       </div>
     </nav>
   );

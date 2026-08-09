@@ -16,7 +16,7 @@ export default function ProspectaHero({ onClick }) {
       type="button"
       onClick={onClick}
       aria-label="Abrir Prospecta"
-      className="group relative h-28 w-full cursor-pointer overflow-hidden rounded-[1.75rem]
+      className="group relative h-28 w-full cursor-pointer overflow-hidden rounded-[1.75rem] md:h-36
                  border border-white/15 bg-gradient-to-br from-zinc-800 via-zinc-950 to-black
                  shadow-2xl transition-all duration-300 active:scale-95
                  hover:border-white/30 hover:shadow-[0_0_40px_rgba(255,255,255,0.12)]
