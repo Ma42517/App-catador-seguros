@@ -1,4 +1,4 @@
-import { CalendarDays, Plus, Menu } from 'lucide-react';
+import { CalendarDays, CalendarRange, Plus, Menu } from 'lucide-react';
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
@@ -19,7 +19,7 @@ const LABEL = 'text-[10px] font-medium leading-none';
  * Los destinos se centran con un ancho máximo para que no queden separados en
  * pantallas anchas.
  */
-export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
+export default function BottomTabBar({ onToday, onEvents, onCalendar, onAdd, onMore }) {
   // Se calcula en cada render para que el número no se quede congelado si la
   // sesión cruza la medianoche.
   const today = new Date().getDate();
@@ -55,14 +55,14 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
         <span className={LABEL}>Hoy</span>
       </button>
 
-      {/* B) Calendario — agenda completa */}
-      <button type="button" onClick={onCalendar} className={TAB}>
+      {/* Eventos — lo que hay agendado para hoy */}
+      <button type="button" onClick={onEvents} className={TAB}>
         <CalendarDays size={22} strokeWidth={1.8} aria-hidden="true" />
-        <span className={LABEL}>Calendario</span>
+        <span className={LABEL}>Eventos</span>
       </button>
         </div>
 
-      {/* C) Agregar — ancla central de la barra */}
+      {/* Agregar — ancla central de la barra */}
       <div className="flex w-20 shrink-0 justify-center">
       <button
         type="button"
@@ -81,7 +81,13 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
       </div>
 
         <div className="flex flex-1 items-center justify-around">
-      {/* D) Ver más — abre el panel secundario */}
+      {/* Calendario — agenda completa, ocupa el hueco a la derecha del "+" */}
+      <button type="button" onClick={onCalendar} className={TAB}>
+        <CalendarRange size={22} strokeWidth={1.8} aria-hidden="true" />
+        <span className={LABEL}>Calendario</span>
+      </button>
+
+      {/* Ver más — abre el panel secundario */}
       <button type="button" onClick={onMore} className={TAB}>
         <Menu size={22} strokeWidth={1.8} aria-hidden="true" />
         <span className={LABEL}>Ver más</span>

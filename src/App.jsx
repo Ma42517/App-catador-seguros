@@ -238,8 +238,10 @@ function Shell({ onLogout, isPreview, role, profileName }) {
         <DevicePreview />
       ) : activeSection === 'home' ? (
         <TodayView name={profileName} />
+      ) : activeSection === 'events' ? (
+        <CalendarView scope="today" />
       ) : activeSection === 'calendar' ? (
-        <CalendarView />
+        <CalendarView scope="all" />
       ) : (
         /*
           El módulo de Diagnóstico 360 es un tablero de datos diseñado en

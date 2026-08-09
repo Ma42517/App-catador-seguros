@@ -37,23 +37,44 @@ function formatDay(dateKey) {
   return dateKey === todayKey() ? `Hoy · ${label}` : label;
 }
 
-/** Vista completa de la agenda: todos los eventos, agrupados por fecha. */
-export default function CalendarView() {
+const COPY = {
+  today: {
+    title: 'Eventos',
+    empty: 'Tus eventos de hoy aparecerán aquí.',
+    summary: (n) => `${n} ${n === 1 ? 'evento' : 'eventos'} para hoy.`,
+  },
+  all: {
+    title: 'Calendario',
+    empty: 'Tu agenda completa aparecerá aquí.',
+    summary: (n) => `${n} ${n === 1 ? 'evento' : 'eventos'} en tu agenda.`,
+  },
+};
+
+/**
+ * Agenda del asesor. Un mismo componente sirve a los dos destinos de la barra:
+ *  - `scope="today"` → "Eventos": sólo lo de hoy, todas las prioridades.
+ *  - `scope="all"`   → "Calendario": toda la agenda, agrupada por fecha.
+ */
+export default function CalendarView({ scope = 'all' }) {
   const { events } = useEvents();
-  const grouped = useMemo(() => groupByDate(events), [events]);
+  const copy = COPY[scope] ?? COPY.all;
+
+  const visible = useMemo(
+    () => (scope === 'today' ? events.filter((e) => e.date === todayKey()) : events),
+    [events, scope],
+  );
+  const grouped = useMemo(() => groupByDate(visible), [visible]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl dark:text-white">
-        Calendario
+        {copy.title}
       </h1>
       <p className="mt-1 text-sm text-zinc-500">
-        {events.length === 0
-          ? 'Tu agenda completa aparecerá aquí.'
-          : `${events.length} ${events.length === 1 ? 'evento' : 'eventos'} en tu agenda.`}
+        {visible.length === 0 ? copy.empty : copy.summary(visible.length)}
       </p>
 
-      {events.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="mt-10 text-center">
           <span
             className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border
@@ -64,7 +85,10 @@ export default function CalendarView() {
             <CalendarDays size={22} />
           </span>
           <p className="text-sm text-zinc-500">
-            Aún no tienes eventos. Agrega el primero con el botón{' '}
+            {scope === 'today'
+              ? 'Hoy no tienes nada agendado.'
+              : 'Aún no tienes eventos.'}{' '}
+            Agrega el primero con el botón{' '}
             <span className="font-semibold text-zinc-700 dark:text-zinc-300">+</span>.
           </p>
         </div>
