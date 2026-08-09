@@ -3,6 +3,7 @@ import { Target, Megaphone } from 'lucide-react';
 import ImmersiveCard from './ImmersiveCard';
 import ProspectaHero from './ProspectaHero';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
+import WorkplaceBoard from '../Workplace/WorkplaceBoard';
 
 /**
  * Definición de las tarjetas del hub. Cada entrada es un destino futuro;
@@ -35,6 +36,7 @@ const CARDS = [
 /** Hub de rendimiento: accesos apilados a las secciones de análisis. */
 export default function ProductivityDashboard() {
   const [isProspectaOpen, setProspectaOpen] = useState(false);
+  const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-5 px-4 pb-24 pt-6">
@@ -57,12 +59,18 @@ export default function ProductivityDashboard() {
           iconTone={card.iconTone}
           badge={card.badge}
           badgeLabel={card.badgeLabel}
+          onClick={card.key === 'workplace' ? () => setWorkplaceOpen(true) : undefined}
         />
       ))}
 
       <ProspectaScreen
         isOpen={isProspectaOpen}
         onClose={() => setProspectaOpen(false)}
+      />
+
+      <WorkplaceBoard
+        isOpen={isWorkplaceOpen}
+        onClose={() => setWorkplaceOpen(false)}
       />
     </div>
   );
