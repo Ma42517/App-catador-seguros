@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Share2, FileText, Loader2, PenSquare, Trash2, Lock } from 'lucide-react';
+import { Share2, Loader2, PenSquare, Trash2, Lock } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
 import AccessBar from '../Access/AccessBar';
@@ -7,12 +7,12 @@ import PublishSheet from './PublishSheet';
 import { readAdvisorProfile } from '../../data/advisorProfile';
 import { stampWatermark } from '../../data/watermark';
 import { useAccess } from '../../context/AccessContext';
+import { categoryOf, relativeTime } from '../../data/announcements';
 import {
-  readAnnouncements, addAnnouncement, removeAnnouncement, TAGS, relativeTime,
-} from '../../data/announcements';
+  fetchAnnouncements, publishAnnouncement, deleteAnnouncement,
+} from '../../data/announcementsRepo';
 
 /** Imagen de prueba mientras la promotoría no suba flyers reales. */
-const FLYER_IMAGE_URL = 'https://picsum.photos/800/1200';
 const FLYER_FILE_NAME = 'promocion.jpg';
 
 /**
@@ -63,37 +63,31 @@ async function shareImageFile({ imageUrl, fileName, title, text, watermark }) {
 }
 
 /**
- * Comunicados de la promotoría. El tablero es unidireccional —el asesor lee,
- * no responde—, así que cada entrada es un anuncio con su etiqueta, su fecha y
- * a lo sumo un archivo adjunto.
+ * Adapta un comunicado de la base al formato que dibuja la tarjeta.
+ *
+ * Sólo los que traen imagen ofrecen compartir: sin archivo no hay nada que
+ * estampar ni enviar.
  */
-const ANNOUNCEMENTS = [
-  {
-    id: 'campana-vida-gmm',
-    tag: '📌 IMPORTANTE',
-    tagTone: 'text-rose-500 dark:text-rose-400',
-    title: 'Nueva Campaña de Vida y Gastos Médicos',
-    time: 'Hace 2 horas',
-    flyer: '[Flyer de la Campaña]',
-    share: {
-      imageUrl: FLYER_IMAGE_URL,
-      fileName: FLYER_FILE_NAME,
-      title: 'Promoción',
-      text: '¡Revisa esto!',
-    },
-  },
-  {
-    id: 'bases-convencion-2026',
-    tag: '📄 BASES',
-    tagTone: 'text-blue-600 dark:text-blue-400',
-    title: 'Actualización: Bases Convención 2026',
-    time: 'Ayer',
-    description:
-      'Revisa los nuevos lineamientos de primas pagadas para calificar al viaje.',
-    action: { label: 'Leer Documento', icon: FileText },
-  },
-];
-
+function toCardModel(item) {
+  const category = categoryOf(item.category);
+  return {
+    id: item.id,
+    tag: category.label,
+    tagTone: category.tone,
+    title: item.title,
+    time: relativeTime(item.createdAt),
+    description: item.content || undefined,
+    flyer: item.imageUrl ? item.imageUrl : undefined,
+    share: item.imageUrl
+      ? {
+        imageUrl: item.imageUrl,
+        fileName: FLYER_FILE_NAME,
+        title: item.title,
+        text: '¡Revisa esto!',
+      }
+      : undefined,
+  };
+}
 
 
 /** Estado del muro cuando no hay vínculo: explica qué falta, sin adelantar contenido. */
@@ -122,8 +116,7 @@ function LockedWall() {
 
 /** Tarjeta de anuncio. */
 function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelete }) {
-  const { tag, tagTone, title, time, flyer, description, action, share } = announcement;
-  const ActionIcon = action?.icon;
+  const { tag, tagTone, title, time, flyer, description, share } = announcement;
 
   return (
     <article
@@ -160,13 +153,17 @@ function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelet
         </p>
       )}
 
+      {/*
+        Se muestra la imagen real, no un marcador: así el asesor ve exactamente
+        el flyer que va a compartir.
+      */}
       {flyer && (
-        <div
-          className="mt-3 flex h-40 w-full items-center justify-center rounded-lg bg-zinc-100
-                     text-sm text-zinc-500 dark:bg-zinc-800"
-        >
-          {flyer}
-        </div>
+        <img
+          src={flyer}
+          alt={`Flyer de ${title}`}
+          loading="lazy"
+          className="mt-3 h-40 w-full rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800"
+        />
       )}
 
       {share && (
@@ -185,20 +182,6 @@ function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelet
           {isSharing ? 'Preparando...' : 'Compartir Flyer'}
         </button>
       )}
-
-      {action && (
-        <button
-          type="button"
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border
-                     border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-700
-                     transition-colors hover:bg-zinc-100 active:scale-[0.98]
-                     dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200
-                     dark:hover:bg-zinc-700/70"
-        >
-          {ActionIcon && <ActionIcon size={16} />}
-          {action.label}
-        </button>
-      )}
     </article>
   );
 }
@@ -209,42 +192,45 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const [sharingId, setSharingId] = useState(null);
   const [toast, setToast] = useState('');
   const [isPublishOpen, setPublishOpen] = useState(false);
-  const [published, setPublished] = useState([]);
+  const [feed, setFeed] = useState([]);
+  const [isLoadingFeed, setLoadingFeed] = useState(false);
 
-  // Se releen al abrir para reflejar lo que se haya publicado entretanto.
+  /** Consulta la base cada vez que se abre el tablero con acceso concedido. */
+  const loadFeed = useCallback(async () => {
+    setLoadingFeed(true);
+    const { data, error } = await fetchAnnouncements();
+    setLoadingFeed(false);
+    if (error) {
+      setToast('No se pudieron cargar los comunicados.');
+      return;
+    }
+    setFeed(data.map(toCardModel));
+  }, []);
+
   useEffect(() => {
-    if (isOpen) setPublished(readAnnouncements());
-  }, [isOpen]);
+    if (isOpen && isLinked) loadFeed();
+  }, [isOpen, isLinked, loadFeed]);
 
   const clearToast = useCallback(() => setToast(''), []);
 
-  const handlePublish = useCallback((draft) => {
-    addAnnouncement(draft);
-    setPublished(readAnnouncements());
+  const handlePublish = useCallback(async (draft) => {
+    const { error } = await publishAnnouncement(draft);
+    if (error) {
+      setToast('No se pudo publicar el comunicado.');
+      return;
+    }
     setToast('Comunicado publicado al equipo');
-  }, []);
+    loadFeed();
+  }, [loadFeed]);
 
-  const handleDelete = useCallback((id) => {
-    removeAnnouncement(id);
-    setPublished(readAnnouncements());
-  }, []);
-
-  /*
-    Los comunicados del promotor van arriba de los de ejemplo: lo recién
-    publicado es lo que el asesor debe ver primero al abrir el tablero.
-  */
-  const feed = [
-    ...published.map((a) => ({
-      id: a.id,
-      tag: TAGS[a.tag].label,
-      tagTone: TAGS[a.tag].tone,
-      title: a.title,
-      time: relativeTime(a.createdAt),
-      description: a.description || undefined,
-      publishedByPromoter: true,
-    })),
-    ...ANNOUNCEMENTS,
-  ];
+  const handleDelete = useCallback(async (id) => {
+    const { error } = await deleteAnnouncement(id);
+    if (error) {
+      setToast('No se pudo eliminar el comunicado.');
+      return;
+    }
+    loadFeed();
+  }, [loadFeed]);
 
   const handleShare = useCallback(async (id, share) => {
     // Descargar y redibujar toma tiempo: sin este candado, tocar dos veces
@@ -302,13 +288,24 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
             </button>
           )}
 
+          {isLoadingFeed && (
+            <p className="py-8 text-center text-xs text-zinc-500">Cargando comunicados...</p>
+          )}
+
+          {!isLoadingFeed && feed.length === 0 && (
+            <p className="rounded-xl border border-dashed border-zinc-300 py-10 text-center
+                          text-xs text-zinc-500 dark:border-zinc-700">
+              Tu promotoría todavía no ha publicado comunicados.
+            </p>
+          )}
+
           {feed.map((announcement) => (
             <AnnouncementCard
               key={announcement.id}
               announcement={announcement}
               isSharing={sharingId === announcement.id}
               onShare={(share) => handleShare(announcement.id, share)}
-              canDelete={isPromoter && announcement.publishedByPromoter}
+              canDelete={isPromoter}
               onDelete={() => handleDelete(announcement.id)}
             />
           ))}

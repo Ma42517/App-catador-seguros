@@ -6,6 +6,7 @@ import ActivityForm from '../Activities/ActivityForm';
 import QuickNoteForm from '../Notes/QuickNoteForm';
 import NotesList from '../Notes/NotesList';
 import UserProfile from '../Profile/UserProfile';
+import AdminPanel from '../Admin/AdminPanel';
 import { useEvents } from '../../context/EventContext';
 
 /**
@@ -16,13 +17,15 @@ import { useEvents } from '../../context/EventContext';
  * "Ver más" junto con las notas y las opciones de cuenta.
  */
 export default function AdminLayout({
-  onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme, username,
+  onNavigate, onLogout, children, canUsePreview = false, isAdminUser = false,
+  isDark, onToggleTheme, username,
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda } = useEvents();
   const [moreOpen, setMoreOpen] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   // Qué formulario está abierto: 'actividad' | 'recordatorio' | 'nota' | null.
   const [activeForm, setActiveForm] = useState(null);
@@ -72,7 +75,7 @@ export default function AdminLayout({
         username={username}
       />
 
-
+      <AdminPanel isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
 
       <MoreMenu
         open={moreOpen}
@@ -81,10 +84,12 @@ export default function AdminLayout({
         onOpenPreview={() => goTo('preview')}
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onOpenProfile={() => { setMoreOpen(false); setProfileOpen(true); }}
+        onOpenAdmin={() => { setMoreOpen(false); setAdminOpen(true); }}
         onLogout={onLogout}
         onLoadDemo={() => { loadDemoWeek(); setMoreOpen(false); onNavigate('agenda'); }}
         onClearAgenda={() => { clearAgenda(); setMoreOpen(false); }}
         canUsePreview={canUsePreview}
+        isAdminUser={isAdminUser}
         isDark={isDark}
         onToggleTheme={onToggleTheme}
       />

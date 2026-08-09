@@ -1,13 +1,20 @@
 /**
- * Comunicados publicados por la promotoría.
+ * Almacén local de comunicados, usado cuando no hay Supabase configurado.
  *
- * Se guardan sin separar por usuario, a diferencia del resto: un comunicado lo
- * publica el promotor y debe verlo todo el equipo, no sólo quien lo escribió.
+ * Los comunicados no se separan por usuario: los publica la promotoría y debe
+ * verlos todo el equipo, no sólo quien los escribió.
+ *
+ * Forma canónica de un comunicado, igual que la fila de Supabase:
+ *   { id, category, title, content, imageUrl, createdAt }
  */
-const KEY = 'df360:announcements:v1';
+const KEY = 'df360:announcements:v2';
+const SEED_FLAG = 'df360:announcementsSeeded:v2';
 
-/** Etiquetas disponibles, compartidas por el formulario y el tablero. */
-export const TAGS = {
+/** Imagen de ejemplo para poder probar el compartido con marca de agua. */
+const SAMPLE_FLYER = 'https://picsum.photos/800/1200';
+
+/** Categorías disponibles, compartidas por el formulario y el tablero. */
+export const CATEGORIES = {
   importante: {
     key: 'importante',
     label: '📌 IMPORTANTE',
@@ -20,25 +27,24 @@ export const TAGS = {
     short: 'Bases',
     tone: 'text-blue-600 dark:text-blue-400',
   },
+  campana: {
+    key: 'campana',
+    label: '🚀 CAMPAÑA',
+    short: 'Campaña',
+    tone: 'text-emerald-600 dark:text-emerald-400',
+  },
 };
 
-export const TAG_LIST = Object.values(TAGS);
+export const CATEGORY_LIST = Object.values(CATEGORIES);
+
+/** Devuelve una categoría conocida, con respaldo para datos inesperados. */
+export function categoryOf(key) {
+  return CATEGORIES[key] ?? CATEGORIES.importante;
+}
 
 function newId() {
   return globalThis.crypto?.randomUUID?.()
     ?? `ann-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-/** Más recientes primero, que es como se lee un tablero de avisos. */
-export function readAnnouncements() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const list = raw ? JSON.parse(raw) : null;
-    if (!Array.isArray(list)) return [];
-    return list.slice().sort((a, b) => b.createdAt - a.createdAt);
-  } catch {
-    return [];
-  }
 }
 
 function writeAll(list) {
@@ -49,21 +55,74 @@ function writeAll(list) {
   }
 }
 
-export function addAnnouncement({ tag, title, description }) {
+function readRaw() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    const list = raw ? JSON.parse(raw) : null;
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Siembra dos comunicados de ejemplo la primera vez, uno con imagen para poder
+ * probar el compartido con marca de agua. Se hace una sola vez: si el usuario
+ * los borra, no reaparecen.
+ */
+function seedIfFirstRun() {
+  try {
+    if (localStorage.getItem(SEED_FLAG)) return;
+    localStorage.setItem(SEED_FLAG, '1');
+    if (readRaw().length > 0) return;
+    const now = Date.now();
+    writeAll([
+      {
+        id: newId(),
+        category: 'campana',
+        title: 'Nueva Campaña de Vida y Gastos Médicos',
+        content: 'Comparte el flyer con tus prospectos. Vigencia todo el mes.',
+        imageUrl: SAMPLE_FLYER,
+        createdAt: now - 2 * 60 * 60 * 1000,
+      },
+      {
+        id: newId(),
+        category: 'bases',
+        title: 'Actualización: Bases Convención 2026',
+        content: 'Revisa los nuevos lineamientos de primas pagadas para calificar al viaje.',
+        imageUrl: '',
+        createdAt: now - 26 * 60 * 60 * 1000,
+      },
+    ]);
+  } catch {
+    // localStorage bloqueado: se trabaja sin comunicados de ejemplo.
+  }
+}
+
+/** Más recientes primero, que es como se lee un tablero de avisos. */
+export function readLocalAnnouncements() {
+  seedIfFirstRun();
+  return readRaw()
+    .slice()
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function addLocalAnnouncement({ category, title, content, imageUrl }) {
   const clean = {
     id: newId(),
-    tag: TAGS[tag] ? tag : 'importante',
+    category: CATEGORIES[category] ? category : 'importante',
     title: String(title ?? '').trim(),
-    description: String(description ?? '').trim(),
+    content: String(content ?? '').trim(),
+    imageUrl: String(imageUrl ?? '').trim(),
     createdAt: Date.now(),
   };
   if (!clean.title) return null;
-  writeAll([...readAnnouncements(), clean]);
+  writeAll([...readRaw(), clean]);
   return clean;
 }
 
-export function removeAnnouncement(id) {
-  writeAll(readAnnouncements().filter((a) => a.id !== id));
+export function removeLocalAnnouncement(id) {
+  writeAll(readRaw().filter((a) => a.id !== id));
 }
 
 /** Antigüedad en lenguaje natural, para no mostrar una fecha cruda. */

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
-  StickyNote, Wand2, Eraser, BadgeCheck,
+  StickyNote, Wand2, Eraser, BadgeCheck, Database,
 } from 'lucide-react';
 
 /**
@@ -55,8 +55,8 @@ function MenuRow({ icon: Icon, label, hint, action, tone = 'default', onClick })
  */
 export default function MoreMenu({
   open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile,
-  onLogout, onLoadDemo, onClearAgenda,
-  canUsePreview = false, isDark = true, onToggleTheme,
+  onOpenAdmin, onLogout, onLoadDemo, onClearAgenda,
+  canUsePreview = false, isAdminUser = false, isDark = true, onToggleTheme,
 }) {
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -132,6 +132,9 @@ export default function MoreMenu({
 
         <div className="space-y-1 pb-2">
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
+          {isAdminUser && (
+            <MenuRow icon={Database} label="Panel de Administración" onClick={onOpenAdmin} />
+          )}
           <MenuRow icon={StickyNote} label="Mis Notas" onClick={onOpenNotes} />
           <MenuRow icon={Settings} label="Configuración" hint="Pronto" />
           <MenuRow

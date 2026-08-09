@@ -233,6 +233,7 @@ function Shell({ onLogout, isPreview, role, profileName }) {
       onNavigate={setSection}
       onLogout={onLogout}
       canUsePreview={canUsePreview}
+      isAdminUser={isAdmin(role)}
       isDark={isDark}
       onToggleTheme={toggleTheme}
       username={profileName}

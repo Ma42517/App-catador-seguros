@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
-import { TAG_LIST } from '../../data/announcements';
+import { CATEGORY_LIST } from '../../data/announcements';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
@@ -13,16 +13,16 @@ const LABEL = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider t
 
 /** Redacción de un comunicado. Sólo alcanzable con permisos de promotor. */
 export default function PublishSheet({ isOpen, onClose, onPublish }) {
-  const [tag, setTag] = useState(TAG_LIST[0].key);
+  const [category, setCategory] = useState(CATEGORY_LIST[0].key);
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [content, setContent] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    setTag(TAG_LIST[0].key);
+    setCategory(CATEGORY_LIST[0].key);
     setTitle('');
-    setDescription('');
+    setContent('');
     setError('');
   }, [isOpen]);
 
@@ -32,7 +32,7 @@ export default function PublishSheet({ isOpen, onClose, onPublish }) {
       setError('El comunicado necesita un título.');
       return;
     }
-    onPublish({ tag, title, description });
+    onPublish({ category, title, content });
     onClose();
   };
 
@@ -46,15 +46,15 @@ export default function PublishSheet({ isOpen, onClose, onPublish }) {
         <div className="mb-4">
           <span className={LABEL}>Etiqueta</span>
           <div role="radiogroup" aria-label="Etiqueta del comunicado" className="flex gap-2">
-            {TAG_LIST.map((option) => {
-              const active = tag === option.key;
+            {CATEGORY_LIST.map((option) => {
+              const active = category === option.key;
               return (
                 <button
                   key={option.key}
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  onClick={() => setTag(option.key)}
+                  onClick={() => setCategory(option.key)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold
                               transition-all active:scale-95 ${active
                     ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
@@ -85,8 +85,8 @@ export default function PublishSheet({ isOpen, onClose, onPublish }) {
             id="ann-desc"
             rows={3}
             className={`${INPUT} resize-none`}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
             placeholder="Detalles que el asesor debe conocer..."
           />
         </div>
