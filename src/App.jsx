@@ -6,12 +6,17 @@ import {
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
 import StepWizard, { STEPS } from './components/Wizard/StepWizard';
+import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 import SplashScreen from './components/SplashScreen';
+import LoginScreen from './components/Auth/LoginScreen';
+import AdminLayout from './components/Layout/AdminLayout';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
 /** Clave de sessionStorage para saber si el intro ya se mostró en esta pestaña/sesión. */
 const INTRO_KEY = 'hasSeenIntro';
+/** Clave de sessionStorage que mantiene la sesión abierta entre recargas. */
+const AUTH_KEY = 'isAuthenticated';
 /** Duración mínima garantizada del splash en la primera visita de la sesión. */
 const FIRST_VISIT_SPLASH_MS = 3200;
 
@@ -164,7 +169,8 @@ function stepFromHash() {
  * pill del header y el stepper interno de StepWizard queden siempre en
  * sincronía: ambos leen y escriben el mismo `step`.
  */
-function Shell() {
+function Shell({ onLogout }) {
+  const [section, setSection] = useState('wizard');
   const [step, setStep] = useState(stepFromHash);
 
   // Permite navegar con los botones de atrás/adelante del navegador.
@@ -183,36 +189,49 @@ function Shell() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-slate-950">
-      {/* Iluminación ambiental fija del fondo */}
-      <div
-        className="pointer-events-none fixed inset-x-0 top-0 h-[420px] bg-grid-fade"
-        aria-hidden="true"
-      />
+    <AdminLayout section={section} onNavigate={setSection} onLogout={onLogout}>
+      <div className="relative min-h-screen bg-slate-950">
+        {/* Iluminación ambiental fija del fondo */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-grid-fade"
+          aria-hidden="true"
+        />
 
-      <div className="relative">
-        <Header step={step} onNavigate={go} />
-        <main className="mx-auto max-w-5xl px-4 py-6">
-          <StepWizard step={step} onStepChange={go} />
-        </main>
-        <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4">
-          <div className="border-t border-slate-800 pt-5">
-            <p className="text-center text-[10px] leading-relaxed text-slate-600">
-              Herramienta de diagnóstico y simulación. Los resultados son estimaciones basadas en los
-              supuestos que capturas y no constituyen asesoría financiera, fiscal ni de inversión.
-              Tu información se guarda únicamente en este navegador.
-            </p>
-          </div>
-        </footer>
+        <div className="relative">
+          <Header step={step} onNavigate={go} />
+          <main className="mx-auto max-w-5xl px-4 py-6">
+            {section === 'wizard' ? (
+              <StepWizard step={step} onStepChange={go} />
+            ) : (
+              <div className="animate-rise">
+                <ExecutiveDashboard />
+              </div>
+            )}
+          </main>
+          <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4">
+            <div className="border-t border-slate-800 pt-5">
+              <p className="text-center text-[10px] leading-relaxed text-slate-600">
+                Herramienta de diagnóstico y simulación. Los resultados son estimaciones basadas en los
+                supuestos que capturas y no constituyen asesoría financiera, fiscal ni de inversión.
+                Tu información se guarda únicamente en este navegador.
+              </p>
+            </div>
+          </footer>
+        </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
 
 export default function App() {
   const [isAppReady, setIsAppReady] = useState(false);
+  // La sesión se rehidrata desde sessionStorage para no pedir la clave
+  // en cada recarga dentro de la misma pestaña.
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => sessionStorage.getItem(AUTH_KEY) === 'true',
+  );
 
-  // Primera vez en la sesión: splash de ~2s con look de marca. Visitas
+  // Primera vez en la sesión: splash con look de marca. Visitas
   // subsecuentes dentro de la misma pestaña: splash casi instantáneo,
   // tipo Facebook/Instagram, solo para evitar un "flash" de layout vacío.
   useEffect(() => {
@@ -227,12 +246,24 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  const handleLoginSuccess = useCallback(() => {
+    sessionStorage.setItem(AUTH_KEY, 'true');
+    setIsAuthenticated(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    sessionStorage.removeItem(AUTH_KEY);
+    setIsAuthenticated(false);
+  }, []);
+
   if (!isAppReady) return <SplashScreen />;
+
+  if (!isAuthenticated) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
 
   return (
     <FinanceProvider>
       <ReferralProvider>
-        <Shell />
+        <Shell onLogout={handleLogout} />
       </ReferralProvider>
     </FinanceProvider>
   );
