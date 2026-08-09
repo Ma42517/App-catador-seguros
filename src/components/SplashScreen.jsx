@@ -6,11 +6,13 @@
  */
 export default function SplashScreen() {
   return (
-    <div className="fixed inset-0 z-50 flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-950">
-      <h1 className="animate-pulse text-4xl font-bold tracking-tight text-indigo-500 sm:text-5xl">
-        PROSPECTA
+    <div className="fixed inset-0 z-50 flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-black">
+      <h1 className="animate-pulse text-7xl font-black tracking-tighter text-white sm:text-9xl md:text-[12vw] lg:text-[10vw]">
+        PROSPEKTA
       </h1>
-      <p className="text-sm text-slate-400">Diagnóstico Financiero 360</p>
+      <p className="mt-4 text-sm tracking-widest text-zinc-500 md:text-xl">
+        Diagnóstico Financiero 360
+      </p>
     </div>
   );
 }
