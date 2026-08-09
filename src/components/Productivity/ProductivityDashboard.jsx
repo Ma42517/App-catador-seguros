@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Target } from 'lucide-react';
+import { Target, Megaphone } from 'lucide-react';
 import ImmersiveCard from './ImmersiveCard';
 import ProspectaHero from './ProspectaHero';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
@@ -9,6 +9,18 @@ import ProspectaScreen from '../Prospecta/ProspectaScreen';
  * `onClick` queda listo para engancharse cuando exista su pantalla.
  */
 const CARDS = [
+  {
+    key: 'workplace',
+    title: 'Workplace',
+    subtitle: 'Mensajes y avisos de la Promotoría',
+    icon: Megaphone,
+    gradient: 'from-zinc-900 via-blue-950 to-blue-900',
+    glow: 'hover:shadow-[0_0_28px_rgba(59,130,246,0.35)]',
+    iconTone: 'text-cyan-300/80',
+    // Simula un aviso nuevo del promotor.
+    badge: 1,
+    badgeLabel: '1 aviso nuevo de la promotoría',
+  },
   {
     key: 'metas',
     title: 'Mis Metas',
@@ -43,6 +55,8 @@ export default function ProductivityDashboard() {
           gradient={card.gradient}
           glow={card.glow}
           iconTone={card.iconTone}
+          badge={card.badge}
+          badgeLabel={card.badgeLabel}
         />
       ))}
 

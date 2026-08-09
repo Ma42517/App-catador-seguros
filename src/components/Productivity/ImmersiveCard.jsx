@@ -9,6 +9,7 @@ import { ChevronRight } from 'lucide-react';
  */
 export default function ImmersiveCard({
   title, subtitle, value, icon: Icon, gradient, glow, iconTone, onClick,
+  badge, badgeLabel,
 }) {
   return (
     <button
@@ -45,6 +46,23 @@ export default function ImmersiveCard({
 
         <p className="mt-0.5 text-xs leading-snug text-white/60">{subtitle}</p>
       </div>
+
+      {/*
+        Indicador de novedad. Va en la esquina superior, por encima del ícono
+        (z-20) y con `role="status"` para que un lector de pantalla lo anuncie:
+        un punto de color sin texto alternativo no comunicaría nada.
+      */}
+      {badge && (
+        <span
+          role="status"
+          aria-label={badgeLabel}
+          className="absolute right-4 top-3 z-20 grid h-5 min-w-[1.25rem] animate-pulse
+                     place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold
+                     leading-none text-white shadow-lg shadow-rose-500/40"
+        >
+          {badge}
+        </span>
+      )}
 
       {/* Ícono flotante a la derecha */}
       {Icon && (
