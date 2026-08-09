@@ -100,7 +100,15 @@ export function validateAccessCode(code) {
   };
 }
 
-export function AccessProvider({ username, children }) {
+/**
+ * `forcedPromoter` lo activa quien ya es promotor en la tabla `profiles`.
+ *
+ * Sin esto habría dos verdades sobre el mismo permiso: el rol de la cuenta
+ * diría que puede publicar y el muro seguiría pidiéndole el código de
+ * invitación. El código sigue existiendo para quien no está en `profiles` como
+ * promotor, que es su caso de uso original.
+ */
+export function AccessProvider({ username, forcedPromoter = false, children }) {
   const [access, setAccess] = useState(() => readStored(username));
 
   // Al cambiar de usuario se recarga su vínculo.
@@ -143,16 +151,16 @@ export function AccessProvider({ username, children }) {
   }, [username]);
 
   const value = useMemo(() => ({
-    accessRole: access.role,
+    accessRole: forcedPromoter ? ACCESS_ROLES.PROMOTER : access.role,
     accessCode: access.code,
     promoteria: access.promoteria,
-    isPromoter: access.role === ACCESS_ROLES.PROMOTER,
-    isLinked: isValidRole(access.role),
+    isPromoter: forcedPromoter || access.role === ACCESS_ROLES.PROMOTER,
+    isLinked: forcedPromoter || isValidRole(access.role),
     validateAccessCode,
     linkAccess,
     verifyPromoterPassword,
     unlinkAccess,
-  }), [access, linkAccess, verifyPromoterPassword, unlinkAccess]);
+  }), [access, forcedPromoter, linkAccess, verifyPromoterPassword, unlinkAccess]);
 
   return <AccessContext.Provider value={value}>{children}</AccessContext.Provider>;
 }

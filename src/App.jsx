@@ -8,8 +8,8 @@ import { ReferralProvider } from './context/ReferralContext';
 import StepWizard, { STEPS } from './components/Wizard/StepWizard';
 import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 import SplashScreen from './components/SplashScreen';
-import LoginScreen from './components/Auth/LoginScreen';
-import { isAdmin, isValidRole } from './components/Auth/users';
+import Login from './components/Auth/Login';
+import PendingApproval from './components/Auth/PendingApproval';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import TodayView from './components/Home/TodayView';
@@ -18,18 +18,13 @@ import ProductivityDashboard from './components/Productivity/ProductivityDashboa
 import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
+import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
 import { readTheme, applyTheme, THEMES } from './theme';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
 /** Clave de sessionStorage para saber si el intro ya se mostró en esta pestaña/sesión. */
 const INTRO_KEY = 'hasSeenIntro';
-/** Clave de sessionStorage que mantiene la sesión abierta entre recargas. */
-const AUTH_KEY = 'isAuthenticated';
-/** Clave de sessionStorage con el rol del usuario autenticado. */
-const ROLE_KEY = 'userRole';
-/** Clave de sessionStorage con el usuario autenticado (llave del onboarding). */
-const USER_KEY = 'userName';
 /** Duración mínima garantizada del splash en la primera visita de la sesión. */
 const FIRST_VISIT_SPLASH_MS = 3200;
 
@@ -191,7 +186,14 @@ function stepFromHash() {
  * pill del header y el stepper interno de StepWizard queden siempre en
  * sincronía: ambos leen y escriben el mismo `step`.
  */
-function Shell({ onLogout, isPreview, role, profileName }) {
+/*
+  `storageKey` identifica a la persona para todo lo que se guarda por usuario
+  (agenda, metas, bloques de tiempo, marca de agua) y `displayName` es lo que se
+  le muestra. Con Google son distintos: la clave es el UUID de la cuenta y el
+  nombre es el de su perfil. Usar el nombre como clave ataría los datos a un
+  texto que la persona puede cambiar.
+*/
+function Shell({ onLogout, isPreview, canManage, storageKey, displayName }) {
   const [theme, setTheme] = useState(readTheme);
   const isDark = theme === THEMES.DARK;
 
@@ -208,7 +210,7 @@ function Shell({ onLogout, isPreview, role, profileName }) {
 
   // La vista previa multi-dispositivo es una herramienta interna: sólo el
   // admin la ve, y nunca se anida dentro de su propio iframe.
-  const canUsePreview = isAdmin(role) && !isPreview;
+  const canUsePreview = canManage && !isPreview;
   // Si la sección guardada ya no está permitida, se degrada al inicio.
   const activeSection = section === 'preview' && !canUsePreview ? 'home' : section;
 
@@ -232,17 +234,17 @@ function Shell({ onLogout, isPreview, role, profileName }) {
       onNavigate={setSection}
       onLogout={onLogout}
       canUsePreview={canUsePreview}
-      isAdminUser={isAdmin(role)}
+      isAdminUser={canManage}
       isDark={isDark}
       onToggleTheme={toggleTheme}
-      username={profileName}
+      username={storageKey}
     >
       {activeSection === 'preview' ? (
         <DevicePreview />
       ) : activeSection === 'home' ? (
-        <TodayView name={profileName} />
+        <TodayView name={displayName} />
       ) : activeSection === 'productivity' ? (
-        <ProductivityDashboard username={profileName} />
+        <ProductivityDashboard username={storageKey} />
       ) : activeSection === 'agenda' ? (
         <CalendarView />
       ) : (
@@ -286,26 +288,21 @@ function Shell({ onLogout, isPreview, role, profileName }) {
   );
 }
 
-export default function App() {
-  const [isPreview] = useState(isPreviewFrame);
+/**
+ * Decide qué se ve según el estado de la sesión.
+ *
+ * El orden importa: primero el splash, luego el login, luego la sala de espera
+ * y sólo al final la app. Un rol sin aprobar no debe llegar a montar los
+ * providers, porque montarlos ya empezaría a leer y escribir datos de una
+ * persona que todavía no tiene permiso de entrar.
+ */
+function Gate({ isPreview }) {
+  const { status, identity, isPending, canManage, signOut } = useSession();
+
   // Dentro del iframe de vista previa no se repite el splash: molesta al
   // estar cambiando de dispositivo constantemente.
   const [isAppReady, setIsAppReady] = useState(isPreview);
-  // La sesión se rehidrata desde sessionStorage para no pedir la clave
-  // en cada recarga dentro de la misma pestaña. Se exige además un rol
-  // válido: las sesiones creadas antes de que existieran los roles se
-  // consideran caducas y piden login de nuevo, en lugar de quedarse sin
-  // permisos de forma silenciosa.
-  const [role, setRole] = useState(() => {
-    const stored = sessionStorage.getItem(ROLE_KEY) ?? '';
-    return isValidRole(stored) ? stored : '';
-  });
-  const [username, setUsername] = useState(() => sessionStorage.getItem(USER_KEY) ?? '');
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () =>
-      sessionStorage.getItem(AUTH_KEY) === 'true' &&
-      isValidRole(sessionStorage.getItem(ROLE_KEY) ?? ''),
-  );
+
   // Primera vez en la sesión: splash con look de marca. Visitas
   // subsecuentes dentro de la misma pestaña: splash casi instantáneo,
   // tipo Facebook/Instagram, solo para evitar un "flash" de layout vacío.
@@ -323,50 +320,50 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [isPreview]);
 
-  const handleLoginSuccess = useCallback((user) => {
-    sessionStorage.setItem(AUTH_KEY, 'true');
-    sessionStorage.setItem(ROLE_KEY, user.role);
-    sessionStorage.setItem(USER_KEY, user.username);
-    setRole(user.role);
-    setUsername(user.username);
-    setIsAuthenticated(true);
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    sessionStorage.removeItem(AUTH_KEY);
-    sessionStorage.removeItem(ROLE_KEY);
-    sessionStorage.removeItem(USER_KEY);
-    setRole('');
-    setUsername('');
-    setIsAuthenticated(false);
-  }, []);
-
   if (!isAppReady) return <SplashScreen />;
 
-  // Del login se entra directo a la app: no hay cuestionario intermedio.
-  if (!isAuthenticated) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  // Resolver la sesión implica una consulta a la base; mientras llega se
+  // mantiene el splash en vez de asomar el login y quitarlo enseguida.
+  if (status === SESSION_STATUS.LOADING) return <SplashScreen />;
+
+  if (status === SESSION_STATUS.ANON || !identity) return <Login />;
+
+  // Cuenta creada pero sin aprobar: sala de espera, sin nada más alrededor.
+  if (isPending) return <PendingApproval />;
 
   return (
     <FinanceProvider>
       <ReferralProvider>
-        {/* La agenda es por usuario, así que el provider vive dentro del área
-            autenticada, donde ya se conoce quién entró. */}
-        <EventProvider username={username}>
-          {/* El vínculo con la promotoría también es por usuario. */}
-          <AccessProvider username={username}>
-            {/* Las metas son de la persona, así que el provider también vive
-                dentro del área autenticada. */}
-            <GoalsProvider username={username}>
+        {/* Todo lo que se guarda por persona usa la misma clave de identidad. */}
+        <EventProvider username={identity.key}>
+          {/*
+            `forcedPromoter` conecta los dos sistemas de permisos: quien ya es
+            promotor en la tabla `profiles` no tiene que escribir además el
+            código de invitación para publicar en el muro.
+          */}
+          <AccessProvider username={identity.key} forcedPromoter={canManage}>
+            <GoalsProvider username={identity.key}>
               <Shell
-            onLogout={handleLogout}
-            isPreview={isPreview}
-            role={role}
-              profileName={username}
-            />
+                onLogout={signOut}
+                isPreview={isPreview}
+                canManage={canManage}
+                storageKey={identity.key}
+                displayName={identity.name}
+              />
             </GoalsProvider>
           </AccessProvider>
         </EventProvider>
       </ReferralProvider>
     </FinanceProvider>
+  );
+}
+
+export default function App() {
+  const [isPreview] = useState(isPreviewFrame);
+
+  return (
+    <SessionProvider>
+      <Gate isPreview={isPreview} />
+    </SessionProvider>
   );
 }

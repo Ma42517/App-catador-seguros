@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import DiagnosticsConsole from './DiagnosticsConsole';
+import AccessRequests from './AccessRequests';
 import { CATEGORY_LIST, categoryOf, relativeTime } from '../../data/announcements';
 import {
   fetchAnnouncements, publishAnnouncement, updateAnnouncement, deleteAnnouncement,
@@ -382,7 +383,10 @@ export default function AdminPanel({ isOpen, onClose }) {
         <DiagnosticsConsole lines={lines} onClear={clearConsole} />
       </section>
 
-      {/* ── 2. Pruebas CRUD ────────────────────────────────────────────── */}
+      {/* ── 2. Solicitudes de acceso ───────────────────────────────────── */}
+      <AccessRequests onLog={log} />
+
+      {/* ── 3. Pruebas CRUD ────────────────────────────────────────────── */}
       <section className="mb-8">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className={SECTION_TITLE}>
@@ -496,7 +500,7 @@ export default function AdminPanel({ isOpen, onClose }) {
         </form>
       </section>
 
-      {/* ── 3. Gestor del Workplace ────────────────────────────────────── */}
+      {/* ── 4. Gestor del Workplace ────────────────────────────────────── */}
       <section>
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className={SECTION_TITLE}>Gestor del Workplace</h3>

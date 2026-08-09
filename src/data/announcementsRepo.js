@@ -4,6 +4,7 @@ import {
   updateLocalAnnouncement,
 } from './announcements';
 import { storageFileName, MAX_LOCAL_FILE_BYTES, formatBytes } from './attachments';
+import { describeError } from './supabaseError';
 
 /**
  * Acceso a los comunicados, con una sola puerta para toda la app.
@@ -93,20 +94,10 @@ export async function uploadAttachment(file) {
   return { url: data.publicUrl, error: null, source: 'supabase', fileName };
 }
 
-/**
- * Convierte un error de Supabase en un mensaje que se pueda leer en pantalla.
- *
- * Los errores de Postgres traen `hint` con la instrucción exacta para
- * arreglarlos (por ejemplo el GRANT que falta). Descartarlo obligaría a abrir
- * la consola del navegador para saber qué pasó, así que se muestra completo.
- */
-export function describeError(error) {
-  if (!error) return '';
-  const parts = [error.message || 'Error desconocido'];
-  if (error.code) parts.push(`(código ${error.code})`);
-  if (error.hint) parts.push(`· Solución: ${error.hint}`);
-  return parts.join(' ');
-}
+// `describeError` vive en su propio módulo porque también lo usan los perfiles.
+// Se reexporta para no obligar a cambiar los componentes que ya lo importaban
+// desde aquí.
+export { describeError };
 
 /**
  * Convierte una fila de Supabase a la forma que usan los componentes.
