@@ -30,6 +30,42 @@ export function canManage(role) {
   return role === PROFILE_ROLES.PROMOTER || role === PROFILE_ROLES.ADMIN;
 }
 
+export function isAdminRole(role) {
+  return role === PROFILE_ROLES.ADMIN;
+}
+
+/** Roles que sólo un administrador puede otorgar o quitar. */
+const ELEVATED = [PROFILE_ROLES.PROMOTER, PROFILE_ROLES.ADMIN];
+
+/**
+ * Decide si quien está mirando puede cambiar el rol de una ficha.
+ *
+ * Tres reglas, y las tres importan:
+ *
+ *  - Nadie toca su propia ficha. Un administrador que se degrada por error
+ *    dejaría la promotoría sin quien apruebe, sin forma de volver atrás desde
+ *    la app.
+ *  - Sólo el administrador otorga o retira los roles elevados. Si un promotor
+ *    pudiera nombrar promotores, el permiso se propagaría solo.
+ *  - Un promotor tampoco puede modificar la ficha de alguien que ya es promotor
+ *    o administrador, que es como se evita que degrade al dueño.
+ *
+ * La misma regla está escrita en las políticas de la base. Esta versión sólo
+ * sirve para no mostrar botones que van a fallar: comprobar permisos en la
+ * interfaz no protege nada, porque cualquiera puede llamar a la API directo.
+ */
+export function canChangeRole({ actorRole, actorId, target, nextRole }) {
+  if (!target) return false;
+  if (target.id === actorId) return false;
+
+  if (isAdminRole(actorRole)) return true;
+  if (actorRole !== PROFILE_ROLES.PROMOTER) return false;
+
+  // El promotor sólo mueve fichas no elevadas, y sólo entre roles no elevados.
+  if (ELEVATED.includes(target.role)) return false;
+  return !ELEVATED.includes(nextRole);
+}
+
 /** Etiqueta legible de un rol, para el panel y la ficha del usuario. */
 export function roleLabel(role) {
   switch (role) {

@@ -193,7 +193,7 @@ function stepFromHash() {
   nombre es el de su perfil. Usar el nombre como clave ataría los datos a un
   texto que la persona puede cambiar.
 */
-function Shell({ onLogout, isPreview, canManage, storageKey, displayName }) {
+function Shell({ onLogout, isPreview, canManage, isAdmin, storageKey, displayName }) {
   const [theme, setTheme] = useState(readTheme);
   const isDark = theme === THEMES.DARK;
 
@@ -208,9 +208,9 @@ function Shell({ onLogout, isPreview, canManage, storageKey, displayName }) {
   const [section, setSection] = useState('home');
   const [step, setStep] = useState(stepFromHash);
 
-  // La vista previa multi-dispositivo es una herramienta interna: sólo el
-  // admin la ve, y nunca se anida dentro de su propio iframe.
-  const canUsePreview = canManage && !isPreview;
+  // La vista previa multi-dispositivo es una herramienta interna de desarrollo:
+  // sólo el administrador la ve, y nunca se anida dentro de su propio iframe.
+  const canUsePreview = isAdmin && !isPreview;
   // Si la sección guardada ya no está permitida, se degrada al inicio.
   const activeSection = section === 'preview' && !canUsePreview ? 'home' : section;
 
@@ -297,7 +297,7 @@ function Shell({ onLogout, isPreview, canManage, storageKey, displayName }) {
  * persona que todavía no tiene permiso de entrar.
  */
 function Gate({ isPreview }) {
-  const { status, identity, isPending, canManage, signOut } = useSession();
+  const { status, identity, isPending, canManage, isAdmin, signOut } = useSession();
 
   // Dentro del iframe de vista previa no se repite el splash: molesta al
   // estar cambiando de dispositivo constantemente.
@@ -347,6 +347,7 @@ function Gate({ isPreview }) {
                 onLogout={signOut}
                 isPreview={isPreview}
                 canManage={canManage}
+                isAdmin={isAdmin}
                 storageKey={identity.key}
                 displayName={identity.name}
               />

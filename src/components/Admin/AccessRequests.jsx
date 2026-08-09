@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { UserCheck, Loader2, RefreshCw, ShieldCheck, User, Ban } from 'lucide-react';
+import { UserCheck, Loader2, RefreshCw, ShieldCheck, User, Ban, Crown } from 'lucide-react';
 import {
-  listProfiles, setProfileRole, describeError, roleLabel, PROFILE_ROLES,
+  listProfiles, setProfileRole, describeError, roleLabel, PROFILE_ROLES, canChangeRole,
 } from '../../data/profilesRepo';
+import { useSession } from '../../context/SessionContext';
 
 /** Color del rol, para distinguir de un vistazo quién está en espera. */
 const ROLE_TONE = {
@@ -26,6 +27,8 @@ const ACTION =
  * Los pendientes van primero: son los que exigen una acción.
  */
 export default function AccessRequests({ onLog }) {
+  // Quién está mirando decide qué acciones se dibujan.
+  const { identity, role: actorRole } = useSession();
   const [list, setList] = useState([]);
   const [isLoading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -147,44 +150,66 @@ export default function AccessRequests({ onLog }) {
                 </span>
               </div>
 
+              {/*
+                Se listan las acciones posibles y se filtran por permiso, en vez
+                de anidar condiciones: así la regla vive en un solo lugar y
+                añadir un rol no obliga a tocar el JSX.
+              */}
               <div className="mt-2.5 flex flex-wrap gap-2">
-                {profile.role !== PROFILE_ROLES.ADVISOR && (
-                  <button
-                    type="button"
-                    onClick={() => changeRole(profile, PROFILE_ROLES.ADVISOR)}
-                    disabled={busy}
-                    className={`${ACTION} border-emerald-500/40 text-emerald-600
-                                hover:bg-emerald-500/10 dark:text-emerald-400`}
-                  >
-                    {busy ? <Loader2 size={11} className="animate-spin" /> : <User size={11} />}
-                    Aprobar como Asesor
-                  </button>
-                )}
+                {[
+                  {
+                    role: PROFILE_ROLES.ADVISOR,
+                    label: 'Aprobar como Asesor',
+                    Icon: User,
+                    tone: 'border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400',
+                  },
+                  {
+                    role: PROFILE_ROLES.PROMOTER,
+                    label: 'Hacer Promotor',
+                    Icon: ShieldCheck,
+                    tone: 'border-indigo-500/40 text-indigo-600 hover:bg-indigo-500/10 dark:text-indigo-400',
+                  },
+                  {
+                    role: PROFILE_ROLES.ADMIN,
+                    label: 'Hacer Administrador',
+                    Icon: Crown,
+                    tone: 'border-amber-500/40 text-amber-600 hover:bg-amber-500/10 dark:text-amber-400',
+                  },
+                  {
+                    role: PROFILE_ROLES.PENDING,
+                    label: 'Revocar acceso',
+                    Icon: Ban,
+                    tone: 'border-zinc-300 text-zinc-500 hover:bg-rose-500/10 hover:text-rose-500 dark:border-zinc-700',
+                  },
+                ]
+                  .filter((action) => action.role !== profile.role)
+                  .filter((action) => canChangeRole({
+                    actorRole,
+                    actorId: identity?.key,
+                    target: profile,
+                    nextRole: action.role,
+                  }))
+                  .map((action) => (
+                    <button
+                      key={action.role}
+                      type="button"
+                      onClick={() => changeRole(profile, action.role)}
+                      disabled={busy}
+                      className={`${ACTION} ${action.tone}`}
+                    >
+                      {busy
+                        ? <Loader2 size={11} className="animate-spin" />
+                        : <action.Icon size={11} />}
+                      {action.label}
+                    </button>
+                  ))}
 
-                {profile.role !== PROFILE_ROLES.PROMOTER && (
-                  <button
-                    type="button"
-                    onClick={() => changeRole(profile, PROFILE_ROLES.PROMOTER)}
-                    disabled={busy}
-                    className={`${ACTION} border-indigo-500/40 text-indigo-600
-                                hover:bg-indigo-500/10 dark:text-indigo-400`}
-                  >
-                    {busy ? <Loader2 size={11} className="animate-spin" /> : <ShieldCheck size={11} />}
-                    Hacer Promotor
-                  </button>
-                )}
-
-                {!isPending && (
-                  <button
-                    type="button"
-                    onClick={() => changeRole(profile, PROFILE_ROLES.PENDING)}
-                    disabled={busy}
-                    className={`${ACTION} border-zinc-300 text-zinc-500
-                                hover:bg-rose-500/10 hover:text-rose-500 dark:border-zinc-700`}
-                  >
-                    {busy ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
-                    Revocar
-                  </button>
+                {/* Sin acciones disponibles se explica por qué, en lugar de
+                    dejar una fila muda que parezca un fallo. */}
+                {profile.id === identity?.key && (
+                  <span className="text-[11px] italic text-zinc-500">
+                    Tu propia cuenta: nadie puede cambiar su propio rol.
+                  </span>
                 )}
               </div>
             </li>

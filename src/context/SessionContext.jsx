@@ -4,29 +4,23 @@ import {
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   fetchOrCreateProfile, fetchProfile, describeError,
-  PROFILE_ROLES, isApprovedRole, canManage,
+  PROFILE_ROLES, isApprovedRole, canManage, isAdminRole,
 } from '../data/profilesRepo';
-import { authenticate, isValidRole } from '../components/Auth/users';
 
 /**
  * Identidad de quien está usando la app.
  *
- * Unifica dos orígenes bajo una sola forma para que el resto de la aplicación
- * no tenga que saber de dónde viene la sesión:
+ * Todas las cuentas viven en Supabase Auth, se entre con Google o con correo y
+ * contraseña. No queda ningún directorio de usuarios escrito en el código: uno
+ * así viaja dentro del bundle que descarga el navegador, así que cualquiera
+ * podría leer las claves, y además se saltaría la revisión de acceso.
  *
- *  - `google`: cuenta real vía Supabase Auth, con su rol en la tabla `profiles`.
- *  - `local`:  usuario y contraseña del directorio de la demo.
- *
- * La forma es siempre `{ key, name, email, role, source }`. `key` es lo que se
- * usa para guardar datos por persona (agenda, metas, bloques de tiempo): para
- * Google es el UUID de la cuenta, no el correo, porque el correo puede cambiar
- * y arrastraría todos los datos guardados con él.
+ * La forma es `{ key, name, email, role }`. `key` es lo que se usa para guardar
+ * datos por persona (agenda, metas, bloques de tiempo) y es el UUID de la
+ * cuenta, no el correo: el correo puede cambiar y arrastraría con él todo lo
+ * guardado.
  */
 const SessionContext = createContext(null);
-
-const AUTH_KEY = 'isAuthenticated';
-const ROLE_KEY = 'userRole';
-const USER_KEY = 'userName';
 
 /** Fases posibles mientras se resuelve quién entró. */
 export const SESSION_STATUS = {
@@ -34,38 +28,6 @@ export const SESSION_STATUS = {
   ANON: 'anon',
   READY: 'ready',
 };
-
-function readLocalIdentity() {
-  try {
-    if (sessionStorage.getItem(AUTH_KEY) !== 'true') return null;
-    const role = sessionStorage.getItem(ROLE_KEY) ?? '';
-    const key = sessionStorage.getItem(USER_KEY) ?? '';
-    if (!key || !isValidRole(role)) return null;
-    return { key, name: key, email: '', role, source: 'local' };
-  } catch {
-    return null;
-  }
-}
-
-function writeLocalIdentity(user) {
-  try {
-    sessionStorage.setItem(AUTH_KEY, 'true');
-    sessionStorage.setItem(ROLE_KEY, user.role);
-    sessionStorage.setItem(USER_KEY, user.username);
-  } catch {
-    // Sin sessionStorage la sesión no sobrevive a la recarga: aceptable.
-  }
-}
-
-function clearLocalIdentity() {
-  try {
-    sessionStorage.removeItem(AUTH_KEY);
-    sessionStorage.removeItem(ROLE_KEY);
-    sessionStorage.removeItem(USER_KEY);
-  } catch {
-    // Ignorado.
-  }
-}
 
 /**
  * Traduce los errores de OAuth a algo que diga qué hacer.
@@ -104,7 +66,6 @@ function identityFromProfile(profile) {
     email: profile.email,
     avatarUrl: profile.avatarUrl,
     role: profile.role,
-    source: 'google',
   };
 }
 
@@ -131,13 +92,7 @@ export function SessionProvider({ children }) {
   /** Resuelve la identidad a partir de una sesión de Supabase, o del respaldo local. */
   const resolveSession = useCallback(async (session) => {
     if (!session?.user) {
-      const local = readLocalIdentity();
       if (!alive.current) return;
-      if (local) {
-        setIdentity(local);
-        setStatus(SESSION_STATUS.READY);
-        return;
-      }
       setIdentity(null);
       setStatus(SESSION_STATUS.ANON);
       return;
@@ -187,11 +142,11 @@ export function SessionProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // Sin credenciales de Supabase sólo queda el acceso local.
+    // Sin credenciales de Supabase no hay forma de entrar: se deja el estado en
+    // anónimo y la pantalla de acceso lo explica.
     if (!isSupabaseConfigured || !supabase) {
-      const local = readLocalIdentity();
-      setIdentity(local);
-      setStatus(local ? SESSION_STATUS.READY : SESSION_STATUS.ANON);
+      setIdentity(null);
+      setStatus(SESSION_STATUS.ANON);
       return undefined;
     }
 
@@ -235,26 +190,68 @@ export function SessionProvider({ children }) {
     return { error: null };
   }, []);
 
-  /** Acceso del directorio local. Devuelve `false` si las credenciales fallan. */
-  const signInLocal = useCallback((username, password) => {
-    const user = authenticate(username, password);
-    if (!user) return false;
+  /**
+   * Acceso interno con correo y contraseña.
+   *
+   * Devuelve `{ error }` en vez de un booleano porque los fallos aquí son
+   * distinguibles y accionables: una contraseña equivocada no se arregla igual
+   * que un correo sin confirmar, y el formulario necesita poder decir cuál es.
+   */
+  const signInWithPassword = useCallback(async (email, password) => {
+    if (!isSupabaseConfigured || !supabase) {
+      const message = 'Falta configurar Supabase en este entorno.';
+      setError(message);
+      return { error: { message } };
+    }
 
-    writeLocalIdentity(user);
     setError('');
-    setIdentity({
-      key: user.username,
-      name: user.name || user.username,
-      email: '',
-      role: user.role,
-      source: 'local',
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
     });
-    setStatus(SESSION_STATUS.READY);
-    return true;
+
+    if (signInError) return { error: signInError };
+    // El resto lo resuelve `onAuthStateChange`, que ya consulta el perfil.
+    return { error: null };
+  }, []);
+
+  /**
+   * Alta de una cuenta nueva.
+   *
+   * El nombre viaja en los metadatos del usuario para que la ficha de `profiles`
+   * nazca con un nombre legible: sin él, el panel mostraría sólo el correo.
+   *
+   * `needsConfirmation` avisa de que Supabase creó la cuenta pero exige abrir el
+   * enlace del correo antes de poder entrar. Sin distinguir ese caso, la
+   * persona vería "cuenta creada" y luego un fallo al iniciar sesión, sin
+   * entender por qué.
+   */
+  const signUpWithPassword = useCallback(async (email, password, fullName) => {
+    if (!isSupabaseConfigured || !supabase) {
+      const message = 'Falta configurar Supabase en este entorno.';
+      setError(message);
+      return { error: { message } };
+    }
+
+    setError('');
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      options: {
+        data: { full_name: fullName.trim() },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    if (signUpError) return { error: signUpError };
+
+    return {
+      error: null,
+      needsConfirmation: Boolean(data.user && !data.session),
+    };
   }, []);
 
   const signOut = useCallback(async () => {
-    clearLocalIdentity();
     if (isSupabaseConfigured && supabase) await supabase.auth.signOut();
     if (!alive.current) return;
     setIdentity(null);
@@ -264,8 +261,6 @@ export function SessionProvider({ children }) {
 
   /** Relee el rol: lo usa la sala de espera para comprobar si ya la aprobaron. */
   const refreshRole = useCallback(async () => {
-    if (identity?.source !== 'google') return { changed: false };
-
     const { data, error: readError } = await fetchProfile(identity.key);
     if (!alive.current) return { changed: false };
 
@@ -287,18 +282,24 @@ export function SessionProvider({ children }) {
       identity,
       error,
       // El directorio local no pasa por revisión: sus roles ya son definitivos.
-      isApproved: identity ? (identity.source === 'local' || isApprovedRole(role)) : false,
-      isPending: identity?.source === 'google' && role === PROFILE_ROLES.PENDING,
-      canManage: identity
-        ? (identity.source === 'local' ? role === 'admin' : canManage(role))
-        : false,
+      isApproved: isApprovedRole(role),
+      isPending: Boolean(identity) && role === PROFILE_ROLES.PENDING,
+      canManage: canManage(role),
+      // El administrador reparte los roles elevados y ve las herramientas
+      // internas de desarrollo.
+      isAdmin: isAdminRole(role),
+      role,
       googleEnabled: isSupabaseConfigured,
       signInWithGoogle,
-      signInLocal,
+      signInWithPassword,
+      signUpWithPassword,
       signOut,
       refreshRole,
     };
-  }, [status, identity, error, signInWithGoogle, signInLocal, signOut, refreshRole]);
+  }, [
+    status, identity, error,
+    signInWithGoogle, signInWithPassword, signUpWithPassword, signOut, refreshRole,
+  ]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
