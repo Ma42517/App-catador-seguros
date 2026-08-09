@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import BottomTabBar from './BottomTabBar';
 import MoreMenu from './MoreMenu';
 import QuickAddMenu from './QuickAddMenu';
@@ -7,8 +7,10 @@ import QuickNoteForm from '../Notes/QuickNoteForm';
 import NotesList from '../Notes/NotesList';
 import UserProfile from '../Profile/UserProfile';
 import AdminPanel from '../Admin/AdminPanel';
+import UserApprovals from '../Admin/UserApprovals';
 import { useEvents } from '../../context/EventContext';
 import { useAccess } from '../../context/AccessContext';
+import { countPendingProfiles } from '../../data/profilesRepo';
 
 /**
  * Chrome de navegación del área autenticada.
@@ -34,9 +36,29 @@ export default function AdminLayout({
   const [notesOpen, setNotesOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [approvalsOpen, setApprovalsOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  /*
+    El conteo se refresca al abrir el menú y al volver de aprobar, no con un
+    temporizador de fondo: una consulta cada pocos segundos gastaría cuota de la
+    base para un número que sólo se mira al abrir ese panel.
+  */
+  const refreshPending = useCallback(async () => {
+    if (!canOpenAdmin) return;
+    const { count } = await countPendingProfiles();
+    setPendingCount(count);
+  }, [canOpenAdmin]);
+
+  useEffect(() => { refreshPending(); }, [refreshPending]);
 
   // Qué formulario está abierto: 'actividad' | 'recordatorio' | 'nota' | null.
   const [activeForm, setActiveForm] = useState(null);
+
+  const openMore = () => {
+    refreshPending();
+    setMoreOpen(true);
+  };
 
   const goTo = (section) => {
     onNavigate(section);
@@ -53,7 +75,7 @@ export default function AdminLayout({
         onProductivity={() => goTo('productivity')}
         onAgenda={() => goTo('agenda')}
         onAdd={() => setQuickAddOpen(true)}
-        onMore={() => setMoreOpen(true)}
+        onMore={openMore}
       />
 
       <QuickAddMenu
@@ -85,7 +107,14 @@ export default function AdminLayout({
 
       {/* Sin permiso no se monta: perder el permiso con el panel abierto lo cierra. */}
       {canOpenAdmin && (
-        <AdminPanel isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
+        <>
+          <UserApprovals
+            isOpen={approvalsOpen}
+            onClose={() => { setApprovalsOpen(false); refreshPending(); }}
+            onChanged={refreshPending}
+          />
+          <AdminPanel isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
+        </>
       )}
 
       <MoreMenu
@@ -96,11 +125,13 @@ export default function AdminLayout({
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onOpenProfile={() => { setMoreOpen(false); setProfileOpen(true); }}
         onOpenAdmin={() => { setMoreOpen(false); setAdminOpen(true); }}
+        onOpenApprovals={() => { setMoreOpen(false); setApprovalsOpen(true); }}
         onLogout={onLogout}
         onLoadDemo={() => { loadDemoWeek(); setMoreOpen(false); onNavigate('agenda'); }}
         onClearAgenda={() => { clearAgenda(); setMoreOpen(false); }}
         canUsePreview={canUsePreview}
         isAdminUser={canOpenAdmin}
+        pendingCount={pendingCount}
         isDark={isDark}
         onToggleTheme={onToggleTheme}
       />

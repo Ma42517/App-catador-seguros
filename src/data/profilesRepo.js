@@ -193,6 +193,24 @@ export async function listProfiles() {
   return { data: (data ?? []).map(fromRow), error: null };
 }
 
+/**
+ * Cuántas solicitudes esperan revisión.
+ *
+ * Pide sólo el conteo con `head: true`: el menú necesita el número para el
+ * distintivo, no las fichas, y traerlas sería mover datos que nadie va a leer.
+ */
+export async function countPendingProfiles() {
+  if (!isSupabaseConfigured || !supabase) return { count: 0, error: null };
+
+  const { count, error } = await supabase
+    .from(TABLE)
+    .select('*', { count: 'exact', head: true })
+    .eq('role', PROFILE_ROLES.PENDING);
+
+  if (error) return { count: 0, error };
+  return { count: count ?? 0, error: null };
+}
+
 /** Cambia el rol de una ficha: es la acción de aprobar o revocar. */
 export async function setProfileRole(userId, role) {
   if (!isSupabaseConfigured || !supabase) {

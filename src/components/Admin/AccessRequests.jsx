@@ -26,9 +26,16 @@ const ACTION =
  *
  * Los pendientes van primero: son los que exigen una acción.
  */
-export default function AccessRequests({ onLog }) {
+export default function AccessRequests({ onLog, onChanged }) {
   // Quién está mirando decide qué acciones se dibujan.
   const { identity, role: actorRole } = useSession();
+
+  /*
+    El error se guarda además de registrarse en la consola del panel, porque
+    esta lista también vive por su cuenta en "Ver más": ahí no hay consola donde
+    mirar y el fallo tiene que verse en su sitio.
+  */
+  const [error, setError] = useState('');
   const [list, setList] = useState([]);
   const [isLoading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -40,9 +47,11 @@ export default function AccessRequests({ onLog }) {
     setLoading(false);
 
     if (error) {
+      setError(describeError(error));
       onLog?.('error', describeError(error));
       return;
     }
+    setError('');
     const pending = data.filter((item) => item.role === PROFILE_ROLES.PENDING);
     const rest = data.filter((item) => item.role !== PROFILE_ROLES.PENDING);
     setList([...pending, ...rest]);
@@ -58,11 +67,14 @@ export default function AccessRequests({ onLog }) {
     setBusyId(null);
 
     if (error) {
+      setError(describeError(error));
       onLog?.('error', describeError(error));
       return;
     }
+    setError('');
     onLog?.('ok', `${profile.email || profile.fullName}: ahora es ${roleLabel(role)}.`);
     load();
+    onChanged?.();
   };
 
   const pendingCount = list.filter((item) => item.role === PROFILE_ROLES.PENDING).length;
@@ -97,6 +109,16 @@ export default function AccessRequests({ onLog }) {
           {isLoading ? 'Cargando' : 'Actualizar'}
         </button>
       </div>
+
+      {error && (
+        <p
+          role="alert"
+          className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3
+                     text-[11px] leading-relaxed text-rose-600 dark:text-rose-300"
+        >
+          {error}
+        </p>
+      )}
 
       {!isLoading && list.length === 0 && (
         <p className="rounded-xl border border-dashed border-zinc-300 py-8 text-center text-xs

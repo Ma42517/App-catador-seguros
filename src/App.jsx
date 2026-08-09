@@ -297,7 +297,7 @@ function Shell({ onLogout, isPreview, canManage, isAdmin, storageKey, displayNam
  * persona que todavía no tiene permiso de entrar.
  */
 function Gate({ isPreview }) {
-  const { status, identity, isPending, canManage, isAdmin, signOut } = useSession();
+  const { status, identity, isApproved, canManage, isAdmin, signOut } = useSession();
 
   // Dentro del iframe de vista previa no se repite el splash: molesta al
   // estar cambiando de dispositivo constantemente.
@@ -328,8 +328,13 @@ function Gate({ isPreview }) {
 
   if (status === SESSION_STATUS.ANON || !identity) return <Login />;
 
-  // Cuenta creada pero sin aprobar: sala de espera, sin nada más alrededor.
-  if (isPending) return <PendingApproval />;
+  /*
+    Sólo entran los roles aprobados. Se comprueba en positivo a propósito: antes
+    se bloqueaba únicamente `pending`, así que un rol vacío, mal escrito o
+    desconocido pasaba de largo hasta el contenido. Una puerta de acceso tiene
+    que cerrarse ante lo que no reconoce.
+  */
+  if (!isApproved) return <PendingApproval />;
 
   return (
     <FinanceProvider>

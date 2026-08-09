@@ -1,15 +1,17 @@
 import { useEffect } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
-  StickyNote, Wand2, Eraser, BadgeCheck, Database,
+  StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck,
 } from 'lucide-react';
 
 /**
  * Fila estándar del menú.
  * - `hint`: marca lo que aún no está disponible (deshabilita la fila).
  * - `action`: estado actual de un control, como el tema activo.
+ * - `badge`: cantidad que reclama atención. Se pinta en ámbar y no en gris
+ *   porque su función es que se note sin tener que leer la fila.
  */
-function MenuRow({ icon: Icon, label, hint, action, tone = 'default', onClick }) {
+function MenuRow({ icon: Icon, label, hint, action, badge, tone = 'default', onClick }) {
   const isDanger = tone === 'danger';
   const disabled = Boolean(hint);
 
@@ -36,6 +38,16 @@ function MenuRow({ icon: Icon, label, hint, action, tone = 'default', onClick })
 
       <span className="min-w-0 flex-1 text-sm font-semibold">{label}</span>
 
+      {badge ? (
+        <span
+          className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold
+                     text-amber-600 dark:text-amber-400"
+        >
+          {badge}
+          <span className="sr-only"> pendientes</span>
+        </span>
+      ) : null}
+
       {hint || action ? (
         <span className="shrink-0 rounded-full border border-zinc-200 px-2 py-0.5 text-[10px]
                          font-semibold uppercase tracking-wide text-zinc-400
@@ -55,8 +67,9 @@ function MenuRow({ icon: Icon, label, hint, action, tone = 'default', onClick })
  */
 export default function MoreMenu({
   open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile,
-  onOpenAdmin, onLogout, onLoadDemo, onClearAgenda,
-  canUsePreview = false, isAdminUser = false, isDark = true, onToggleTheme,
+  onOpenAdmin, onOpenApprovals, onLogout, onLoadDemo, onClearAgenda,
+  canUsePreview = false, isAdminUser = false, pendingCount = 0,
+  isDark = true, onToggleTheme,
 }) {
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -132,6 +145,16 @@ export default function MoreMenu({
 
         <div className="space-y-1 pb-2">
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
+          {/* Aprobar usuarios va antes del panel técnico: es la tarea que el
+              administrador repite, y el distintivo avisa sin abrir nada. */}
+          {isAdminUser && (
+            <MenuRow
+              icon={UserCheck}
+              label="Aprobar Usuarios"
+              badge={pendingCount > 0 ? pendingCount : undefined}
+              onClick={onOpenApprovals}
+            />
+          )}
           {isAdminUser && (
             <MenuRow icon={Database} label="Panel de Administración" onClick={onOpenAdmin} />
           )}
