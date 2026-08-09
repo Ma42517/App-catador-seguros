@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
+import AttachmentInput from '../ui/AttachmentInput';
 import { CATEGORY_LIST } from '../../data/announcements';
+import { uploadAttachment, describeError, usingSupabase } from '../../data/announcementsRepo';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
@@ -11,30 +13,66 @@ const INPUT =
 
 const LABEL = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500';
 
-/** Redacción de un comunicado. Sólo alcanzable con permisos de promotor. */
+/**
+ * Redacción de un comunicado desde el muro. Sólo alcanzable con permisos de
+ * promotor.
+ *
+ * La hoja sube el archivo ella misma antes de avisar al tablero: si la subida
+ * falla, el error se ve aquí, con el formulario intacto y sin haber creado un
+ * comunicado que apunte a un archivo inexistente.
+ */
 export default function PublishSheet({ isOpen, onClose, onPublish }) {
   const [category, setCategory] = useState(CATEGORY_LIST[0].key);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [file, setFile] = useState(null);
   const [error, setError] = useState('');
+  const [isUploading, setUploading] = useState(false);
+  const [isSaving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setCategory(CATEGORY_LIST[0].key);
     setTitle('');
     setContent('');
+    setFile(null);
     setError('');
+    setUploading(false);
+    setSaving(false);
   }, [isOpen]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
       setError('El comunicado necesita un título.');
       return;
     }
-    onPublish({ category, title, content });
-    onClose();
+
+    setSaving(true);
+    let fileUrl = '';
+
+    if (file) {
+      setUploading(true);
+      const upload = await uploadAttachment(file);
+      setUploading(false);
+
+      if (upload.error) {
+        setSaving(false);
+        setError(describeError(upload.error));
+        return;
+      }
+      fileUrl = upload.url;
+    }
+
+    const result = await onPublish({ category, title, content, fileUrl });
+    setSaving(false);
+
+    // Sólo se cierra si de verdad se publicó: cerrar tras un fallo tiraría el
+    // texto que la persona acababa de escribir.
+    if (result?.ok !== false) onClose();
   };
+
+  const busy = isSaving || isUploading;
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} label="Publicar comunicado">
@@ -80,14 +118,28 @@ export default function PublishSheet({ isOpen, onClose, onPublish }) {
         </div>
 
         <div className="mb-4">
-          <label className={LABEL} htmlFor="ann-desc">Descripción</label>
+          <label className={LABEL} htmlFor="ann-content">Descripción</label>
           <textarea
-            id="ann-desc"
+            id="ann-content"
             rows={3}
             className={`${INPUT} resize-none`}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Detalles que el asesor debe conocer..."
+          />
+        </div>
+
+        <div className="mb-5">
+          <AttachmentInput
+            id="ann-file"
+            label="Foto o documento (opcional)"
+            file={file}
+            onPick={(chosen) => { setFile(chosen); setError(''); }}
+            onClear={() => setFile(null)}
+            disabled={busy}
+            hint={usingSupabase
+              ? 'La foto se comparte con la marca de agua del asesor; los documentos, como descarga.'
+              : 'Sin Supabase el archivo se guarda en este navegador, con un tope de 800 KB.'}
           />
         </div>
 
@@ -97,12 +149,14 @@ export default function PublishSheet({ isOpen, onClose, onPublish }) {
 
         <button
           type="submit"
+          disabled={busy}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600
                      px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30
-                     transition-all hover:bg-indigo-500 active:scale-[0.98]"
+                     transition-all hover:bg-indigo-500 active:scale-[0.98]
+                     disabled:cursor-wait disabled:opacity-60"
         >
-          <Send size={16} />
-          Publicar al equipo
+          {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+          {isUploading ? 'Subiendo archivo...' : (isSaving ? 'Publicando...' : 'Publicar al equipo')}
         </button>
       </form>
     </BottomSheet>

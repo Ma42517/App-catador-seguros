@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Database, Send, Trash2, Loader2, HardDrive, Activity, Pencil, X, Save, RefreshCw,
-  Paperclip, FileText, Image as ImageIcon,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import DiagnosticsConsole from './DiagnosticsConsole';
@@ -10,9 +9,8 @@ import {
   fetchAnnouncements, publishAnnouncement, updateAnnouncement, deleteAnnouncement,
   pingDatabase, pingStorage, uploadAttachment, usingSupabase, describeError, BUCKET,
 } from '../../data/announcementsRepo';
-import {
-  ACCEPT_ATTACHMENTS, attachmentKind, attachmentName, formatBytes,
-} from '../../data/attachments';
+import AttachmentInput, { AttachmentIcon } from '../ui/AttachmentInput';
+import { attachmentName, formatBytes } from '../../data/attachments';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
@@ -25,107 +23,6 @@ const LABEL = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider t
 const SECTION_TITLE = 'text-sm font-bold text-zinc-900 dark:text-white';
 
 const EMPTY_FORM = { category: CATEGORY_LIST[0].key, title: '', content: '' };
-
-/** Icono según lo que sea el adjunto, para reconocerlo de un vistazo. */
-function AttachmentIcon({ url, size = 14 }) {
-  const Icon = attachmentKind(url) === 'document' ? FileText : ImageIcon;
-  return <Icon size={size} aria-hidden="true" />;
-}
-
-/**
- * Selector de adjunto.
- *
- * Muestra tres estados distintos: sin nada, un archivo recién elegido que
- * todavía no sube, y el adjunto que ya vive en la base cuando se está editando.
- * Confundirlos llevaría a creer que un archivo se subió cuando no.
- */
-function AttachmentField({ file, existingUrl, onPick, onClear, disabled }) {
-  const inputRef = useRef(null);
-
-  const pick = (event) => {
-    const chosen = event.target.files?.[0] ?? null;
-    onPick(chosen);
-  };
-
-  const clear = () => {
-    if (inputRef.current) inputRef.current.value = '';
-    onClear();
-  };
-
-  return (
-    <div>
-      <span className={LABEL}>Archivo adjunto (opcional)</span>
-
-      <input
-        ref={inputRef}
-        id="admin-file"
-        type="file"
-        accept={ACCEPT_ATTACHMENTS}
-        onChange={pick}
-        disabled={disabled}
-        className="block w-full cursor-pointer rounded-xl border border-zinc-200 bg-white
-                   text-xs text-zinc-500 transition-colors
-                   file:mr-3 file:cursor-pointer file:border-0 file:border-r
-                   file:border-zinc-200 file:bg-zinc-100 file:px-3 file:py-2.5
-                   file:text-xs file:font-semibold file:text-zinc-700
-                   hover:border-zinc-300 disabled:cursor-not-allowed disabled:opacity-60
-                   dark:border-zinc-700 dark:bg-zinc-950/60
-                   dark:file:border-zinc-700 dark:file:bg-zinc-800 dark:file:text-zinc-200"
-      />
-
-      {/* Archivo elegido, aún sin subir */}
-      {file && (
-        <div className="mt-2 flex items-center gap-2 rounded-xl border border-indigo-500/40
-                        bg-indigo-500/5 px-3 py-2"
-        >
-          <Paperclip size={13} className="shrink-0 text-indigo-400" aria-hidden="true" />
-          <p className="min-w-0 flex-1 truncate text-[11px] text-zinc-600 dark:text-zinc-300">
-            {file.name} · {formatBytes(file.size)}
-          </p>
-          <button
-            type="button"
-            onClick={clear}
-            className="shrink-0 rounded-md p-1 text-zinc-400 transition-colors
-                       hover:bg-rose-500/10 hover:text-rose-500"
-            aria-label="Quitar archivo"
-          >
-            <X size={12} />
-          </button>
-        </div>
-      )}
-
-      {/* Adjunto que ya está publicado: se conserva si no se elige otro */}
-      {!file && existingUrl && (
-        <div className="mt-2 flex items-center gap-2 rounded-xl border border-zinc-200
-                        bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          <span className="shrink-0 text-zinc-400">
-            <AttachmentIcon url={existingUrl} size={13} />
-          </span>
-          <p className="min-w-0 flex-1 truncate text-[11px] text-zinc-600 dark:text-zinc-300">
-            {attachmentName(existingUrl)}
-          </p>
-          <button
-            type="button"
-            onClick={onClear}
-            className="shrink-0 rounded-md p-1 text-zinc-400 transition-colors
-                       hover:bg-rose-500/10 hover:text-rose-500"
-            aria-label="Quitar adjunto actual"
-          >
-            <X size={12} />
-          </button>
-        </div>
-      )}
-
-      <p className="mt-1.5 text-[11px] text-zinc-500">
-        {usingSupabase
-          ? <>Se sube al bucket <span className="font-mono">{BUCKET}</span>. Las imágenes
-            se comparten con la marca de agua del asesor; los documentos, como descarga.</>
-          : 'Sin Supabase el archivo se guarda en este navegador, con un tope de 800 KB.'}
-      </p>
-    </div>
-  );
-}
 
 /** Estados posibles del diagnóstico, con su semáforo. */
 const HEALTH = {
@@ -561,12 +458,16 @@ export default function AdminPanel({ isOpen, onClose }) {
           </div>
 
           <div className="mb-5">
-            <AttachmentField
+            <AttachmentInput
+              id="admin-file"
               file={file}
               existingUrl={existingFileUrl}
               onPick={(chosen) => { setFile(chosen); setFormError(''); }}
               onClear={() => { setFile(null); setExistingFileUrl(''); }}
               disabled={isSaving}
+              hint={usingSupabase
+                ? `Se sube al bucket ${BUCKET}. Las imágenes se comparten con la marca de agua del asesor; los documentos, como descarga.`
+                : 'Sin Supabase el archivo se guarda en este navegador, con un tope de 800 KB.'}
             />
           </div>
 

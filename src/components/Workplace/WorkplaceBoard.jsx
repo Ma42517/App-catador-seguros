@@ -265,14 +265,19 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
 
   const clearToast = useCallback(() => setToast(''), []);
 
+  /**
+   * Devuelve el desenlace para que la hoja decida si cerrarse: ante un fallo
+   * conviene que siga abierta con lo ya escrito.
+   */
   const handlePublish = useCallback(async (draft) => {
     const { error } = await publishAnnouncement(draft);
     if (error) {
       setToast(`No se pudo publicar. ${describeError(error)}`);
-      return;
+      return { ok: false };
     }
     setToast('Comunicado publicado al equipo');
     loadFeed();
+    return { ok: true };
   }, [loadFeed]);
 
   const handleDelete = useCallback(async (id) => {
