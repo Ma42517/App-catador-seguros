@@ -19,8 +19,6 @@ import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
 import { readTheme, applyTheme, THEMES } from './theme';
-import AgentProfiler from './components/Onboarding/AgentProfiler';
-import { readProfile, saveProfile } from './components/Onboarding/storage';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
@@ -308,11 +306,6 @@ export default function App() {
       sessionStorage.getItem(AUTH_KEY) === 'true' &&
       isValidRole(sessionStorage.getItem(ROLE_KEY) ?? ''),
   );
-  // Perfil del onboarding; `null` significa que aún no lo completó.
-  const [profile, setProfile] = useState(() =>
-    readProfile(sessionStorage.getItem(USER_KEY) ?? ''),
-  );
-
   // Primera vez en la sesión: splash con look de marca. Visitas
   // subsecuentes dentro de la misma pestaña: splash casi instantáneo,
   // tipo Facebook/Instagram, solo para evitar un "flash" de layout vacío.
@@ -336,8 +329,6 @@ export default function App() {
     sessionStorage.setItem(USER_KEY, user.username);
     setRole(user.role);
     setUsername(user.username);
-    // Si ya hizo el onboarding antes, se salta; si no, quedará en null.
-    setProfile(readProfile(user.username));
     setIsAuthenticated(true);
   }, []);
 
@@ -347,22 +338,13 @@ export default function App() {
     sessionStorage.removeItem(USER_KEY);
     setRole('');
     setUsername('');
-    setProfile(null);
     setIsAuthenticated(false);
   }, []);
 
-  // El onboarding se guarda por usuario, así que sobrevive al cierre de sesión.
-  const handleProfileComplete = useCallback((answers) => {
-    saveProfile(username, answers);
-    setProfile(answers);
-  }, [username]);
-
   if (!isAppReady) return <SplashScreen />;
 
+  // Del login se entra directo a la app: no hay cuestionario intermedio.
   if (!isAuthenticated) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-
-  // Perfil incompleto: se levanta el onboarding antes de entrar a la app.
-  if (!profile) return <AgentProfiler onComplete={handleProfileComplete} />;
 
   return (
     <FinanceProvider>
