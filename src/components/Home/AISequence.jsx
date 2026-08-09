@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Pointer } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import ActionableCard from '../Activities/ActionableCard';
 
@@ -27,13 +26,11 @@ function buildMessage(saludo, pendientes) {
 }
 
 /**
- * Secuencia de inicio del panel principal, en tres fases:
+ * Secuencia de inicio del panel principal, en dos fases:
  *
  *  1. Texto vivo: el mensaje se escribe solo, sin avatar, aro ni contenedor.
  *  2. Revelación: al caer la última letra, entran las tarjetas prioritarias
  *     y el contenido (`children`) con un fundido lento.
- *  3. Guía: una mano apuntando flota sobre el botón "+" y se retira en cuanto
- *     el usuario interactúa, para no estorbar una vez cumplido su propósito.
  */
 export default function AISequence({ name, header, children }) {
   const { highPriorityToday } = useEvents();
@@ -42,7 +39,6 @@ export default function AISequence({ name, header, children }) {
   const text = buildMessage(saludo, highPriorityToday.length);
 
   const [typed, setTyped] = useState('');
-  const [hasInteracted, setHasInteracted] = useState(false);
   const isTyping = typed.length < text.length;
 
   useEffect(() => {
@@ -60,24 +56,13 @@ export default function AISequence({ name, header, children }) {
     return () => clearInterval(id);
   }, [text]);
 
-  // La guía cumple su función una sola vez: al primer toque o tecla, se va.
-  useEffect(() => {
-    const onFirst = () => setHasInteracted(true);
-    window.addEventListener('pointerdown', onFirst, { once: true });
-    window.addEventListener('keydown', onFirst, { once: true });
-    return () => {
-      window.removeEventListener('pointerdown', onFirst);
-      window.removeEventListener('keydown', onFirst);
-    };
-  }, []);
-
+  // El encabezado y el contenido comparten el mismo fundido de la revelación.
   const revealClass = `transition-opacity duration-1000 ${isTyping ? 'opacity-0' : 'opacity-100'}`;
-  const showGuide = !isTyping && !hasInteracted;
 
   return (
     <>
       {/* Encabezado (saludo y día): se revela junto con el contenido para no
-          romper el momento de texto puro de la fase 1. */}
+          romper el momento de texto puro de la primera fase. */}
       {header && (
         <div className={revealClass} aria-hidden={isTyping}>
           {header}
@@ -116,25 +101,6 @@ export default function AISequence({ name, header, children }) {
         </div>
       )}
 
-      {/* Fase 3 — mano guiadora sobre el botón "+" */}
-      <div
-        className={`fixed bottom-24 left-1/2 z-50 -translate-x-1/2 transition-opacity duration-700
-                    ${showGuide ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
-        aria-hidden="true"
-      >
-        {/*
-          El rebote va en el contenedor y el giro en el ícono: los keyframes de
-          animate-bounce reescriben `transform`, así que una rotación en el
-          mismo elemento se perdería al animar.
-        */}
-        <span className="block animate-bounce">
-          <Pointer
-            size={26}
-            strokeWidth={1.25}
-            className="rotate-180 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]"
-          />
-        </span>
-      </div>
     </>
   );
 }

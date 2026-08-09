@@ -41,7 +41,7 @@ export default function StackedBar({ segments = [], reference, referenceLabel = 
               boxShadow: '0 0 8px rgb(248 250 252 / 0.9)',
             }}
           >
-            <span className="absolute -top-5 left-1/2 -tranzinc-x-1/2 whitespace-nowrap rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-zinc-900">
+            <span className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-zinc-900">
               {referenceLabel}
             </span>
           </div>

@@ -100,12 +100,12 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
       <nav aria-label="Pasos del diagnóstico" className="relative mb-6 hidden sm:block">
         {/* Riel de fondo */}
         <div
-          className="absolute left-0 right-0 top-1/2 h-px -tranzinc-y-1/2 bg-zinc-800"
+          className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-zinc-800"
           aria-hidden="true"
         />
         {/* Progreso recorrido, con degradado índigo -> violeta */}
         <div
-          className="absolute left-0 top-1/2 h-px -tranzinc-y-1/2 bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500"
+          className="absolute left-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500"
           style={{ width: `${progressPct}%` }}
           aria-hidden="true"
         />

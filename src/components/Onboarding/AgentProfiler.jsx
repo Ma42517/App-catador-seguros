@@ -85,7 +85,7 @@ export default function AgentProfiler({ onComplete }) {
     track(setTimeout(() => setCurrentStep((s) => s + 1), EXIT_MS));
   };
 
-  const fade = visible ? 'opacity-100 tranzinc-y-0' : 'opacity-0 tranzinc-y-6';
+  const fade = visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6';
 
   return (
     <div className="flex min-h-screen w-full max-w-full flex-col items-center justify-center overflow-hidden bg-white p-6 dark:bg-black">

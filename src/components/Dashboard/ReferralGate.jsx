@@ -92,7 +92,7 @@ export default function ReferralGate({ children, title, description }) {
     >
       {/* Iluminación superior: refuerza la sensación de panel flotante/modal */}
       <div
-        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[130%] -tranzinc-x-1/2 blur-3xl"
+        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[130%] -translate-x-1/2 blur-3xl"
         style={{ background: 'radial-gradient(ellipse at center, rgb(79 70 229 / 0.22), transparent 70%)' }}
         aria-hidden="true"
       />
