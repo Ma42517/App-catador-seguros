@@ -12,6 +12,17 @@ import LoginScreen from './components/Auth/LoginScreen';
 import { isAdmin, isValidRole } from './components/Auth/users';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
+import ExperienceSelector from './components/Onboarding/ExperienceSelector';
+
+/**
+ * TEMPORAL — andamio de revisión del onboarding.
+ *
+ * Con `true` se simula una sesión ya autenticada cuyo perfil está incompleto,
+ * de modo que la app arranca directamente en el selector de experiencia para
+ * poder revisarlo. Esto OMITE el login: al terminar de revisar el onboarding,
+ * cámbialo a `false` para restaurar el flujo real (splash → login → app).
+ */
+const SIMULATE_ONBOARDING = true;
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
@@ -303,6 +314,9 @@ export default function App() {
   }, []);
 
   if (!isAppReady) return <SplashScreen />;
+
+  // TEMPORAL: ver nota en SIMULATE_ONBOARDING. Se salta el login a propósito.
+  if (SIMULATE_ONBOARDING && !isPreview) return <ExperienceSelector />;
 
   if (!isAuthenticated) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
 
