@@ -39,10 +39,17 @@ export default {
             boxShadow: '0 0 30px rgba(251,191,36,0.7)',
           },
         },
+        // Desplaza el gradiente de fondo de las tarjetas del hub: el
+        // movimiento es lento y continuo, para que se sientan "vivas".
+        'gradient-shift': {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+        },
       },
       animation: {
         breathe: 'breathe 6s ease-in-out infinite',
         'ring-active': 'ring-active 1.4s ease-in-out infinite',
+        'gradient-shift': 'gradient-shift 9s ease-in-out infinite',
       },
       backgroundImage: {
         'grid-fade':

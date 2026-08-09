@@ -178,7 +178,9 @@
     .animate-bounce,
     /* Aro del asistente dorado: latido al escribir y respiración en reposo. */
     .animate-ring-active,
-    .animate-breathe {
+    .animate-breathe,
+    /* Gradiente en movimiento de las tarjetas del hub de productividad. */
+    .animate-gradient-shift {
       animation: none;
     }
   }
