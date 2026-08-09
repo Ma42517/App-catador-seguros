@@ -9,6 +9,7 @@ import StepWizard, { STEPS } from './components/Wizard/StepWizard';
 import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 import SplashScreen from './components/SplashScreen';
 import LoginScreen from './components/Auth/LoginScreen';
+import { isAdmin } from './components/Auth/users';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import { Button } from './components/ui';
@@ -18,6 +19,8 @@ import { exportJSON, exportCSV } from './data/exporters';
 const INTRO_KEY = 'hasSeenIntro';
 /** Clave de sessionStorage que mantiene la sesión abierta entre recargas. */
 const AUTH_KEY = 'isAuthenticated';
+/** Clave de sessionStorage con el rol del usuario autenticado. */
+const ROLE_KEY = 'userRole';
 /** Duración mínima garantizada del splash en la primera visita de la sesión. */
 const FIRST_VISIT_SPLASH_MS = 3200;
 
@@ -179,9 +182,15 @@ function stepFromHash() {
  * pill del header y el stepper interno de StepWizard queden siempre en
  * sincronía: ambos leen y escriben el mismo `step`.
  */
-function Shell({ onLogout, isPreview }) {
+function Shell({ onLogout, isPreview, role }) {
   const [section, setSection] = useState('wizard');
   const [step, setStep] = useState(stepFromHash);
+
+  // La vista previa multi-dispositivo es una herramienta interna: sólo el
+  // admin la ve, y nunca se anida dentro de su propio iframe.
+  const canUsePreview = isAdmin(role) && !isPreview;
+  // Si la sección guardada ya no está permitida, se degrada a la captura.
+  const activeSection = section === 'preview' && !canUsePreview ? 'wizard' : section;
 
   // Permite navegar con los botones de atrás/adelante del navegador.
   useEffect(() => {
@@ -200,12 +209,12 @@ function Shell({ onLogout, isPreview }) {
 
   return (
     <AdminLayout
-      section={section}
+      section={activeSection}
       onNavigate={setSection}
       onLogout={onLogout}
-      hiddenSections={isPreview ? ['preview'] : []}
+      hiddenSections={canUsePreview ? [] : ['preview']}
     >
-      {section === 'preview' ? (
+      {activeSection === 'preview' ? (
         <DevicePreview />
       ) : (
         <div className="relative min-h-screen bg-slate-950">
@@ -218,7 +227,7 @@ function Shell({ onLogout, isPreview }) {
           <div className="relative">
             <Header step={step} onNavigate={go} />
             <main className="mx-auto max-w-5xl px-4 py-6">
-              {section === 'wizard' ? (
+              {activeSection === 'wizard' ? (
                 <StepWizard step={step} onStepChange={go} />
               ) : (
                 <div className="animate-rise">
@@ -252,6 +261,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
     () => sessionStorage.getItem(AUTH_KEY) === 'true',
   );
+  const [role, setRole] = useState(() => sessionStorage.getItem(ROLE_KEY) ?? '');
 
   // Primera vez en la sesión: splash con look de marca. Visitas
   // subsecuentes dentro de la misma pestaña: splash casi instantáneo,
@@ -270,13 +280,17 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [isPreview]);
 
-  const handleLoginSuccess = useCallback(() => {
+  const handleLoginSuccess = useCallback((user) => {
     sessionStorage.setItem(AUTH_KEY, 'true');
+    sessionStorage.setItem(ROLE_KEY, user.role);
+    setRole(user.role);
     setIsAuthenticated(true);
   }, []);
 
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(ROLE_KEY);
+    setRole('');
     setIsAuthenticated(false);
   }, []);
 
@@ -287,7 +301,7 @@ export default function App() {
   return (
     <FinanceProvider>
       <ReferralProvider>
-        <Shell onLogout={handleLogout} isPreview={isPreview} />
+        <Shell onLogout={handleLogout} isPreview={isPreview} role={role} />
       </ReferralProvider>
     </FinanceProvider>
   );

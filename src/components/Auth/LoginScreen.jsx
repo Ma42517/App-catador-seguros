@@ -1,18 +1,12 @@
 import { useState } from 'react';
 import { Lock, User, LogIn, ShieldCheck } from 'lucide-react';
 import { Button, Field, TextInput } from '../ui';
-
-/**
- * Credenciales de acceso de la demo. Vive en el cliente, así que sirve
- * como puerta de cortesía para la demo, no como control de seguridad
- * real (ver nota en el README/handoff).
- */
-const VALID_USER = 'marco';
-const VALID_PASSWORD = 'admin123';
+import { authenticate } from './users';
 
 /**
  * Pantalla de acceso con estilo glassmorphism. No toca los contexts ni el
- * motor financiero: solo valida las credenciales y notifica al padre.
+ * motor financiero: solo valida las credenciales y notifica al padre con
+ * los datos del usuario autenticado (incluido su rol).
  */
 export default function LoginScreen({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -21,12 +15,11 @@ export default function LoginScreen({ onLoginSuccess }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const isValid =
-      username.trim().toLowerCase() === VALID_USER && password === VALID_PASSWORD;
+    const user = authenticate(username, password);
 
-    if (isValid) {
+    if (user) {
       setError('');
-      onLoginSuccess();
+      onLoginSuccess(user);
     } else {
       setError('Usuario o contraseña incorrectos.');
     }
