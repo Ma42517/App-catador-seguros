@@ -11,11 +11,11 @@ function GradientBanner({
 }) {
   const TONES = {
     red: {
-      wrap: 'from-red-500/20 via-red-500/5 to-transparent ring-red-500/30',
-      chip: 'bg-red-500/15 text-red-300 ring-red-500/30',
-      eyebrow: 'text-red-400',
-      icon: 'bg-red-500/15 text-red-400 ring-red-500/30',
-      value: 'text-red-300',
+      wrap: 'from-rose-500/20 via-rose-500/5 to-transparent ring-rose-500/30',
+      chip: 'bg-rose-500/15 text-rose-300 ring-rose-500/30',
+      eyebrow: 'text-rose-400',
+      icon: 'bg-rose-500/15 text-rose-400 ring-rose-500/30',
+      value: 'text-rose-300',
     },
     violet: {
       wrap: 'from-violet-500/20 via-indigo-500/5 to-transparent ring-violet-500/30',
@@ -34,7 +34,7 @@ function GradientBanner({
       {/* Halo decorativo */}
       <div
         className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full blur-3xl"
-        style={{ background: tone === 'red' ? 'rgb(239 68 68 / 0.25)' : 'rgb(139 92 246 / 0.25)' }}
+        style={{ background: tone === 'red' ? 'rgb(244 63 94 / 0.25)' : 'rgb(139 92 246 / 0.25)' }}
         aria-hidden="true"
       />
 

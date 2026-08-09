@@ -170,7 +170,7 @@ export default function DebtStep() {
               </div>
               <div>
                 <p className="text-slate-400">Interés mensual</p>
-                <p className="font-semibold tabular-nums text-red-400">{fmtMXN(d.monthlyInterest)}</p>
+                <p className="font-semibold tabular-nums text-rose-400">{fmtMXN(d.monthlyInterest)}</p>
               </div>
               <div>
                 <p className="text-slate-400">Del pago es interés</p>

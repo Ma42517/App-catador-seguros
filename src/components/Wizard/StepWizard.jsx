@@ -33,23 +33,37 @@ function stepFromHash() {
   return found >= 0 ? found : 0;
 }
 
-export default function StepWizard() {
-  const [step, setStep] = useState(stepFromHash);
+/**
+ * StepWizard puede usarse controlado (recibiendo `step`/`onStepChange` desde
+ * un padre, como App.jsx, para compartir el estado con el conmutador del
+ * header) o de forma autónoma, manteniendo su propio estado sincronizado
+ * con el hash de la URL.
+ */
+export default function StepWizard({ step: stepProp, onStepChange }) {
+  const [internalStep, setInternalStep] = useState(stepFromHash);
+  const isControlled = stepProp !== undefined;
+  const step = isControlled ? stepProp : internalStep;
 
-  // Permite navegar con los botones de atrás/adelante del navegador.
+  // Permite navegar con los botones de atrás/adelante del navegador
+  // cuando el componente maneja su propio estado.
   useEffect(() => {
-    const onHashChange = () => setStep(stepFromHash());
+    if (isControlled) return undefined;
+    const onHashChange = () => setInternalStep(stepFromHash());
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
+  }, [isControlled]);
 
   const go = useCallback((next) => {
     const target = Math.min(STEPS.length - 1, Math.max(0, next));
-    setStep(target);
-    window.history.replaceState(null, '', `#${STEPS[target].key}`);
+    if (isControlled) {
+      onStepChange(target);
+    } else {
+      setInternalStep(target);
+      window.history.replaceState(null, '', `#${STEPS[target].key}`);
+    }
     // Al cambiar de paso el usuario espera empezar arriba.
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  }, [isControlled, onStepChange]);
 
   const current = STEPS[step];
   const Current = current.Component;
@@ -57,21 +71,42 @@ export default function StepWizard() {
   const isLast = step === STEPS.length - 1;
   // Los dos últimos pasos son de lectura: no necesitan la cinta de captura.
   const isInputStep = step < 6;
-
+  const progressPct = (step / (STEPS.length - 1)) * 100;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      {/* Stepper: cápsulas con icono y línea de conexión en degradado */}
-      <nav aria-label="Pasos del diagnóstico" className="relative mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
+      {/* Móvil: contador de paso + barra de progreso simple. */}
+      <div className="mb-6 sm:hidden">
+        <div className="mb-2.5 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-indigo-600 text-white">
+              <current.Icon size={12} />
+            </span>
+            {current.label}
+          </span>
+          <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+            Paso {step + 1} de {STEPS.length}
+          </span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Tablet/Desktop: barra horizontal con cápsulas e iconos. */}
+      <nav aria-label="Pasos del diagnóstico" className="relative mb-6 hidden sm:block">
         {/* Riel de fondo */}
         <div
-          className="absolute left-4 right-4 top-1/2 h-px -translate-y-1/2 bg-slate-700/50 sm:left-0 sm:right-0"
+          className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-slate-800"
           aria-hidden="true"
         />
         {/* Progreso recorrido, con degradado índigo -> violeta */}
         <div
-          className="absolute left-4 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500 sm:left-0"
-          style={{ width: `calc((100% - 2rem) * ${step / (STEPS.length - 1)})` }}
+          className="absolute left-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500"
+          style={{ width: `${progressPct}%` }}
           aria-hidden="true"
         />
 
@@ -86,12 +121,12 @@ export default function StepWizard() {
                   type="button"
                   onClick={() => go(i)}
                   aria-current={active ? 'step' : undefined}
-                  className={`group flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-[11px] font-semibold transition-all duration-200 sm:px-2.5 ${
+                  className={`group flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-all duration-200 ${
                     active
-                      ? 'border-indigo-400/60 bg-indigo-500 text-white shadow-lg shadow-indigo-500/40'
+                      ? 'border-indigo-500/60 bg-indigo-600 text-white shadow-lg shadow-indigo-600/40'
                       : done
-                        ? 'border-indigo-500/40 bg-slate-800 text-indigo-300 hover:border-indigo-400/70 hover:bg-slate-700/60'
-                        : 'border-slate-700/60 bg-slate-900 text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                        ? 'border-indigo-500/40 bg-slate-900 text-indigo-300 hover:border-indigo-400/70 hover:bg-slate-800/60'
+                        : 'border-slate-800 bg-slate-900 text-slate-500 hover:border-slate-700 hover:text-slate-300'
                   }`}
                 >
                   <span
@@ -105,8 +140,7 @@ export default function StepWizard() {
                   >
                     {done ? <Check size={11} strokeWidth={3} /> : <Icon size={11} />}
                   </span>
-                  <span className="hidden sm:inline">{s.label}</span>
-                  <span className="sm:hidden">{s.short}</span>
+                  <span>{s.label}</span>
                 </button>
               </li>
             );
@@ -120,15 +154,26 @@ export default function StepWizard() {
         <Current />
       </div>
 
-      {/* Navegación inferior */}
-      <div className="mt-8 flex items-center justify-between gap-3 border-t border-slate-700/50 pt-5">
-        <Button variant="secondary" icon={ChevronLeft} onClick={() => go(step - 1)} disabled={isFirst}>
+      {/* Navegación inferior: botones segmentados en una sola pista. */}
+      <div className="mt-8 flex items-center gap-1 rounded-2xl border border-slate-800 bg-slate-900/60 p-1.5 sm:justify-between sm:border-0 sm:bg-transparent sm:p-0 sm:border-t sm:border-slate-800 sm:pt-5">
+        <Button
+          variant="secondary"
+          icon={ChevronLeft}
+          onClick={() => go(step - 1)}
+          disabled={isFirst}
+          className="flex-1 sm:flex-initial"
+        >
           Anterior
         </Button>
-        <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+        <span className="hidden shrink-0 text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:inline">
           Paso {step + 1} de {STEPS.length}
         </span>
-        <Button iconRight={ChevronRight} onClick={() => go(step + 1)} disabled={isLast}>
+        <Button
+          iconRight={ChevronRight}
+          onClick={() => go(step + 1)}
+          disabled={isLast}
+          className="flex-1 sm:flex-initial"
+        >
           {step === 5 ? 'Ver diagnóstico' : 'Siguiente'}
         </Button>
       </div>

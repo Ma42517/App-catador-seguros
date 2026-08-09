@@ -173,7 +173,7 @@ function ScenarioComparison() {
                         </span>
                         {i > 0 && Math.abs(delta) >= 1 && (
                           <span className={`ml-1.5 text-[10px] ${
-                            improved ? 'text-emerald-400' : worsened ? 'text-red-400' : 'text-slate-500'
+                            improved ? 'text-emerald-400' : worsened ? 'text-rose-400' : 'text-slate-500'
                           }`}>
                             {delta > 0 ? '+' : ''}{Math.round(delta / 1000)}k
                           </span>
@@ -242,14 +242,14 @@ function OptimizedOutcome() {
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
         <div className="surface-sunken p-3">
           <p className="text-slate-400">Cambio en flujo libre</p>
-          <p className={`text-base font-bold tabular-nums ${cashflowDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <p className={`text-base font-bold tabular-nums ${cashflowDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {cashflowDelta >= 0 ? '+' : ''}{fmtMXN(cashflowDelta)}
           </p>
           <p className="text-[10px] text-slate-500">al mes</p>
         </div>
         <div className="surface-sunken p-3">
           <p className="text-slate-400">Cambio en brecha</p>
-          <p className={`text-base font-bold tabular-nums ${gapDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <p className={`text-base font-bold tabular-nums ${gapDelta <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {gapDelta > 0 ? '+' : ''}{fmtMXN(gapDelta)}
           </p>
           <p className="text-[10px] text-slate-500">al mes</p>

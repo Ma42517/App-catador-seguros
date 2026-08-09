@@ -39,16 +39,16 @@ const ACCENTS = {
     icon: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
   },
   red: {
-    text: 'text-slate-50', glow: 'rgb(239 68 68 / 0.5)',
-    icon: 'bg-red-500/10 text-red-400 border-red-500/30',
+    text: 'text-slate-50', glow: 'rgb(244 63 94 / 0.5)',
+    icon: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
   },
   emerald: {
     text: 'text-emerald-400', glow: 'rgb(16 185 129 / 0.55)',
     icon: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
   },
   negative: {
-    text: 'text-red-400', glow: 'rgb(239 68 68 / 0.6)',
-    icon: 'bg-red-500/10 text-red-400 border-red-500/30',
+    text: 'text-rose-400', glow: 'rgb(244 63 94 / 0.6)',
+    icon: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
   },
 };
 
@@ -60,7 +60,7 @@ function HealthMeter({ score }) {
     ? { bar: 'from-emerald-500 to-emerald-400', text: 'text-emerald-400', glow: 'rgb(16 185 129 / 0.7)' }
     : score >= 40
       ? { bar: 'from-amber-500 to-amber-400', text: 'text-amber-400', glow: 'rgb(245 158 11 / 0.7)' }
-      : { bar: 'from-red-500 to-red-400', text: 'text-red-400', glow: 'rgb(239 68 68 / 0.7)' };
+      : { bar: 'from-rose-500 to-rose-400', text: 'text-rose-400', glow: 'rgb(244 63 94 / 0.7)' };
 
   return (
     <div className="surface p-3">
@@ -93,7 +93,7 @@ export default function LiveTotals() {
 
   return (
     <div className="mb-6 space-y-3">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="Ingreso sostenible"
           value={fmtMXN(m.INCOME_SUSTAINABLE)}

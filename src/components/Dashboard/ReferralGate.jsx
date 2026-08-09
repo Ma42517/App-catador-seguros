@@ -17,7 +17,7 @@ function GlowingLock() {
       />
       <div
         className="absolute -inset-3 rounded-full blur-2xl"
-        style={{ background: 'radial-gradient(circle, rgb(99 102 241 / 0.3), transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, rgb(79 70 229 / 0.3), transparent 70%)' }}
         aria-hidden="true"
       />
       {/* Anillo con degradado dorado -> índigo */}
@@ -34,9 +34,9 @@ function GlowingLock() {
 function Progress({ filled }) {
   return (
     <div className="mx-auto mb-6 flex max-w-md items-center gap-3">
-      <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-700/50">
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-800">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-indigo-500 transition-all duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-indigo-600 transition-all duration-500"
           style={{
             width: `${(filled / 2) * 100}%`,
             boxShadow: filled > 0 ? '0 0 10px rgb(245 158 11 / 0.6)' : 'none',
@@ -86,11 +86,14 @@ export default function ReferralGate({ children, title, description }) {
   };
 
   return (
-    <div className="animate-rise relative overflow-hidden rounded-2xl border border-slate-700/60 bg-gradient-to-b from-slate-800/90 to-slate-900/90 p-5 shadow-2xl shadow-slate-950/60 backdrop-blur sm:p-8">
-      {/* Iluminación superior */}
+    <div
+      className="animate-rise relative overflow-hidden rounded-2xl border border-slate-800
+                 bg-slate-900/80 p-5 shadow-2xl shadow-slate-950/60 backdrop-blur-md sm:p-8"
+    >
+      {/* Iluminación superior: refuerza la sensación de panel flotante/modal */}
       <div
         className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[130%] -translate-x-1/2 blur-3xl"
-        style={{ background: 'radial-gradient(ellipse at center, rgb(99 102 241 / 0.22), transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse at center, rgb(79 70 229 / 0.22), transparent 70%)' }}
         aria-hidden="true"
       />
 
@@ -121,8 +124,8 @@ export default function ReferralGate({ children, title, description }) {
               return (
                 <fieldset
                   key={i}
-                  className={`rounded-xl border bg-slate-900/60 p-3.5 transition-colors ${
-                    complete ? 'border-emerald-500/40' : 'border-slate-700/60'
+                  className={`rounded-xl border bg-slate-950/60 p-3.5 transition-colors ${
+                    complete ? 'border-emerald-500/40' : 'border-slate-800'
                   }`}
                 >
                   <legend className="flex items-center gap-2 px-1.5 text-[10px] font-bold uppercase tracking-widest">
@@ -170,7 +173,7 @@ export default function ReferralGate({ children, title, description }) {
           {error && (
             <p
               role="alert"
-              className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-center text-[11px] font-medium text-red-300 ring-1 ring-red-500/25"
+              className="mt-3 rounded-lg bg-rose-500/10 px-3 py-2 text-center text-[11px] font-medium text-rose-300 ring-1 ring-rose-500/25"
             >
               {error}
             </p>
@@ -182,7 +185,7 @@ export default function ReferralGate({ children, title, description }) {
             </Button>
           </div>
 
-          <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-700/40 bg-slate-950/40 p-3">
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
             <ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-400" />
             <p className="text-[10px] leading-relaxed text-slate-500">
               Estos contactos se guardan únicamente en este navegador, junto con el resto de tu

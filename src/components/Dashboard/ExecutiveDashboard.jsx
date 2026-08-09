@@ -25,8 +25,8 @@ function monthsLabel(months) {
 
 /** Puntaje global de salud con anillo. */
 function HealthScore({ score }) {
-  const tone = score >= 70 ? 'text-emerald-400' : score >= 40 ? 'text-amber-600' : 'text-red-400';
-  const stroke = score >= 70 ? 'rgb(5 150 105)' : score >= 40 ? 'rgb(217 119 6)' : 'rgb(220 38 38)';
+  const tone = score >= 70 ? 'text-emerald-400' : score >= 40 ? 'text-amber-400' : 'text-rose-400';
+  const stroke = score >= 70 ? 'rgb(16 185 129)' : score >= 40 ? 'rgb(245 158 11)' : 'rgb(244 63 94)';
   const r = 30;
   const c = 2 * Math.PI * r;
 
@@ -34,7 +34,7 @@ function HealthScore({ score }) {
     <div className="flex items-center gap-4">
       <div className="relative h-[76px] w-[76px] shrink-0">
         <svg width="76" height="76" className="-rotate-90">
-          <circle cx="38" cy="38" r={r} fill="none" stroke="rgb(241 245 249)" strokeWidth="7" />
+          <circle cx="38" cy="38" r={r} fill="none" stroke="rgb(30 41 59)" strokeWidth="7" />
           <circle
             cx="38" cy="38" r={r} fill="none" stroke={stroke} strokeWidth="7"
             strokeDasharray={`${(score / 100) * c} ${c}`} strokeLinecap="round"
@@ -133,8 +133,8 @@ export default function ExecutiveDashboard() {
       {/* Riesgos que pueden destruir el patrimonio: van antes que cualquier cifra */}
       <RiskBanners matrix={m} />
 
-      {/* Matriz central */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* Matriz central: 1 col en móvil, 2 en tablet, 4 en desktop */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Ingreso sostenible" value={fmtMXN(m.INCOME_SUSTAINABLE)} icon={Wallet} tone="accent"
           sub={m.income.extraordinaryMonthly > 0
@@ -160,7 +160,7 @@ export default function ExecutiveDashboard() {
       </div>
 
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Compromiso de ahorro" value={fmtMXN(m.SAVINGS_COMMITMENT)} icon={PiggyBank}
           sub="Aportaciones a tus activos"
@@ -205,7 +205,7 @@ export default function ExecutiveDashboard() {
           referenceLabel="Tu ingreso"
         />
         <p className={`mt-4 rounded-lg p-3 text-[11px] leading-relaxed ${
-          m.INCOME_GAP > 0 ? 'bg-red-500/10 text-red-200' : 'bg-emerald-500/10 text-emerald-200'
+          m.INCOME_GAP > 0 ? 'bg-rose-500/10 text-rose-200' : 'bg-emerald-500/10 text-emerald-200'
         }`}>
           {m.INCOME_GAP > 0
             ? `Tu vida objetivo cuesta ${fmtMXN(m.REQUIRED_INCOME)} al mes y tu ingreso sostenible es de ${fmtMXN(m.INCOME_SUSTAINABLE)}. Faltan ${fmtMXN(m.INCOME_GAP)} mensuales, o ${fmtMXN(m.INCOME_GAP * 12)} al año.`
@@ -312,7 +312,7 @@ export default function ExecutiveDashboard() {
           <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
             <div>
               <p className="text-slate-400">Brecha</p>
-              <p className="font-semibold tabular-nums text-red-400">{fmtMXN(m.retirement.gap)}</p>
+              <p className="font-semibold tabular-nums text-rose-400">{fmtMXN(m.retirement.gap)}</p>
             </div>
             <div>
               <p className="text-slate-400">Aportación faltante</p>

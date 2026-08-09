@@ -3,8 +3,8 @@ import { Card, CardTitle } from '../ui';
 
 const SEVERITY = {
   error: {
-    Icon: XCircle, box: 'bg-red-500/10 ring-red-500/25',
-    title: 'text-red-200', body: 'text-red-300/80', icon: 'text-red-400',
+    Icon: XCircle, box: 'bg-rose-500/10 ring-rose-500/25',
+    title: 'text-rose-200', body: 'text-rose-300/80', icon: 'text-rose-400',
   },
   warning: {
     Icon: AlertTriangle, box: 'bg-amber-500/10 ring-amber-500/25',
@@ -58,7 +58,7 @@ export default function FindingsPanel({ findings = [] }) {
       )}
 
       {errors > 0 && (
-        <p className="mt-3 text-[11px] text-red-300">
+        <p className="mt-3 text-[11px] text-rose-300">
           {errors} {errors === 1 ? 'error estructural requiere' : 'errores estructurales requieren'} corrección
           antes de confiar en el diagnóstico.
         </p>

@@ -135,7 +135,7 @@ export default function GoalStep() {
             {g.unfundedMonthly > 0 && (
               <div className="flex justify-between border-t border-slate-700/50 pt-2">
                 <span className="text-slate-400">Faltante mensual</span>
-                <span className="tabular-nums font-semibold text-red-400">{fmtMXN(g.unfundedMonthly)}</span>
+                <span className="tabular-nums font-semibold text-rose-400">{fmtMXN(g.unfundedMonthly)}</span>
               </div>
             )}
             <div className="flex items-center justify-between border-t border-slate-700/50 pt-2">
@@ -211,7 +211,7 @@ export default function GoalStep() {
           </div>
           <div>
             <p className="text-slate-400">Brecha</p>
-            <p className={`font-semibold tabular-nums ${r.gap > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+            <p className={`font-semibold tabular-nums ${r.gap > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
               {fmtMXN(r.gap)}
             </p>
           </div>

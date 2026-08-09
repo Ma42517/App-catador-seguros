@@ -3,7 +3,7 @@ import { clamp } from '../../engine/finance';
 const TONES = {
   green: { bar: 'bg-emerald-500', glow: 'rgb(16 185 129 / 0.6)' },
   yellow: { bar: 'bg-amber-500', glow: 'rgb(245 158 11 / 0.6)' },
-  red: { bar: 'bg-red-500', glow: 'rgb(239 68 68 / 0.6)' },
+  red: { bar: 'bg-rose-500', glow: 'rgb(244 63 94 / 0.6)' },
   blue: { bar: 'bg-indigo-500', glow: 'rgb(99 102 241 / 0.6)' },
 };
 

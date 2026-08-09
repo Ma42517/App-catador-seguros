@@ -10,7 +10,7 @@
   }
 
   body {
-    @apply bg-slate-950 text-slate-300 antialiased;
+    @apply min-h-screen bg-slate-950 text-slate-100 antialiased;
     font-feature-settings: 'cv11', 'ss01';
     font-variation-settings: 'opsz' 32;
   }
@@ -70,15 +70,15 @@
 /* ─── Utilidades del sistema visual ─────────────────────────────────────── */
 
 @layer components {
-  /* Superficie de tarjeta: glassmorphism sobre fondo oscuro. */
+  /* Superficie de tarjeta: glassmorphism ejecutivo sobre fondo oscuro. */
   .surface {
-    @apply rounded-2xl border border-slate-700/50 bg-slate-800/80 shadow-xl
-           shadow-slate-950/50 backdrop-blur-sm;
+    @apply rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl
+           shadow-slate-950/50 backdrop-blur-md;
   }
 
   /* Superficie hundida, para filas e inputs dentro de una tarjeta. */
   .surface-sunken {
-    @apply rounded-xl border border-slate-700/40 bg-slate-900/50;
+    @apply rounded-xl border border-slate-800/70 bg-slate-950/50;
   }
 
   /* Resplandor de color detrás de una tarjeta de métrica. */
@@ -110,19 +110,19 @@
     height: 16px;
     width: 16px;
     border-radius: 9999px;
-    background: rgb(99 102 241);
+    background: rgb(79 70 229);
     border: 2px solid rgb(30 41 59);
-    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.25), 0 2px 6px rgb(2 6 23 / 0.6);
+    box-shadow: 0 0 0 3px rgb(79 70 229 / 0.25), 0 2px 6px rgb(2 6 23 / 0.6);
     transition: box-shadow 0.15s ease, transform 0.15s ease;
   }
   .range-dark:hover::-webkit-slider-thumb {
-    box-shadow: 0 0 0 5px rgb(99 102 241 / 0.3), 0 2px 8px rgb(2 6 23 / 0.7);
+    box-shadow: 0 0 0 5px rgb(79 70 229 / 0.3), 0 2px 8px rgb(2 6 23 / 0.7);
   }
   .range-dark:active::-webkit-slider-thumb {
     transform: scale(1.12);
   }
   .range-dark:focus-visible::-webkit-slider-thumb {
-    box-shadow: 0 0 0 5px rgb(99 102 241 / 0.45);
+    box-shadow: 0 0 0 5px rgb(79 70 229 / 0.45);
   }
 
   /* Firefox */
@@ -130,9 +130,9 @@
     height: 14px;
     width: 14px;
     border-radius: 9999px;
-    background: rgb(99 102 241);
+    background: rgb(79 70 229);
     border: 2px solid rgb(30 41 59);
-    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.25);
+    box-shadow: 0 0 0 3px rgb(79 70 229 / 0.25);
   }
   .range-dark::-moz-range-track {
     background: transparent;

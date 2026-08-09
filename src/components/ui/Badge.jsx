@@ -12,8 +12,8 @@ const LIGHT_STYLES = {
     Icon: AlertTriangle,
   },
   red: {
-    chip: 'bg-red-500/10 text-red-300 ring-red-500/30',
-    dot: 'bg-red-400', glow: 'shadow-[0_0_8px_rgb(239_68_68/0.7)]',
+    chip: 'bg-rose-500/10 text-rose-300 ring-rose-500/30',
+    dot: 'bg-rose-400', glow: 'shadow-[0_0_8px_rgb(244_63_94/0.7)]',
     Icon: ShieldAlert,
   },
   neutral: {

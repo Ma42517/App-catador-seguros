@@ -1,23 +1,66 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   PlayCircle, RotateCcw, Download, FileJson, FileSpreadsheet, X, Gauge,
+  LayoutList, LineChart as LineChartIcon,
 } from 'lucide-react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
-import StepWizard from './components/Wizard/StepWizard';
+import StepWizard, { STEPS } from './components/Wizard/StepWizard';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
-function Header() {
+/**
+ * Conmutador tipo pill entre las dos grandes fases de la app: captura
+ * (pasos 0-5) y lectura (diagnóstico + optimización). Sólo cambia de
+ * paso dentro del mismo StepWizard; no introduce una ruta nueva.
+ */
+function NavPill({ step, onNavigate }) {
+  const isCapture = step < 6;
+  const groups = [
+    { key: 'capture', label: 'Captura', short: 'Captura', Icon: LayoutList, target: 0 },
+    { key: 'insights', label: 'Diagnóstico', short: 'Diag.', Icon: LineChartIcon, target: 6 },
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Fase del diagnóstico"
+      className="hidden shrink-0 items-center gap-1 rounded-full border border-slate-800 bg-slate-900/70 p-1 sm:flex"
+    >
+      {groups.map((g) => {
+        const active = g.key === 'capture' ? isCapture : !isCapture;
+        return (
+          <button
+            key={g.key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onNavigate(g.target)}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+              active
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+            }`}
+          >
+            <g.Icon size={13} />
+            {g.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Header({ step, onNavigate }) {
   const { loadDemoData, resetAll, data, diagnosis, isDemo } = useFinance();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-700/50 bg-slate-950/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
         {/* Marca */}
         <span
-          className="mr-1 hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30 sm:grid"
+          className="mr-1 hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 shadow-lg shadow-indigo-600/30 sm:grid"
           aria-hidden="true"
         >
           <Gauge size={17} className="text-white" />
@@ -39,9 +82,11 @@ function Header() {
           )}
         </div>
 
+        <NavPill step={step} onNavigate={onNavigate} />
+
         <Button
           size="sm"
-          variant="outline"
+          variant="primary"
           icon={PlayCircle}
           onClick={loadDemoData}
           className="shrink-0"
@@ -62,7 +107,7 @@ function Header() {
 
 
           {menuOpen && (
-            <div className="animate-rise absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-xl border border-slate-700/60 bg-slate-900/95 shadow-2xl shadow-slate-950/70 backdrop-blur-xl">
+            <div className="animate-rise absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/95 shadow-2xl shadow-slate-950/70 backdrop-blur-xl">
               <button
                 type="button"
                 onClick={() => { exportCSV(data, diagnosis); setMenuOpen(false); }}
@@ -74,7 +119,7 @@ function Header() {
               <button
                 type="button"
                 onClick={() => { exportJSON(data); setMenuOpen(false); }}
-                className="flex w-full items-center gap-2 border-t border-slate-700/50 px-3 py-2.5 text-left text-xs text-slate-300 hover:bg-slate-900/50"
+                className="flex w-full items-center gap-2 border-t border-slate-800 px-3 py-2.5 text-left text-xs text-slate-300 hover:bg-slate-900/50"
               >
                 <FileJson size={14} className="text-slate-500" />
                 Respaldar mis datos (JSON)
@@ -87,7 +132,7 @@ function Header() {
                     setMenuOpen(false);
                   }
                 }}
-                className="flex w-full items-center gap-2 border-t border-slate-700/50 px-3 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/10"
+                className="flex w-full items-center gap-2 border-t border-slate-800 px-3 py-2.5 text-left text-xs text-rose-400 hover:bg-rose-500/10"
               >
                 <RotateCcw size={14} />
                 Empezar de cero
@@ -100,7 +145,37 @@ function Header() {
   );
 }
 
+/** Lee el paso inicial del hash de la URL, para que sea enlazable y sobreviva recargas. */
+function stepFromHash() {
+  if (typeof window === 'undefined') return 0;
+  const key = window.location.hash.replace('#', '');
+  const found = STEPS.findIndex((s) => s.key === key);
+  return found >= 0 ? found : 0;
+}
+
+/**
+ * El estado del paso vive aquí, en el Shell, para que el conmutador tipo
+ * pill del header y el stepper interno de StepWizard queden siempre en
+ * sincronía: ambos leen y escriben el mismo `step`.
+ */
 function Shell() {
+  const [step, setStep] = useState(stepFromHash);
+
+  // Permite navegar con los botones de atrás/adelante del navegador.
+  useEffect(() => {
+    const onHashChange = () => setStep(stepFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const go = useCallback((next) => {
+    const target = Math.min(STEPS.length - 1, Math.max(0, next));
+    setStep(target);
+    window.history.replaceState(null, '', `#${STEPS[target].key}`);
+    // Al cambiar de paso el usuario espera empezar arriba.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   return (
     <div className="relative min-h-screen bg-slate-950">
       {/* Iluminación ambiental fija del fondo */}
@@ -110,9 +185,9 @@ function Shell() {
       />
 
       <div className="relative">
-        <Header />
+        <Header step={step} onNavigate={go} />
         <main className="mx-auto max-w-5xl px-4 py-6">
-          <StepWizard />
+          <StepWizard step={step} onStepChange={go} />
         </main>
         <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4">
           <div className="border-t border-slate-800 pt-5">

@@ -122,7 +122,7 @@ export default function AssetStep() {
           <Field label="Lo que tu flujo permite" hint="Calculado por el motor, no editable">
             <div className={`flex h-[42px] items-center rounded-xl border border-dashed px-3 text-sm font-bold tabular-nums ${
               a.computedMonthlySavings < 0
-                ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
                 : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
             }`}>
               {fmtMXN(a.computedMonthlySavings)}
@@ -200,11 +200,11 @@ export default function AssetStep() {
               </div>
               <div>
                 <p className="text-slate-400">Pasivos</p>
-                <p className="font-semibold tabular-nums text-red-400">{fmtMXN(nw.totalLiabilities)}</p>
+                <p className="font-semibold tabular-nums text-rose-400">{fmtMXN(nw.totalLiabilities)}</p>
               </div>
               <div>
                 <p className="text-slate-400">Neto</p>
-                <p className={`font-semibold tabular-nums ${nw.isNegative ? 'text-red-400' : 'text-emerald-400'}`}>
+                <p className={`font-semibold tabular-nums ${nw.isNegative ? 'text-rose-400' : 'text-emerald-400'}`}>
                   {fmtMXN(nw.netWorth)}
                 </p>
               </div>

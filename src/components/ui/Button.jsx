@@ -1,18 +1,18 @@
 const VARIANTS = {
   primary:
-    'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 ' +
-    'hover:shadow-indigo-500/40 active:bg-indigo-600',
+    'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 ' +
+    'hover:shadow-indigo-600/45 active:bg-indigo-700',
   secondary:
-    'border border-slate-700/60 bg-slate-800/70 text-slate-300 hover:border-slate-600 ' +
-    'hover:bg-slate-700/70 hover:text-slate-100',
+    'border border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-700 ' +
+    'hover:bg-slate-800/70 hover:text-slate-100',
   outline:
-    'border border-slate-700/60 bg-slate-900/40 text-slate-300 hover:border-indigo-500/50 ' +
+    'border border-slate-800 bg-slate-900/40 text-slate-300 hover:border-indigo-500/50 ' +
     'hover:bg-slate-800/70 hover:text-slate-100',
   success:
     'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 ' +
     'hover:shadow-emerald-500/40',
   danger:
-    'border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200',
+    'border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200',
   ghost:
     'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
 };
@@ -33,7 +33,7 @@ export default function Button({
       onClick={onClick}
       disabled={disabled}
       className={`inline-flex items-center justify-center font-semibold transition-all duration-150
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
         disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none
         ${VARIANTS[variant]} ${SIZES[size]} ${full ? 'w-full' : ''} ${className}`}
     >
@@ -48,7 +48,7 @@ export default function Button({
 export function IconButton({ icon: Icon, onClick, label, tone = 'ghost' }) {
   const tones = {
     ghost: 'text-slate-500 hover:bg-slate-700/60 hover:text-slate-200',
-    danger: 'text-slate-500 hover:bg-red-500/15 hover:text-red-400',
+    danger: 'text-slate-500 hover:bg-rose-500/15 hover:text-rose-400',
   };
   return (
     <button

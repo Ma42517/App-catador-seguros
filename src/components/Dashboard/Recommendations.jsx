@@ -4,7 +4,7 @@ import { Card, CardTitle, Badge } from '../ui';
 const SEVERITY = {
   critical: {
     label: 'Crítico', status: 'red', Icon: Flame,
-    accent: 'border-l-red-500', glow: 'rgb(239 68 68 / 0.5)', icon: 'text-red-400',
+    accent: 'border-l-rose-500', glow: 'rgb(244 63 94 / 0.5)', icon: 'text-rose-400',
   },
   high: {
     label: 'Alto', status: 'red', Icon: AlertTriangle,

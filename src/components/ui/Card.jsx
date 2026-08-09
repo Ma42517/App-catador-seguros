@@ -81,10 +81,10 @@ const TONES = {
     shadow: 'shadow-glow-emerald',
   },
   negative: {
-    value: 'text-red-400',
-    icon: 'bg-red-500/10 text-red-400 border-red-500/30',
-    glow: 'rgb(239 68 68 / 0.55)',
-    shadow: 'shadow-glow-red',
+    value: 'text-rose-400',
+    icon: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+    glow: 'rgb(244 63 94 / 0.55)',
+    shadow: 'shadow-glow-rose',
   },
   accent: {
     value: 'text-indigo-300',

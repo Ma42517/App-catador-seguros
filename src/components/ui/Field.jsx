@@ -3,10 +3,10 @@ import Tooltip from './Tooltip';
 
 /** Base compartida por todos los controles de texto del sistema. */
 const baseInput =
-  'w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2.5 text-sm ' +
+  'w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5 text-sm ' +
   'text-slate-100 placeholder:text-slate-500 transition-all duration-150 ' +
-  'hover:border-slate-600 focus:border-indigo-500 focus:bg-slate-900 focus:outline-none ' +
-  'focus:ring-2 focus:ring-indigo-500/40 disabled:cursor-not-allowed ' +
+  'hover:border-slate-700 focus:border-indigo-500 focus:bg-slate-950/80 focus:outline-none ' +
+  'focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed ' +
   'disabled:bg-slate-900/30 disabled:text-slate-500';
 
 /** Etiqueta + ayuda contextual + control. */
