@@ -81,6 +81,15 @@
     @apply rounded-xl border border-slate-800/70 bg-slate-950/50;
   }
 
+  /*
+    Respeta el área segura inferior (home indicator del iPhone, barra de
+    gestos en Android). Sin esto la barra de navegación queda por debajo del
+    gesto del sistema y se vuelve difícil de tocar.
+  */
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
   /* Resplandor de color detrás de una tarjeta de métrica. */
   .glow::before {
     content: '';

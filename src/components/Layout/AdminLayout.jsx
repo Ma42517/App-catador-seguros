@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import {
   LayoutDashboard, FormInput, LogOut, ShieldCheck, MonitorSmartphone,
 } from 'lucide-react';
+import BottomTabBar from './BottomTabBar';
+import MoreMenu from './MoreMenu';
 
 /** Secciones navegables del área autenticada. */
 export const SECTIONS = [
@@ -22,6 +25,7 @@ export default function AdminLayout({
   section, onNavigate, onLogout, children, hiddenSections = [],
 }) {
   const sections = SECTIONS.filter((s) => !hiddenSections.includes(s.key));
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen w-full max-w-full bg-slate-950">
@@ -75,39 +79,23 @@ export default function AdminLayout({
       </aside>
 
       {/* Contenido: deja espacio inferior en móvil para no quedar bajo la tab bar */}
-      <div className="min-w-0 flex-1 pb-20 md:pb-0">{children}</div>
+      <div className="min-w-0 flex-1 pb-24 md:pb-0">{children}</div>
 
-      {/* Bottom tab bar: sólo en móvil */}
-      <nav
-        aria-label="Navegación principal"
-        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-slate-800 bg-slate-900/90 backdrop-blur md:hidden"
-      >
-        {sections.map(({ key, short, Icon }) => {
-          const active = section === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-current={active ? 'page' : undefined}
-              onClick={() => onNavigate(key)}
-              className={`flex flex-1 flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-colors ${
-                active ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              <Icon size={19} />
-              {short}
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          onClick={onLogout}
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-[10px] font-semibold text-rose-400 transition-colors hover:text-rose-300"
-        >
-          <LogOut size={19} />
-          Salir
-        </button>
-      </nav>
+      {/*
+        Navegación móvil: barra estilo iOS. El Diagnóstico 360 ya no ocupa un
+        destino fijo, vive dentro del panel "Ver más".
+      */}
+      <BottomTabBar onMore={() => setMoreOpen(true)} />
+
+      <MoreMenu
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        onOpenDiagnostico={() => {
+          onNavigate('wizard');
+          setMoreOpen(false);
+        }}
+        onLogout={onLogout}
+      />
     </div>
   );
 }

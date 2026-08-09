@@ -4,6 +4,9 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  // 'class' (en vez del 'media' por defecto) para que el <html class="dark">
+  // gobierne el tema: la app es oscura siempre, sin depender del SO.
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
