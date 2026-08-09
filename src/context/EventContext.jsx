@@ -104,6 +104,12 @@ export function EventProvider({ username, children }) {
     refresh();
   }, [username, refresh]);
 
+  /** Devuelve una tarea completada a pendiente, para deshacer un toque erróneo. */
+  const reopenEvent = useCallback((id) => {
+    persistUpdate(username, id, { completed: false });
+    refresh();
+  }, [username, refresh]);
+
   const removeEvent = useCallback((id) => {
     persistRemoveActivity(username, id);
     refresh();
@@ -128,12 +134,12 @@ export function EventProvider({ username, children }) {
 
   const value = useMemo(() => ({
     events, notes, highPriorityToday,
-    addEvent, completeEvent, removeEvent, rescheduleEvent,
+    addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent,
     addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   }), [
     events, notes, highPriorityToday,
-    addEvent, completeEvent, removeEvent, rescheduleEvent,
+    addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent,
     addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   ]);

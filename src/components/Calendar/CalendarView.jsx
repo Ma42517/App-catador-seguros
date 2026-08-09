@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { CalendarDays, Bell, Calendar as CalendarIcon } from 'lucide-react';
 import { useEvents, todayKey } from '../../context/EventContext';
+import TaskOptionsSheet from '../Activities/TaskOptionsSheet';
 
 const PRIORITY_STYLES = {
   baja: { label: 'Baja', chip: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400' },
@@ -45,6 +46,16 @@ export default function CalendarView() {
   const { events } = useEvents();
   const grouped = useMemo(() => groupByDate(events), [events]);
 
+  /*
+    Un solo panel para toda la lista, no uno por fila: con una agenda de decenas
+    de eventos, montar una hoja por tarjeta sería trabajo inútil.
+  */
+  const [selectedId, setSelectedId] = useState(null);
+  const setSelected = (event) => setSelectedId(event.id);
+  // Se busca por id en cada render para que el panel refleje el evento ya
+  // actualizado tras reprogramarlo o completarlo.
+  const selected = events.find((e) => e.id === selectedId) ?? null;
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl dark:text-white">
@@ -84,42 +95,48 @@ export default function CalendarView() {
                   const priority = PRIORITY_STYLES[event.priority] ?? PRIORITY_STYLES.importante;
                   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
                   return (
-                    <li
-                      key={event.id}
-                      className={`flex items-center gap-3 rounded-xl border border-zinc-200
-                                 bg-white p-4 shadow-sm transition-opacity dark:border-white/10
-                                 dark:bg-zinc-800/40 dark:backdrop-blur-sm
-                                 ${event.completed ? 'opacity-50' : ''}`}
-                    >
-                      <span
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border
-                                   border-zinc-200 bg-zinc-50 text-zinc-500
-                                   dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400"
-                        aria-hidden="true"
+                    <li key={event.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelected(event)}
+                        className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border
+                                   border-zinc-200 bg-white p-4 text-left shadow-sm
+                                   transition-all active:scale-95 focus-visible:outline-none
+                                   focus-visible:ring-2 focus-visible:ring-indigo-500
+                                   dark:border-white/10 dark:bg-zinc-800/40 dark:backdrop-blur-sm
+                                   ${event.completed ? 'opacity-50' : ''}`}
                       >
-                        <Icon size={16} />
-                      </span>
-
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={`truncate text-sm font-semibold text-zinc-900 dark:text-white
-                                      ${event.completed ? 'line-through decoration-zinc-400' : ''}`}
+                        <span
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border
+                                     border-zinc-200 bg-zinc-50 text-zinc-500
+                                     dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400"
+                          aria-hidden="true"
                         >
-                          {event.title}
-                        </p>
-                        <p className="mt-0.5 text-xs text-zinc-500">
-                          {event.time || 'Sin hora'}
-                          {' · '}
-                          {event.type === 'recordatorio' ? 'Recordatorio' : 'Actividad'}
-                        </p>
-                      </div>
+                          <Icon size={16} />
+                        </span>
 
-                      <span
-                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px]
-                                    font-semibold ${priority.chip}`}
-                      >
-                        {priority.label}
-                      </span>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`truncate text-sm font-semibold text-zinc-900
+                                        dark:text-white
+                                        ${event.completed ? 'line-through decoration-zinc-400' : ''}`}
+                          >
+                            {event.title}
+                          </p>
+                          <p className="mt-0.5 text-xs text-zinc-500">
+                            {event.time || 'Sin hora'}
+                            {' · '}
+                            {event.type === 'recordatorio' ? 'Recordatorio' : 'Actividad'}
+                          </p>
+                        </div>
+
+                        <span
+                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px]
+                                      font-semibold ${priority.chip}`}
+                        >
+                          {priority.label}
+                        </span>
+                      </button>
                     </li>
                   );
                 })}
@@ -128,6 +145,12 @@ export default function CalendarView() {
           ))}
         </div>
       )}
+
+      <TaskOptionsSheet
+        event={selected}
+        isOpen={Boolean(selected)}
+        onClose={() => setSelectedId(null)}
+      />
     </div>
   );
 }
