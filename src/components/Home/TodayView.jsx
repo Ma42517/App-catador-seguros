@@ -6,22 +6,25 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  * Pantalla de inicio ("Hoy"). Es el punto de entrada de la app: el Diagnóstico
  * 360 ya no ocupa la vista principal, se abre desde "Ver más".
  *
- * El saludo lo da la secuencia de inicio, así que aquí sólo vive el resumen
- * del día, que es lo que se revela al terminar el mensaje.
+ * El día y el saludo viven arriba; el centro lo ocupa la secuencia de inicio.
  */
 export default function TodayView({ name }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
+  const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
 
   return (
-    <AISequence name={name}>
-      <div className="mx-auto max-w-2xl px-4 pb-10 text-center">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
-          {fecha}
-        </p>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Este es tu resumen del día.
-        </p>
-      </div>
-    </AISequence>
+    <AISequence
+      name={name}
+      header={(
+        <div className="mx-auto max-w-2xl px-4 pt-8">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
+            {fecha}
+          </p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl dark:text-white">
+            Hola{saludo ? `, ${saludo}` : ''}
+          </h1>
+        </div>
+      )}
+    />
   );
 }

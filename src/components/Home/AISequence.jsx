@@ -21,7 +21,7 @@ function prefersReducedMotion() {
  * El alto del bloque del mensaje es fijo para que la revelación no empuje el
  * texto: el contenido aparece, no desplaza.
  */
-export default function AISequence({ name, children }) {
+export default function AISequence({ name, header, children }) {
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
   const text = `Gran semana${saludo ? `, ${saludo}` : ''}. `
     + '¿Cerramos algún negocio pendiente hoy? Empieza por aquí...';
@@ -44,10 +44,21 @@ export default function AISequence({ name, children }) {
     return () => clearInterval(id);
   }, [text]);
 
+  // El encabezado y el contenido comparten el mismo fundido de la fase 2.
+  const revealClass = `transition-opacity duration-1000 ${isTyping ? 'opacity-0' : 'opacity-100'}`;
+
   return (
     <>
+      {/* Encabezado (saludo y día): se revela junto con el contenido para no
+          romper el momento de texto puro de la fase 1. */}
+      {header && (
+        <div className={revealClass} aria-hidden={isTyping}>
+          {header}
+        </div>
+      )}
+
       {/* Fase 1 — texto vivo, sin contenedor */}
-      <div className="flex min-h-[70vh] items-center justify-center px-6">
+      <div className="flex min-h-[60vh] items-center justify-center px-6">
         {/* El mensaje completo, para lectores de pantalla. */}
         <p className="sr-only">{text}</p>
 
@@ -61,12 +72,11 @@ export default function AISequence({ name, children }) {
       </div>
 
       {/* Fase 2 — revelación del contenido */}
-      <div
-        className={`transition-opacity duration-1000 ${isTyping ? 'opacity-0' : 'opacity-100'}`}
-        aria-hidden={isTyping}
-      >
-        {children}
-      </div>
+      {children && (
+        <div className={revealClass} aria-hidden={isTyping}>
+          {children}
+        </div>
+      )}
 
       {/* Fase 3 — mano guiadora sobre el botón "+" */}
       <div
@@ -74,11 +84,18 @@ export default function AISequence({ name, children }) {
                     ${isTyping ? 'opacity-0' : 'opacity-100'}`}
         aria-hidden="true"
       >
-        <Pointer
-          size={26}
-          strokeWidth={1.25}
-          className="animate-bounce text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]"
-        />
+        {/*
+          El rebote va en el contenedor y el giro en el ícono: los keyframes de
+          animate-bounce reescriben `transform`, así que una rotación en el
+          mismo elemento se perdería al animar.
+        */}
+        <span className="block animate-bounce">
+          <Pointer
+            size={26}
+            strokeWidth={1.25}
+            className="rotate-180 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]"
+          />
+        </span>
       </div>
     </>
   );
