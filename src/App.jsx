@@ -13,16 +13,7 @@ import { isAdmin, isValidRole } from './components/Auth/users';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import ExperienceSelector from './components/Onboarding/ExperienceSelector';
-
-/**
- * TEMPORAL — andamio de revisión del onboarding.
- *
- * Con `true` se simula una sesión ya autenticada cuyo perfil está incompleto,
- * de modo que la app arranca directamente en el selector de experiencia para
- * poder revisarlo. Esto OMITE el login: al terminar de revisar el onboarding,
- * cámbialo a `false` para restaurar el flujo real (splash → login → app).
- */
-const SIMULATE_ONBOARDING = true;
+import { readExperienceLevel, saveExperienceLevel } from './components/Onboarding/storage';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
@@ -32,6 +23,8 @@ const INTRO_KEY = 'hasSeenIntro';
 const AUTH_KEY = 'isAuthenticated';
 /** Clave de sessionStorage con el rol del usuario autenticado. */
 const ROLE_KEY = 'userRole';
+/** Clave de sessionStorage con el usuario autenticado (llave del onboarding). */
+const USER_KEY = 'userName';
 /** Duración mínima garantizada del splash en la primera visita de la sesión. */
 const FIRST_VISIT_SPLASH_MS = 3200;
 
@@ -276,10 +269,15 @@ export default function App() {
     const stored = sessionStorage.getItem(ROLE_KEY) ?? '';
     return isValidRole(stored) ? stored : '';
   });
+  const [username, setUsername] = useState(() => sessionStorage.getItem(USER_KEY) ?? '');
   const [isAuthenticated, setIsAuthenticated] = useState(
     () =>
       sessionStorage.getItem(AUTH_KEY) === 'true' &&
       isValidRole(sessionStorage.getItem(ROLE_KEY) ?? ''),
+  );
+  // Nivel de experiencia del onboarding; '' significa que aún no lo completó.
+  const [experienceLevel, setExperienceLevel] = useState(() =>
+    readExperienceLevel(sessionStorage.getItem(USER_KEY) ?? ''),
   );
 
   // Primera vez en la sesión: splash con look de marca. Visitas
@@ -302,23 +300,38 @@ export default function App() {
   const handleLoginSuccess = useCallback((user) => {
     sessionStorage.setItem(AUTH_KEY, 'true');
     sessionStorage.setItem(ROLE_KEY, user.role);
+    sessionStorage.setItem(USER_KEY, user.username);
     setRole(user.role);
+    setUsername(user.username);
+    // Si ya hizo el onboarding antes, se salta; si no, quedará en ''.
+    setExperienceLevel(readExperienceLevel(user.username));
     setIsAuthenticated(true);
   }, []);
 
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem(AUTH_KEY);
     sessionStorage.removeItem(ROLE_KEY);
+    sessionStorage.removeItem(USER_KEY);
     setRole('');
+    setUsername('');
+    setExperienceLevel('');
     setIsAuthenticated(false);
   }, []);
 
+  // El onboarding se guarda por usuario, así que sobrevive al cierre de sesión.
+  const handleOnboardingComplete = useCallback((level) => {
+    saveExperienceLevel(username, level);
+    setExperienceLevel(level);
+  }, [username]);
+
   if (!isAppReady) return <SplashScreen />;
 
-  // TEMPORAL: ver nota en SIMULATE_ONBOARDING. Se salta el login a propósito.
-  if (SIMULATE_ONBOARDING && !isPreview) return <ExperienceSelector />;
-
   if (!isAuthenticated) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+
+  // Perfil incompleto: se pide el nivel de experiencia antes de entrar.
+  if (!experienceLevel) {
+    return <ExperienceSelector onContinue={handleOnboardingComplete} />;
+  }
 
   return (
     <FinanceProvider>

@@ -11,15 +11,15 @@ export const EXPERIENCE_LEVELS = [
 /**
  * Primer paso del onboarding: nivel de experiencia del asesor.
  *
- * Por ahora sólo mantiene la selección en estado local y reporta el valor al
- * continuar. No toca los contexts ni el motor financiero.
+ * Mantiene la selección en estado local y entrega el valor al padre mediante
+ * `onContinue`, que se encarga de persistirlo. No toca los contexts ni el
+ * motor financiero.
  */
 export default function ExperienceSelector({ onContinue }) {
   const [selected, setSelected] = useState('');
 
   const handleContinue = () => {
-    console.log('Nivel de experiencia seleccionado:', selected);
-    if (onContinue) onContinue(selected);
+    if (selected && onContinue) onContinue(selected);
   };
 
   return (
