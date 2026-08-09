@@ -3,6 +3,8 @@ import {
 } from 'react';
 import {
   readActivities, addActivity,
+  updateActivity as persistUpdate,
+  removeActivity as persistRemoveActivity,
   readNotes, addNote as persistNote,
   removeNote as persistRemoveNote,
   toggleNoteProcessed as persistToggleNote,
@@ -97,21 +99,42 @@ export function EventProvider({ username, children }) {
     setNotes(readNotes(username));
   }, [username]);
 
-  /** Eventos de hoy con prioridad máxima, ordenados por hora. */
+  const completeEvent = useCallback((id) => {
+    persistUpdate(username, id, { completed: true });
+    refresh();
+  }, [username, refresh]);
+
+  const removeEvent = useCallback((id) => {
+    persistRemoveActivity(username, id);
+    refresh();
+  }, [username, refresh]);
+
+  const rescheduleEvent = useCallback((id, { date, time }) => {
+    persistUpdate(username, id, { date, time });
+    refresh();
+  }, [username, refresh]);
+
+  /**
+   * Eventos de hoy con prioridad máxima, ordenados por hora.
+   * Los completados salen de la lista: la pantalla de inicio muestra lo que
+   * falta por hacer, no un historial.
+   */
   const highPriorityToday = useMemo(() => {
     const key = todayKey();
     return events
-      .filter((e) => e.date === key && e.priority === 'maxima')
+      .filter((e) => e.date === key && e.priority === 'maxima' && !e.completed)
       .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''));
   }, [events]);
 
   const value = useMemo(() => ({
     events, notes, highPriorityToday,
-    addEvent, addNote, removeNote, toggleNoteProcessed,
+    addEvent, completeEvent, removeEvent, rescheduleEvent,
+    addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   }), [
     events, notes, highPriorityToday,
-    addEvent, addNote, removeNote, toggleNoteProcessed,
+    addEvent, completeEvent, removeEvent, rescheduleEvent,
+    addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   ]);
 

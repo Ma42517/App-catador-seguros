@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarRange, Plus, Menu } from 'lucide-react';
+import { CalendarDays, Target, Plus, Menu } from 'lucide-react';
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
@@ -19,7 +19,7 @@ const LABEL = 'text-[10px] font-medium leading-none';
  * Los destinos se centran con un ancho máximo para que no queden separados en
  * pantallas anchas.
  */
-export default function BottomTabBar({ onToday, onEvents, onCalendar, onAdd, onMore }) {
+export default function BottomTabBar({ onToday, onGoals, onAgenda, onAdd, onMore }) {
   // Se calcula en cada render para que el número no se quede congelado si la
   // sesión cruza la medianoche.
   const today = new Date().getDate();
@@ -55,10 +55,10 @@ export default function BottomTabBar({ onToday, onEvents, onCalendar, onAdd, onM
         <span className={LABEL}>Hoy</span>
       </button>
 
-      {/* Eventos — lo que hay agendado para hoy */}
-      <button type="button" onClick={onEvents} className={TAB}>
-        <CalendarDays size={22} strokeWidth={1.8} aria-hidden="true" />
-        <span className={LABEL}>Eventos</span>
+      {/* Metas — objetivos y estadísticas */}
+      <button type="button" onClick={onGoals} className={TAB}>
+        <Target size={22} strokeWidth={1.8} aria-hidden="true" />
+        <span className={LABEL}>Metas</span>
       </button>
         </div>
 
@@ -81,10 +81,10 @@ export default function BottomTabBar({ onToday, onEvents, onCalendar, onAdd, onM
       </div>
 
         <div className="flex flex-1 items-center justify-around">
-      {/* Calendario — agenda completa, ocupa el hueco a la derecha del "+" */}
-      <button type="button" onClick={onCalendar} className={TAB}>
-        <CalendarRange size={22} strokeWidth={1.8} aria-hidden="true" />
-        <span className={LABEL}>Calendario</span>
+      {/* Agenda — todo lo agendado, agrupado por fecha */}
+      <button type="button" onClick={onAgenda} className={TAB}>
+        <CalendarDays size={22} strokeWidth={1.8} aria-hidden="true" />
+        <span className={LABEL}>Agenda</span>
       </button>
 
       {/* Ver más — abre el panel secundario */}

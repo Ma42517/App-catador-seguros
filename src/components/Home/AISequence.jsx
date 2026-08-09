@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Pointer, Bell, Calendar as CalendarIcon } from 'lucide-react';
+import { Pointer } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
+import ActionableCard from '../Activities/ActionableCard';
 
 /** Ritmo de escritura, en ms por letra. */
 const TYPE_MS = 30;
@@ -96,34 +97,14 @@ export default function AISequence({ name, header, children }) {
           {isTyping && <span className="animate-pulse text-amber-400">|</span>}
         </p>
 
-        {/* Eventos de máxima prioridad para hoy */}
+        {/* Eventos de máxima prioridad para hoy, accionables al tocarlos */}
         {highPriorityToday.length > 0 && (
           <ul className={`mt-10 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
-            {highPriorityToday.map((event) => {
-              const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
-              return (
-                <li
-                  key={event.id}
-                  className="mb-3 flex w-full items-center justify-between gap-3 rounded-xl border
-                             border-zinc-900/10 bg-zinc-900/5 p-4 backdrop-blur-sm
-                             dark:border-white/10 dark:bg-zinc-800/40"
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <Icon
-                      size={16}
-                      className="shrink-0 text-rose-500 dark:text-rose-400"
-                      aria-hidden="true"
-                    />
-                    <span className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
-                      {event.title}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {event.time || 'Sin hora'}
-                  </span>
-                </li>
-              );
-            })}
+            {highPriorityToday.map((event) => (
+              <li key={event.id} className="mb-3">
+                <ActionableCard event={event} />
+              </li>
+            ))}
           </ul>
         )}
       </div>

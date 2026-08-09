@@ -36,8 +36,8 @@ export default function AdminLayout({
 
       <BottomTabBar
         onToday={() => goTo('home')}
-        onEvents={() => goTo('events')}
-        onCalendar={() => goTo('calendar')}
+        onGoals={() => goTo('goals')}
+        onAgenda={() => goTo('agenda')}
         onAdd={() => setQuickAddOpen(true)}
         onMore={() => setMoreOpen(true)}
       />
@@ -70,7 +70,7 @@ export default function AdminLayout({
         onOpenPreview={() => goTo('preview')}
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onLogout={onLogout}
-        onLoadDemo={() => { loadDemoWeek(); setMoreOpen(false); onNavigate('calendar'); }}
+        onLoadDemo={() => { loadDemoWeek(); setMoreOpen(false); onNavigate('agenda'); }}
         onClearAgenda={() => { clearAgenda(); setMoreOpen(false); }}
         canUsePreview={canUsePreview}
         isDark={isDark}

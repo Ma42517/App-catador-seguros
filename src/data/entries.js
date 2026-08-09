@@ -88,6 +88,22 @@ export function addActivity(username, activity) {
   return entry;
 }
 
+export function updateActivity(username, id, patch) {
+  const bucket = readUser(username);
+  const activities = bucket.activities.map(
+    (a) => (a.id === id ? { ...a, ...patch } : a),
+  );
+  saveUser(username, { ...bucket, activities });
+}
+
+export function removeActivity(username, id) {
+  const bucket = readUser(username);
+  saveUser(username, {
+    ...bucket,
+    activities: bucket.activities.filter((a) => a.id !== id),
+  });
+}
+
 /* ---------- Carga masiva y limpieza (datos de ejemplo) ---------- */
 
 /** Reemplaza toda la información del usuario; se usa para la semana demo. */

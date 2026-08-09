@@ -14,6 +14,7 @@ import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import TodayView from './components/Home/TodayView';
 import CalendarView from './components/Calendar/CalendarView';
+import GoalsDashboard from './components/Goals/GoalsDashboard';
 import { EventProvider } from './context/EventContext';
 import { readTheme, applyTheme, THEMES } from './theme';
 import AgentProfiler from './components/Onboarding/AgentProfiler';
@@ -238,10 +239,10 @@ function Shell({ onLogout, isPreview, role, profileName }) {
         <DevicePreview />
       ) : activeSection === 'home' ? (
         <TodayView name={profileName} />
-      ) : activeSection === 'events' ? (
-        <CalendarView scope="today" />
-      ) : activeSection === 'calendar' ? (
-        <CalendarView scope="all" />
+      ) : activeSection === 'goals' ? (
+        <GoalsDashboard />
+      ) : activeSection === 'agenda' ? (
+        <CalendarView />
       ) : (
         /*
           El módulo de Diagnóstico 360 es un tablero de datos diseñado en
