@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { Megaphone, Target, CircleDollarSign, Flame } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Megaphone, Target, CircleDollarSign, Flame, Hourglass } from 'lucide-react';
 import SquareCard from './SquareCard';
 import WideCard from './WideCard';
 import ProspectaHero from './ProspectaHero';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
 import WorkplaceBoard from '../Workplace/WorkplaceBoard';
 import GoalsView from '../Goals/GoalsView';
-import TimeBlocks from '../Production/TimeBlocks';
+import TimeBlocksScreen from '../Production/TimeBlocksScreen';
+import { readHistory, statsFor, formatDuration } from '../../data/timeBlocks';
 
 /**
  * Tarjetas de la cuadrícula. Los subtítulos son deliberadamente cortos: en
@@ -37,6 +38,15 @@ const CARDS = [
     iconTone: 'text-amber-300',
   },
   {
+    key: 'bloques',
+    title: 'Bloques de Tiempo',
+    subtitle: 'Sesiones de enfoque sin interrupciones',
+    icon: Hourglass,
+    gradient: 'from-zinc-900 via-indigo-950 to-indigo-900',
+    glow: 'hover:shadow-[0_0_28px_rgba(99,102,241,0.35)]',
+    iconTone: 'text-indigo-300',
+  },
+  {
     key: 'dinero',
     title: 'Dinero en la Mesa',
     subtitle: '$45,000 MXN en comisiones pausadas',
@@ -61,9 +71,22 @@ export default function ProductivityDashboard({ username }) {
   const [isProspectaOpen, setProspectaOpen] = useState(false);
   const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
   const [isGoalsOpen, setGoalsOpen] = useState(false);
+  const [isBlocksOpen, setBlocksOpen] = useState(false);
 
   // Sólo las tarjetas con destino son pulsables; el resto siguen inertes.
-  const destinations = { metas: () => setGoalsOpen(true) };
+  const destinations = {
+    metas: () => setGoalsOpen(true),
+    bloques: () => setBlocksOpen(true),
+  };
+
+  /*
+    Resumen del día en la tarjeta de bloques. Se relee al cerrar la pantalla del
+    temporizador, que es cuando pudo cambiar: el hub no necesita un contador en
+    marcha, sólo reflejar lo que ya se cerró.
+  */
+  const [today, setToday] = useState(() => statsFor(readHistory(username)));
+  useEffect(() => { setToday(statsFor(readHistory(username))); }, [username]);
+  const refreshToday = () => setToday(statsFor(readHistory(username)));
 
   return (
     <div className="mx-auto max-w-md px-4 pb-24 pt-6">
@@ -74,16 +97,8 @@ export default function ProductivityDashboard({ username }) {
       {/* Banner de ancho completo: acceso a las tres etapas de prospección */}
       <ProspectaHero onClick={() => setProspectaOpen(true)} />
 
-      {/*
-        Bloques de tiempo justo bajo el banner: es la herramienta con la que se
-        arranca el día, así que va antes de los destinos de navegación.
-      */}
-      <div className="mt-5">
-        <TimeBlocks username={username} />
-      </div>
-
       {/* Workplace a ancho completo, con su tamaño original */}
-      <div className="mt-4">
+      <div className="mt-5">
         <WideCard
           title={WORKPLACE.title}
           subtitle={WORKPLACE.subtitle}
@@ -102,7 +117,13 @@ export default function ProductivityDashboard({ username }) {
           <SquareCard
             key={card.key}
             title={card.title}
-            subtitle={card.subtitle}
+            subtitle={card.key === 'bloques' && today.blocks > 0
+              ? `${today.blocks} ${today.blocks === 1 ? 'bloque' : 'bloques'} · ${formatDuration(today.minutes)} hoy`
+              : card.subtitle}
+            badge={card.key === 'bloques' && today.blocks > 0 ? today.blocks : card.badge}
+            badgeLabel={card.key === 'bloques' && today.blocks > 0
+              ? `${today.blocks} bloques completados hoy`
+              : card.badgeLabel}
             icon={card.icon}
             gradient={card.gradient}
             glow={card.glow}
@@ -124,6 +145,12 @@ export default function ProductivityDashboard({ username }) {
       />
 
       <GoalsView isOpen={isGoalsOpen} onClose={() => setGoalsOpen(false)} />
+
+      <TimeBlocksScreen
+        isOpen={isBlocksOpen}
+        onClose={() => { setBlocksOpen(false); refreshToday(); }}
+        username={username}
+      />
     </div>
   );
 }

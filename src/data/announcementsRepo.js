@@ -198,18 +198,26 @@ export async function deleteAnnouncement(id) {
 }
 
 /**
- * Comprueba el bucket de Storage.
+ * Comprueba el bucket de Storage con una sonda de sólo lectura.
  *
- * Se reporta aparte del semáforo principal: la app funciona perfectamente sin
- * bucket, sólo no podrá adjuntar archivos. Mezclarlo con el estado de la tabla
- * haría ver como caída una conexión que está sana.
+ * Se reporta aparte del semáforo principal: la app funciona sin bucket, sólo no
+ * podrá adjuntar archivos. Mezclarlo con el estado de la tabla haría ver como
+ * caída una conexión que está sana.
  *
- * OJO con el método: `list()` devuelve un arreglo vacío y sin error incluso para
- * buckets que no existen, así que usarlo daría un "todo bien" permanente. Se
- * consulta el bucket en sí, que sí distingue los casos. Aun así el resultado es
- * indicativo: con la anon key, un bucket privado puede responder igual que uno
- * inexistente, y la prueba definitiva es intentar subir.
+ * El método importa, y los dos obvios fallan:
+ *
+ *  - `list()` devuelve un arreglo vacío y sin error para buckets inexistentes:
+ *    diría "todo bien" siempre.
+ *  - `getBucket()` consulta la tabla de buckets, que la llave pública no puede
+ *    leer: decía "no existe" incluso con las subidas funcionando.
+ *
+ * Se pide entonces por la ruta pública un objeto que a propósito no existe. La
+ * respuesta distingue los dos casos sin escribir nada: si el error es del objeto
+ * (`NoSuchKey`) el bucket está ahí y sirve contenido público; si es del bucket
+ * (`NoSuchBucket`) no está o no es público.
  */
+const PROBE_OBJECT = '__sonda-de-diagnostico__.txt';
+
 export async function pingStorage() {
   if (!usingSupabase) {
     return {
@@ -218,21 +226,35 @@ export async function pingStorage() {
     };
   }
 
-  const { data, error } = await supabase.storage.getBucket(BUCKET);
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(PROBE_OBJECT);
 
-  if (error || !data) {
+  try {
+    const response = await fetch(data.publicUrl, { cache: 'no-store' });
+    const body = await response.text();
+
+    // El objeto no existe, pero el bucket contestó: es la señal de que está bien.
+    if (response.ok || /NoSuchKey|Object not found/i.test(body)) {
+      return { ok: true, detail: `Bucket "${BUCKET}" disponible y público.` };
+    }
+
+    if (/NoSuchBucket|Bucket not found/i.test(body)) {
+      return {
+        ok: false,
+        detail: `Bucket "${BUCKET}" no existe o no es público. Créalo en Storage `
+          + 'y marca la casilla "Public bucket".',
+      };
+    }
+
     return {
       ok: false,
-      detail: `Bucket "${BUCKET}" no confirmado (${error?.message ?? 'sin respuesta'}). `
-        + 'Si ya lo creaste, puede ser que la anon key no tenga permiso de consultarlo; '
-        + 'la prueba real es subir un archivo.',
+      detail: `Storage respondió algo inesperado (${response.status}): ${body.slice(0, 120)}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      detail: `No se pudo consultar Storage: ${error.message}`,
     };
   }
-
-  return {
-    ok: true,
-    detail: `Bucket "${BUCKET}" encontrado · ${data.public ? 'público' : 'PRIVADO, las URLs no abrirán'}.`,
-  };
 }
 
 /**

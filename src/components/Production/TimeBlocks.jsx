@@ -243,14 +243,11 @@ export default function TimeBlocks({ username }) {
   };
 
   return (
-    <section
-      className="rounded-3xl border border-zinc-200 bg-white p-4
-                 dark:border-zinc-800 dark:bg-zinc-900/60"
-      aria-label="Bloques de tiempo"
-    >
-      <div className="mb-3 flex items-center gap-2">
+    <section aria-label="Bloques de tiempo">
+      {/* El título lo pone la cabecera de la pantalla; aquí sólo la medalla. */}
+      <div className="mb-4 flex items-center gap-2">
         <Hourglass size={16} className="text-indigo-500" aria-hidden="true" />
-        <h2 className="text-base font-bold text-zinc-900 dark:text-white">Bloques de Tiempo</h2>
+        <h2 className="text-sm font-bold text-zinc-900 dark:text-white">Enfoque de hoy</h2>
 
         {/*
           Medalla de enfoque del día. Vive en la cabecera, no dentro del reloj:

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Database, Send, Trash2, Loader2, HardDrive, Activity, Pencil, X, Save, RefreshCw,
+  Database, Trash2, Loader2, HardDrive, Activity, Pencil, X, Save, RefreshCw,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import DiagnosticsConsole from './DiagnosticsConsole';
@@ -382,12 +382,17 @@ export default function AdminPanel({ isOpen, onClose }) {
         <DiagnosticsConsole lines={lines} onClear={clearConsole} />
       </section>
 
-      {/* ── 2. Pruebas CRUD ────────────────────────────────────────────── */}
+      {/*
+        ── 2. Edición de un comunicado ──────────────────────────────────
+        Ya no hay formulario de publicación aquí: los comunicados se publican
+        desde el propio muro, donde además se puede adjuntar la foto. Este
+        bloque sólo aparece al pulsar el lápiz de la lista de abajo, para
+        corregir algo ya publicado.
+      */}
+      {isEditing && (
       <section className="mb-8">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className={SECTION_TITLE}>
-            {isEditing ? 'Editar comunicado' : 'Publicar comunicado'}
-          </h3>
+          <h3 className={SECTION_TITLE}>Editar comunicado</h3>
 
           {isEditing && (
             <button
@@ -479,22 +484,17 @@ export default function AdminPanel({ isOpen, onClose }) {
                        transition-all hover:bg-indigo-500 active:scale-[0.98]
                        disabled:cursor-wait disabled:opacity-60"
           >
-            {isSaving
-              ? <Loader2 size={16} className="animate-spin" />
-              : (isEditing ? <Save size={16} /> : <Send size={16} />)}
+            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
 
             {/* Subir y guardar son dos esperas distintas: la del archivo puede
                 tardar mucho más y conviene que se nombre por separado. */}
             {isUploading
               ? 'Subiendo archivo...'
-              : (isSaving
-                ? 'Guardando...'
-                : (isEditing
-                  ? 'Guardar cambios'
-                  : `Publicar en ${usingSupabase ? 'Supabase' : 'local'}`))}
+              : (isSaving ? 'Guardando...' : 'Guardar cambios')}
           </button>
         </form>
       </section>
+      )}
 
       {/* ── 3. Gestor del Workplace ────────────────────────────────────── */}
       <section>
