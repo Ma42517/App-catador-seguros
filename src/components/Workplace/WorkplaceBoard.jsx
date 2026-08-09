@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { Share2, FileText, Link2, Loader2 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
+import { readAdvisorProfile } from '../../data/advisorProfile';
+import { stampWatermark } from '../../data/watermark';
 
 /** Imagen de prueba mientras la promotoría no suba flyers reales. */
 const FLYER_IMAGE_URL = 'https://picsum.photos/800/1200';
@@ -15,11 +17,14 @@ const FLYER_FILE_NAME = 'promocion.jpg';
  *  - 'cancelled' → el usuario cerró la hoja (no es un error)
  *  - 'downloaded'→ el navegador no soporta compartir archivos; se descargó
  */
-async function shareImageFile({ imageUrl, fileName, title, text }) {
+async function shareImageFile({ imageUrl, fileName, title, text, watermark }) {
   const response = await fetch(imageUrl);
   if (!response.ok) throw new Error(`La imagen no se pudo descargar (${response.status})`);
 
-  const blob = await response.blob();
+  const original = await response.blob();
+  // El flyer viaja solo por WhatsApp, así que los datos del asesor tienen que
+  // quedar dibujados dentro del archivo, no acompañarlo como texto aparte.
+  const blob = await stampWatermark(original, watermark);
   const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
 
   // `canShare` con `files` es la única forma fiable de saber si el sistema
@@ -184,28 +189,39 @@ function AnnouncementCard({ announcement, onShare, isSharing }) {
 }
 
 /** Tablero de anuncios de la promotoría. */
-export default function WorkplaceBoard({ isOpen, onClose }) {
+export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const [sharingId, setSharingId] = useState(null);
   const [toast, setToast] = useState('');
 
   const clearToast = useCallback(() => setToast(''), []);
 
   const handleShare = useCallback(async (id, share) => {
-    // Descargar el archivo toma tiempo: sin este candado, tocar dos veces
+    // Descargar y redibujar toma tiempo: sin este candado, tocar dos veces
     // dispara dos peticiones y dos hojas de compartir.
     if (sharingId) return;
     setSharingId(id);
+
+    // El perfil se lee en el momento de compartir, no al abrir la pantalla:
+    // así toma los datos recién guardados sin necesidad de recargar.
+    const watermark = readAdvisorProfile(username);
+    const hasWatermark = Boolean(watermark.displayName || watermark.phone);
+
     try {
-      const outcome = await shareImageFile(share);
-      if (outcome === 'downloaded') setToast('Imagen guardada en tu galería');
-      // 'shared' no necesita aviso: el sistema ya dio su propia confirmación.
-      // 'cancelled' tampoco: el usuario decidió no compartir.
+      const outcome = await shareImageFile({ ...share, watermark });
+
+      if (!hasWatermark) {
+        setToast('Agrega tu nombre en Mi Perfil para marcar los flyers.');
+      } else if (outcome === 'downloaded') {
+        setToast('Imagen guardada en tu galería');
+      }
+      // Con marca de agua y compartido, el sistema ya dio su confirmación.
+      // 'cancelled' tampoco necesita aviso: el usuario decidió no compartir.
     } catch {
       setToast('No se pudo preparar la imagen. Revisa tu conexión.');
     } finally {
       setSharingId(null);
     }
-  }, [sharingId]);
+  }, [sharingId, username]);
 
   return (
     <FullScreenView isOpen={isOpen} onClose={onClose} title="Workplace">

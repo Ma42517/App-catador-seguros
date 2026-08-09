@@ -241,7 +241,7 @@ function Shell({ onLogout, isPreview, role, profileName }) {
       ) : activeSection === 'home' ? (
         <TodayView name={profileName} />
       ) : activeSection === 'productivity' ? (
-        <ProductivityDashboard />
+        <ProductivityDashboard username={profileName} />
       ) : activeSection === 'agenda' ? (
         <CalendarView />
       ) : (

@@ -34,7 +34,7 @@ const CARDS = [
 ];
 
 /** Hub de rendimiento: accesos apilados a las secciones de análisis. */
-export default function ProductivityDashboard() {
+export default function ProductivityDashboard({ username }) {
   const [isProspectaOpen, setProspectaOpen] = useState(false);
   const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
 
@@ -71,6 +71,7 @@ export default function ProductivityDashboard() {
       <WorkplaceBoard
         isOpen={isWorkplaceOpen}
         onClose={() => setWorkplaceOpen(false)}
+        username={username}
       />
     </div>
   );
