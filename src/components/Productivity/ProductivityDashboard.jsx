@@ -1,33 +1,14 @@
 import { useState } from 'react';
-import { Layers, Target, Flame } from 'lucide-react';
+import { Target } from 'lucide-react';
 import ImmersiveCard from './ImmersiveCard';
 import ProspectaHero from './ProspectaHero';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
 
 /**
- * Cifras del hub. Concentradas aquí a propósito: cuando se conecten al motor
- * real (cierres, citas ANF del mes, racha de días con actividad), sólo cambia
- * este objeto.
- */
-const STATS = {
-  moneyOnTable: '$45,000 MXN',
-  streakDays: 4,
-};
-
-/**
- * Definición de las tarjetas. Cada entrada es un destino futuro; `onClick`
- * queda listo para engancharse cuando exista su pantalla.
+ * Definición de las tarjetas del hub. Cada entrada es un destino futuro;
+ * `onClick` queda listo para engancharse cuando exista su pantalla.
  */
 const CARDS = [
-  {
-    key: 'ciclo',
-    title: 'Ciclo de Ventas',
-    subtitle: 'Acercamiento en frío, cita inicial y cierre',
-    icon: Layers,
-    gradient: 'from-zinc-900 via-indigo-950 to-indigo-900',
-    glow: 'hover:shadow-[0_0_28px_rgba(99,102,241,0.35)]',
-    iconTone: 'text-indigo-300/80',
-  },
   {
     key: 'metas',
     title: 'Mis Metas',
@@ -36,23 +17,6 @@ const CARDS = [
     gradient: 'from-zinc-900 via-amber-950 to-orange-900',
     glow: 'hover:shadow-[0_0_28px_rgba(245,158,11,0.35)]',
     iconTone: 'text-amber-300/80',
-  },
-  {
-    key: 'dinero',
-    title: 'Dinero en la Mesa',
-    value: STATS.moneyOnTable,
-    subtitle: 'Comisiones en pausa',
-    gradient: 'from-zinc-900 via-emerald-950 to-emerald-900',
-    glow: 'hover:shadow-[0_0_28px_rgba(16,185,129,0.4)]',
-  },
-  {
-    key: 'rachas',
-    title: 'Rachas de Prospección',
-    subtitle: `🔥 ${STATS.streakDays} Días activos. ¡No rompas la cadena!`,
-    icon: Flame,
-    gradient: 'from-zinc-900 via-rose-950 to-rose-900',
-    glow: 'hover:shadow-[0_0_28px_rgba(244,63,94,0.35)]',
-    iconTone: 'text-rose-300/80',
   },
 ];
 
@@ -79,9 +43,6 @@ export default function ProductivityDashboard() {
           gradient={card.gradient}
           glow={card.glow}
           iconTone={card.iconTone}
-          // El ciclo de ventas es hoy el único destino construido: abre las
-          // tres etapas de prospección.
-          onClick={card.key === 'ciclo' ? () => setProspectaOpen(true) : undefined}
         />
       ))}
 
