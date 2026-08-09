@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Database, Send, Trash2, Loader2, HardDrive, Activity, Pencil, X, Save, RefreshCw,
+  Paperclip, FileText, Image as ImageIcon,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import DiagnosticsConsole from './DiagnosticsConsole';
 import { CATEGORY_LIST, categoryOf, relativeTime } from '../../data/announcements';
 import {
   fetchAnnouncements, publishAnnouncement, updateAnnouncement, deleteAnnouncement,
-  pingDatabase, usingSupabase, describeError,
+  pingDatabase, pingStorage, uploadAttachment, usingSupabase, describeError, BUCKET,
 } from '../../data/announcementsRepo';
+import {
+  ACCEPT_ATTACHMENTS, attachmentKind, attachmentName, formatBytes,
+} from '../../data/attachments';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
@@ -20,7 +24,108 @@ const LABEL = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider t
 
 const SECTION_TITLE = 'text-sm font-bold text-zinc-900 dark:text-white';
 
-const EMPTY_FORM = { category: CATEGORY_LIST[0].key, title: '', content: '', imageUrl: '' };
+const EMPTY_FORM = { category: CATEGORY_LIST[0].key, title: '', content: '' };
+
+/** Icono según lo que sea el adjunto, para reconocerlo de un vistazo. */
+function AttachmentIcon({ url, size = 14 }) {
+  const Icon = attachmentKind(url) === 'document' ? FileText : ImageIcon;
+  return <Icon size={size} aria-hidden="true" />;
+}
+
+/**
+ * Selector de adjunto.
+ *
+ * Muestra tres estados distintos: sin nada, un archivo recién elegido que
+ * todavía no sube, y el adjunto que ya vive en la base cuando se está editando.
+ * Confundirlos llevaría a creer que un archivo se subió cuando no.
+ */
+function AttachmentField({ file, existingUrl, onPick, onClear, disabled }) {
+  const inputRef = useRef(null);
+
+  const pick = (event) => {
+    const chosen = event.target.files?.[0] ?? null;
+    onPick(chosen);
+  };
+
+  const clear = () => {
+    if (inputRef.current) inputRef.current.value = '';
+    onClear();
+  };
+
+  return (
+    <div>
+      <span className={LABEL}>Archivo adjunto (opcional)</span>
+
+      <input
+        ref={inputRef}
+        id="admin-file"
+        type="file"
+        accept={ACCEPT_ATTACHMENTS}
+        onChange={pick}
+        disabled={disabled}
+        className="block w-full cursor-pointer rounded-xl border border-zinc-200 bg-white
+                   text-xs text-zinc-500 transition-colors
+                   file:mr-3 file:cursor-pointer file:border-0 file:border-r
+                   file:border-zinc-200 file:bg-zinc-100 file:px-3 file:py-2.5
+                   file:text-xs file:font-semibold file:text-zinc-700
+                   hover:border-zinc-300 disabled:cursor-not-allowed disabled:opacity-60
+                   dark:border-zinc-700 dark:bg-zinc-950/60
+                   dark:file:border-zinc-700 dark:file:bg-zinc-800 dark:file:text-zinc-200"
+      />
+
+      {/* Archivo elegido, aún sin subir */}
+      {file && (
+        <div className="mt-2 flex items-center gap-2 rounded-xl border border-indigo-500/40
+                        bg-indigo-500/5 px-3 py-2"
+        >
+          <Paperclip size={13} className="shrink-0 text-indigo-400" aria-hidden="true" />
+          <p className="min-w-0 flex-1 truncate text-[11px] text-zinc-600 dark:text-zinc-300">
+            {file.name} · {formatBytes(file.size)}
+          </p>
+          <button
+            type="button"
+            onClick={clear}
+            className="shrink-0 rounded-md p-1 text-zinc-400 transition-colors
+                       hover:bg-rose-500/10 hover:text-rose-500"
+            aria-label="Quitar archivo"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {/* Adjunto que ya está publicado: se conserva si no se elige otro */}
+      {!file && existingUrl && (
+        <div className="mt-2 flex items-center gap-2 rounded-xl border border-zinc-200
+                        bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          <span className="shrink-0 text-zinc-400">
+            <AttachmentIcon url={existingUrl} size={13} />
+          </span>
+          <p className="min-w-0 flex-1 truncate text-[11px] text-zinc-600 dark:text-zinc-300">
+            {attachmentName(existingUrl)}
+          </p>
+          <button
+            type="button"
+            onClick={onClear}
+            className="shrink-0 rounded-md p-1 text-zinc-400 transition-colors
+                       hover:bg-rose-500/10 hover:text-rose-500"
+            aria-label="Quitar adjunto actual"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      <p className="mt-1.5 text-[11px] text-zinc-500">
+        {usingSupabase
+          ? <>Se sube al bucket <span className="font-mono">{BUCKET}</span>. Las imágenes
+            se comparten con la marca de agua del asesor; los documentos, como descarga.</>
+          : 'Sin Supabase el archivo se guarda en este navegador, con un tope de 800 KB.'}
+      </p>
+    </div>
+  );
+}
 
 /** Estados posibles del diagnóstico, con su semáforo. */
 const HEALTH = {
@@ -112,9 +217,15 @@ function ManagerRow({ item, isEditing, isDeleting, onEdit, onDelete }) {
         <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
           {item.title}
         </p>
-        <p className="mt-0.5 truncate font-mono text-[10px] text-zinc-500">
+        <p className="mt-0.5 flex items-center gap-1 truncate font-mono text-[10px] text-zinc-500">
           id {String(item.id).slice(0, 8)} · {relativeTime(item.createdAt)}
-          {item.imageUrl ? ' · con imagen' : ''}
+          {item.fileUrl && (
+            <>
+              <span aria-hidden="true">·</span>
+              <AttachmentIcon url={item.fileUrl} size={11} />
+              <span className="truncate">{attachmentName(item.fileUrl)}</span>
+            </>
+          )}
         </p>
       </div>
 
@@ -155,6 +266,12 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [formError, setFormError] = useState('');
+
+  // El adjunto se maneja en dos piezas: el archivo por subir y la URL que ya
+  // está guardada. Al editar hay que poder conservar la segunda sin tocar nada.
+  const [file, setFile] = useState(null);
+  const [existingFileUrl, setExistingFileUrl] = useState('');
+  const [isUploading, setUploading] = useState(false);
 
   const [list, setList] = useState([]);
   const [isLoading, setLoading] = useState(false);
@@ -207,6 +324,11 @@ export default function AdminPanel({ isOpen, onClose }) {
       return;
     }
     setHealth(result.ok ? 'ok' : 'error');
+
+    // El bucket se reporta aparte: la tabla puede estar perfecta y los adjuntos
+    // no, y son dos problemas con arreglos distintos.
+    const storage = await pingStorage();
+    log(storage.ok ? 'ok' : 'warn', storage.detail);
   }, [log]);
 
   const load = useCallback(async () => {
@@ -237,6 +359,8 @@ export default function AdminPanel({ isOpen, onClose }) {
     setForm(EMPTY_FORM);
     setEditingId(null);
     setFormError('');
+    setFile(null);
+    setExistingFileUrl('');
   }, []);
 
   const startEdit = useCallback((item) => {
@@ -245,8 +369,9 @@ export default function AdminPanel({ isOpen, onClose }) {
       category: item.category,
       title: item.title,
       content: item.content ?? '',
-      imageUrl: item.imageUrl ?? '',
     });
+    setFile(null);
+    setExistingFileUrl(item.fileUrl ?? '');
     setFormError('');
     log('info', `Editando id ${String(item.id).slice(0, 8)} · "${item.title}"`);
   }, [log]);
@@ -261,14 +386,34 @@ export default function AdminPanel({ isOpen, onClose }) {
       return;
     }
 
+    setSaving(true);
+
+    // El archivo sube primero: si falla, no se escribe una fila que apunte a
+    // un adjunto que no existe.
+    let fileUrl = existingFileUrl;
+
+    if (file) {
+      setUploading(true);
+      log('cmd', `storage.from("${BUCKET}").upload("${file.name}") · ${formatBytes(file.size)}`);
+      const upload = await uploadAttachment(file);
+      setUploading(false);
+
+      if (upload.error) {
+        setSaving(false);
+        log('error', describeError(upload.error));
+        return;
+      }
+      fileUrl = upload.url;
+      log('ok', `Archivo subido${upload.fileName ? ` como ${upload.fileName}` : ''}.`);
+    }
+
     const payload = {
       title,
       category: form.category,
       content: form.content.trim(),
-      imageUrl: form.imageUrl.trim(),
+      fileUrl,
     };
 
-    setSaving(true);
     const isEdit = editingId !== null;
     // Se nombran las columnas reales de la tabla, no las claves de JavaScript:
     // una consola de diagnóstico que miente sobre el esquema no sirve de nada.
@@ -416,19 +561,13 @@ export default function AdminPanel({ isOpen, onClose }) {
           </div>
 
           <div className="mb-5">
-            <label className={LABEL} htmlFor="admin-image">URL de Imagen (opcional)</label>
-            <input
-              id="admin-image"
-              className={INPUT}
-              value={form.imageUrl}
-              onChange={setField('imageUrl')}
-              placeholder="https://..."
-              inputMode="url"
-              autoComplete="off"
+            <AttachmentField
+              file={file}
+              existingUrl={existingFileUrl}
+              onPick={(chosen) => { setFile(chosen); setFormError(''); }}
+              onClear={() => { setFile(null); setExistingFileUrl(''); }}
+              disabled={isSaving}
             />
-            <p className="mt-1.5 text-[11px] text-zinc-500">
-              Con imagen, el asesor podrá compartir el flyer con su marca de agua.
-            </p>
           </div>
 
           <button
@@ -442,11 +581,16 @@ export default function AdminPanel({ isOpen, onClose }) {
             {isSaving
               ? <Loader2 size={16} className="animate-spin" />
               : (isEditing ? <Save size={16} /> : <Send size={16} />)}
-            {isSaving
-              ? 'Guardando...'
-              : (isEditing
-                ? 'Guardar cambios'
-                : `Publicar en ${usingSupabase ? 'Supabase' : 'local'}`)}
+
+            {/* Subir y guardar son dos esperas distintas: la del archivo puede
+                tardar mucho más y conviene que se nombre por separado. */}
+            {isUploading
+              ? 'Subiendo archivo...'
+              : (isSaving
+                ? 'Guardando...'
+                : (isEditing
+                  ? 'Guardar cambios'
+                  : `Publicar en ${usingSupabase ? 'Supabase' : 'local'}`))}
           </button>
         </form>
       </section>

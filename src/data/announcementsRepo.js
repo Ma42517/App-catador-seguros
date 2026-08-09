@@ -3,6 +3,7 @@ import {
   readLocalAnnouncements, addLocalAnnouncement, removeLocalAnnouncement,
   updateLocalAnnouncement,
 } from './announcements';
+import { storageFileName, MAX_LOCAL_FILE_BYTES, formatBytes } from './attachments';
 
 /**
  * Acceso a los comunicados, con una sola puerta para toda la app.
@@ -14,6 +15,83 @@ import {
 export const usingSupabase = isSupabaseConfigured;
 
 const TABLE = 'announcements';
+
+/** Bucket de Storage donde viven los flyers y documentos de la promotoría. */
+export const BUCKET = 'workplace-files';
+
+/**
+ * Sube un archivo y devuelve su URL pública.
+ *
+ * Sin Supabase el archivo se guarda como URL de datos dentro de localStorage.
+ * Es un respaldo con tope de tamaño a propósito: sirve para probar el muro sin
+ * credenciales, no para almacenar de verdad.
+ */
+export async function uploadAttachment(file) {
+  if (!file) return { url: '', error: null, source: 'none' };
+
+  const fileName = storageFileName(file.name);
+
+  if (!usingSupabase) {
+    if (file.size > MAX_LOCAL_FILE_BYTES) {
+      return {
+        url: '',
+        source: 'local',
+        error: {
+          message: `El archivo pesa ${formatBytes(file.size)} y sin Supabase el tope es `
+            + `${formatBytes(MAX_LOCAL_FILE_BYTES)}.`,
+          code: 'LOCAL_TOO_LARGE',
+          hint: 'Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para subir archivos reales.',
+        },
+      };
+    }
+
+    const url = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error ?? new Error('No se pudo leer el archivo.'));
+      reader.readAsDataURL(file);
+    }).catch((error) => ({ error }));
+
+    if (typeof url !== 'string') {
+      return { url: '', error: url.error, source: 'local' };
+    }
+    return { url, error: null, source: 'local', fileName };
+  }
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+  if (uploadError) {
+    // El error de Storage no trae `hint`, así que se añade la causa más común:
+    // el bucket inexistente y la política de subida son casi siempre el motivo.
+    return {
+      url: '',
+      source: 'supabase',
+      error: {
+        message: uploadError.message,
+        code: uploadError.statusCode ?? uploadError.name ?? 'STORAGE',
+        hint: `Revisa que el bucket "${BUCKET}" exista, sea público y tenga política de INSERT.`,
+      },
+    };
+  }
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
+
+  if (!data?.publicUrl) {
+    return {
+      url: '',
+      source: 'supabase',
+      error: {
+        message: 'El archivo subió pero no se pudo obtener su URL pública.',
+        code: 'NO_PUBLIC_URL',
+        hint: `Marca el bucket "${BUCKET}" como público en Storage.`,
+      },
+    };
+  }
+
+  return { url: data.publicUrl, error: null, source: 'supabase', fileName };
+}
 
 /**
  * Convierte un error de Supabase en un mensaje que se pueda leer en pantalla.
@@ -30,14 +108,22 @@ export function describeError(error) {
   return parts.join(' ');
 }
 
-/** Convierte una fila de Supabase a la forma que usan los componentes. */
+/**
+ * Convierte una fila de Supabase a la forma que usan los componentes.
+ *
+ * La columna sigue llamándose `image_url` aunque ahora también guarde
+ * documentos: renombrarla obligaría a una migración en la base del usuario y no
+ * cambiaría nada de comportamiento. En el código de la app el campo sí se llama
+ * `fileUrl`, que es lo que de verdad contiene, y la traducción entre ambos
+ * nombres vive únicamente aquí.
+ */
 function fromRow(row) {
   return {
     id: row.id,
     category: row.category ?? 'importante',
     title: row.title ?? '',
     content: row.content ?? '',
-    imageUrl: row.image_url ?? '',
+    fileUrl: row.image_url ?? '',
     createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
   };
 }
@@ -60,9 +146,9 @@ export async function fetchAnnouncements() {
   return { data: (data ?? []).map(fromRow), error: null, source: 'supabase' };
 }
 
-export async function publishAnnouncement({ title, category, content, imageUrl }) {
+export async function publishAnnouncement({ title, category, content, fileUrl }) {
   if (!usingSupabase) {
-    const created = addLocalAnnouncement({ title, category, content, imageUrl });
+    const created = addLocalAnnouncement({ title, category, content, fileUrl });
     return {
       data: created,
       error: created ? null : new Error('El comunicado necesita un título.'),
@@ -73,16 +159,16 @@ export async function publishAnnouncement({ title, category, content, imageUrl }
   // Se mandan los nombres de columna tal cual existen en la tabla.
   const { data, error } = await supabase
     .from(TABLE)
-    .insert([{ title, category, content, image_url: imageUrl || null }])
+    .insert([{ title, category, content, image_url: fileUrl || null }])
     .select();
 
   if (error) return { data: null, error, source: 'supabase' };
   return { data: data?.[0] ? fromRow(data[0]) : null, error: null, source: 'supabase' };
 }
 
-export async function updateAnnouncement(id, { title, category, content, imageUrl }) {
+export async function updateAnnouncement(id, { title, category, content, fileUrl }) {
   if (!usingSupabase) {
-    const updated = updateLocalAnnouncement(id, { title, category, content, imageUrl });
+    const updated = updateLocalAnnouncement(id, { title, category, content, fileUrl });
     return {
       data: updated,
       error: updated ? null : new Error('No se encontró el comunicado o falta el título.'),
@@ -92,7 +178,7 @@ export async function updateAnnouncement(id, { title, category, content, imageUr
 
   const { data, error } = await supabase
     .from(TABLE)
-    .update({ title, category, content, image_url: imageUrl || null })
+    .update({ title, category, content, image_url: fileUrl || null })
     .eq('id', id)
     .select();
 
@@ -118,6 +204,44 @@ export async function deleteAnnouncement(id) {
 
   const { error } = await supabase.from(TABLE).delete().eq('id', id);
   return { error, source: 'supabase' };
+}
+
+/**
+ * Comprueba el bucket de Storage.
+ *
+ * Se reporta aparte del semáforo principal: la app funciona perfectamente sin
+ * bucket, sólo no podrá adjuntar archivos. Mezclarlo con el estado de la tabla
+ * haría ver como caída una conexión que está sana.
+ *
+ * OJO con el método: `list()` devuelve un arreglo vacío y sin error incluso para
+ * buckets que no existen, así que usarlo daría un "todo bien" permanente. Se
+ * consulta el bucket en sí, que sí distingue los casos. Aun así el resultado es
+ * indicativo: con la anon key, un bucket privado puede responder igual que uno
+ * inexistente, y la prueba definitiva es intentar subir.
+ */
+export async function pingStorage() {
+  if (!usingSupabase) {
+    return {
+      ok: false,
+      detail: 'Sin Supabase: los adjuntos se guardan en este navegador.',
+    };
+  }
+
+  const { data, error } = await supabase.storage.getBucket(BUCKET);
+
+  if (error || !data) {
+    return {
+      ok: false,
+      detail: `Bucket "${BUCKET}" no confirmado (${error?.message ?? 'sin respuesta'}). `
+        + 'Si ya lo creaste, puede ser que la anon key no tenga permiso de consultarlo; '
+        + 'la prueba real es subir un archivo.',
+    };
+  }
+
+  return {
+    ok: true,
+    detail: `Bucket "${BUCKET}" encontrado · ${data.public ? 'público' : 'PRIVADO, las URLs no abrirán'}.`,
+  };
 }
 
 /**

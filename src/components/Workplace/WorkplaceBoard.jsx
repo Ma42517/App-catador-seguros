@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Share2, Loader2, PenSquare, Trash2, Lock } from 'lucide-react';
+import { Share2, Loader2, PenSquare, Trash2, Lock, FileText, Download } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
 import AccessBar from '../Access/AccessBar';
@@ -8,6 +8,7 @@ import { readAdvisorProfile } from '../../data/advisorProfile';
 import { stampWatermark } from '../../data/watermark';
 import { useAccess } from '../../context/AccessContext';
 import { categoryOf, relativeTime } from '../../data/announcements';
+import { attachmentKind, attachmentName, documentLabel } from '../../data/attachments';
 import {
   fetchAnnouncements, publishAnnouncement, deleteAnnouncement, describeError,
 } from '../../data/announcementsRepo';
@@ -70,6 +71,9 @@ async function shareImageFile({ imageUrl, fileName, title, text, watermark }) {
  */
 function toCardModel(item) {
   const category = categoryOf(item.category);
+  const kind = attachmentKind(item.fileUrl);
+  const isImage = kind === 'image';
+
   return {
     id: item.id,
     tag: category.label,
@@ -77,16 +81,62 @@ function toCardModel(item) {
     title: item.title,
     time: relativeTime(item.createdAt),
     description: item.content || undefined,
-    flyer: item.imageUrl ? item.imageUrl : undefined,
-    share: item.imageUrl
+    flyer: isImage ? item.fileUrl : undefined,
+    document: kind === 'document' ? item.fileUrl : undefined,
+
+    // Compartir con marca de agua sólo tiene sentido sobre una imagen: el
+    // estampado dibuja en un canvas, y un PDF no se puede dibujar ahí.
+    share: isImage
       ? {
-        imageUrl: item.imageUrl,
+        imageUrl: item.fileUrl,
         fileName: FLYER_FILE_NAME,
         title: item.title,
         text: '¡Revisa esto!',
       }
       : undefined,
   };
+}
+
+/**
+ * Adjunto que no es imagen: se ofrece como descarga, no como vista previa.
+ *
+ * `download` no funciona entre dominios distintos, así que el navegador abrirá
+ * el archivo en otra pestaña. Se acepta a propósito: para un PDF de bases,
+ * verlo es tan válido como descargarlo, y forzar la descarga requeriría traer
+ * el archivo a memoria sin ganancia real.
+ */
+function DocumentAttachment({ url }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      download
+      className="mt-3 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3
+                 transition-colors hover:border-indigo-500/50 hover:bg-indigo-500/5
+                 dark:border-zinc-700 dark:bg-zinc-800/60"
+    >
+      <span
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border
+                   border-zinc-200 bg-white text-zinc-500
+                   dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400"
+        aria-hidden="true"
+      >
+        <FileText size={18} />
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-zinc-900 dark:text-white">
+          {documentLabel(url)}
+        </span>
+        <span className="block truncate text-[11px] text-zinc-500">
+          {attachmentName(url)}
+        </span>
+      </span>
+
+      <Download size={16} className="shrink-0 text-zinc-400" aria-hidden="true" />
+    </a>
+  );
 }
 
 
@@ -116,7 +166,7 @@ function LockedWall() {
 
 /** Tarjeta de anuncio. */
 function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelete }) {
-  const { tag, tagTone, title, time, flyer, description, share } = announcement;
+  const { tag, tagTone, title, time, flyer, document: documentUrl, description, share } = announcement;
 
   return (
     <article
@@ -165,6 +215,8 @@ function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelet
           className="mt-3 h-40 w-full rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800"
         />
       )}
+
+      {documentUrl && <DocumentAttachment url={documentUrl} />}
 
       {share && (
         <button

@@ -5,7 +5,10 @@
  * verlos todo el equipo, no sólo quien los escribió.
  *
  * Forma canónica de un comunicado, igual que la fila de Supabase:
- *   { id, category, title, content, imageUrl, createdAt }
+ *   { id, category, title, content, fileUrl, createdAt }
+ *
+ * `fileUrl` puede ser una imagen o un documento: el muro lo distingue por la
+ * extension de la URL, no por la columna.
  */
 const KEY = 'df360:announcements:v2';
 const SEED_FLAG = 'df360:announcementsSeeded:v2';
@@ -82,7 +85,7 @@ function seedIfFirstRun() {
         category: 'campana',
         title: 'Nueva Campaña de Vida y Gastos Médicos',
         content: 'Comparte el flyer con tus prospectos. Vigencia todo el mes.',
-        imageUrl: SAMPLE_FLYER,
+        fileUrl: SAMPLE_FLYER,
         createdAt: now - 2 * 60 * 60 * 1000,
       },
       {
@@ -90,7 +93,7 @@ function seedIfFirstRun() {
         category: 'bases',
         title: 'Actualización: Bases Convención 2026',
         content: 'Revisa los nuevos lineamientos de primas pagadas para calificar al viaje.',
-        imageUrl: '',
+        fileUrl: '',
         createdAt: now - 26 * 60 * 60 * 1000,
       },
     ]);
@@ -107,13 +110,13 @@ export function readLocalAnnouncements() {
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export function addLocalAnnouncement({ category, title, content, imageUrl }) {
+export function addLocalAnnouncement({ category, title, content, fileUrl }) {
   const clean = {
     id: newId(),
     category: CATEGORIES[category] ? category : 'importante',
     title: String(title ?? '').trim(),
     content: String(content ?? '').trim(),
-    imageUrl: String(imageUrl ?? '').trim(),
+    fileUrl: String(fileUrl ?? '').trim(),
     createdAt: Date.now(),
   };
   if (!clean.title) return null;
@@ -131,7 +134,7 @@ export function removeLocalAnnouncement(id) {
  * Conserva `id` y `createdAt`: editar el texto de un aviso no lo convierte en
  * otro aviso ni lo vuelve a poner arriba del tablero.
  */
-export function updateLocalAnnouncement(id, { category, title, content, imageUrl }) {
+export function updateLocalAnnouncement(id, { category, title, content, fileUrl }) {
   const list = readRaw();
   const index = list.findIndex((a) => a.id === id);
   if (index === -1) return null;
@@ -144,7 +147,7 @@ export function updateLocalAnnouncement(id, { category, title, content, imageUrl
     category: CATEGORIES[category] ? category : list[index].category,
     title: title_,
     content: String(content ?? '').trim(),
-    imageUrl: String(imageUrl ?? '').trim(),
+    fileUrl: String(fileUrl ?? '').trim(),
   };
   const next = list.slice();
   next[index] = updated;
