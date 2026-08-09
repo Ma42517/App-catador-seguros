@@ -1,35 +1,42 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, CalendarPlus, Briefcase } from 'lucide-react';
+import { UserPlus, PhoneCall, CalendarCheck } from 'lucide-react';
 
 /** Duración del slide-up/down; debe coincidir con la clase duration-300. */
 const ANIM_MS = 300;
 
+/** Borde por defecto de las tarjetas. */
+const CARD_BORDER = 'border-zinc-100 dark:border-zinc-700';
+
 /**
- * Acciones rápidas del botón "+".
- * El acento sólo vive en el ícono: el lenguaje es de productividad general,
- * no específico de un giro.
+ * Acciones rápidas del botón "+", ordenadas como el embudo del asesor:
+ * prospecto → seguimiento → cita. La cita inicial es la meta del día, así que
+ * es la única con borde de acento.
  */
 const ACTIONS = [
   {
-    key: 'contact',
-    title: 'Nuevo Contacto',
-    subtitle: 'Guarda clientes o leads',
+    key: 'prospecto',
+    title: 'Agregar Prospecto',
+    subtitle: 'Carga un nuevo contacto a tu embudo.',
     Icon: UserPlus,
     accent: 'bg-indigo-500/10 text-indigo-500 dark:text-indigo-400',
+    border: CARD_BORDER,
   },
   {
-    key: 'event',
-    title: 'Nuevo Evento',
-    subtitle: 'Agenda citas o recordatorios',
-    Icon: CalendarPlus,
-    accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    key: 'seguimiento',
+    title: 'Registrar Seguimiento',
+    subtitle: 'Registra una llamada, mensaje o envío del 360.',
+    Icon: PhoneCall,
+    accent: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    border: CARD_BORDER,
   },
   {
-    key: 'project',
-    title: 'Nuevo Proyecto',
-    subtitle: 'Registra negocios o ingresos',
-    Icon: Briefcase,
-    accent: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    key: 'cita',
+    title: 'Agendar Cita Inicial',
+    subtitle: 'Programa una cita para Análisis de Necesidades (ANF).',
+    Icon: CalendarCheck,
+    accent: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    // Meta principal: borde esmeralda y un halo tenue que la separa del resto.
+    border: 'border-emerald-500/40 shadow-emerald-500/10 dark:border-emerald-500/40',
   },
 ];
 
@@ -101,15 +108,15 @@ export default function QuickAddMenu({ isOpen, onClose, onSelect }) {
         />
 
         <div className="flex flex-col gap-4">
-          {ACTIONS.map(({ key, title, subtitle, Icon, accent }) => (
+          {ACTIONS.map(({ key, title, subtitle, Icon, accent, border }) => (
             <button
               key={key}
               type="button"
               onClick={() => handleSelect(key)}
-              className="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-white p-4
+              className={`flex items-center gap-4 rounded-2xl border bg-white p-4
                          text-left shadow-sm transition-transform active:scale-95
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
-                         dark:border-zinc-700 dark:bg-zinc-800"
+                         dark:bg-zinc-800 ${border}`}
             >
               <span
                 className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${accent}`}
