@@ -172,7 +172,10 @@
 
   @media (prefers-reduced-motion: reduce) {
     .animate-rise,
-    .animate-pulse-glow {
+    .animate-pulse-glow,
+    /* Latido del avatar y rebote de la flecha guía del asistente. */
+    .animate-pulse,
+    .animate-bounce {
       animation: none;
     }
   }

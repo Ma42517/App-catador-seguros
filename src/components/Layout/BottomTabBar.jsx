@@ -27,13 +27,22 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
   return (
     <nav
       aria-label="Navegación inferior"
-      className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around gap-2 border-t
+      className="fixed bottom-0 left-0 z-50 w-full border-t
                  border-zinc-200/60 bg-white/60 px-2 pt-3 backdrop-blur-2xl backdrop-saturate-150
-                 pb-safe sm:mx-auto sm:justify-center sm:gap-16
+                 pb-safe
                  dark:border-white/10 dark:bg-black/50
                  [box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.35)]
                  dark:[box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.08)]"
     >
+      {/*
+        Los grupos laterales usan flex-1 y el centro un ancho fijo, de modo que
+        el botón "+" queda exactamente en el eje central del viewport (el
+        contenedor va centrado con mx-auto). Con los cuatro destinos en una
+        sola fila, el "+" caería al 62.5% del ancho y dejaría de ser el ancla
+        visual de la barra.
+      */}
+      <div className="mx-auto flex w-full max-w-lg items-center">
+        <div className="flex flex-1 items-center justify-around">
       {/* A) Hoy — el día del mes dentro de un cuadro redondeado */}
       <button type="button" onClick={onToday} className={TAB}>
         <span
@@ -51,8 +60,10 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
         <CalendarDays size={22} strokeWidth={1.8} aria-hidden="true" />
         <span className={LABEL}>Eventos</span>
       </button>
+        </div>
 
-      {/* C) Agregar — acción destacada, flotando sobre la barra */}
+      {/* C) Agregar — ancla central de la barra */}
+      <div className="flex w-20 shrink-0 justify-center">
       <button
         type="button"
         onClick={onAdd}
@@ -67,12 +78,16 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
         </span>
         <span className={`${LABEL} mt-1 text-zinc-500 dark:text-zinc-400`}>Agregar</span>
       </button>
+      </div>
 
+        <div className="flex flex-1 items-center justify-around">
       {/* D) Ver más — abre el panel secundario */}
       <button type="button" onClick={onMore} className={TAB}>
         <Menu size={22} strokeWidth={1.8} aria-hidden="true" />
         <span className={LABEL}>Ver más</span>
       </button>
+        </div>
+      </div>
     </nav>
   );
 }

@@ -1,4 +1,4 @@
-import { CalendarDays, Sparkles } from 'lucide-react';
+import PromoterAssistant from './PromoterAssistant';
 
 const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
 
@@ -25,29 +25,12 @@ export default function TodayView({ name }) {
         Este es tu resumen del día.
       </p>
 
-      <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8 text-center backdrop-blur-md">
-        <span
-          className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border border-zinc-800 bg-zinc-950/60 text-zinc-500"
-          aria-hidden="true"
-        >
-          <CalendarDays size={22} />
-        </span>
-        <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Sin eventos por ahora</p>
-        <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-zinc-500">
-          Cuando conectemos tu agenda, aquí verás tus citas, seguimientos y recordatorios del día.
-        </p>
-      </div>
-
-      <div className="mt-4 flex items-start gap-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4">
-        <span className="mt-0.5 shrink-0 text-indigo-400" aria-hidden="true">
-          <Sparkles size={16} />
-        </span>
-        <p className="text-xs leading-relaxed text-zinc-400">
-          Tu <span className="font-semibold text-zinc-700 dark:text-zinc-200">Diagnóstico 360</span> está disponible
-          en el menú <span className="font-semibold text-zinc-700 dark:text-zinc-200">Ver más</span>, en la barra
-          inferior.
-        </p>
-      </div>
+      {/*
+        El asistente sustituye al estado vacío y queda como único elemento
+        central: cualquier tarjeta debajo cortaría la línea visual que va del
+        mensaje al botón "+" de la barra inferior.
+      */}
+      <PromoterAssistant name={name} />
     </div>
   );
 }
