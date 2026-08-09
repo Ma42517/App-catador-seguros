@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Pointer } from 'lucide-react';
+import { Pointer, Bell, Calendar as CalendarIcon } from 'lucide-react';
+import { useEvents } from '../../context/EventContext';
 
 /** Ritmo de escritura, en ms por letra. */
 const TYPE_MS = 30;
@@ -10,23 +11,37 @@ function prefersReducedMotion() {
     && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
+/** El mensaje cambia según lo que haya en la agenda de hoy. */
+function buildMessage(saludo, pendientes) {
+  const nombre = saludo ? `, ${saludo}` : '';
+  if (pendientes > 0) {
+    // Se cuida el singular: "1 evento pendiente", no "1 eventos pendientes".
+    const cuenta = pendientes === 1
+      ? '1 evento pendiente'
+      : `${pendientes} eventos pendientes`;
+    return `Hola${nombre}. Tienes ${cuenta} para hoy. Empecemos por aquí...`;
+  }
+  return `Gran semana${nombre}. La agenda está libre. `
+    + '¿Cerramos algún negocio pendiente hoy? Empieza por aquí...';
+}
+
 /**
  * Secuencia de inicio del panel principal, en tres fases:
  *
  *  1. Texto vivo: el mensaje se escribe solo, sin avatar, aro ni contenedor.
- *  2. Revelación: al caer la última letra, el contenido (`children`) entra
- *     con un fundido lento.
- *  3. Guía: una mano apuntando aparece flotando sobre el botón "+".
- *
- * El alto del bloque del mensaje es fijo para que la revelación no empuje el
- * texto: el contenido aparece, no desplaza.
+ *  2. Revelación: al caer la última letra, entran las tarjetas prioritarias
+ *     y el contenido (`children`) con un fundido lento.
+ *  3. Guía: una mano apuntando flota sobre el botón "+" y se retira en cuanto
+ *     el usuario interactúa, para no estorbar una vez cumplido su propósito.
  */
 export default function AISequence({ name, header, children }) {
+  const { highPriorityToday } = useEvents();
+
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
-  const text = `Gran semana${saludo ? `, ${saludo}` : ''}. `
-    + '¿Cerramos algún negocio pendiente hoy? Empieza por aquí...';
+  const text = buildMessage(saludo, highPriorityToday.length);
 
   const [typed, setTyped] = useState('');
+  const [hasInteracted, setHasInteracted] = useState(false);
   const isTyping = typed.length < text.length;
 
   useEffect(() => {
@@ -44,8 +59,19 @@ export default function AISequence({ name, header, children }) {
     return () => clearInterval(id);
   }, [text]);
 
-  // El encabezado y el contenido comparten el mismo fundido de la fase 2.
+  // La guía cumple su función una sola vez: al primer toque o tecla, se va.
+  useEffect(() => {
+    const onFirst = () => setHasInteracted(true);
+    window.addEventListener('pointerdown', onFirst, { once: true });
+    window.addEventListener('keydown', onFirst, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', onFirst);
+      window.removeEventListener('keydown', onFirst);
+    };
+  }, []);
+
   const revealClass = `transition-opacity duration-1000 ${isTyping ? 'opacity-0' : 'opacity-100'}`;
+  const showGuide = !isTyping && !hasInteracted;
 
   return (
     <>
@@ -58,7 +84,7 @@ export default function AISequence({ name, header, children }) {
       )}
 
       {/* Fase 1 — texto vivo, sin contenedor */}
-      <div className="flex min-h-[60vh] items-center justify-center px-6">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center px-6">
         {/* El mensaje completo, para lectores de pantalla. */}
         <p className="sr-only">{text}</p>
 
@@ -69,6 +95,37 @@ export default function AISequence({ name, header, children }) {
           {typed}
           {isTyping && <span className="animate-pulse text-amber-400">|</span>}
         </p>
+
+        {/* Eventos de máxima prioridad para hoy */}
+        {highPriorityToday.length > 0 && (
+          <ul className={`mt-10 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
+            {highPriorityToday.map((event) => {
+              const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
+              return (
+                <li
+                  key={event.id}
+                  className="mb-3 flex w-full items-center justify-between gap-3 rounded-xl border
+                             border-zinc-900/10 bg-zinc-900/5 p-4 backdrop-blur-sm
+                             dark:border-white/10 dark:bg-zinc-800/40"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <Icon
+                      size={16}
+                      className="shrink-0 text-rose-500 dark:text-rose-400"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                      {event.title}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                    {event.time || 'Sin hora'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       {/* Fase 2 — revelación del contenido */}
@@ -80,8 +137,8 @@ export default function AISequence({ name, header, children }) {
 
       {/* Fase 3 — mano guiadora sobre el botón "+" */}
       <div
-        className={`fixed bottom-24 left-1/2 z-50 -translate-x-1/2 transition-opacity duration-1000
-                    ${isTyping ? 'opacity-0' : 'opacity-100'}`}
+        className={`fixed bottom-24 left-1/2 z-50 -translate-x-1/2 transition-opacity duration-700
+                    ${showGuide ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         aria-hidden="true"
       >
         {/*

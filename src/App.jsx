@@ -13,6 +13,8 @@ import { isAdmin, isValidRole } from './components/Auth/users';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import TodayView from './components/Home/TodayView';
+import CalendarView from './components/Calendar/CalendarView';
+import { EventProvider } from './context/EventContext';
 import { readTheme, applyTheme, THEMES } from './theme';
 import AgentProfiler from './components/Onboarding/AgentProfiler';
 import { readProfile, saveProfile } from './components/Onboarding/storage';
@@ -231,12 +233,13 @@ function Shell({ onLogout, isPreview, role, profileName }) {
       canUsePreview={canUsePreview}
       isDark={isDark}
       onToggleTheme={toggleTheme}
-      username={profileName}
     >
       {activeSection === 'preview' ? (
         <DevicePreview />
       ) : activeSection === 'home' ? (
         <TodayView name={profileName} />
+      ) : activeSection === 'calendar' ? (
+        <CalendarView />
       ) : (
         /*
           El módulo de Diagnóstico 360 es un tablero de datos diseñado en
@@ -357,12 +360,16 @@ export default function App() {
   return (
     <FinanceProvider>
       <ReferralProvider>
-        <Shell
-          onLogout={handleLogout}
-          isPreview={isPreview}
-          role={role}
-          profileName={username}
-        />
+        {/* La agenda es por usuario, así que el provider vive dentro del área
+            autenticada, donde ya se conoce quién entró. */}
+        <EventProvider username={username}>
+          <Shell
+            onLogout={handleLogout}
+            isPreview={isPreview}
+            role={role}
+            profileName={username}
+          />
+        </EventProvider>
       </ReferralProvider>
     </FinanceProvider>
   );

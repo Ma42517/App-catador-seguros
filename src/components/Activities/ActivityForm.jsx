@@ -53,7 +53,16 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
       setError('Escribe un título para continuar.');
       return;
     }
-    onSave?.({ type, title: title.trim(), date, time, priority });
+    // Los inputs nativos de fecha y hora se pueden vaciar. Sin este respaldo,
+    // el evento quedaría fuera de la agenda del día, agrupado en "Sin fecha".
+    const parts = todayParts();
+    onSave?.({
+      type,
+      title: title.trim(),
+      date: date || parts.date,
+      time: time || parts.time,
+      priority,
+    });
     onClose();
   };
 

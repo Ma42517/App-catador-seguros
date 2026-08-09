@@ -55,10 +55,10 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
         <span className={LABEL}>Hoy</span>
       </button>
 
-      {/* B) Eventos */}
+      {/* B) Calendario — agenda completa */}
       <button type="button" onClick={onCalendar} className={TAB}>
         <CalendarDays size={22} strokeWidth={1.8} aria-hidden="true" />
-        <span className={LABEL}>Eventos</span>
+        <span className={LABEL}>Calendario</span>
       </button>
         </div>
 

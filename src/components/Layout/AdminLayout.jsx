@@ -5,7 +5,7 @@ import QuickAddMenu from './QuickAddMenu';
 import ActivityForm from '../Activities/ActivityForm';
 import QuickNoteForm from '../Notes/QuickNoteForm';
 import NotesList from '../Notes/NotesList';
-import { addActivity, addNote } from '../../data/entries';
+import { useEvents } from '../../context/EventContext';
 
 /**
  * Chrome de navegación del área autenticada.
@@ -15,8 +15,9 @@ import { addActivity, addNote } from '../../data/entries';
  * "Ver más" junto con las notas y las opciones de cuenta.
  */
 export default function AdminLayout({
-  onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme, username,
+  onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme,
 }) {
+  const { addEvent, addNote } = useEvents();
   const [moreOpen, setMoreOpen] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -35,6 +36,7 @@ export default function AdminLayout({
 
       <BottomTabBar
         onToday={() => goTo('home')}
+        onCalendar={() => goTo('calendar')}
         onAdd={() => setQuickAddOpen(true)}
         onMore={() => setMoreOpen(true)}
       />
@@ -49,20 +51,16 @@ export default function AdminLayout({
         isOpen={activeForm === 'actividad' || activeForm === 'recordatorio'}
         type={activeForm === 'recordatorio' ? 'recordatorio' : 'actividad'}
         onClose={() => setActiveForm(null)}
-        onSave={(activity) => addActivity(username, activity)}
+        onSave={addEvent}
       />
 
       <QuickNoteForm
         isOpen={activeForm === 'nota'}
         onClose={() => setActiveForm(null)}
-        onSave={(text) => addNote(username, text)}
+        onSave={addNote}
       />
 
-      <NotesList
-        isOpen={notesOpen}
-        onClose={() => setNotesOpen(false)}
-        username={username}
-      />
+      <NotesList isOpen={notesOpen} onClose={() => setNotesOpen(false)} />
 
       <MoreMenu
         open={moreOpen}

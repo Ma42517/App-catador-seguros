@@ -1,34 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
 import { StickyNote, Trash2, Check, RotateCcw } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
-import { readNotes, removeNote, toggleNoteProcessed } from '../../data/entries';
+import { useEvents } from '../../context/EventContext';
 
 const STAMP_FORMAT = {
   day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
 };
 
 /**
- * Lista de notas guardadas. Lee del almacenamiento cada vez que se abre, para
- * reflejar lo capturado desde la nota rápida sin necesidad de estado global.
+ * Lista de notas guardadas. Lee del contexto, así que refleja al instante lo
+ * capturado desde la nota rápida.
  */
-export default function NotesList({ isOpen, onClose, username }) {
-  const [notes, setNotes] = useState([]);
-
-  const refresh = useCallback(() => setNotes(readNotes(username)), [username]);
-
-  useEffect(() => {
-    if (isOpen) refresh();
-  }, [isOpen, refresh]);
-
-  const handleDelete = (id) => {
-    removeNote(username, id);
-    refresh();
-  };
-
-  const handleToggle = (id) => {
-    toggleNoteProcessed(username, id);
-    refresh();
-  };
+export default function NotesList({ isOpen, onClose }) {
+  const { notes, removeNote, toggleNoteProcessed } = useEvents();
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} label="Mis notas">
@@ -73,7 +56,7 @@ export default function NotesList({ isOpen, onClose, username }) {
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => handleToggle(note.id)}
+                    onClick={() => toggleNoteProcessed(note.id)}
                     aria-label={note.processed ? 'Marcar como pendiente' : 'Marcar como procesada'}
                     title={note.processed ? 'Marcar como pendiente' : 'Marcar como procesada'}
                     className={`grid h-7 w-7 place-items-center rounded-lg transition-colors
@@ -85,7 +68,7 @@ export default function NotesList({ isOpen, onClose, username }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(note.id)}
+                    onClick={() => removeNote(note.id)}
                     aria-label="Eliminar nota"
                     title="Eliminar nota"
                     className="grid h-7 w-7 place-items-center rounded-lg text-zinc-400
