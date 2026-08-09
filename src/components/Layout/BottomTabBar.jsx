@@ -11,8 +11,10 @@ const LABEL = 'text-[10px] font-medium leading-none';
 /**
  * Barra de navegación inferior con estética iOS glassmorphism.
  *
- * Sólo se muestra en móvil: en md+ la navegación vive en el sidebar, así que
- * dos barras a la vez serían redundantes.
+ * Es la única navegación de la app y se muestra igual en celular, tableta y
+ * escritorio, para que la experiencia sea idéntica en todos los dispositivos.
+ * Los destinos se centran con un ancho máximo para que no queden separados en
+ * pantallas anchas.
  */
 export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
   // Se calcula en cada render para que el número no se quede congelado si la
@@ -22,9 +24,10 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
   return (
     <nav
       aria-label="Navegación inferior"
-      className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around border-t
+      className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around gap-2 border-t
                  border-slate-200/50 bg-white/70 px-2 pt-3 backdrop-blur-xl pb-safe
-                 dark:border-white/10 dark:bg-black/70 md:hidden"
+                 sm:mx-auto sm:justify-center sm:gap-16
+                 dark:border-white/10 dark:bg-black/70"
     >
       {/* A) Hoy — el día del mes dentro de un cuadro redondeado */}
       <button type="button" onClick={onToday} className={TAB}>

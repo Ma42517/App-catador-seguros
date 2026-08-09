@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import {
-  Gauge, UserRound, Settings, LogOut, ChevronRight, X,
+  Gauge, UserRound, Settings, LogOut, ChevronRight, X, MonitorSmartphone,
 } from 'lucide-react';
 
 /** Fila estándar del menú. `hint` marca lo que aún no está disponible. */
@@ -48,7 +48,9 @@ function MenuRow({ icon: Icon, label, hint, tone = 'default', onClick }) {
  * Panel secundario (bottom sheet) abierto desde "Ver más".
  * Aloja el acceso destacado al Diagnóstico 360 y las opciones de cuenta.
  */
-export default function MoreMenu({ open, onClose, onOpenDiagnostico, onLogout }) {
+export default function MoreMenu({
+  open, onClose, onOpenDiagnostico, onOpenPreview, onLogout, canUsePreview = false,
+}) {
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
     if (!open) return undefined;
@@ -65,7 +67,7 @@ export default function MoreMenu({ open, onClose, onOpenDiagnostico, onLogout })
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] md:hidden" role="dialog" aria-modal="true" aria-label="Ver más">
+    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Ver más">
       {/* Fondo atenuado: cerrar al tocar fuera */}
       <button
         type="button"
@@ -76,8 +78,8 @@ export default function MoreMenu({ open, onClose, onOpenDiagnostico, onLogout })
 
       {/* Hoja inferior */}
       <div
-        className="animate-rise absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-slate-200/60
-                   bg-white/90 px-4 pt-3 backdrop-blur-xl pb-safe
+        className="animate-rise absolute inset-x-0 bottom-0 mx-auto w-full max-w-lg rounded-t-3xl
+                   border-t border-slate-200/60 bg-white/90 px-4 pt-3 backdrop-blur-xl pb-safe
                    dark:border-white/10 dark:bg-slate-950/90"
       >
         {/* Asa de arrastre + cerrar */}
@@ -124,6 +126,9 @@ export default function MoreMenu({ open, onClose, onOpenDiagnostico, onLogout })
         <div className="space-y-1 pb-2">
           <MenuRow icon={UserRound} label="Mi Perfil" hint="Pronto" />
           <MenuRow icon={Settings} label="Configuración" hint="Pronto" />
+          {canUsePreview && (
+            <MenuRow icon={MonitorSmartphone} label="Vista previa" onClick={onOpenPreview} />
+          )}
           <MenuRow icon={LogOut} label="Cerrar Sesión" tone="danger" onClick={onLogout} />
         </div>
       </div>

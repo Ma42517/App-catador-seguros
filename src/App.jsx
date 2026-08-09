@@ -12,6 +12,7 @@ import LoginScreen from './components/Auth/LoginScreen';
 import { isAdmin, isValidRole } from './components/Auth/users';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
+import TodayView from './components/Home/TodayView';
 import AgentProfiler from './components/Onboarding/AgentProfiler';
 import { readProfile, saveProfile } from './components/Onboarding/storage';
 import { Button } from './components/ui';
@@ -186,15 +187,16 @@ function stepFromHash() {
  * pill del header y el stepper interno de StepWizard queden siempre en
  * sincronía: ambos leen y escriben el mismo `step`.
  */
-function Shell({ onLogout, isPreview, role }) {
-  const [section, setSection] = useState('wizard');
+function Shell({ onLogout, isPreview, role, profileName }) {
+  // La app abre en "Hoy": el Diagnóstico 360 se alcanza desde "Ver más".
+  const [section, setSection] = useState('home');
   const [step, setStep] = useState(stepFromHash);
 
   // La vista previa multi-dispositivo es una herramienta interna: sólo el
   // admin la ve, y nunca se anida dentro de su propio iframe.
   const canUsePreview = isAdmin(role) && !isPreview;
-  // Si la sección guardada ya no está permitida, se degrada a la captura.
-  const activeSection = section === 'preview' && !canUsePreview ? 'wizard' : section;
+  // Si la sección guardada ya no está permitida, se degrada al inicio.
+  const activeSection = section === 'preview' && !canUsePreview ? 'home' : section;
 
   // Permite navegar con los botones de atrás/adelante del navegador.
   useEffect(() => {
@@ -213,13 +215,14 @@ function Shell({ onLogout, isPreview, role }) {
 
   return (
     <AdminLayout
-      section={activeSection}
       onNavigate={setSection}
       onLogout={onLogout}
-      hiddenSections={canUsePreview ? [] : ['preview']}
+      canUsePreview={canUsePreview}
     >
       {activeSection === 'preview' ? (
         <DevicePreview />
+      ) : activeSection === 'home' ? (
+        <TodayView name={profileName} />
       ) : (
         <div className="relative min-h-screen bg-slate-950">
           {/* Iluminación ambiental fija del fondo */}
@@ -334,7 +337,12 @@ export default function App() {
   return (
     <FinanceProvider>
       <ReferralProvider>
-        <Shell onLogout={handleLogout} isPreview={isPreview} role={role} />
+        <Shell
+          onLogout={handleLogout}
+          isPreview={isPreview}
+          role={role}
+          profileName={username}
+        />
       </ReferralProvider>
     </FinanceProvider>
   );
