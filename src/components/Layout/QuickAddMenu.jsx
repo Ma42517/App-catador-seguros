@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, PhoneCall, CalendarCheck } from 'lucide-react';
+import { Calendar, PhoneForwarded, CheckSquare } from 'lucide-react';
 
 /** Duración del slide-up/down; debe coincidir con la clase duration-300. */
 const ANIM_MS = 300;
@@ -8,35 +8,57 @@ const ANIM_MS = 300;
 const CARD_BORDER = 'border-zinc-100 dark:border-zinc-700';
 
 /**
- * Acciones rápidas del botón "+", ordenadas como el embudo del asesor:
- * prospecto → seguimiento → cita. La cita inicial es la meta del día, así que
- * es la única con borde de acento.
+ * Acciones rápidas del botón "+": las tres formas en que el asesor ocupa su
+ * tiempo. La agenda va primero porque es la que compromete una hora concreta.
  */
 const ACTIONS = [
   {
-    key: 'prospecto',
-    title: 'Agregar Prospecto',
-    subtitle: 'Carga un nuevo contacto a tu embudo.',
-    Icon: UserPlus,
-    accent: 'bg-indigo-500/10 text-indigo-500 dark:text-indigo-400',
+    key: 'evento',
+    title: 'Agregar Actividad / Evento',
+    subtitle: 'Bloquea una cita o actividad en tu agenda.',
+    Icon: Calendar,
+    accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     border: CARD_BORDER,
   },
   {
     key: 'seguimiento',
-    title: 'Registrar Seguimiento',
+    title: 'Dar Seguimiento',
     subtitle: 'Registra una llamada, mensaje o envío del 360.',
-    Icon: PhoneCall,
+    Icon: PhoneForwarded,
     accent: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
     border: CARD_BORDER,
   },
   {
-    key: 'cita',
-    title: 'Agendar Cita Inicial',
-    subtitle: 'Programa una cita para Análisis de Necesidades (ANF).',
-    Icon: CalendarCheck,
-    accent: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-    // Meta principal: borde esmeralda y un halo tenue que la separa del resto.
-    border: 'border-emerald-500/40 shadow-emerald-500/10 dark:border-emerald-500/40',
+    key: 'tarea',
+    title: 'Agregar Tarea',
+    subtitle: 'Un pendiente sin hora fija que no se te puede olvidar.',
+    Icon: CheckSquare,
+    accent: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    border: CARD_BORDER,
+  },
+];
+
+/** Niveles de prioridad que hereda lo que se cree desde este menú. */
+const PRIORITIES = [
+  {
+    key: 'baja',
+    label: 'Baja',
+    idle: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400/80',
+    active: 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+  },
+  {
+    key: 'importante',
+    label: 'Importante',
+    idle: 'border-amber-500/30 text-amber-600 dark:text-amber-400/80',
+    active: 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-300',
+  },
+  {
+    key: 'maxima',
+    label: 'Máxima',
+    // La urgencia máxima lleva fondo propio incluso sin estar seleccionada:
+    // es la única que debe "quemar" a simple vista.
+    idle: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+    active: 'border-rose-500 bg-rose-500/25 text-rose-800 dark:text-rose-100',
   },
 ];
 
@@ -50,6 +72,7 @@ const ACTIONS = [
 export default function QuickAddMenu({ isOpen, onClose, onSelect }) {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isShown, setIsShown] = useState(false);
+  const [priority, setPriority] = useState('importante');
 
   useEffect(() => {
     if (isOpen) {
@@ -78,8 +101,9 @@ export default function QuickAddMenu({ isOpen, onClose, onSelect }) {
 
   if (!isMounted) return null;
 
+  // La prioridad viaja junto con la acción: lo que se cree nace con ella.
   const handleSelect = (key) => {
-    onSelect?.(key);
+    onSelect?.(key, priority);
     onClose();
   };
 
@@ -132,6 +156,32 @@ export default function QuickAddMenu({ isOpen, onClose, onSelect }) {
               </span>
             </button>
           ))}
+        </div>
+
+        {/* Prioridad que heredará lo que se cree desde aquí */}
+        <div className="mt-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+          <p className="mb-3 text-[10px] uppercase tracking-wider text-zinc-500">
+            Nivel de Prioridad por Defecto
+          </p>
+          <div role="radiogroup" aria-label="Nivel de prioridad por defecto" className="flex gap-2">
+            {PRIORITIES.map(({ key, label, idle, active }) => {
+              const isActive = priority === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  onClick={() => setPriority(key)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all
+                              active:scale-95 focus-visible:outline-none focus-visible:ring-2
+                              focus-visible:ring-indigo-500 ${isActive ? active : idle}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
