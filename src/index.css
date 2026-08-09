@@ -180,7 +180,9 @@
     .animate-ring-active,
     .animate-breathe,
     /* Gradiente en movimiento de las tarjetas del hub de productividad. */
-    .animate-gradient-shift {
+    .animate-gradient-shift,
+    /* Resplandores flotantes del banner principal. */
+    .animate-orb-drift {
       animation: none;
     }
   }

@@ -45,11 +45,17 @@ export default {
           '0%, 100%': { backgroundPosition: '0% 50%' },
           '50%': { backgroundPosition: '100% 50%' },
         },
+        // Deriva lenta de los resplandores borrosos del banner principal.
+        'orb-drift': {
+          '0%, 100%': { transform: 'translate(-8%, -6%) scale(1)' },
+          '50%': { transform: 'translate(10%, 8%) scale(1.18)' },
+        },
       },
       animation: {
         breathe: 'breathe 6s ease-in-out infinite',
         'ring-active': 'ring-active 1.4s ease-in-out infinite',
         'gradient-shift': 'gradient-shift 9s ease-in-out infinite',
+        'orb-drift': 'orb-drift 14s ease-in-out infinite',
       },
       backgroundImage: {
         'grid-fade':

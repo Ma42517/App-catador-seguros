@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Layers, Target, Flame } from 'lucide-react';
 import ImmersiveCard from './ImmersiveCard';
+import ProspectaHero from './ProspectaHero';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
 
 /**
@@ -64,6 +65,9 @@ export default function ProductivityDashboard() {
       <h1 className="mb-2 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
         Tu Rendimiento
       </h1>
+
+      {/* Banner principal: acceso a las tres etapas de prospección */}
+      <ProspectaHero onClick={() => setProspectaOpen(true)} />
 
       {CARDS.map((card) => (
         <ImmersiveCard
