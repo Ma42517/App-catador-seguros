@@ -3,18 +3,18 @@ const VARIANTS = {
     'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 ' +
     'hover:shadow-indigo-600/45 active:bg-indigo-700',
   secondary:
-    'border border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-700 ' +
-    'hover:bg-slate-800/70 hover:text-slate-100',
+    'border border-zinc-800 bg-zinc-900/70 text-zinc-300 hover:border-zinc-700 ' +
+    'hover:bg-zinc-800/70 hover:text-zinc-100',
   outline:
-    'border border-slate-800 bg-slate-900/40 text-slate-300 hover:border-indigo-500/50 ' +
-    'hover:bg-slate-800/70 hover:text-slate-100',
+    'border border-zinc-800 bg-zinc-900/40 text-zinc-300 hover:border-indigo-500/50 ' +
+    'hover:bg-zinc-800/70 hover:text-zinc-100',
   success:
-    'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 ' +
+    'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 ' +
     'hover:shadow-emerald-500/40',
   danger:
     'border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200',
   ghost:
-    'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100',
+    'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-100',
 };
 
 const SIZES = {
@@ -47,8 +47,8 @@ export default function Button({
 /** Botón de acción sobre una fila (eliminar, duplicar). */
 export function IconButton({ icon: Icon, onClick, label, tone = 'ghost' }) {
   const tones = {
-    ghost: 'text-slate-500 hover:bg-slate-700/60 hover:text-slate-200',
-    danger: 'text-slate-500 hover:bg-rose-500/15 hover:text-rose-400',
+    ghost: 'text-zinc-500 hover:bg-zinc-700/60 hover:text-zinc-200',
+    danger: 'text-zinc-500 hover:bg-rose-500/15 hover:text-rose-400',
   };
   return (
     <button

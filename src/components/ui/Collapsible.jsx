@@ -12,27 +12,27 @@ export default function Collapsible({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-700/30"
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-zinc-700/30"
       >
         {Icon && (
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-slate-700/60 bg-slate-900/60 text-indigo-400">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-zinc-700/60 bg-zinc-900/60 text-indigo-400">
             <Icon size={15} />
           </span>
         )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-slate-100">{title}</span>
+          <span className="block truncate text-sm font-semibold text-zinc-100">{title}</span>
           {subtitle && (
-            <span className="mt-0.5 block truncate text-[11px] text-slate-500">{subtitle}</span>
+            <span className="mt-0.5 block truncate text-[11px] text-zinc-500">{subtitle}</span>
           )}
         </span>
         {badge}
         <ChevronDown
           size={16}
-          className={`shrink-0 text-slate-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`shrink-0 text-zinc-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
       {open && (
-        <div className="animate-rise border-t border-slate-700/50 p-4">{children}</div>
+        <div className="animate-rise border-t border-zinc-700/50 p-4">{children}</div>
       )}
     </div>
   );

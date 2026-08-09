@@ -85,13 +85,13 @@ export default function AgentProfiler({ onComplete }) {
     track(setTimeout(() => setCurrentStep((s) => s + 1), EXIT_MS));
   };
 
-  const fade = visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6';
+  const fade = visible ? 'opacity-100 tranzinc-y-0' : 'opacity-0 tranzinc-y-6';
 
   return (
-    <div className="flex min-h-screen w-full max-w-full flex-col items-center justify-center overflow-hidden bg-black p-6">
+    <div className="flex min-h-screen w-full max-w-full flex-col items-center justify-center overflow-hidden bg-white p-6 dark:bg-black">
       {isFinalScreen ? (
         <p
-          className={`text-center font-serif text-3xl tracking-wide text-white transition-all duration-1000 ease-in-out md:text-5xl ${fade}`}
+          className={`text-center font-serif text-3xl tracking-wide text-zinc-900 dark:text-white transition-all duration-1000 ease-in-out md:text-5xl ${fade}`}
         >
           Preparando tu entorno Prospecta...
         </p>
@@ -100,7 +100,7 @@ export default function AgentProfiler({ onComplete }) {
           key={currentStep}
           className={`w-full max-w-2xl transition-all duration-1000 ease-in-out ${fade}`}
         >
-          <h1 className="text-center font-serif text-3xl tracking-wide text-white md:text-5xl">
+          <h1 className="text-center font-serif text-3xl tracking-wide text-zinc-900 dark:text-white md:text-5xl">
             {step.question}
           </h1>
 

@@ -9,7 +9,7 @@ export default function BarList({ items = [], format = fmtMXN, emptyText = 'Sin 
   const max = items.reduce((m, i) => Math.max(m, Math.abs(i.value)), 0);
 
   if (items.length === 0) {
-    return <p className="text-xs text-slate-500">{emptyText}</p>;
+    return <p className="text-xs text-zinc-500">{emptyText}</p>;
   }
 
   return (
@@ -20,12 +20,12 @@ export default function BarList({ items = [], format = fmtMXN, emptyText = 'Sin 
         return (
           <li key={item.label}>
             <div className="mb-1.5 flex items-baseline justify-between gap-2 text-xs">
-              <span className="min-w-0 truncate text-slate-300">{item.label}</span>
-              <span className="shrink-0 font-semibold tabular-nums text-slate-100">
+              <span className="min-w-0 truncate text-zinc-300">{item.label}</span>
+              <span className="shrink-0 font-semibold tabular-nums text-zinc-100">
                 {format(item.value)}
               </span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-700/40">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-700/40">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -36,7 +36,7 @@ export default function BarList({ items = [], format = fmtMXN, emptyText = 'Sin 
               />
             </div>
             {item.note && (
-              <p className="mt-1.5 text-[10px] text-slate-500">{item.note}</p>
+              <p className="mt-1.5 text-[10px] text-zinc-500">{item.note}</p>
             )}
           </li>
         );

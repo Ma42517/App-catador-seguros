@@ -16,7 +16,7 @@ const SEVERITY = {
   },
   low: {
     label: 'Bajo', status: 'neutral', Icon: Info,
-    accent: 'border-l-slate-600', glow: 'transparent', icon: 'text-slate-500',
+    accent: 'border-l-zinc-600', glow: 'transparent', icon: 'text-zinc-500',
   },
 };
 
@@ -31,27 +31,27 @@ function RecommendationCard({ rec }) {
 
   return (
     <li
-      className={`rounded-r-xl border-l-[3px] bg-slate-900/60 p-4 ring-1 ring-slate-700/50 transition-colors hover:bg-slate-900/90 ${s.accent}`}
+      className={`rounded-r-xl border-l-[3px] bg-zinc-900/60 p-4 ring-1 ring-zinc-700/50 transition-colors hover:bg-zinc-900/90 ${s.accent}`}
       style={{ boxShadow: `-6px 0 18px -10px ${s.glow}` }}
     >
       <div className="mb-2.5 flex items-center gap-2">
         <Icon size={13} className={`shrink-0 ${s.icon}`} />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
           {rec.area}
         </span>
         <Badge status={s.status} showIcon={false} className="ml-auto">{s.label}</Badge>
       </div>
 
-      <p className="text-sm font-bold leading-snug text-slate-50">{rec.problem}</p>
+      <p className="text-sm font-bold leading-snug text-zinc-50">{rec.problem}</p>
 
       <dl className="mt-2.5 space-y-2">
         <div>
-          <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Impacto</dt>
-          <dd className="text-[11px] leading-relaxed text-slate-400">{rec.impact}</dd>
+          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Impacto</dt>
+          <dd className="text-[11px] leading-relaxed text-zinc-400">{rec.impact}</dd>
         </div>
         <div className="flex items-baseline gap-2">
-          <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Cifra</dt>
-          <dd className="text-sm font-bold tabular-nums text-slate-100">{rec.number}</dd>
+          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Cifra</dt>
+          <dd className="text-sm font-bold tabular-nums text-zinc-100">{rec.number}</dd>
         </div>
         <div className="rounded-xl bg-indigo-500/10 p-3 ring-1 ring-indigo-500/25">
           <dt className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-300">
@@ -98,7 +98,7 @@ export default function Recommendations({ recommendations = [], limit }) {
       )}
 
       {limit && recommendations.length > limit && (
-        <p className="mt-3 text-center text-[11px] text-slate-500">
+        <p className="mt-3 text-center text-[11px] text-zinc-500">
           {recommendations.length - limit} recomendaciones más en el paso de Optimización.
         </p>
       )}

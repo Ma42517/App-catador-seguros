@@ -71,8 +71,8 @@ function Levers() {
       </div>
 
       {debts.length > 0 && (
-        <div className="mt-5 border-t border-slate-700/50 pt-4">
-          <p className="mb-2 flex items-center gap-1 text-xs font-medium text-slate-400">
+        <div className="mt-5 border-t border-zinc-700/50 pt-4">
+          <p className="mb-2 flex items-center gap-1 text-xs font-medium text-zinc-400">
             Deudas liquidadas en el escenario
             <Tooltip text="Al liquidar una deuda su pago se libera de tu flujo de inmediato y su saldo desaparece de tus pasivos." />
           </p>
@@ -142,10 +142,10 @@ function ScenarioComparison() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] text-xs">
           <thead>
-            <tr className="border-y border-slate-700/50 bg-slate-950/60">
-              <th className="px-4 py-2 text-left font-medium text-slate-400">Concepto</th>
+            <tr className="border-y border-zinc-700/50 bg-zinc-950/60">
+              <th className="px-4 py-2 text-left font-medium text-zinc-400">Concepto</th>
               {cols.map((c) => (
-                <th key={c.key} className="px-3 py-2 text-right font-semibold text-slate-300">
+                <th key={c.key} className="px-3 py-2 text-right font-semibold text-zinc-300">
                   {c.label}
                 </th>
               ))}
@@ -156,8 +156,8 @@ function ScenarioComparison() {
               const values = cols.map((c) => scenarios[c.key][row.key]);
               const base = values[0];
               return (
-                <tr key={row.key} className="border-b border-slate-700/50 last:border-0">
-                  <td className={`px-4 py-2 text-slate-400 ${row.strong ? 'font-semibold text-slate-200' : ''}`}>
+                <tr key={row.key} className="border-b border-zinc-700/50 last:border-0">
+                  <td className={`px-4 py-2 text-zinc-400 ${row.strong ? 'font-semibold text-zinc-200' : ''}`}>
                     {row.label}
                   </td>
                   {values.map((v, i) => {
@@ -168,12 +168,12 @@ function ScenarioComparison() {
                       : row.better === 'low' ? delta > 0 : false;
                     return (
                       <td key={cols[i].key} className="px-3 py-2 text-right tabular-nums">
-                        <span className={row.strong ? 'font-semibold text-slate-100' : 'text-slate-300'}>
+                        <span className={row.strong ? 'font-semibold text-zinc-100' : 'text-zinc-300'}>
                           {fmtMXN(v)}
                         </span>
                         {i > 0 && Math.abs(delta) >= 1 && (
                           <span className={`ml-1.5 text-[10px] ${
-                            improved ? 'text-emerald-400' : worsened ? 'text-rose-400' : 'text-slate-500'
+                            improved ? 'text-emerald-400' : worsened ? 'text-rose-400' : 'text-zinc-500'
                           }`}>
                             {delta > 0 ? '+' : ''}{Math.round(delta / 1000)}k
                           </span>
@@ -186,8 +186,8 @@ function ScenarioComparison() {
             })}
 
 
-            <tr className="border-t border-slate-700/50 bg-slate-950/60">
-              <td className="px-4 py-2 font-semibold text-slate-300">Salud financiera</td>
+            <tr className="border-t border-zinc-700/50 bg-zinc-950/60">
+              <td className="px-4 py-2 font-semibold text-zinc-300">Salud financiera</td>
               {cols.map((c) => {
                 const s = scenarios[c.key];
                 return (
@@ -203,7 +203,7 @@ function ScenarioComparison() {
         </table>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-t border-slate-700/50 p-4">
+      <div className="flex flex-wrap gap-2 border-t border-zinc-700/50 p-4">
         {cols.map((c) => (
           <Button key={c.key} size="sm" variant="outline" onClick={() => setMode(c.key)}>
             Ver {c.label} en el dashboard
@@ -241,18 +241,18 @@ function OptimizedOutcome() {
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
         <div className="surface-sunken p-3">
-          <p className="text-slate-400">Cambio en flujo libre</p>
+          <p className="text-zinc-400">Cambio en flujo libre</p>
           <p className={`text-base font-bold tabular-nums ${cashflowDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {cashflowDelta >= 0 ? '+' : ''}{fmtMXN(cashflowDelta)}
           </p>
-          <p className="text-[10px] text-slate-500">al mes</p>
+          <p className="text-[10px] text-zinc-500">al mes</p>
         </div>
         <div className="surface-sunken p-3">
-          <p className="text-slate-400">Cambio en brecha</p>
+          <p className="text-zinc-400">Cambio en brecha</p>
           <p className={`text-base font-bold tabular-nums ${gapDelta <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {gapDelta > 0 ? '+' : ''}{fmtMXN(gapDelta)}
           </p>
-          <p className="text-[10px] text-slate-500">al mes</p>
+          <p className="text-[10px] text-zinc-500">al mes</p>
         </div>
       </div>
 
@@ -297,10 +297,10 @@ export default function OptimizationPanel() {
 
           <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent">
             <div className="text-center">
-              <h3 className="text-sm font-bold text-slate-100">
+              <h3 className="text-sm font-bold text-zinc-100">
                 ¿Quieres ayuda para ejecutar este plan?
               </h3>
-              <p className="mx-auto mt-1.5 max-w-md text-[11px] leading-relaxed text-slate-400">
+              <p className="mx-auto mt-1.5 max-w-md text-[11px] leading-relaxed text-zinc-400">
                 Un asesor puede ayudarte a cerrar tu brecha de retiro de{' '}
                 {fmtMXN(matrix.retirement.gap)} y a estructurar la protección que hoy te falta.
               </p>

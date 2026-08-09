@@ -21,14 +21,14 @@ export default function ProgressBar({
     <div>
       {(label || right || showPct) && (
         <div className="mb-1.5 flex items-baseline justify-between gap-2 text-xs">
-          {label && <span className="min-w-0 truncate text-slate-400">{label}</span>}
-          <span className="shrink-0 font-semibold tabular-nums text-slate-100">
+          {label && <span className="min-w-0 truncate text-zinc-400">{label}</span>}
+          <span className="shrink-0 font-semibold tabular-nums text-zinc-100">
             {right ?? `${Math.round(pct)}%`}
           </span>
         </div>
       )}
       <div
-        className="w-full overflow-hidden rounded-full bg-slate-700/40"
+        className="w-full overflow-hidden rounded-full bg-zinc-700/40"
         style={{ height }}
         role="progressbar"
         aria-valuenow={Math.round(pct)}

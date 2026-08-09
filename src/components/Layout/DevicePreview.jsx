@@ -76,13 +76,13 @@ export default function DevicePreview() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Barra de herramientas */}
-      <div className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/85 backdrop-blur-xl">
+      <div className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/85 backdrop-blur-xl">
         <div className="flex flex-wrap items-center gap-2 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-slate-50">
+            <h2 className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-zinc-50">
               Vista previa <span className="text-indigo-400">multi-dispositivo</span>
             </h2>
-            <p className="truncate text-[10px] text-slate-500">
+            <p className="truncate text-[10px] text-zinc-500">
               {device.hint} · {width}×{height}px {isLandscape ? '(horizontal)' : '(vertical)'}
             </p>
           </div>
@@ -91,7 +91,7 @@ export default function DevicePreview() {
           <div
             role="tablist"
             aria-label="Dispositivo a previsualizar"
-            className="flex shrink-0 items-center gap-1 rounded-full border border-slate-800 bg-slate-900/70 p-1"
+            className="flex shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900/70 p-1"
           >
             {DEVICES.map(({ key, label, Icon }) => {
               const active = key === deviceKey;
@@ -106,7 +106,7 @@ export default function DevicePreview() {
                   className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
                     active
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                      : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+                      : 'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200'
                   }`}
                 >
                   <Icon size={14} />
@@ -122,7 +122,7 @@ export default function DevicePreview() {
               type="button"
               onClick={() => setIsLandscape((v) => !v)}
               title="Rotar"
-              className="grid h-8 w-8 place-items-center rounded-lg border border-slate-800 bg-slate-900/60 text-slate-400 transition-colors hover:border-slate-700 hover:text-slate-100"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
             >
               <RotateCw size={14} />
             </button>
@@ -130,7 +130,7 @@ export default function DevicePreview() {
               type="button"
               onClick={() => setReloadToken((n) => n + 1)}
               title="Recargar vista previa"
-              className="grid h-8 w-8 place-items-center rounded-lg border border-slate-800 bg-slate-900/60 text-slate-400 transition-colors hover:border-slate-700 hover:text-slate-100"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
             >
               <RefreshCw size={14} />
             </button>
@@ -139,7 +139,7 @@ export default function DevicePreview() {
               target="_blank"
               rel="noreferrer"
               title="Abrir en una pestaña nueva"
-              className="grid h-8 w-8 place-items-center rounded-lg border border-slate-800 bg-slate-900/60 text-slate-400 transition-colors hover:border-slate-700 hover:text-slate-100"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
             >
               <ExternalLink size={14} />
             </a>
@@ -164,7 +164,7 @@ export default function DevicePreview() {
           iframe y los breakpoints se dispararían antes de lo esperado).
         */}
         <div
-          className="relative shrink-0 rounded-[2rem] border border-slate-800 bg-slate-900 p-2.5 shadow-2xl shadow-slate-950/70 backdrop-blur-md transition-all duration-300"
+          className="relative shrink-0 rounded-[2rem] border border-zinc-800 bg-zinc-900 p-2.5 shadow-2xl shadow-zinc-950/70 backdrop-blur-md transition-all duration-300"
           style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}
         >
           <iframe
@@ -173,12 +173,12 @@ export default function DevicePreview() {
             src={previewUrl}
             title={`Vista previa en ${device.label}`}
             style={{ width, height }}
-            className="block rounded-[1.5rem] border-0 bg-slate-950"
+            className="block rounded-[1.5rem] border-0 bg-zinc-950"
           />
         </div>
       </div>
 
-      <p className="px-4 pb-6 text-center text-[10px] leading-relaxed text-slate-600">
+      <p className="px-4 pb-6 text-center text-[10px] leading-relaxed text-zinc-600">
         La vista previa carga la app real dentro de un marco del tamaño del dispositivo,
         por lo que los breakpoints responsivos se comportan igual que en el equipo físico.
         Escala actual: {Math.round(scale * 100)}%.

@@ -18,7 +18,7 @@ export default function StackedBar({ segments = [], reference, referenceLabel = 
   return (
     <div>
       <div className="relative pt-5">
-        <div className="flex h-8 w-full overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900/60">
+        <div className="flex h-8 w-full overflow-hidden rounded-xl border border-zinc-700/50 bg-zinc-900/60">
           {visible.map((s) => (
             <div
               key={s.label}
@@ -35,13 +35,13 @@ export default function StackedBar({ segments = [], reference, referenceLabel = 
 
         {reference > 0 && (
           <div
-            className="absolute top-3 bottom-[-5px] w-0.5 bg-slate-100"
+            className="absolute top-3 bottom-[-5px] w-0.5 bg-zinc-100"
             style={{
               left: `${Math.min(100, refPct)}%`,
               boxShadow: '0 0 8px rgb(248 250 252 / 0.9)',
             }}
           >
-            <span className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-900">
+            <span className="absolute -top-5 left-1/2 -tranzinc-x-1/2 whitespace-nowrap rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-zinc-900">
               {referenceLabel}
             </span>
           </div>
@@ -56,8 +56,8 @@ export default function StackedBar({ segments = [], reference, referenceLabel = 
               style={{ backgroundColor: s.color, boxShadow: `0 0 6px ${s.color}99` }}
               aria-hidden="true"
             />
-            <span className="text-slate-400">{s.label}</span>
-            <span className="font-semibold tabular-nums text-slate-100">{fmtMXN(s.value)}</span>
+            <span className="text-zinc-400">{s.label}</span>
+            <span className="font-semibold tabular-nums text-zinc-100">{fmtMXN(s.value)}</span>
           </li>
         ))}
       </ul>

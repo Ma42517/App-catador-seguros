@@ -167,11 +167,11 @@ export default function ProfileStep() {
             />
           </Field>
         </RowGrid>
-        <p className="mt-3 text-[11px] text-slate-500">
-          Te quedan <span className="font-semibold text-slate-400">
+        <p className="mt-3 text-[11px] text-zinc-500">
+          Te quedan <span className="font-semibold text-zinc-400">
             {Math.max(0, profile.retirementAge - profile.age)} años
           </span> de acumulación y necesitarás cubrir{' '}
-          <span className="font-semibold text-slate-400">
+          <span className="font-semibold text-zinc-400">
             {Math.max(0, data.retirement.lifeExpectancy - profile.retirementAge)} años
           </span> de retiro.
         </p>

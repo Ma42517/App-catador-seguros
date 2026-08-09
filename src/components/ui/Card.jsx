@@ -11,9 +11,9 @@ export function Card({ children, className = '', padded = true }) {
 export function CardTitle({ icon: Icon, children, help, action, className = '' }) {
   return (
     <div className={`mb-4 flex items-start justify-between gap-3 ${className}`}>
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
         {Icon && (
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-slate-700/60 bg-slate-900/60 text-indigo-400">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-zinc-700/60 bg-zinc-900/60 text-indigo-400">
             <Icon size={14} />
           </span>
         )}
@@ -34,11 +34,11 @@ export function SectionTitle({ eyebrow, title, description }) {
           {eyebrow}
         </p>
       )}
-      <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-50 sm:text-2xl">
+      <h2 className="mt-1 text-xl font-bold tracking-tight text-zinc-50 sm:text-2xl">
         {title}
       </h2>
       {description && (
-        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-400 sm:text-[13px]">
+        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-zinc-400 sm:text-[13px]">
           {description}
         </p>
       )}
@@ -48,15 +48,15 @@ export function SectionTitle({ eyebrow, title, description }) {
 
 export function EmptyState({ icon: Icon, title, description, action }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/40 px-4 py-9 text-center">
+    <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 px-4 py-9 text-center">
       {Icon && (
-        <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl border border-slate-700/60 bg-slate-800/60">
-          <Icon size={20} className="text-slate-500" />
+        <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl border border-zinc-700/60 bg-zinc-800/60">
+          <Icon size={20} className="text-zinc-500" />
         </span>
       )}
-      <p className="text-sm font-semibold text-slate-300">{title}</p>
+      <p className="text-sm font-semibold text-zinc-300">{title}</p>
       {description && (
-        <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-slate-500">
+        <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
           {description}
         </p>
       )}
@@ -69,8 +69,8 @@ export function EmptyState({ icon: Icon, title, description, action }) {
 /** Configuración visual por acento. */
 const TONES = {
   neutral: {
-    value: 'text-slate-100',
-    icon: 'bg-slate-800 text-slate-400 border-slate-700',
+    value: 'text-zinc-100',
+    icon: 'bg-zinc-800 text-zinc-400 border-zinc-700',
     glow: 'rgb(100 116 139 / 0.35)',
     shadow: '',
   },
@@ -115,7 +115,7 @@ export function StatCard({
       style={emphasis ? { '--glow-from': t.glow } : undefined}
     >
       <div className="mb-2.5 flex items-start justify-between gap-2">
-        <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+        <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
           {label}
           {help && <Tooltip text={help} />}
         </span>
@@ -133,7 +133,7 @@ export function StatCard({
       {(sub || badge) && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {badge}
-          {sub && <span className="text-[11px] leading-snug text-slate-500">{sub}</span>}
+          {sub && <span className="text-[11px] leading-snug text-zinc-500">{sub}</span>}
         </div>
       )}
     </div>

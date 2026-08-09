@@ -29,7 +29,7 @@ function GradientBanner({
 
   return (
     <div
-      className={`animate-rise relative overflow-hidden rounded-2xl bg-gradient-to-br p-4 ring-1 shadow-xl shadow-slate-950/40 sm:p-5 ${t.wrap}`}
+      className={`animate-rise relative overflow-hidden rounded-2xl bg-gradient-to-br p-4 ring-1 shadow-xl shadow-zinc-950/40 sm:p-5 ${t.wrap}`}
     >
       {/* Halo decorativo */}
       <div
@@ -47,10 +47,10 @@ function GradientBanner({
           <p className={`text-[10px] font-bold uppercase tracking-widest ${t.eyebrow}`}>
             {eyebrow}
           </p>
-          <h3 className="mt-1 text-sm font-bold leading-snug text-slate-50 sm:text-base">
+          <h3 className="mt-1 text-sm font-bold leading-snug text-zinc-50 sm:text-base">
             {title}
           </h3>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-300 sm:text-xs">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-300 sm:text-xs">
             {body}
           </p>
 
@@ -60,12 +60,12 @@ function GradientBanner({
               {metrics.map((mt) => (
                 <div
                   key={mt.label}
-                  className="rounded-xl border border-slate-700/40 bg-slate-950/40 px-3 py-2"
+                  className="rounded-xl border border-zinc-700/40 bg-zinc-950/40 px-3 py-2"
                 >
-                  <dt className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+                  <dt className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
                     {mt.label}
                   </dt>
-                  <dd className={`mt-0.5 text-sm font-bold tabular-nums ${mt.strong ? t.value : 'text-slate-100'}`}>
+                  <dd className={`mt-0.5 text-sm font-bold tabular-nums ${mt.strong ? t.value : 'text-zinc-100'}`}>
                     {mt.value}
                   </dd>
                 </div>

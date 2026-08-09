@@ -11,7 +11,7 @@ function MetricCard({ label, value, icon: Icon, accent, badge, note }) {
       style={{ '--glow-from': accent.glow }}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="truncate text-[9px] font-bold uppercase tracking-widest text-slate-500">
+        <span className="truncate text-[9px] font-bold uppercase tracking-widest text-zinc-500">
           {label}
         </span>
         <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg border ${accent.icon}`}>
@@ -23,7 +23,7 @@ function MetricCard({ label, value, icon: Icon, accent, badge, note }) {
       </p>
       <div className="mt-1.5 flex items-center gap-1.5">
         {badge}
-        {note && <span className="truncate text-[10px] text-slate-500">{note}</span>}
+        {note && <span className="truncate text-[10px] text-zinc-500">{note}</span>}
       </div>
     </div>
   );
@@ -31,15 +31,15 @@ function MetricCard({ label, value, icon: Icon, accent, badge, note }) {
 
 const ACCENTS = {
   indigo: {
-    text: 'text-slate-50', glow: 'rgb(99 102 241 / 0.5)',
+    text: 'text-zinc-50', glow: 'rgb(99 102 241 / 0.5)',
     icon: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
   },
   amber: {
-    text: 'text-slate-50', glow: 'rgb(245 158 11 / 0.5)',
+    text: 'text-zinc-50', glow: 'rgb(245 158 11 / 0.5)',
     icon: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
   },
   red: {
-    text: 'text-slate-50', glow: 'rgb(244 63 94 / 0.5)',
+    text: 'text-zinc-50', glow: 'rgb(244 63 94 / 0.5)',
     icon: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
   },
   emerald: {
@@ -65,15 +65,15 @@ function HealthMeter({ score }) {
   return (
     <div className="surface p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">
-          <Activity size={11} className="text-slate-500" />
+        <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+          <Activity size={11} className="text-zinc-500" />
           Salud financiera
         </span>
-        <span className="text-[10px] font-medium tabular-nums text-slate-500">
+        <span className="text-[10px] font-medium tabular-nums text-zinc-500">
           <span className={`text-sm font-bold ${tone.text}`}>{score}</span> / 100
         </span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700/40">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-700/40">
         <div
           className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ${tone.bar}`}
           style={{ width: `${Math.max(2, pct)}%`, boxShadow: `0 0 12px ${tone.glow}` }}

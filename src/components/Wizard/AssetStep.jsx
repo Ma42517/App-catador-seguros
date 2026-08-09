@@ -141,14 +141,14 @@ export default function AssetStep() {
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-700/50 pt-3 text-xs">
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-zinc-700/50 pt-3 text-xs">
           <div>
-            <p className="text-slate-400">Tasa de ahorro</p>
-            <p className="font-semibold tabular-nums text-slate-100">{fmtPct(a.savingsRate)}</p>
+            <p className="text-zinc-400">Tasa de ahorro</p>
+            <p className="font-semibold tabular-nums text-zinc-100">{fmtPct(a.savingsRate)}</p>
           </div>
           <div>
-            <p className="text-slate-400">Tasa de inversión</p>
-            <p className="font-semibold tabular-nums text-slate-100">{fmtPct(a.investmentRate)}</p>
+            <p className="text-zinc-400">Tasa de inversión</p>
+            <p className="font-semibold tabular-nums text-zinc-100">{fmtPct(a.investmentRate)}</p>
           </div>
         </div>
       </Card>
@@ -165,7 +165,7 @@ export default function AssetStep() {
               right={fmtMXN(a.emergencyFund)}
               height={8}
             />
-            <p className="mt-2 text-[11px] text-slate-400">
+            <p className="mt-2 text-[11px] text-zinc-400">
               Tu gasto esencial es de {fmtMXN(matrix.expenses.essentialMonthly)} al mes. Para cubrir
               6 meses necesitas {fmtMXN(matrix.expenses.essentialMonthly * 6)}.
             </p>
@@ -193,17 +193,17 @@ export default function AssetStep() {
               centerLabel="patrimonio"
             />
 
-            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-700/50 pt-3 text-center text-xs">
+            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-zinc-700/50 pt-3 text-center text-xs">
               <div>
-                <p className="text-slate-400">Activos</p>
-                <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(nw.totalAssets)}</p>
+                <p className="text-zinc-400">Activos</p>
+                <p className="font-semibold tabular-nums text-zinc-100">{fmtMXN(nw.totalAssets)}</p>
               </div>
               <div>
-                <p className="text-slate-400">Pasivos</p>
+                <p className="text-zinc-400">Pasivos</p>
                 <p className="font-semibold tabular-nums text-rose-400">{fmtMXN(nw.totalLiabilities)}</p>
               </div>
               <div>
-                <p className="text-slate-400">Neto</p>
+                <p className="text-zinc-400">Neto</p>
                 <p className={`font-semibold tabular-nums ${nw.isNegative ? 'text-rose-400' : 'text-emerald-400'}`}>
                   {fmtMXN(nw.netWorth)}
                 </p>

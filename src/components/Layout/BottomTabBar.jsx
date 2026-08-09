@@ -2,9 +2,12 @@ import { CalendarDays, Plus, Menu } from 'lucide-react';
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
-  'flex flex-col items-center gap-1 text-slate-500 transition-colors dark:text-slate-400 '
-  + 'hover:text-indigo-600 dark:hover:text-indigo-400 focus-visible:text-indigo-600 '
-  + 'focus-visible:outline-none';
+  'flex flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-zinc-500 transition-all '
+  + 'dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 '
+  // Pastilla de cristal al pasar el cursor / enfocar, como en iOS.
+  + 'hover:bg-white/50 hover:backdrop-blur-xl dark:hover:bg-white/10 '
+  + 'focus-visible:text-indigo-600 focus-visible:outline-none focus-visible:bg-white/50 '
+  + 'dark:focus-visible:bg-white/10 active:scale-95';
 
 const LABEL = 'text-[10px] font-medium leading-none';
 
@@ -25,9 +28,11 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
     <nav
       aria-label="Navegación inferior"
       className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around gap-2 border-t
-                 border-slate-200/50 bg-white/70 px-2 pt-3 backdrop-blur-xl pb-safe
-                 sm:mx-auto sm:justify-center sm:gap-16
-                 dark:border-white/10 dark:bg-black/70"
+                 border-zinc-200/60 bg-white/60 px-2 pt-3 backdrop-blur-2xl backdrop-saturate-150
+                 pb-safe sm:mx-auto sm:justify-center sm:gap-16
+                 dark:border-white/10 dark:bg-black/50
+                 [box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.35)]
+                 dark:[box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.08)]"
     >
       {/* A) Hoy — el día del mes dentro de un cuadro redondeado */}
       <button type="button" onClick={onToday} className={TAB}>
@@ -60,7 +65,7 @@ export default function BottomTabBar({ onToday, onCalendar, onAdd, onMore }) {
         >
           <Plus size={22} strokeWidth={2.2} />
         </span>
-        <span className={`${LABEL} mt-1 text-slate-500 dark:text-slate-400`}>Agregar</span>
+        <span className={`${LABEL} mt-1 text-zinc-500 dark:text-zinc-400`}>Agregar</span>
       </button>
 
       {/* D) Ver más — abre el panel secundario */}

@@ -17,8 +17,8 @@ const LIGHT_STYLES = {
     Icon: ShieldAlert,
   },
   neutral: {
-    chip: 'bg-slate-700/40 text-slate-300 ring-slate-600/50',
-    dot: 'bg-slate-400', glow: '',
+    chip: 'bg-zinc-700/40 text-zinc-300 ring-zinc-600/50',
+    dot: 'bg-zinc-400', glow: '',
     Icon: Info,
   },
 };
@@ -41,16 +41,16 @@ export function Badge({ status = 'neutral', children, showIcon = true, className
 export function TrafficLightRow({ status = 'neutral', label, value, verdict, help }) {
   const s = LIGHT_STYLES[status] ?? LIGHT_STYLES.neutral;
   return (
-    <div className="flex items-center gap-3 border-b border-slate-700/40 py-3 last:border-0">
+    <div className="flex items-center gap-3 border-b border-zinc-700/40 py-3 last:border-0">
       <span
         className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.dot} ${s.glow}`}
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-semibold text-slate-200">{label}</p>
-        {verdict && <p className="mt-0.5 truncate text-[11px] text-slate-500">{verdict}</p>}
+        <p className="truncate text-xs font-semibold text-zinc-200">{label}</p>
+        {verdict && <p className="mt-0.5 truncate text-[11px] text-zinc-500">{verdict}</p>}
       </div>
-      <span className="shrink-0 text-sm font-bold tabular-nums text-slate-100">{value}</span>
+      <span className="shrink-0 text-sm font-bold tabular-nums text-zinc-100">{value}</span>
       {help}
     </div>
   );

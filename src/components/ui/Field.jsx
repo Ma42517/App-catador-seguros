@@ -3,25 +3,25 @@ import Tooltip from './Tooltip';
 
 /** Base compartida por todos los controles de texto del sistema. */
 const baseInput =
-  'w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2.5 text-sm ' +
-  'text-slate-100 placeholder:text-slate-500 transition-all duration-150 ' +
-  'hover:border-slate-700 focus:border-indigo-500 focus:bg-slate-950/80 focus:outline-none ' +
+  'w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm ' +
+  'text-zinc-100 placeholder:text-zinc-500 transition-all duration-150 ' +
+  'hover:border-zinc-700 focus:border-indigo-500 focus:bg-zinc-950/80 focus:outline-none ' +
   'focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed ' +
-  'disabled:bg-slate-900/30 disabled:text-slate-500';
+  'disabled:bg-zinc-900/30 disabled:text-zinc-500';
 
 /** Etiqueta + ayuda contextual + control. */
 export function Field({ label, hint, help, children, className = '' }) {
   return (
     <label className={`block ${className}`}>
       {label && (
-        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
           {label}
           {help && <Tooltip text={help} />}
         </span>
       )}
       {children}
       {hint && (
-        <span className="mt-1.5 block text-[11px] leading-relaxed text-slate-500">{hint}</span>
+        <span className="mt-1.5 block text-[11px] leading-relaxed text-zinc-500">{hint}</span>
       )}
     </label>
   );
@@ -33,13 +33,13 @@ function Affixed({ icon: Icon, prefix, suffix, children }) {
   return (
     <div className="relative">
       {hasLead && (
-        <span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-500">
+        <span className="pointer-events-none absolute left-3 top-1/2 z-10 -tranzinc-y-1/2 text-zinc-500">
           {Icon ? <Icon size={15} strokeWidth={2} /> : <span className="text-sm">{prefix}</span>}
         </span>
       )}
       {children}
       {suffix && (
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+        <span className="pointer-events-none absolute right-3 top-1/2 -tranzinc-y-1/2 text-sm text-zinc-500">
           {suffix}
         </span>
       )}
@@ -87,7 +87,7 @@ export function Select({ value, onChange, options, icon, className = '', ...rest
         {...rest}
       >
         {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-slate-900 text-slate-100">
+          <option key={o.value} value={o.value} className="bg-zinc-900 text-zinc-100">
             {o.label}
           </option>
         ))}
@@ -177,11 +177,11 @@ export function Checkbox({ checked, onChange, label, help }) {
         type="checkbox"
         checked={!!checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-600 bg-slate-900
+        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-zinc-600 bg-zinc-900
                    text-indigo-500 transition-colors focus:ring-2 focus:ring-indigo-500/40
                    focus:ring-offset-0"
       />
-      <label htmlFor={id} className="flex cursor-pointer items-center gap-1 text-xs leading-snug text-slate-300">
+      <label htmlFor={id} className="flex cursor-pointer items-center gap-1 text-xs leading-snug text-zinc-300">
         {label}
         {help && <Tooltip text={help} />}
       </label>
@@ -197,7 +197,7 @@ export function SegmentedControl({ value, onChange, options, className = '' }) {
   return (
     <div
       role="tablist"
-      className={`inline-flex gap-1 rounded-xl border border-slate-700/60 bg-slate-900/70 p-1 ${className}`}
+      className={`inline-flex gap-1 rounded-xl border border-zinc-700/60 bg-zinc-900/70 p-1 ${className}`}
     >
       {options.map((o) => {
         const active = value === o.value;
@@ -211,7 +211,7 @@ export function SegmentedControl({ value, onChange, options, className = '' }) {
             className={`flex-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
               active
                 ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'
-                : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+                : 'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200'
             }`}
           >
             {o.label}

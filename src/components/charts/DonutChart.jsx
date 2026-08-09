@@ -56,12 +56,12 @@ export default function DonutChart({
         <div className="absolute inset-0 grid place-items-center text-center">
           <div>
             {centerValue && (
-              <p className="text-base font-bold leading-none tabular-nums text-slate-50">
+              <p className="text-base font-bold leading-none tabular-nums text-zinc-50">
                 {centerValue}
               </p>
             )}
             {centerLabel && (
-              <p className="mt-1 text-[10px] uppercase tracking-widest text-slate-500">
+              <p className="mt-1 text-[10px] uppercase tracking-widest text-zinc-500">
                 {centerLabel}
               </p>
             )}
@@ -71,7 +71,7 @@ export default function DonutChart({
 
       <ul className="w-full min-w-0 space-y-2">
         {segments.length === 0 && (
-          <li className="text-xs text-slate-500">Sin datos para mostrar.</li>
+          <li className="text-xs text-zinc-500">Sin datos para mostrar.</li>
         )}
         {segments.map((s) => (
           <li key={s.label} className="flex items-center gap-2.5 text-xs">
@@ -80,11 +80,11 @@ export default function DonutChart({
               style={{ backgroundColor: s.color, boxShadow: `0 0 7px ${s.color}99` }}
               aria-hidden="true"
             />
-            <span className="min-w-0 flex-1 truncate text-slate-400">{s.label}</span>
-            <span className="shrink-0 font-semibold tabular-nums text-slate-100">
+            <span className="min-w-0 flex-1 truncate text-zinc-400">{s.label}</span>
+            <span className="shrink-0 font-semibold tabular-nums text-zinc-100">
               {fmtMXN(s.value)}
             </span>
-            <span className="w-9 shrink-0 text-right tabular-nums text-slate-500">
+            <span className="w-9 shrink-0 text-right tabular-nums text-zinc-500">
               {Math.round(s.share * 100)}%
             </span>
           </li>

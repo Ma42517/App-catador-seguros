@@ -26,7 +26,7 @@ export default function LoginScreen({ onLoginSuccess }) {
   };
 
   return (
-    <div className="relative flex min-h-screen w-full max-w-full items-center justify-center overflow-hidden bg-slate-950 px-4 py-10">
+    <div className="relative flex min-h-screen w-full max-w-full items-center justify-center overflow-hidden bg-white px-4 py-10 dark:bg-black">
       {/* Iluminación ambiental para reforzar el efecto de cristal */}
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-grid-fade"
@@ -34,7 +34,7 @@ export default function LoginScreen({ onLoginSuccess }) {
       />
 
       <div className="animate-rise relative w-full max-w-sm">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/60 backdrop-blur-md sm:p-8">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-zinc-950/60 backdrop-blur-md sm:p-8">
           {/* Marca */}
           <div className="mb-6 text-center">
             <span
@@ -43,8 +43,8 @@ export default function LoginScreen({ onLoginSuccess }) {
             >
               <ShieldCheck size={22} className="text-white" />
             </span>
-            <h1 className="text-2xl font-black tracking-tight text-white">PROSPECTA</h1>
-            <p className="mt-1 text-xs tracking-widest text-slate-500">
+            <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white">PROSPECTA</h1>
+            <p className="mt-1 text-xs tracking-widest text-zinc-500">
               Diagnóstico Financiero 360
             </p>
           </div>
@@ -84,7 +84,7 @@ export default function LoginScreen({ onLoginSuccess }) {
           </form>
         </div>
 
-        <p className="mt-4 text-center text-[10px] leading-relaxed text-slate-600">
+        <p className="mt-4 text-center text-[10px] leading-relaxed text-zinc-600">
           Acceso restringido. Tu información se guarda únicamente en este navegador.
         </p>
       </div>

@@ -21,13 +21,13 @@ export default function Slider({
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+        <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
           {label}
           {help && <Tooltip text={help} />}
         </span>
         <span
           className={`rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors ${
-            active ? 'bg-indigo-500/15 text-indigo-300' : 'text-slate-500'
+            active ? 'bg-indigo-500/15 text-indigo-300' : 'text-zinc-500'
           }`}
         >
           {format(value)}

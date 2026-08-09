@@ -1,10 +1,14 @@
 import { useEffect } from 'react';
 import {
-  Gauge, UserRound, Settings, LogOut, ChevronRight, X, MonitorSmartphone,
+  Gauge, UserRound, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
 } from 'lucide-react';
 
-/** Fila estándar del menú. `hint` marca lo que aún no está disponible. */
-function MenuRow({ icon: Icon, label, hint, tone = 'default', onClick }) {
+/**
+ * Fila estándar del menú.
+ * - `hint`: marca lo que aún no está disponible (deshabilita la fila).
+ * - `action`: estado actual de un control, como el tema activo.
+ */
+function MenuRow({ icon: Icon, label, hint, action, tone = 'default', onClick }) {
   const isDanger = tone === 'danger';
   const disabled = Boolean(hint);
 
@@ -17,13 +21,13 @@ function MenuRow({ icon: Icon, label, hint, tone = 'default', onClick }) {
         disabled:cursor-not-allowed disabled:opacity-50
         ${isDanger
           ? 'text-rose-600 hover:bg-rose-500/10 dark:text-rose-400'
-          : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5'}`}
+          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/5'}`}
     >
       <span
         className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border
           ${isDanger
             ? 'border-rose-500/30 bg-rose-500/10 text-rose-500 dark:text-rose-400'
-            : 'border-slate-200 bg-slate-100 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'}`}
+            : 'border-zinc-200 bg-zinc-100 text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400'}`}
         aria-hidden="true"
       >
         <Icon size={17} />
@@ -31,11 +35,11 @@ function MenuRow({ icon: Icon, label, hint, tone = 'default', onClick }) {
 
       <span className="min-w-0 flex-1 text-sm font-semibold">{label}</span>
 
-      {hint ? (
-        <span className="shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-[10px]
-                         font-semibold uppercase tracking-wide text-slate-400
-                         dark:border-white/10 dark:text-slate-500">
-          {hint}
+      {hint || action ? (
+        <span className="shrink-0 rounded-full border border-zinc-200 px-2 py-0.5 text-[10px]
+                         font-semibold uppercase tracking-wide text-zinc-400
+                         dark:border-white/10 dark:text-zinc-500">
+          {hint || action}
         </span>
       ) : (
         <ChevronRight size={16} className="shrink-0 opacity-40" aria-hidden="true" />
@@ -49,7 +53,8 @@ function MenuRow({ icon: Icon, label, hint, tone = 'default', onClick }) {
  * Aloja el acceso destacado al Diagnóstico 360 y las opciones de cuenta.
  */
 export default function MoreMenu({
-  open, onClose, onOpenDiagnostico, onOpenPreview, onLogout, canUsePreview = false,
+  open, onClose, onOpenDiagnostico, onOpenPreview, onLogout,
+  canUsePreview = false, isDark = true, onToggleTheme,
 }) {
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -73,19 +78,19 @@ export default function MoreMenu({
         type="button"
         aria-label="Cerrar menú"
         onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-slate-950/50 backdrop-blur-sm"
+        className="absolute inset-0 h-full w-full cursor-default bg-zinc-950/50 backdrop-blur-sm"
       />
 
       {/* Hoja inferior */}
       <div
         className="animate-rise absolute inset-x-0 bottom-0 mx-auto w-full max-w-lg rounded-t-3xl
-                   border-t border-slate-200/60 bg-white/90 px-4 pt-3 backdrop-blur-xl pb-safe
-                   dark:border-white/10 dark:bg-slate-950/90"
+                   border-t border-zinc-200/60 bg-white/90 px-4 pt-3 backdrop-blur-xl pb-safe
+                   dark:border-white/10 dark:bg-zinc-950/90"
       >
         {/* Asa de arrastre + cerrar */}
         <div className="mb-3 flex items-center">
           <span
-            className="mx-auto h-1.5 w-10 rounded-full bg-slate-300 dark:bg-white/15"
+            className="mx-auto h-1.5 w-10 rounded-full bg-zinc-300 dark:bg-white/15"
             aria-hidden="true"
           />
           <button
@@ -93,8 +98,8 @@ export default function MoreMenu({
             onClick={onClose}
             aria-label="Cerrar"
             className="absolute right-4 top-3 grid h-8 w-8 place-items-center rounded-full
-                       text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600
-                       dark:hover:bg-white/5 dark:hover:text-slate-200"
+                       text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600
+                       dark:hover:bg-white/5 dark:hover:text-zinc-200"
           >
             <X size={16} />
           </button>
@@ -126,6 +131,12 @@ export default function MoreMenu({
         <div className="space-y-1 pb-2">
           <MenuRow icon={UserRound} label="Mi Perfil" hint="Pronto" />
           <MenuRow icon={Settings} label="Configuración" hint="Pronto" />
+          <MenuRow
+            icon={isDark ? Sun : Moon}
+            label={isDark ? 'Tema claro' : 'Tema oscuro'}
+            action={isDark ? 'Oscuro' : 'Claro'}
+            onClick={onToggleTheme}
+          />
           {canUsePreview && (
             <MenuRow icon={MonitorSmartphone} label="Vista previa" onClick={onOpenPreview} />
           )}

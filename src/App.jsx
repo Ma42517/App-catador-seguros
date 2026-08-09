@@ -13,6 +13,7 @@ import { isAdmin, isValidRole } from './components/Auth/users';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import TodayView from './components/Home/TodayView';
+import { readTheme, applyTheme, THEMES } from './theme';
 import AgentProfiler from './components/Onboarding/AgentProfiler';
 import { readProfile, saveProfile } from './components/Onboarding/storage';
 import { Button } from './components/ui';
@@ -54,7 +55,7 @@ function NavPill({ step, onNavigate }) {
     <div
       role="tablist"
       aria-label="Fase del diagnóstico"
-      className="hidden shrink-0 items-center gap-1 rounded-full border border-slate-800 bg-slate-900/70 p-1 sm:flex"
+      className="hidden shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900/70 p-1 sm:flex"
     >
       {groups.map((g) => {
         const active = g.key === 'capture' ? isCapture : !isCapture;
@@ -68,7 +69,7 @@ function NavPill({ step, onNavigate }) {
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
               active
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+                : 'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200'
             }`}
           >
             <g.Icon size={13} />
@@ -85,7 +86,7 @@ function Header({ step, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
         {/* Marca */}
         <span
@@ -96,7 +97,7 @@ function Header({ step, onNavigate }) {
         </span>
 
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[13px] font-extrabold uppercase tracking-[0.14em] text-slate-50 sm:text-sm">
+          <h1 className="truncate text-[13px] font-extrabold uppercase tracking-[0.14em] text-zinc-50 sm:text-sm">
             Diagnóstico Financiero <span className="text-indigo-400">360</span>
           </h1>
           {isDemo ? (
@@ -105,7 +106,7 @@ function Header({ step, onNavigate }) {
               Datos de ejemplo cargados
             </p>
           ) : (
-            <p className="hidden text-[10px] text-slate-500 sm:block">
+            <p className="hidden text-[10px] text-zinc-500 sm:block">
               Sistema de inteligencia financiera personal
             </p>
           )}
@@ -136,21 +137,21 @@ function Header({ step, onNavigate }) {
 
 
           {menuOpen && (
-            <div className="animate-rise absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/95 shadow-2xl shadow-slate-950/70 backdrop-blur-xl">
+            <div className="animate-rise absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/95 shadow-2xl shadow-zinc-950/70 backdrop-blur-xl">
               <button
                 type="button"
                 onClick={() => { exportCSV(data, diagnosis); setMenuOpen(false); }}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-slate-300 hover:bg-slate-900/50"
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-zinc-300 hover:bg-zinc-900/50"
               >
-                <FileSpreadsheet size={14} className="text-slate-500" />
+                <FileSpreadsheet size={14} className="text-zinc-500" />
                 Exportar diagnóstico (CSV)
               </button>
               <button
                 type="button"
                 onClick={() => { exportJSON(data); setMenuOpen(false); }}
-                className="flex w-full items-center gap-2 border-t border-slate-800 px-3 py-2.5 text-left text-xs text-slate-300 hover:bg-slate-900/50"
+                className="flex w-full items-center gap-2 border-t border-zinc-800 px-3 py-2.5 text-left text-xs text-zinc-300 hover:bg-zinc-900/50"
               >
-                <FileJson size={14} className="text-slate-500" />
+                <FileJson size={14} className="text-zinc-500" />
                 Respaldar mis datos (JSON)
               </button>
               <button
@@ -161,7 +162,7 @@ function Header({ step, onNavigate }) {
                     setMenuOpen(false);
                   }
                 }}
-                className="flex w-full items-center gap-2 border-t border-slate-800 px-3 py-2.5 text-left text-xs text-rose-400 hover:bg-rose-500/10"
+                className="flex w-full items-center gap-2 border-t border-zinc-800 px-3 py-2.5 text-left text-xs text-rose-400 hover:bg-rose-500/10"
               >
                 <RotateCcw size={14} />
                 Empezar de cero
@@ -188,6 +189,16 @@ function stepFromHash() {
  * sincronía: ambos leen y escriben el mismo `step`.
  */
 function Shell({ onLogout, isPreview, role, profileName }) {
+  const [theme, setTheme] = useState(readTheme);
+  const isDark = theme === THEMES.DARK;
+
+  // Sincroniza la clase del <html> con el tema elegido.
+  useEffect(() => { applyTheme(theme); }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((t) => (t === THEMES.DARK ? THEMES.LIGHT : THEMES.DARK));
+  }, []);
+
   // La app abre en "Hoy": el Diagnóstico 360 se alcanza desde "Ver más".
   const [section, setSection] = useState('home');
   const [step, setStep] = useState(stepFromHash);
@@ -218,13 +229,21 @@ function Shell({ onLogout, isPreview, role, profileName }) {
       onNavigate={setSection}
       onLogout={onLogout}
       canUsePreview={canUsePreview}
+      isDark={isDark}
+      onToggleTheme={toggleTheme}
     >
       {activeSection === 'preview' ? (
         <DevicePreview />
       ) : activeSection === 'home' ? (
         <TodayView name={profileName} />
       ) : (
-        <div className="relative min-h-screen bg-slate-950">
+        /*
+          El módulo de Diagnóstico 360 es un tablero de datos diseñado en
+          oscuro (gráficas, semáforos y acentos calibrados sobre negro). Se
+          fuerza la clase `dark` para que conserve su legibilidad incluso con
+          el tema claro activo, en lugar de mostrarse ilegible.
+        */
+        <div className="dark relative min-h-screen bg-black">
           {/* Iluminación ambiental fija del fondo */}
           <div
             className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-grid-fade"
@@ -243,8 +262,8 @@ function Shell({ onLogout, isPreview, role, profileName }) {
               )}
             </main>
             <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4">
-              <div className="border-t border-slate-800 pt-5">
-                <p className="text-center text-[10px] leading-relaxed text-slate-600">
+              <div className="border-t border-zinc-800 pt-5">
+                <p className="text-center text-[10px] leading-relaxed text-zinc-600">
                   Herramienta de diagnóstico y simulación. Los resultados son estimaciones basadas en los
                   supuestos que capturas y no constituyen asesoría financiera, fiscal ni de inversión.
                   Tu información se guarda únicamente en este navegador.

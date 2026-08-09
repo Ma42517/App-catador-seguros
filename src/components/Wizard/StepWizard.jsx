@@ -78,17 +78,17 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
       {/* Móvil: contador de paso + barra de progreso simple. */}
       <div className="mb-6 sm:hidden">
         <div className="mb-2.5 flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
             <span className="grid h-6 w-6 place-items-center rounded-full bg-indigo-600 text-white">
               <current.Icon size={12} />
             </span>
             {current.label}
           </span>
-          <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Paso {step + 1} de {STEPS.length}
           </span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
           <div
             className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500"
             style={{ width: `${progressPct}%` }}
@@ -100,12 +100,12 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
       <nav aria-label="Pasos del diagnóstico" className="relative mb-6 hidden sm:block">
         {/* Riel de fondo */}
         <div
-          className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-slate-800"
+          className="absolute left-0 right-0 top-1/2 h-px -tranzinc-y-1/2 bg-zinc-800"
           aria-hidden="true"
         />
         {/* Progreso recorrido, con degradado índigo -> violeta */}
         <div
-          className="absolute left-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500"
+          className="absolute left-0 top-1/2 h-px -tranzinc-y-1/2 bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500"
           style={{ width: `${progressPct}%` }}
           aria-hidden="true"
         />
@@ -125,8 +125,8 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
                     active
                       ? 'border-indigo-500/60 bg-indigo-600 text-white shadow-lg shadow-indigo-600/40'
                       : done
-                        ? 'border-indigo-500/40 bg-slate-900 text-indigo-300 hover:border-indigo-400/70 hover:bg-slate-800/60'
-                        : 'border-slate-800 bg-slate-900 text-slate-500 hover:border-slate-700 hover:text-slate-300'
+                        ? 'border-indigo-500/40 bg-zinc-900 text-indigo-300 hover:border-indigo-400/70 hover:bg-zinc-800/60'
+                        : 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
                   }`}
                 >
                   <span
@@ -135,7 +135,7 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
                         ? 'bg-white/25 text-white'
                         : done
                           ? 'bg-indigo-500/20 text-indigo-300'
-                          : 'bg-slate-800 text-slate-500'
+                          : 'bg-zinc-800 text-zinc-500'
                     }`}
                   >
                     {done ? <Check size={11} strokeWidth={3} /> : <Icon size={11} />}
@@ -155,7 +155,7 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
       </div>
 
       {/* Navegación inferior: botones segmentados en una sola pista. */}
-      <div className="mt-8 flex items-center gap-1 rounded-2xl border border-slate-800 bg-slate-900/60 p-1.5 sm:justify-between sm:border-0 sm:bg-transparent sm:p-0 sm:border-t sm:border-slate-800 sm:pt-5">
+      <div className="mt-8 flex items-center gap-1 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-1.5 sm:justify-between sm:border-0 sm:bg-transparent sm:p-0 sm:border-t sm:border-zinc-800 sm:pt-5">
         <Button
           variant="secondary"
           icon={ChevronLeft}
@@ -165,7 +165,7 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
         >
           Anterior
         </Button>
-        <span className="hidden shrink-0 text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:inline">
+        <span className="hidden shrink-0 text-[11px] font-medium uppercase tracking-wide text-zinc-500 sm:inline">
           Paso {step + 1} de {STEPS.length}
         </span>
         <Button

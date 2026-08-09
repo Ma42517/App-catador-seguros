@@ -16,7 +16,7 @@ export default function LineChart({
   points = [], target, xLabel, color = 'rgb(99 102 241)', targetLabel = 'Meta',
 }) {
   if (points.length < 2) {
-    return <p className="text-xs text-slate-500">Datos insuficientes para proyectar.</p>;
+    return <p className="text-xs text-zinc-500">Datos insuficientes para proyectar.</p>;
   }
 
   const ys = points.map((p) => p.y);
@@ -101,7 +101,7 @@ export default function LineChart({
         </text>
       </svg>
       {xLabel && (
-        <p className="mt-1.5 text-center text-[10px] uppercase tracking-wide text-slate-500">
+        <p className="mt-1.5 text-center text-[10px] uppercase tracking-wide text-zinc-500">
           {xLabel}
         </p>
       )}

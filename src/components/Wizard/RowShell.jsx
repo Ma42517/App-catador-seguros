@@ -8,9 +8,9 @@ import { IconButton } from '../ui';
  */
 export default function RowShell({ title, derived, onRemove, children }) {
   return (
-    <div className="surface-sunken p-3 transition-colors hover:border-slate-600/60">
+    <div className="surface-sunken p-3 transition-colors hover:border-zinc-600/60">
       <div className="mb-3 flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-widest text-slate-400">
+        <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-widest text-zinc-400">
           {title}
         </span>
         {derived && (

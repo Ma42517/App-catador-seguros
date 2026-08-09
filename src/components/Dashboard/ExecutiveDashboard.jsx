@@ -45,8 +45,8 @@ function HealthScore({ score }) {
         </div>
       </div>
       <div>
-        <p className="text-xs font-semibold text-slate-200">Salud financiera global</p>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">
+        <p className="text-xs font-semibold text-zinc-200">Salud financiera global</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
           Puntaje compuesto de flujo, deuda, liquidez, metas y retiro.
         </p>
       </div>
@@ -217,7 +217,7 @@ export default function ExecutiveDashboard() {
       {/* Semáforo */}
       <Card>
         <CardTitle icon={Gauge}>Semáforo financiero</CardTitle>
-        <div className="mb-4 border-b border-slate-700/50 pb-4">
+        <div className="mb-4 border-b border-zinc-700/50 pb-4">
           <HealthScore score={m.healthScore} />
         </div>
         <div>
@@ -268,7 +268,7 @@ export default function ExecutiveDashboard() {
             emptyText="Sin deuda registrada."
           />
           {m.debts.totalBalance > 0 && (
-            <p className="mt-3 border-t border-slate-700/50 pt-2.5 text-[11px] text-slate-400">
+            <p className="mt-3 border-t border-zinc-700/50 pt-2.5 text-[11px] text-zinc-400">
               Saldo total {fmtMXN(m.debts.totalBalance)} · Intereses anuales {fmtMXN(m.debts.annualInterest)}
             </p>
           )}
@@ -290,7 +290,7 @@ export default function ExecutiveDashboard() {
             xLabel="Años a partir de hoy"
             color="rgb(16 185 129)"
           />
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">
             Simulación con tu flujo libre actual de {fmtMXN(Math.max(0, m.NET_CASHFLOW))} al mes a una
             tasa real de {fmtPct(m.retirement.preRealRate)}. No es una promesa de rendimiento.
           </p>
@@ -311,17 +311,17 @@ export default function ExecutiveDashboard() {
           />
           <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
             <div>
-              <p className="text-slate-400">Brecha</p>
+              <p className="text-zinc-400">Brecha</p>
               <p className="font-semibold tabular-nums text-rose-400">{fmtMXN(m.retirement.gap)}</p>
             </div>
             <div>
-              <p className="text-slate-400">Aportación faltante</p>
-              <p className="font-semibold tabular-nums text-slate-100">
+              <p className="text-zinc-400">Aportación faltante</p>
+              <p className="font-semibold tabular-nums text-zinc-100">
                 {fmtMXN(m.retirement.additionalMonthlyNeeded)}/mes
               </p>
             </div>
           </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+          <p className="mt-3 text-[11px] leading-relaxed text-zinc-400">
             Te quedan {m.retirement.yearsToRetirement} años de acumulación para financiar{' '}
             {m.retirement.yearsInRetirement} años de retiro.
           </p>

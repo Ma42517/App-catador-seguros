@@ -138,31 +138,31 @@ export default function ExpenseStep() {
             centerLabel="al mes"
           />
 
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-700/50 pt-3 text-xs">
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-zinc-700/50 pt-3 text-xs">
             <div>
-              <p className="text-slate-400">Margen comprimible</p>
-              <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(exp.compressibleMonthly)}</p>
-              <p className="text-[10px] text-slate-500">Discrecional + lujo</p>
+              <p className="text-zinc-400">Margen comprimible</p>
+              <p className="font-semibold tabular-nums text-zinc-100">{fmtMXN(exp.compressibleMonthly)}</p>
+              <p className="text-[10px] text-zinc-500">Discrecional + lujo</p>
             </div>
             <div>
-              <p className="text-slate-400">Piso de vida</p>
-              <p className="font-semibold tabular-nums text-slate-100">{fmtMXN(exp.essentialMonthly)}</p>
-              <p className="text-[10px] text-slate-500">Base del fondo de emergencia</p>
+              <p className="text-zinc-400">Piso de vida</p>
+              <p className="font-semibold tabular-nums text-zinc-100">{fmtMXN(exp.essentialMonthly)}</p>
+              <p className="text-[10px] text-zinc-500">Base del fondo de emergencia</p>
             </div>
           </div>
 
           {exp.topCategories.length > 0 && (
-            <div className="mt-4 border-t border-slate-700/50 pt-3">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="mt-4 border-t border-zinc-700/50 pt-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                 Top 5 categorías
               </p>
               <ul className="space-y-1.5">
                 {exp.topCategories.map((c) => (
                   <li key={c.value} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400">{c.label}</span>
-                    <span className="tabular-nums text-slate-100">
+                    <span className="text-zinc-400">{c.label}</span>
+                    <span className="tabular-nums text-zinc-100">
                       {fmtMXN(c.amount)}
-                      <span className="ml-2 text-slate-500">{Math.round(c.share * 100)}%</span>
+                      <span className="ml-2 text-zinc-500">{Math.round(c.share * 100)}%</span>
                     </span>
                   </li>
                 ))}

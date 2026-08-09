@@ -22,7 +22,7 @@ function GlowingLock() {
       />
       {/* Anillo con degradado dorado -> índigo */}
       <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-300 via-amber-500 to-indigo-600 p-[2px] shadow-2xl">
-        <div className="grid h-full w-full place-items-center rounded-full bg-slate-900">
+        <div className="grid h-full w-full place-items-center rounded-full bg-zinc-900">
           <Lock size={30} className="text-amber-300" strokeWidth={2.2} />
         </div>
       </div>
@@ -34,7 +34,7 @@ function GlowingLock() {
 function Progress({ filled }) {
   return (
     <div className="mx-auto mb-6 flex max-w-md items-center gap-3">
-      <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-800">
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-800">
         <div
           className="h-full rounded-full bg-gradient-to-r from-amber-400 to-indigo-600 transition-all duration-500"
           style={{
@@ -43,7 +43,7 @@ function Progress({ filled }) {
           }}
         />
       </div>
-      <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+      <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
         {filled} de 2
       </span>
     </div>
@@ -87,12 +87,12 @@ export default function ReferralGate({ children, title, description }) {
 
   return (
     <div
-      className="animate-rise relative overflow-hidden rounded-2xl border border-slate-800
-                 bg-slate-900/80 p-5 shadow-2xl shadow-slate-950/60 backdrop-blur-md sm:p-8"
+      className="animate-rise relative overflow-hidden rounded-2xl border border-zinc-800
+                 bg-zinc-900/80 p-5 shadow-2xl shadow-zinc-950/60 backdrop-blur-md sm:p-8"
     >
       {/* Iluminación superior: refuerza la sensación de panel flotante/modal */}
       <div
-        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[130%] -translate-x-1/2 blur-3xl"
+        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[130%] -tranzinc-x-1/2 blur-3xl"
         style={{ background: 'radial-gradient(ellipse at center, rgb(79 70 229 / 0.22), transparent 70%)' }}
         aria-hidden="true"
       />
@@ -106,10 +106,10 @@ export default function ReferralGate({ children, title, description }) {
             Contenido premium
           </span>
 
-          <h3 className="mt-4 text-lg font-bold leading-snug tracking-tight text-slate-50 sm:text-xl">
+          <h3 className="mt-4 text-lg font-bold leading-snug tracking-tight text-zinc-50 sm:text-xl">
             {title || 'Desbloquea tu Plan de Optimización 360'}
           </h3>
-          <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-slate-400">
+          <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-zinc-400">
             {description || 'Para liberar tu estrategia completa de optimización, comparte el contacto de 2 personas a quienes también les pueda servir este diagnóstico gratuito.'}
           </p>
         </div>
@@ -124,21 +124,21 @@ export default function ReferralGate({ children, title, description }) {
               return (
                 <fieldset
                   key={i}
-                  className={`rounded-xl border bg-slate-950/60 p-3.5 transition-colors ${
-                    complete ? 'border-emerald-500/40' : 'border-slate-800'
+                  className={`rounded-xl border bg-zinc-950/60 p-3.5 transition-colors ${
+                    complete ? 'border-emerald-500/40' : 'border-zinc-800'
                   }`}
                 >
                   <legend className="flex items-center gap-2 px-1.5 text-[10px] font-bold uppercase tracking-widest">
                     <span
                       className={`grid h-4 w-4 place-items-center rounded-full text-[9px] transition-colors ${
                         complete
-                          ? 'bg-emerald-500 text-slate-950'
-                          : 'bg-slate-700 text-slate-400'
+                          ? 'bg-emerald-500 text-zinc-950'
+                          : 'bg-zinc-700 text-zinc-400'
                       }`}
                     >
                       {i + 1}
                     </span>
-                    <span className={complete ? 'text-emerald-300' : 'text-slate-500'}>
+                    <span className={complete ? 'text-emerald-300' : 'text-zinc-500'}>
                       Contacto {i + 1}
                     </span>
                   </legend>
@@ -185,9 +185,9 @@ export default function ReferralGate({ children, title, description }) {
             </Button>
           </div>
 
-          <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
             <ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-400" />
-            <p className="text-[10px] leading-relaxed text-slate-500">
+            <p className="text-[10px] leading-relaxed text-zinc-500">
               Estos contactos se guardan únicamente en este navegador, junto con el resto de tu
               información. No se envían a ningún servidor desde esta herramienta.
             </p>
@@ -196,7 +196,7 @@ export default function ReferralGate({ children, title, description }) {
           <button
             type="button"
             onClick={unlockDirectly}
-            className="mx-auto mt-4 block text-[11px] text-slate-500 underline-offset-2 transition-colors hover:text-slate-300 hover:underline"
+            className="mx-auto mt-4 block text-[11px] text-zinc-500 underline-offset-2 transition-colors hover:text-zinc-300 hover:underline"
           >
             Prefiero verlo sin compartir contactos
           </button>
