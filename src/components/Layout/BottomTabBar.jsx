@@ -1,4 +1,4 @@
-import { CalendarDays, Target, Plus, Menu } from 'lucide-react';
+import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
@@ -19,7 +19,7 @@ const LABEL = 'text-[10px] font-medium leading-none';
  * Los destinos se centran con un ancho máximo para que no queden separados en
  * pantallas anchas.
  */
-export default function BottomTabBar({ onToday, onGoals, onAgenda, onAdd, onMore }) {
+export default function BottomTabBar({ onToday, onProductivity, onAgenda, onAdd, onMore }) {
   // Se calcula en cada render para que el número no se quede congelado si la
   // sesión cruza la medianoche.
   const today = new Date().getDate();
@@ -55,10 +55,10 @@ export default function BottomTabBar({ onToday, onGoals, onAgenda, onAdd, onMore
         <span className={LABEL}>Hoy</span>
       </button>
 
-      {/* Metas — objetivos y estadísticas */}
-      <button type="button" onClick={onGoals} className={TAB}>
-        <Target size={22} strokeWidth={1.8} aria-hidden="true" />
-        <span className={LABEL}>Metas</span>
+      {/* Productividad — rendimiento, metas y rachas */}
+      <button type="button" onClick={onProductivity} className={TAB}>
+        <TrendingUp size={22} strokeWidth={1.8} aria-hidden="true" />
+        <span className={LABEL}>Productividad</span>
       </button>
         </div>
 

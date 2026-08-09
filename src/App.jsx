@@ -14,7 +14,7 @@ import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import TodayView from './components/Home/TodayView';
 import CalendarView from './components/Calendar/CalendarView';
-import GoalsDashboard from './components/Goals/GoalsDashboard';
+import ProductivityDashboard from './components/Productivity/ProductivityDashboard';
 import { EventProvider } from './context/EventContext';
 import { readTheme, applyTheme, THEMES } from './theme';
 import AgentProfiler from './components/Onboarding/AgentProfiler';
@@ -239,8 +239,8 @@ function Shell({ onLogout, isPreview, role, profileName }) {
         <DevicePreview />
       ) : activeSection === 'home' ? (
         <TodayView name={profileName} />
-      ) : activeSection === 'goals' ? (
-        <GoalsDashboard />
+      ) : activeSection === 'productivity' ? (
+        <ProductivityDashboard />
       ) : activeSection === 'agenda' ? (
         <CalendarView />
       ) : (

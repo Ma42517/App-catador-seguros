@@ -36,7 +36,7 @@ export default function AdminLayout({
 
       <BottomTabBar
         onToday={() => goTo('home')}
-        onGoals={() => goTo('goals')}
+        onProductivity={() => goTo('productivity')}
         onAgenda={() => goTo('agenda')}
         onAdd={() => setQuickAddOpen(true)}
         onMore={() => setMoreOpen(true)}
