@@ -67,6 +67,36 @@ function clearLocalIdentity() {
   }
 }
 
+/**
+ * Traduce los errores de OAuth a algo que diga qué hacer.
+ *
+ * Los mensajes originales vienen en inglés y describen el síntoma, no la causa:
+ * "bad_oauth_state" no le dice a nadie que hay que revisar el Site URL del
+ * proyecto. Se conserva el texto original al final para no esconder el detalle
+ * técnico a quien sí sabe leerlo.
+ */
+function explainOAuthError(code, description) {
+  const original = description.replace(/\+/g, ' ');
+
+  const hints = {
+    bad_oauth_state:
+      'La vuelta de Google no coincidió con la sesión iniciada. Suele pasar cuando '
+      + 'Supabase reenvía a una dirección distinta de la que abrió el acceso: revisa '
+      + 'Site URL y Redirect URLs en Authentication > URL Configuration.',
+    bad_oauth_callback:
+      'Google devolvió una respuesta incompleta. Revisa que el Redirect URI del cliente '
+      + 'de Google apunte a /auth/v1/callback de tu proyecto de Supabase.',
+    provider_disabled:
+      'El acceso con Google no está habilitado en Supabase (Authentication > Providers).',
+    validation_failed:
+      'Supabase rechazó la dirección de retorno. Agrégala en Redirect URLs.',
+  };
+
+  const hint = hints[code];
+  if (!hint) return original || `No se pudo completar el acceso (${code || 'error desconocido'}).`;
+  return `${hint}${original ? ` · Detalle: ${original}` : ''}`;
+}
+
 function identityFromProfile(profile) {
   return {
     key: profile.id,
@@ -128,6 +158,32 @@ export function SessionProvider({ children }) {
     setError('');
     setIdentity(identityFromProfile(data));
     setStatus(SESSION_STATUS.READY);
+  }, []);
+
+  /**
+   * Recoge el error que Supabase devuelve en la URL al volver de Google.
+   *
+   * Sin esto el fallo es mudo: la persona regresa a la pantalla de acceso sin
+   * ninguna pista, y la causa más común (el Site URL apuntando a otro sitio) no
+   * se puede adivinar desde la interfaz.
+   *
+   * Se busca en la query y en el fragmento porque el sitio al que se vuelve
+   * cambia según el flujo que use el proyecto.
+   */
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+
+    const code = query.get('error_code') ?? hash.get('error_code') ?? '';
+    const description = query.get('error_description') ?? hash.get('error_description') ?? '';
+    if (!code && !description) return;
+
+    setError(explainOAuthError(code, description));
+
+    // Se limpia la URL para que el aviso no reaparezca en cada recarga. Sólo
+    // ocurre cuando había error, así que no interfiere con el fragmento que
+    // usa el asistente ni con los tokens que lee supabase-js.
+    window.history.replaceState(null, '', window.location.pathname);
   }, []);
 
   useEffect(() => {
