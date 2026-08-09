@@ -1,6 +1,7 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, supabaseHost } from '../lib/supabaseClient';
 import {
   readLocalAnnouncements, addLocalAnnouncement, removeLocalAnnouncement,
+  updateLocalAnnouncement,
 } from './announcements';
 
 /**
@@ -79,6 +80,36 @@ export async function publishAnnouncement({ title, category, content, imageUrl }
   return { data: data?.[0] ? fromRow(data[0]) : null, error: null, source: 'supabase' };
 }
 
+export async function updateAnnouncement(id, { title, category, content, imageUrl }) {
+  if (!usingSupabase) {
+    const updated = updateLocalAnnouncement(id, { title, category, content, imageUrl });
+    return {
+      data: updated,
+      error: updated ? null : new Error('No se encontró el comunicado o falta el título.'),
+      source: 'local',
+    };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ title, category, content, image_url: imageUrl || null })
+    .eq('id', id)
+    .select();
+
+  if (error) return { data: null, error, source: 'supabase' };
+
+  // Sin filas devueltas la actualización no ocurrió: suele ser una política de
+  // RLS que permite la petición pero no deja tocar la fila.
+  if (!data?.length) {
+    return {
+      data: null,
+      error: { message: 'La base aceptó la petición pero no actualizó ninguna fila.', code: 'NO_ROWS', hint: 'Revisa la política de UPDATE en row level security.' },
+      source: 'supabase',
+    };
+  }
+  return { data: fromRow(data[0]), error: null, source: 'supabase' };
+}
+
 export async function deleteAnnouncement(id) {
   if (!usingSupabase) {
     removeLocalAnnouncement(id);
@@ -87,4 +118,53 @@ export async function deleteAnnouncement(id) {
 
   const { error } = await supabase.from(TABLE).delete().eq('id', id);
   return { error, source: 'supabase' };
+}
+
+/**
+ * Comprueba que la tabla responda de verdad, midiendo cuánto tarda.
+ *
+ * Pide el conteo con `head: true` para no traer filas: interesa saber si hay
+ * permiso y latencia, no el contenido. Devuelve el detalle en `steps` para que
+ * la consola de diagnóstico muestre qué se probó y con qué resultado.
+ */
+export async function pingDatabase() {
+  const startedAt = performance.now();
+
+  if (!usingSupabase) {
+    return {
+      ok: false,
+      configured: false,
+      host: '',
+      count: readLocalAnnouncements().length,
+      latencyMs: Math.round(performance.now() - startedAt),
+      error: null,
+      steps: [
+        { label: 'Variables de entorno', ok: false, detail: 'Faltan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY' },
+        { label: 'Origen de los datos', ok: true, detail: 'localStorage del navegador' },
+      ],
+    };
+  }
+
+  const { count, error } = await supabase
+    .from(TABLE)
+    .select('*', { count: 'exact', head: true });
+
+  const latencyMs = Math.round(performance.now() - startedAt);
+
+  return {
+    ok: !error,
+    configured: true,
+    host: supabaseHost,
+    count: count ?? 0,
+    latencyMs,
+    error,
+    steps: [
+      { label: 'Variables de entorno', ok: true, detail: supabaseHost },
+      {
+        label: `Lectura de la tabla "${TABLE}"`,
+        ok: !error,
+        detail: error ? describeError(error) : `${count ?? 0} fila(s) · ${latencyMs} ms`,
+      },
+    ],
+  };
 }

@@ -125,6 +125,33 @@ export function removeLocalAnnouncement(id) {
   writeAll(readRaw().filter((a) => a.id !== id));
 }
 
+/**
+ * Aplica cambios sobre un comunicado existente.
+ *
+ * Conserva `id` y `createdAt`: editar el texto de un aviso no lo convierte en
+ * otro aviso ni lo vuelve a poner arriba del tablero.
+ */
+export function updateLocalAnnouncement(id, { category, title, content, imageUrl }) {
+  const list = readRaw();
+  const index = list.findIndex((a) => a.id === id);
+  if (index === -1) return null;
+
+  const title_ = String(title ?? '').trim();
+  if (!title_) return null;
+
+  const updated = {
+    ...list[index],
+    category: CATEGORIES[category] ? category : list[index].category,
+    title: title_,
+    content: String(content ?? '').trim(),
+    imageUrl: String(imageUrl ?? '').trim(),
+  };
+  const next = list.slice();
+  next[index] = updated;
+  writeAll(next);
+  return updated;
+}
+
 /** Antigüedad en lenguaje natural, para no mostrar una fecha cruda. */
 export function relativeTime(timestamp) {
   const minutes = Math.floor((Date.now() - timestamp) / 60000);

@@ -16,3 +16,18 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+
+/**
+ * Sólo el host del proyecto, para mostrarlo en el diagnóstico.
+ *
+ * Nunca se expone la llave: identificar el proyecto ayuda a detectar que se
+ * está apuntando al entorno equivocado, y para eso basta el host.
+ */
+export const supabaseHost = (() => {
+  if (!supabaseUrl) return '';
+  try {
+    return new URL(supabaseUrl).host;
+  } catch {
+    return supabaseUrl;
+  }
+})();

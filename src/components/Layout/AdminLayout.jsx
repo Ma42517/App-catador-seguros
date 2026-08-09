@@ -8,6 +8,7 @@ import NotesList from '../Notes/NotesList';
 import UserProfile from '../Profile/UserProfile';
 import AdminPanel from '../Admin/AdminPanel';
 import { useEvents } from '../../context/EventContext';
+import { useAccess } from '../../context/AccessContext';
 
 /**
  * Chrome de navegación del área autenticada.
@@ -21,6 +22,13 @@ export default function AdminLayout({
   isDark, onToggleTheme, username,
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda } = useEvents();
+
+  // El panel se abre por dos vías: ser el usuario administrador de la app, o
+  // haber desbloqueado el modo promotor con el código y su contraseña. Son
+  // permisos distintos que llevan al mismo lugar.
+  const { isPromoter } = useAccess();
+  const canOpenAdmin = isAdminUser || isPromoter;
+
   const [moreOpen, setMoreOpen] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -75,7 +83,10 @@ export default function AdminLayout({
         username={username}
       />
 
-      <AdminPanel isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
+      {/* Sin permiso no se monta: perder el permiso con el panel abierto lo cierra. */}
+      {canOpenAdmin && (
+        <AdminPanel isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
+      )}
 
       <MoreMenu
         open={moreOpen}
@@ -89,7 +100,7 @@ export default function AdminLayout({
         onLoadDemo={() => { loadDemoWeek(); setMoreOpen(false); onNavigate('agenda'); }}
         onClearAgenda={() => { clearAgenda(); setMoreOpen(false); }}
         canUsePreview={canUsePreview}
-        isAdminUser={isAdminUser}
+        isAdminUser={canOpenAdmin}
         isDark={isDark}
         onToggleTheme={onToggleTheme}
       />
