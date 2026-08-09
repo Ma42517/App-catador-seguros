@@ -6,8 +6,12 @@ import {
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
 import StepWizard, { STEPS } from './components/Wizard/StepWizard';
+import SplashScreen from './components/SplashScreen';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
+
+/** Clave de sessionStorage para saber si el intro ya se mostró en esta pestaña/sesión. */
+const INTRO_KEY = 'hasSeenIntro';
 
 /**
  * Conmutador tipo pill entre las dos grandes fases de la app: captura
@@ -204,6 +208,25 @@ function Shell() {
 }
 
 export default function App() {
+  const [isAppReady, setIsAppReady] = useState(false);
+
+  // Primera vez en la sesión: splash de ~2s con look de marca. Visitas
+  // subsecuentes dentro de la misma pestaña: splash casi instantáneo,
+  // tipo Facebook/Instagram, solo para evitar un "flash" de layout vacío.
+  useEffect(() => {
+    const isFirstVisit = !sessionStorage.getItem(INTRO_KEY);
+    const delay = isFirstVisit ? 2000 : 300 + Math.random() * 200;
+
+    const timer = setTimeout(() => {
+      if (isFirstVisit) sessionStorage.setItem(INTRO_KEY, 'true');
+      setIsAppReady(true);
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isAppReady) return <SplashScreen />;
+
   return (
     <FinanceProvider>
       <ReferralProvider>
