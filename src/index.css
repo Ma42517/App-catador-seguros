@@ -170,6 +170,32 @@
     animation: df-pulse-glow 2.6s ease-in-out infinite;
   }
 
+  /*
+    Confeti al completar una meta. Cada pieza recibe su deriva y su giro por
+    variables CSS, para que un solo keyframe sirva a las sesenta sin generar
+    una clase por pieza. La caída va a 110vh: así sale de la pantalla por
+    abajo en vez de desvanecerse a media altura.
+  */
+  @keyframes goal-confetti {
+    0% {
+      transform: translate3d(0, -10vh, 0) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translate3d(var(--drift, 0px), 110vh, 0) rotate(var(--spin, 540deg));
+      opacity: 0.9;
+    }
+  }
+
+  @keyframes df-celebrate {
+    0% { transform: scale(0.8); opacity: 0; }
+    55% { transform: scale(1.04); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .animate-celebrate {
+    animation: df-celebrate 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-rise,
     .animate-pulse-glow,
@@ -182,7 +208,9 @@
     /* Gradiente en movimiento de las tarjetas del hub de productividad. */
     .animate-gradient-shift,
     /* Resplandores flotantes del banner principal. */
-    .animate-orb-drift {
+    .animate-orb-drift,
+    /* Entrada del cartel de meta cumplida; el confeti ya se omite en el JSX. */
+    .animate-celebrate {
       animation: none;
     }
   }

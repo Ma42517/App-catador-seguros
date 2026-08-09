@@ -5,6 +5,7 @@ import WideCard from './WideCard';
 import ProspectaHero from './ProspectaHero';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
 import WorkplaceBoard from '../Workplace/WorkplaceBoard';
+import GoalsView from '../Goals/GoalsView';
 
 /**
  * Tarjetas de la cuadrícula. Los subtítulos son deliberadamente cortos: en
@@ -58,6 +59,10 @@ const CARDS = [
 export default function ProductivityDashboard({ username }) {
   const [isProspectaOpen, setProspectaOpen] = useState(false);
   const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
+  const [isGoalsOpen, setGoalsOpen] = useState(false);
+
+  // Sólo las tarjetas con destino son pulsables; el resto siguen inertes.
+  const destinations = { metas: () => setGoalsOpen(true) };
 
   return (
     <div className="mx-auto max-w-md px-4 pb-24 pt-6">
@@ -93,6 +98,7 @@ export default function ProductivityDashboard({ username }) {
             gradient={card.gradient}
             glow={card.glow}
             iconTone={card.iconTone}
+            onClick={destinations[card.key]}
           />
         ))}
       </div>
@@ -107,6 +113,8 @@ export default function ProductivityDashboard({ username }) {
         onClose={() => setWorkplaceOpen(false)}
         username={username}
       />
+
+      <GoalsView isOpen={isGoalsOpen} onClose={() => setGoalsOpen(false)} />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import CalendarView from './components/Calendar/CalendarView';
 import ProductivityDashboard from './components/Productivity/ProductivityDashboard';
 import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
+import { GoalsProvider } from './context/GoalsContext';
 import { readTheme, applyTheme, THEMES } from './theme';
 import AgentProfiler from './components/Onboarding/AgentProfiler';
 import { readProfile, saveProfile } from './components/Onboarding/storage';
@@ -371,12 +372,16 @@ export default function App() {
         <EventProvider username={username}>
           {/* El vínculo con la promotoría también es por usuario. */}
           <AccessProvider username={username}>
-            <Shell
+            {/* Las metas son de la persona, así que el provider también vive
+                dentro del área autenticada. */}
+            <GoalsProvider username={username}>
+              <Shell
             onLogout={handleLogout}
             isPreview={isPreview}
             role={role}
               profileName={username}
             />
+            </GoalsProvider>
           </AccessProvider>
         </EventProvider>
       </ReferralProvider>
