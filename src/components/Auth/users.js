@@ -33,3 +33,8 @@ export function authenticate(username, password) {
 export function isAdmin(role) {
   return role === ROLES.ADMIN;
 }
+
+/** Valida que un rol rehidratado desde sessionStorage sea uno conocido. */
+export function isValidRole(role) {
+  return Object.values(ROLES).includes(role);
+}

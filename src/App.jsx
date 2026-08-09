@@ -9,7 +9,7 @@ import StepWizard, { STEPS } from './components/Wizard/StepWizard';
 import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 import SplashScreen from './components/SplashScreen';
 import LoginScreen from './components/Auth/LoginScreen';
-import { isAdmin } from './components/Auth/users';
+import { isAdmin, isValidRole } from './components/Auth/users';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import { Button } from './components/ui';
@@ -257,11 +257,19 @@ export default function App() {
   // estar cambiando de dispositivo constantemente.
   const [isAppReady, setIsAppReady] = useState(isPreview);
   // La sesión se rehidrata desde sessionStorage para no pedir la clave
-  // en cada recarga dentro de la misma pestaña.
+  // en cada recarga dentro de la misma pestaña. Se exige además un rol
+  // válido: las sesiones creadas antes de que existieran los roles se
+  // consideran caducas y piden login de nuevo, en lugar de quedarse sin
+  // permisos de forma silenciosa.
+  const [role, setRole] = useState(() => {
+    const stored = sessionStorage.getItem(ROLE_KEY) ?? '';
+    return isValidRole(stored) ? stored : '';
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(
-    () => sessionStorage.getItem(AUTH_KEY) === 'true',
+    () =>
+      sessionStorage.getItem(AUTH_KEY) === 'true' &&
+      isValidRole(sessionStorage.getItem(ROLE_KEY) ?? ''),
   );
-  const [role, setRole] = useState(() => sessionStorage.getItem(ROLE_KEY) ?? '');
 
   // Primera vez en la sesión: splash con look de marca. Visitas
   // subsecuentes dentro de la misma pestaña: splash casi instantáneo,
