@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Layers, Target, Flame } from 'lucide-react';
 import ImmersiveCard from './ImmersiveCard';
-import BrandCard from './BrandCard';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
 
 /**
@@ -22,7 +21,7 @@ const CARDS = [
   {
     key: 'ciclo',
     title: 'Ciclo de Ventas',
-    subtitle: 'Acercamiento, Presentaciones y Cierres',
+    subtitle: 'Acercamiento en frío, cita inicial y cierre',
     icon: Layers,
     gradient: 'from-zinc-900 via-indigo-950 to-indigo-900',
     glow: 'hover:shadow-[0_0_28px_rgba(99,102,241,0.35)]',
@@ -47,8 +46,8 @@ const CARDS = [
   },
   {
     key: 'rachas',
-    title: 'Rachas y Stats',
-    subtitle: `${STATS.streakDays} Días prospectando. No rompas la cadena`,
+    title: 'Rachas de Prospección',
+    subtitle: `🔥 ${STATS.streakDays} Días activos. ¡No rompas la cadena!`,
     icon: Flame,
     gradient: 'from-zinc-900 via-rose-950 to-rose-900',
     glow: 'hover:shadow-[0_0_28px_rgba(244,63,94,0.35)]',
@@ -66,9 +65,6 @@ export default function ProductivityDashboard() {
         Tu Rendimiento
       </h1>
 
-      {/* Logo de la app, hasta arriba: abre el ciclo de prospección */}
-      <BrandCard onClick={() => setProspectaOpen(true)} />
-
       {CARDS.map((card) => (
         <ImmersiveCard
           key={card.key}
@@ -79,6 +75,9 @@ export default function ProductivityDashboard() {
           gradient={card.gradient}
           glow={card.glow}
           iconTone={card.iconTone}
+          // El ciclo de ventas es hoy el único destino construido: abre las
+          // tres etapas de prospección.
+          onClick={card.key === 'ciclo' ? () => setProspectaOpen(true) : undefined}
         />
       ))}
 
