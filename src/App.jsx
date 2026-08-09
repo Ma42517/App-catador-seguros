@@ -215,7 +215,7 @@ export default function App() {
   // tipo Facebook/Instagram, solo para evitar un "flash" de layout vacío.
   useEffect(() => {
     const isFirstVisit = !sessionStorage.getItem(INTRO_KEY);
-    const delay = isFirstVisit ? 2000 : 300 + Math.random() * 200;
+    const delay = isFirstVisit ? 3000 : 300 + Math.random() * 200;
 
     const timer = setTimeout(() => {
       if (isFirstVisit) sessionStorage.setItem(INTRO_KEY, 'true');
