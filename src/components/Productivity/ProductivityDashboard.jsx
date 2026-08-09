@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Layers, Target, Flame, Zap } from 'lucide-react';
+import { Layers, Target, Flame } from 'lucide-react';
 import ImmersiveCard from './ImmersiveCard';
+import BrandCard from './BrandCard';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
 
 /**
@@ -65,16 +66,8 @@ export default function ProductivityDashboard() {
         Tu Rendimiento
       </h1>
 
-      {/* Acceso de marca, hasta arriba: abre el ciclo de prospección */}
-      <ImmersiveCard
-        title="PROSPECTA"
-        subtitle="Acercamiento en frío, cita inicial y cierre"
-        icon={Zap}
-        gradient="from-indigo-950 via-violet-950 to-indigo-900"
-        glow="hover:shadow-[0_0_32px_rgba(139,92,246,0.45)]"
-        iconTone="text-violet-300/80"
-        onClick={() => setProspectaOpen(true)}
-      />
+      {/* Logo de la app, hasta arriba: abre el ciclo de prospección */}
+      <BrandCard onClick={() => setProspectaOpen(true)} />
 
       {CARDS.map((card) => (
         <ImmersiveCard
