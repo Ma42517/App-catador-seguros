@@ -16,7 +16,7 @@ export default function ProspectaHero({ onClick }) {
       type="button"
       onClick={onClick}
       aria-label="Abrir Prospecta"
-      className="group relative h-40 w-full cursor-pointer overflow-hidden rounded-[2rem]
+      className="group relative h-28 w-full cursor-pointer overflow-hidden rounded-[1.75rem]
                  border border-white/15 bg-gradient-to-br from-zinc-800 via-zinc-950 to-black
                  shadow-2xl transition-all duration-300 active:scale-95
                  hover:border-white/30 hover:shadow-[0_0_40px_rgba(255,255,255,0.12)]
@@ -46,8 +46,8 @@ export default function ProspectaHero({ onClick }) {
 
       <div className="relative z-10 flex h-full items-center justify-center px-6">
         <h2
-          className="bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-4xl
-                     font-extrabold uppercase tracking-widest text-transparent md:text-5xl"
+          className="bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-3xl
+                     font-extrabold uppercase tracking-widest text-transparent md:text-4xl"
           // El resplandor va como filtro: con el texto en transparente y el
           // relleno recortado del fondo, un text-shadow no se vería.
           style={{ filter: 'drop-shadow(0 0 14px rgba(255,255,255,0.3))' }}
@@ -57,8 +57,8 @@ export default function ProspectaHero({ onClick }) {
       </div>
 
       <ChevronRight
-        size={18}
-        className="absolute bottom-5 right-6 z-10 text-white/25 transition-transform
+        size={16}
+        className="absolute bottom-3.5 right-5 z-10 text-white/25 transition-transform
                    duration-300 group-hover:translate-x-0.5 group-hover:text-white/55"
         aria-hidden="true"
       />
