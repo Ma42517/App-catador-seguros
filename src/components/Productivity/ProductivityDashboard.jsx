@@ -1,5 +1,7 @@
-import { Layers, Target, Flame } from 'lucide-react';
+import { useState } from 'react';
+import { Layers, Target, Flame, Zap } from 'lucide-react';
 import ImmersiveCard from './ImmersiveCard';
+import ProspectaScreen from '../Prospecta/ProspectaScreen';
 
 /**
  * Cifras del hub. Concentradas aquí a propósito: cuando se conecten al motor
@@ -53,13 +55,26 @@ const CARDS = [
   },
 ];
 
-/** Hub de rendimiento: cuatro accesos apilados a las secciones de análisis. */
+/** Hub de rendimiento: accesos apilados a las secciones de análisis. */
 export default function ProductivityDashboard() {
+  const [isProspectaOpen, setProspectaOpen] = useState(false);
+
   return (
     <div className="mx-auto flex max-w-md flex-col gap-5 px-4 pb-24 pt-6">
       <h1 className="mb-2 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
         Tu Rendimiento
       </h1>
+
+      {/* Acceso de marca, hasta arriba: abre el ciclo de prospección */}
+      <ImmersiveCard
+        title="PROSPECTA"
+        subtitle="Acercamiento en frío, cita inicial y cierre"
+        icon={Zap}
+        gradient="from-indigo-950 via-violet-950 to-indigo-900"
+        glow="hover:shadow-[0_0_32px_rgba(139,92,246,0.45)]"
+        iconTone="text-violet-300/80"
+        onClick={() => setProspectaOpen(true)}
+      />
 
       {CARDS.map((card) => (
         <ImmersiveCard
@@ -73,6 +88,11 @@ export default function ProductivityDashboard() {
           iconTone={card.iconTone}
         />
       ))}
+
+      <ProspectaScreen
+        isOpen={isProspectaOpen}
+        onClose={() => setProspectaOpen(false)}
+      />
     </div>
   );
 }
