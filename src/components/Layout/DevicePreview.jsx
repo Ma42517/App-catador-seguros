@@ -6,6 +6,9 @@ import { Smartphone, Tablet, Monitor, RotateCw, RefreshCw, ExternalLink } from '
  * comunes. Se eligieron para caer en cada breakpoint de Tailwind usado en
  * la app: móvil (<640), tableta (>=768) y escritorio (>=1024).
  */
+/** Píxeles que el marco (padding p-2.5 + borde) añade alrededor del iframe. */
+const FRAME_CHROME = 22;
+
 export const DEVICES = [
   { key: 'mobile', label: 'Celular', Icon: Smartphone, width: 390, height: 844, hint: 'iPhone 14 · 390px' },
   { key: 'tablet', label: 'Tableta', Icon: Tablet, width: 820, height: 1180, hint: 'iPad Air · 820px' },
@@ -40,14 +43,22 @@ export default function DevicePreview() {
   const previewUrl = `${window.location.pathname}?preview=1`;
 
   // Ajusta el zoom para que el dispositivo simulado quepa en el área visible.
+  // Se suma FRAME_CHROME porque el marco (padding + borde) rodea al iframe:
+  // el iframe conserva exactamente el ancho del dispositivo.
   const recalcScale = useCallback(() => {
     const area = areaRef.current;
     if (!area) return;
-    const padding = 48;
-    const availableW = area.clientWidth - padding;
-    const availableH = area.clientHeight - padding;
+    const margin = 48;
+    const availableW = area.clientWidth - margin;
+    const availableH = area.clientHeight - margin;
     if (availableW <= 0 || availableH <= 0) return;
-    setScale(Math.min(1, availableW / width, availableH / height));
+    setScale(
+      Math.min(
+        1,
+        availableW / (width + FRAME_CHROME),
+        availableH / (height + FRAME_CHROME),
+      ),
+    );
   }, [width, height]);
 
   useEffect(() => {
@@ -146,22 +157,23 @@ export default function DevicePreview() {
           aria-hidden="true"
         />
 
-        {/* Marco del dispositivo, escalado para caber en el área disponible */}
+        {/*
+          Marco del dispositivo. El tamaño se aplica al <iframe>, no al marco,
+          para que el viewport interno mida exactamente el ancho del dispositivo
+          (si el marco llevara el tamaño, su padding y borde le restarían px al
+          iframe y los breakpoints se dispararían antes de lo esperado).
+        */}
         <div
           className="relative shrink-0 rounded-[2rem] border border-slate-800 bg-slate-900 p-2.5 shadow-2xl shadow-slate-950/70 backdrop-blur-md transition-all duration-300"
-          style={{
-            width,
-            height,
-            transform: `scale(${scale})`,
-            transformOrigin: 'center center',
-          }}
+          style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}
         >
           <iframe
             // Cambiar la key fuerza un remonte del iframe = recarga limpia.
             key={`${deviceKey}-${isLandscape}-${reloadToken}`}
             src={previewUrl}
             title={`Vista previa en ${device.label}`}
-            className="h-full w-full rounded-[1.5rem] border-0 bg-slate-950"
+            style={{ width, height }}
+            className="block rounded-[1.5rem] border-0 bg-slate-950"
           />
         </div>
       </div>
