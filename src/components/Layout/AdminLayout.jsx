@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import BottomTabBar from './BottomTabBar';
 import MoreMenu from './MoreMenu';
+import QuickAddMenu from './QuickAddMenu';
 
 /**
  * Chrome de navegación del área autenticada.
@@ -13,6 +14,7 @@ export default function AdminLayout({
   onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme,
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [isQuickAddOpen, setQuickAddOpen] = useState(false);
 
   const goTo = (section) => {
     onNavigate(section);
@@ -26,7 +28,13 @@ export default function AdminLayout({
 
       <BottomTabBar
         onToday={() => goTo('home')}
+        onAdd={() => setQuickAddOpen(true)}
         onMore={() => setMoreOpen(true)}
+      />
+
+      <QuickAddMenu
+        isOpen={isQuickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
       />
 
       <MoreMenu
