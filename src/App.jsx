@@ -12,8 +12,8 @@ import LoginScreen from './components/Auth/LoginScreen';
 import { isAdmin, isValidRole } from './components/Auth/users';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
-import ExperienceSelector from './components/Onboarding/ExperienceSelector';
-import { readExperienceLevel, saveExperienceLevel } from './components/Onboarding/storage';
+import AgentProfiler from './components/Onboarding/AgentProfiler';
+import { readProfile, saveProfile } from './components/Onboarding/storage';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
@@ -275,9 +275,9 @@ export default function App() {
       sessionStorage.getItem(AUTH_KEY) === 'true' &&
       isValidRole(sessionStorage.getItem(ROLE_KEY) ?? ''),
   );
-  // Nivel de experiencia del onboarding; '' significa que aún no lo completó.
-  const [experienceLevel, setExperienceLevel] = useState(() =>
-    readExperienceLevel(sessionStorage.getItem(USER_KEY) ?? ''),
+  // Perfil del onboarding; `null` significa que aún no lo completó.
+  const [profile, setProfile] = useState(() =>
+    readProfile(sessionStorage.getItem(USER_KEY) ?? ''),
   );
 
   // Primera vez en la sesión: splash con look de marca. Visitas
@@ -303,8 +303,8 @@ export default function App() {
     sessionStorage.setItem(USER_KEY, user.username);
     setRole(user.role);
     setUsername(user.username);
-    // Si ya hizo el onboarding antes, se salta; si no, quedará en ''.
-    setExperienceLevel(readExperienceLevel(user.username));
+    // Si ya hizo el onboarding antes, se salta; si no, quedará en null.
+    setProfile(readProfile(user.username));
     setIsAuthenticated(true);
   }, []);
 
@@ -314,24 +314,22 @@ export default function App() {
     sessionStorage.removeItem(USER_KEY);
     setRole('');
     setUsername('');
-    setExperienceLevel('');
+    setProfile(null);
     setIsAuthenticated(false);
   }, []);
 
   // El onboarding se guarda por usuario, así que sobrevive al cierre de sesión.
-  const handleOnboardingComplete = useCallback((level) => {
-    saveExperienceLevel(username, level);
-    setExperienceLevel(level);
+  const handleProfileComplete = useCallback((answers) => {
+    saveProfile(username, answers);
+    setProfile(answers);
   }, [username]);
 
   if (!isAppReady) return <SplashScreen />;
 
   if (!isAuthenticated) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
 
-  // Perfil incompleto: se pide el nivel de experiencia antes de entrar.
-  if (!experienceLevel) {
-    return <ExperienceSelector onContinue={handleOnboardingComplete} />;
-  }
+  // Perfil incompleto: se levanta el onboarding antes de entrar a la app.
+  if (!profile) return <AgentProfiler onComplete={handleProfileComplete} />;
 
   return (
     <FinanceProvider>
