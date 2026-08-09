@@ -6,6 +6,7 @@ import ActivityForm from '../Activities/ActivityForm';
 import QuickNoteForm from '../Notes/QuickNoteForm';
 import NotesList from '../Notes/NotesList';
 import UserProfile from '../Profile/UserProfile';
+import DigitalCardBuilder from '../Profile/DigitalCardBuilder';
 import AdminPanel from '../Admin/AdminPanel';
 import UserApprovals from '../Admin/UserApprovals';
 import { useEvents } from '../../context/EventContext';
@@ -35,6 +36,7 @@ export default function AdminLayout({
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [approvalsOpen, setApprovalsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
@@ -99,6 +101,8 @@ export default function AdminLayout({
 
       <NotesList isOpen={notesOpen} onClose={() => setNotesOpen(false)} />
 
+      <DigitalCardBuilder isOpen={cardOpen} onClose={() => setCardOpen(false)} />
+
       <UserProfile
         isOpen={profileOpen}
         onClose={() => setProfileOpen(false)}
@@ -124,6 +128,7 @@ export default function AdminLayout({
         onOpenPreview={() => goTo('preview')}
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onOpenProfile={() => { setMoreOpen(false); setProfileOpen(true); }}
+        onOpenCard={() => { setMoreOpen(false); setCardOpen(true); }}
         onOpenAdmin={() => { setMoreOpen(false); setAdminOpen(true); }}
         onOpenApprovals={() => { setMoreOpen(false); setApprovalsOpen(true); }}
         onLogout={onLogout}

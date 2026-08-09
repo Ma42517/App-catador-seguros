@@ -27,10 +27,14 @@ export const BUCKET = 'workplace-files';
  * Es un respaldo con tope de tamaño a propósito: sirve para probar el muro sin
  * credenciales, no para almacenar de verdad.
  */
-export async function uploadAttachment(file) {
+export async function uploadAttachment(file, folder = '') {
   if (!file) return { url: '', error: null, source: 'none' };
 
-  const fileName = storageFileName(file.name);
+  // La carpeta separa lo que es de la promotoría de lo que es de cada persona
+  // dentro del mismo bucket, que ya tiene las políticas puestas.
+  const fileName = folder
+    ? `${folder.replace(/\/+$/, '')}/${storageFileName(file.name)}`
+    : storageFileName(file.name);
 
   if (!usingSupabase) {
     if (file.size > MAX_LOCAL_FILE_BYTES) {

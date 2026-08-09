@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
-  StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck,
+  StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard,
 } from 'lucide-react';
 
 /**
@@ -67,7 +67,7 @@ function MenuRow({ icon: Icon, label, hint, action, badge, tone = 'default', onC
  */
 export default function MoreMenu({
   open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile,
-  onOpenAdmin, onOpenApprovals, onLogout, onLoadDemo, onClearAgenda,
+  onOpenAdmin, onOpenApprovals, onOpenCard, onLogout, onLoadDemo, onClearAgenda,
   canUsePreview = false, isAdminUser = false, pendingCount = 0,
   isDark = true, onToggleTheme,
 }) {
@@ -144,6 +144,7 @@ export default function MoreMenu({
         </button>
 
         <div className="space-y-1 pb-2">
+          <MenuRow icon={IdCard} label="Mi Tarjeta Digital" onClick={onOpenCard} />
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
           {/* Aprobar usuarios va antes del panel técnico: es la tarea que el
               administrador repite, y el distintivo avisa sin abrir nada. */}

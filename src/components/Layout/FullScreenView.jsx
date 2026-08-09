@@ -12,7 +12,9 @@ const ANIM_MS = 300;
  * para poder animar entrada y salida, cierre con Escape y congelado del
  * scroll de fondo.
  */
-export default function FullScreenView({ isOpen, onClose, label, title, backLabel = 'Volver', children }) {
+export default function FullScreenView({
+  isOpen, onClose, label, title, backLabel = 'Volver', wide = false, children,
+}) {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isShown, setIsShown] = useState(false);
 
@@ -81,7 +83,14 @@ export default function FullScreenView({ isOpen, onClose, label, title, backLabe
         </div>
       </header>
 
-      <div className="mx-auto max-w-md px-4 pb-16 pt-5">{children}</div>
+      {/*
+        `wide` es para las vistas que necesitan dos columnas en escritorio. El
+        ancho de lectura por omisión sigue siendo `max-w-md`: la mayoría de estas
+        pantallas son formularios, y estirarlos sólo aleja la etiqueta del campo.
+      */}
+      <div className={`mx-auto px-4 pb-16 pt-5 ${wide ? 'max-w-6xl' : 'max-w-md'}`}>
+        {children}
+      </div>
     </div>
   );
 }

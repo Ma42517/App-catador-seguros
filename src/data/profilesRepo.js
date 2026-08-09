@@ -85,7 +85,62 @@ function fromRow(row) {
     avatarUrl: row.avatar_url ?? '',
     role: row.role ?? PROFILE_ROLES.PENDING,
     createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+
+    // Datos de la tarjeta digital. Se leen con respaldo porque las columnas
+    // pueden no existir todavía en una base que no corrió la migración.
+    title: row.title ?? '',
+    license: row.license ?? '',
+    company: row.company ?? '',
+    specialties: Array.isArray(row.specialties) ? row.specialties : [],
+    bio: row.bio ?? '',
+    phone: row.phone ?? '',
+    whatsapp: row.whatsapp ?? '',
   };
+}
+
+/**
+ * Guarda la tarjeta digital de la propia cuenta.
+ *
+ * No incluye `role` a propósito: aunque la base lo protege con un disparador,
+ * mandarlo desde el cliente invitaría a manipularlo desde la consola del
+ * navegador. Lo que no se envía no se puede falsificar.
+ */
+export async function saveMyCard(userId, card) {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: { message: 'Supabase no está configurado.' } };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({
+      full_name: card.fullName?.trim() ?? '',
+      avatar_url: card.avatarUrl ?? '',
+      title: card.title?.trim() ?? '',
+      license: card.license?.trim() ?? '',
+      company: card.company?.trim() ?? '',
+      specialties: card.specialties ?? [],
+      bio: card.bio?.trim() ?? '',
+      phone: card.phone?.trim() ?? '',
+      whatsapp: card.whatsapp?.trim() ?? '',
+    })
+    .eq('id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) return { data: null, error };
+
+  if (!data) {
+    return {
+      data: null,
+      error: {
+        message: 'La base aceptó la petición pero no guardó nada.',
+        code: 'NO_ROWS',
+        hint: 'Falta la política que permite editar el propio perfil '
+          + '(policy "editar mi perfil" on public.profiles for update).',
+      },
+    };
+  }
+  return { data: fromRow(data), error: null };
 }
 
 /**
