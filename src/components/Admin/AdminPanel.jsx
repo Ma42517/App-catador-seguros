@@ -5,7 +5,7 @@ import {
 import FullScreenView from '../Layout/FullScreenView';
 import { CATEGORY_LIST, categoryOf, relativeTime } from '../../data/announcements';
 import {
-  fetchAnnouncements, publishAnnouncement, deleteAnnouncement, usingSupabase,
+  fetchAnnouncements, publishAnnouncement, deleteAnnouncement, usingSupabase, describeError,
 } from '../../data/announcementsRepo';
 
 const INPUT =
@@ -66,7 +66,7 @@ export default function AdminPanel({ isOpen, onClose }) {
     const { data, error } = await fetchAnnouncements();
     setLoading(false);
     if (error) {
-      setStatus({ type: 'error', message: `No se pudieron leer los comunicados: ${error.message}` });
+      setStatus({ type: 'error', message: `No se pudieron leer los comunicados: ${describeError(error)}` });
       return;
     }
     setList(data);
@@ -96,7 +96,7 @@ export default function AdminPanel({ isOpen, onClose }) {
     setSaving(false);
 
     if (error) {
-      setStatus({ type: 'error', message: `Error al publicar: ${error.message}` });
+      setStatus({ type: 'error', message: `Error al publicar: ${describeError(error)}` });
       return;
     }
 
@@ -117,7 +117,7 @@ export default function AdminPanel({ isOpen, onClose }) {
     const { error } = await deleteAnnouncement(id);
     setDeletingId(null);
     if (error) {
-      setStatus({ type: 'error', message: `Error al eliminar: ${error.message}` });
+      setStatus({ type: 'error', message: `Error al eliminar: ${describeError(error)}` });
       return;
     }
     setStatus({ type: 'ok', message: 'Comunicado eliminado.' });

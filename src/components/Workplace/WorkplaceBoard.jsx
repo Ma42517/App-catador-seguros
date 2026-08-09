@@ -9,7 +9,7 @@ import { stampWatermark } from '../../data/watermark';
 import { useAccess } from '../../context/AccessContext';
 import { categoryOf, relativeTime } from '../../data/announcements';
 import {
-  fetchAnnouncements, publishAnnouncement, deleteAnnouncement,
+  fetchAnnouncements, publishAnnouncement, deleteAnnouncement, describeError,
 } from '../../data/announcementsRepo';
 
 /** Imagen de prueba mientras la promotoría no suba flyers reales. */
@@ -201,7 +201,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     const { data, error } = await fetchAnnouncements();
     setLoadingFeed(false);
     if (error) {
-      setToast('No se pudieron cargar los comunicados.');
+      setToast(`No se pudieron cargar los comunicados. ${describeError(error)}`);
       return;
     }
     setFeed(data.map(toCardModel));
@@ -216,7 +216,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const handlePublish = useCallback(async (draft) => {
     const { error } = await publishAnnouncement(draft);
     if (error) {
-      setToast('No se pudo publicar el comunicado.');
+      setToast(`No se pudo publicar. ${describeError(error)}`);
       return;
     }
     setToast('Comunicado publicado al equipo');

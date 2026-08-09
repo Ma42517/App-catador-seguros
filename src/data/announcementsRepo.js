@@ -14,6 +14,21 @@ export const usingSupabase = isSupabaseConfigured;
 
 const TABLE = 'announcements';
 
+/**
+ * Convierte un error de Supabase en un mensaje que se pueda leer en pantalla.
+ *
+ * Los errores de Postgres traen `hint` con la instrucción exacta para
+ * arreglarlos (por ejemplo el GRANT que falta). Descartarlo obligaría a abrir
+ * la consola del navegador para saber qué pasó, así que se muestra completo.
+ */
+export function describeError(error) {
+  if (!error) return '';
+  const parts = [error.message || 'Error desconocido'];
+  if (error.code) parts.push(`(código ${error.code})`);
+  if (error.hint) parts.push(`· Solución: ${error.hint}`);
+  return parts.join(' ');
+}
+
 /** Convierte una fila de Supabase a la forma que usan los componentes. */
 function fromRow(row) {
   return {
