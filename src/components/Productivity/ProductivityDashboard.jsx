@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Megaphone, Target, CircleDollarSign, Flame } from 'lucide-react';
 import SquareCard from './SquareCard';
+import WideCard from './WideCard';
 import ProspectaHero from './ProspectaHero';
 import ProspectaScreen from '../Prospecta/ProspectaScreen';
 import WorkplaceBoard from '../Workplace/WorkplaceBoard';
@@ -11,18 +12,19 @@ import WorkplaceBoard from '../Workplace/WorkplaceBoard';
  *
  * `onClick` se resuelve en el componente; hoy sólo Workplace tiene destino.
  */
+/** Workplace conserva el formato ancho: es el canal de la promotoría. */
+const WORKPLACE = {
+  title: 'Workplace',
+  subtitle: 'Mensajes y avisos de la Promotoría',
+  icon: Megaphone,
+  gradient: 'from-zinc-900 via-blue-950 to-blue-900',
+  glow: 'hover:shadow-[0_0_28px_rgba(59,130,246,0.35)]',
+  iconTone: 'text-cyan-300/80',
+  badge: 1,
+  badgeLabel: '1 aviso nuevo de la promotoría',
+};
+
 const CARDS = [
-  {
-    key: 'workplace',
-    title: 'Workplace',
-    subtitle: 'Avisos de tu promotoría',
-    icon: Megaphone,
-    gradient: 'from-zinc-900 via-blue-950 to-blue-900',
-    glow: 'hover:shadow-[0_0_28px_rgba(59,130,246,0.35)]',
-    iconTone: 'text-cyan-300',
-    badge: 1,
-    badgeLabel: '1 aviso nuevo de la promotoría',
-  },
   {
     key: 'metas',
     title: 'Mis Metas',
@@ -66,7 +68,22 @@ export default function ProductivityDashboard({ username }) {
       {/* Banner de ancho completo: acceso a las tres etapas de prospección */}
       <ProspectaHero onClick={() => setProspectaOpen(true)} />
 
-      <div className="mt-5 grid grid-cols-2 gap-4">
+      {/* Workplace a ancho completo, con su tamaño original */}
+      <div className="mt-5">
+        <WideCard
+          title={WORKPLACE.title}
+          subtitle={WORKPLACE.subtitle}
+          icon={WORKPLACE.icon}
+          gradient={WORKPLACE.gradient}
+          glow={WORKPLACE.glow}
+          iconTone={WORKPLACE.iconTone}
+          badge={WORKPLACE.badge}
+          badgeLabel={WORKPLACE.badgeLabel}
+          onClick={() => setWorkplaceOpen(true)}
+        />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4">
         {CARDS.map((card) => (
           <SquareCard
             key={card.key}
@@ -76,9 +93,6 @@ export default function ProductivityDashboard({ username }) {
             gradient={card.gradient}
             glow={card.glow}
             iconTone={card.iconTone}
-            badge={card.badge}
-            badgeLabel={card.badgeLabel}
-            onClick={card.key === 'workplace' ? () => setWorkplaceOpen(true) : undefined}
           />
         ))}
       </div>
