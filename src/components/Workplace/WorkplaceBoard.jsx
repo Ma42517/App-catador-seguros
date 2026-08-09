@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Share2, FileText, Loader2, PenSquare, Trash2 } from 'lucide-react';
+import { Share2, FileText, Loader2, PenSquare, Trash2, Lock } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
 import AccessBar from '../Access/AccessBar';
@@ -96,6 +96,30 @@ const ANNOUNCEMENTS = [
 
 
 
+/** Estado del muro cuando no hay vínculo: explica qué falta, sin adelantar contenido. */
+function LockedWall() {
+  return (
+    <div className="py-12 text-center">
+      <span
+        className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border
+                   border-zinc-200 bg-zinc-50 text-zinc-400
+                   dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-500"
+        aria-hidden="true"
+      >
+        <Lock size={24} />
+      </span>
+
+      <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+        Muro privado de la promotoría
+      </p>
+      <p className="mx-auto mt-1.5 max-w-xs text-xs leading-relaxed text-zinc-500">
+        Ingresa el código de invitación que te compartieron para ver campañas, bases
+        y comunicados oficiales.
+      </p>
+    </div>
+  );
+}
+
 /** Tarjeta de anuncio. */
 function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelete }) {
   const { tag, tagTone, title, time, flyer, description, action, share } = announcement;
@@ -181,7 +205,7 @@ function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelet
 
 /** Tablero de anuncios de la promotoría. */
 export default function WorkplaceBoard({ isOpen, onClose, username }) {
-  const { isPromoter } = useAccess();
+  const { isLinked, isPromoter } = useAccess();
   const [sharingId, setSharingId] = useState(null);
   const [toast, setToast] = useState('');
   const [isPublishOpen, setPublishOpen] = useState(false);
@@ -254,36 +278,48 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     <FullScreenView isOpen={isOpen} onClose={onClose} title="Workplace">
       <AccessBar onNotify={setToast} />
 
-      {/* Publicar sólo existe para el promotor: el asesor únicamente lee */}
-      {isPromoter && (
-        <button
-          type="button"
-          onClick={() => setPublishOpen(true)}
-          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600
-                     px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30
-                     transition-all hover:bg-indigo-500 active:scale-[0.98]"
-        >
-          <PenSquare size={16} />
-          Publicar comunicado
-        </button>
+      {/*
+        El muro es contenido de la promotoría: sin vínculo no se muestra nada,
+        ni siquiera los comunicados de ejemplo. Así el código de invitación es
+        lo único en pantalla y queda claro qué hace falta para entrar.
+      */}
+      {!isLinked ? (
+        <LockedWall />
+      ) : (
+        <>
+          {/* Publicar sólo existe para el promotor: el asesor únicamente lee */}
+          {isPromoter && (
+            <button
+              type="button"
+              onClick={() => setPublishOpen(true)}
+              className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl
+                         bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg
+                         shadow-indigo-600/30 transition-all hover:bg-indigo-500
+                         active:scale-[0.98]"
+            >
+              <PenSquare size={16} />
+              Publicar comunicado
+            </button>
+          )}
+
+          {feed.map((announcement) => (
+            <AnnouncementCard
+              key={announcement.id}
+              announcement={announcement}
+              isSharing={sharingId === announcement.id}
+              onShare={(share) => handleShare(announcement.id, share)}
+              canDelete={isPromoter && announcement.publishedByPromoter}
+              onDelete={() => handleDelete(announcement.id)}
+            />
+          ))}
+
+          <PublishSheet
+            isOpen={isPublishOpen}
+            onClose={() => setPublishOpen(false)}
+            onPublish={handlePublish}
+          />
+        </>
       )}
-
-      {feed.map((announcement) => (
-        <AnnouncementCard
-          key={announcement.id}
-          announcement={announcement}
-          isSharing={sharingId === announcement.id}
-          onShare={(share) => handleShare(announcement.id, share)}
-          canDelete={isPromoter && announcement.publishedByPromoter}
-          onDelete={() => handleDelete(announcement.id)}
-        />
-      ))}
-
-      <PublishSheet
-        isOpen={isPublishOpen}
-        onClose={() => setPublishOpen(false)}
-        onPublish={handlePublish}
-      />
 
       <Toast message={toast} onDone={clearToast} />
     </FullScreenView>
