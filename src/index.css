@@ -210,8 +210,23 @@
     /* Resplandores flotantes del banner principal. */
     .animate-orb-drift,
     /* Entrada del cartel de meta cumplida; el confeti ya se omite en el JSX. */
-    .animate-celebrate {
+    .animate-celebrate,
+    /* Campana, llama y reflejo de las tarjetas del hub. */
+    .animate-swing,
+    .animate-flicker,
+    .animate-shine,
+    .animate-spin-slow {
       animation: none;
+    }
+
+    /*
+      El anillo de metas es la excepción: en lugar de anular su animación se
+      salta al final. Detenerla lo dejaría dibujado al 0%, es decir mostrando un
+      dato falso.
+    */
+    .animate-draw-ring {
+      animation-duration: 0.01ms;
+      animation-iteration-count: 1;
     }
   }
 }

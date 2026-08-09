@@ -50,12 +50,45 @@ export default {
           '0%, 100%': { transform: 'translate(-8%, -6%) scale(1)' },
           '50%': { transform: 'translate(10%, 8%) scale(1.18)' },
         },
+        // Campana del Workplace: repica y se queda quieta un rato. La pausa
+        // importa; balanceándose sin parar se convertiría en ruido visual.
+        swing: {
+          '0%, 65%, 100%': { transform: 'rotate(0deg)' },
+          '70%': { transform: 'rotate(12deg)' },
+          '76%': { transform: 'rotate(-10deg)' },
+          '82%': { transform: 'rotate(7deg)' },
+          '88%': { transform: 'rotate(-4deg)' },
+          '94%': { transform: 'rotate(2deg)' },
+        },
+        // Llama de las rachas: late rápido y desigual, como algo que arde.
+        flicker: {
+          '0%, 100%': { transform: 'scale(1) translateY(0)', opacity: '0.9' },
+          '25%': { transform: 'scale(1.12) translateY(-1px)', opacity: '1' },
+          '45%': { transform: 'scale(0.97) translateY(0)', opacity: '0.85' },
+          '70%': { transform: 'scale(1.07) translateY(-0.5px)', opacity: '1' },
+        },
+        // El anillo de metas se dibuja al aparecer la tarjeta.
+        'draw-ring': {
+          from: { strokeDashoffset: 'var(--ring-length)' },
+          to: { strokeDashoffset: 'var(--ring-target)' },
+        },
+        // Reflejo que recorre el monto de Dinero en la Mesa.
+        shine: {
+          '0%': { backgroundPosition: '-150% 50%' },
+          '100%': { backgroundPosition: '250% 50%' },
+        },
       },
       animation: {
         breathe: 'breathe 6s ease-in-out infinite',
         'ring-active': 'ring-active 1.4s ease-in-out infinite',
         'gradient-shift': 'gradient-shift 9s ease-in-out infinite',
         'orb-drift': 'orb-drift 14s ease-in-out infinite',
+        swing: 'swing 4s ease-in-out infinite',
+        flicker: 'flicker 1.6s ease-in-out infinite',
+        // `forwards` deja el anillo en su valor final en vez de volver a cero.
+        'draw-ring': 'draw-ring 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        shine: 'shine 3.4s ease-in-out infinite',
+        'spin-slow': 'spin 10s linear infinite',
       },
       backgroundImage: {
         'grid-fade':

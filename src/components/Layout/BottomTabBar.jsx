@@ -2,8 +2,8 @@ import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
-  'flex flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-zinc-500 transition-all '
-  + 'dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 '
+  'flex flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-zinc-600 transition-all '
+  + 'dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 '
   // Pastilla de cristal al pasar el cursor / enfocar, como en iOS.
   + 'hover:bg-white/50 hover:backdrop-blur-xl dark:hover:bg-white/10 '
   + 'focus-visible:text-indigo-600 focus-visible:outline-none focus-visible:bg-white/50 '
@@ -39,7 +39,7 @@ export default function BottomTabBar({ onToday, onProductivity, onAgenda, onAdd,
         className="pointer-events-auto mx-auto mb-2 w-full max-w-lg rounded-[1.75rem] border
                    border-zinc-200/70 bg-white/70 px-2 pt-3 pb-2 shadow-2xl shadow-zinc-950/10
                    backdrop-blur-2xl backdrop-saturate-150
-                   dark:border-white/10 dark:bg-zinc-950/60 dark:shadow-black/40
+                   dark:border-white/10 dark:bg-zinc-950/85 dark:shadow-black/50
                    [box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.4)]
                    dark:[box-shadow:inset_0_1px_0_0_rgb(255_255_255/0.09)]"
       >
@@ -92,7 +92,7 @@ export default function BottomTabBar({ onToday, onProductivity, onAgenda, onAdd,
         >
           <Plus size={23} strokeWidth={2.3} />
         </span>
-        <span className={`${LABEL} mt-1 text-zinc-500 dark:text-zinc-400`}>Agregar</span>
+        <span className={`${LABEL} mt-1 text-zinc-600 dark:text-zinc-300`}>Agregar</span>
       </button>
       </div>
 
