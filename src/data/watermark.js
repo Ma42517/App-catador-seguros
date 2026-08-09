@@ -13,6 +13,17 @@ const NAME_RATIO = 0.055;
 const PHONE_RATIO = 0.042;
 const JPEG_QUALITY = 0.92;
 
+/**
+ * Opacidades de la marca. Discretas a propósito: la marca acompaña al flyer,
+ * no compite con él. La sombra del texto se mantiene firme porque, con el velo
+ * más tenue, es lo que sostiene la legibilidad sobre fondos claros.
+ */
+const SCRIM_MID_ALPHA = 0.3;
+const SCRIM_BOTTOM_ALPHA = 0.55;
+const NAME_ALPHA = 0.82;
+const PHONE_ALPHA = 0.68;
+const TEXT_SHADOW_ALPHA = 0.6;
+
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -61,8 +72,8 @@ export async function stampWatermark(blob, { displayName, phone } = {}) {
     const bandTop = canvas.height - bandHeight;
     const scrim = ctx.createLinearGradient(0, bandTop, 0, canvas.height);
     scrim.addColorStop(0, 'rgba(0,0,0,0)');
-    scrim.addColorStop(0.45, 'rgba(0,0,0,0.55)');
-    scrim.addColorStop(1, 'rgba(0,0,0,0.88)');
+    scrim.addColorStop(0.45, `rgba(0,0,0,${SCRIM_MID_ALPHA})`);
+    scrim.addColorStop(1, `rgba(0,0,0,${SCRIM_BOTTOM_ALPHA})`);
     ctx.fillStyle = scrim;
     ctx.fillRect(0, bandTop, canvas.width, bandHeight);
 
@@ -73,8 +84,7 @@ export async function stampWatermark(blob, { displayName, phone } = {}) {
 
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowColor = `rgba(0,0,0,${TEXT_SHADOW_ALPHA})`;
     ctx.shadowBlur = Math.round(canvas.width * 0.012);
 
     // Se dibuja de abajo hacia arriba para anclar el bloque al borde inferior.
@@ -83,7 +93,7 @@ export async function stampWatermark(blob, { displayName, phone } = {}) {
       const isName = i === 0;
       const size = isName ? nameSize : phoneSize;
       ctx.font = `${isName ? 700 : 500} ${size}px Inter, system-ui, -apple-system, sans-serif`;
-      ctx.fillStyle = isName ? '#ffffff' : 'rgba(255,255,255,0.88)';
+      ctx.fillStyle = `rgba(255,255,255,${isName ? NAME_ALPHA : PHONE_ALPHA})`;
       ctx.fillText(lines[i], pad, baseline);
       baseline -= size + gap;
     }
