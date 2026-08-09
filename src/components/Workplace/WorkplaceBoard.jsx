@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Share2, FileText, Link2, Loader2 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
+import Toast from '../Layout/Toast';
 
 /** Imagen de prueba mientras la promotoría no suba flyers reales. */
 const FLYER_IMAGE_URL = 'https://picsum.photos/800/1200';
@@ -111,28 +112,6 @@ function LinkPromoteria() {
       <p className="mt-1.5 px-1 text-[11px] text-zinc-500">
         Vincular Promotoría para recibir sus comunicados.
       </p>
-    </div>
-  );
-}
-
-/** Aviso flotante breve. Va sobre la pantalla completa (z mayor). */
-function Toast({ message, onDone }) {
-  useEffect(() => {
-    if (!message) return undefined;
-    const timer = setTimeout(onDone, 2600);
-    return () => clearTimeout(timer);
-  }, [message, onDone]);
-
-  if (!message) return null;
-
-  return (
-    <div
-      role="status"
-      className="animate-rise fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 rounded-full
-                 bg-zinc-900 px-4 py-2 text-center text-xs font-semibold text-white shadow-xl
-                 ring-1 ring-white/10 dark:bg-zinc-800"
-    >
-      {message}
     </div>
   );
 }

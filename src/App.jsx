@@ -234,6 +234,7 @@ function Shell({ onLogout, isPreview, role, profileName }) {
       canUsePreview={canUsePreview}
       isDark={isDark}
       onToggleTheme={toggleTheme}
+      username={profileName}
     >
       {activeSection === 'preview' ? (
         <DevicePreview />

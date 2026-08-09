@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import {
-  Gauge, UserRound, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
-  StickyNote, Wand2, Eraser,
+  Gauge, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
+  StickyNote, Wand2, Eraser, BadgeCheck,
 } from 'lucide-react';
 
 /**
@@ -54,7 +54,7 @@ function MenuRow({ icon: Icon, label, hint, action, tone = 'default', onClick })
  * Aloja el acceso destacado al Diagnóstico 360 y las opciones de cuenta.
  */
 export default function MoreMenu({
-  open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onLogout,
+  open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile, onLogout,
   onLoadDemo, onClearAgenda, canUsePreview = false, isDark = true, onToggleTheme,
 }) {
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
@@ -130,8 +130,8 @@ export default function MoreMenu({
         </button>
 
         <div className="space-y-1 pb-2">
+          <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
           <MenuRow icon={StickyNote} label="Mis Notas" onClick={onOpenNotes} />
-          <MenuRow icon={UserRound} label="Mi Perfil" hint="Pronto" />
           <MenuRow icon={Settings} label="Configuración" hint="Pronto" />
           <MenuRow
             icon={isDark ? Sun : Moon}

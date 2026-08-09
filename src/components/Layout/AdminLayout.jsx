@@ -5,6 +5,7 @@ import QuickAddMenu from './QuickAddMenu';
 import ActivityForm from '../Activities/ActivityForm';
 import QuickNoteForm from '../Notes/QuickNoteForm';
 import NotesList from '../Notes/NotesList';
+import UserProfile from '../Profile/UserProfile';
 import { useEvents } from '../../context/EventContext';
 
 /**
@@ -15,12 +16,13 @@ import { useEvents } from '../../context/EventContext';
  * "Ver más" junto con las notas y las opciones de cuenta.
  */
 export default function AdminLayout({
-  onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme,
+  onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme, username,
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda } = useEvents();
   const [moreOpen, setMoreOpen] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   // Qué formulario está abierto: 'actividad' | 'recordatorio' | 'nota' | null.
   const [activeForm, setActiveForm] = useState(null);
 
@@ -63,12 +65,19 @@ export default function AdminLayout({
 
       <NotesList isOpen={notesOpen} onClose={() => setNotesOpen(false)} />
 
+      <UserProfile
+        isOpen={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        username={username}
+      />
+
       <MoreMenu
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
         onOpenDiagnostico={() => goTo('wizard')}
         onOpenPreview={() => goTo('preview')}
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
+        onOpenProfile={() => { setMoreOpen(false); setProfileOpen(true); }}
         onLogout={onLogout}
         onLoadDemo={() => { loadDemoWeek(); setMoreOpen(false); onNavigate('agenda'); }}
         onClearAgenda={() => { clearAgenda(); setMoreOpen(false); }}
