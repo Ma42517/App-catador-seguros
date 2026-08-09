@@ -1,5 +1,54 @@
-import { Download, FileText, Link2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Share2, FileText, Link2, Loader2 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
+
+/** Imagen de prueba mientras la promotoría no suba flyers reales. */
+const FLYER_IMAGE_URL = 'https://picsum.photos/800/1200';
+const FLYER_FILE_NAME = 'promocion.jpg';
+
+/**
+ * Comparte el archivo de imagen por el menú nativo del sistema.
+ *
+ * Devuelve el desenlace para que la interfaz avise lo correcto:
+ *  - 'shared'    → se abrió la hoja nativa y se compartió
+ *  - 'cancelled' → el usuario cerró la hoja (no es un error)
+ *  - 'downloaded'→ el navegador no soporta compartir archivos; se descargó
+ */
+async function shareImageFile({ imageUrl, fileName, title, text }) {
+  const response = await fetch(imageUrl);
+  if (!response.ok) throw new Error(`La imagen no se pudo descargar (${response.status})`);
+
+  const blob = await response.blob();
+  const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+
+  // `canShare` con `files` es la única forma fiable de saber si el sistema
+  // acepta archivos: hay navegadores con `share` pero sin soporte de archivos.
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title, text });
+      return 'shared';
+    } catch (error) {
+      // Cerrar la hoja nativa lanza AbortError; no es un fallo que reportar.
+      if (error?.name === 'AbortError') return 'cancelled';
+      throw error;
+    }
+  }
+
+  // Respaldo: descarga directa del archivo.
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    // Sin revocar, el blob queda retenido en memoria toda la sesión.
+    URL.revokeObjectURL(objectUrl);
+  }
+  return 'downloaded';
+}
 
 /**
  * Comunicados de la promotoría. El tablero es unidireccional —el asesor lee,
@@ -14,7 +63,12 @@ const ANNOUNCEMENTS = [
     title: 'Nueva Campaña de Vida y Gastos Médicos',
     time: 'Hace 2 horas',
     flyer: '[Flyer de la Campaña]',
-    action: { label: 'Descargar Flyer', icon: Download },
+    share: {
+      imageUrl: FLYER_IMAGE_URL,
+      fileName: FLYER_FILE_NAME,
+      title: 'Promoción',
+      text: '¡Revisa esto!',
+    },
   },
   {
     id: 'bases-convencion-2026',
@@ -61,9 +115,31 @@ function LinkPromoteria() {
   );
 }
 
+/** Aviso flotante breve. Va sobre la pantalla completa (z mayor). */
+function Toast({ message, onDone }) {
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = setTimeout(onDone, 2600);
+    return () => clearTimeout(timer);
+  }, [message, onDone]);
+
+  if (!message) return null;
+
+  return (
+    <div
+      role="status"
+      className="animate-rise fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 rounded-full
+                 bg-zinc-900 px-4 py-2 text-center text-xs font-semibold text-white shadow-xl
+                 ring-1 ring-white/10 dark:bg-zinc-800"
+    >
+      {message}
+    </div>
+  );
+}
+
 /** Tarjeta de anuncio. */
-function AnnouncementCard({ announcement }) {
-  const { tag, tagTone, title, time, flyer, description, action } = announcement;
+function AnnouncementCard({ announcement, onShare, isSharing }) {
+  const { tag, tagTone, title, time, flyer, description, action, share } = announcement;
   const ActionIcon = action?.icon;
 
   return (
@@ -94,6 +170,23 @@ function AnnouncementCard({ announcement }) {
         </div>
       )}
 
+      {share && (
+        <button
+          type="button"
+          onClick={() => onShare(share)}
+          disabled={isSharing}
+          className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2
+                     text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-100
+                     disabled:cursor-wait disabled:opacity-60
+                     dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          {isSharing
+            ? <Loader2 size={16} className="animate-spin" />
+            : <Share2 size={16} />}
+          {isSharing ? 'Preparando...' : 'Compartir Flyer'}
+        </button>
+      )}
+
       {action && (
         <button
           type="button"
@@ -113,13 +206,42 @@ function AnnouncementCard({ announcement }) {
 
 /** Tablero de anuncios de la promotoría. */
 export default function WorkplaceBoard({ isOpen, onClose }) {
+  const [sharingId, setSharingId] = useState(null);
+  const [toast, setToast] = useState('');
+
+  const clearToast = useCallback(() => setToast(''), []);
+
+  const handleShare = useCallback(async (id, share) => {
+    // Descargar el archivo toma tiempo: sin este candado, tocar dos veces
+    // dispara dos peticiones y dos hojas de compartir.
+    if (sharingId) return;
+    setSharingId(id);
+    try {
+      const outcome = await shareImageFile(share);
+      if (outcome === 'downloaded') setToast('Imagen guardada en tu galería');
+      // 'shared' no necesita aviso: el sistema ya dio su propia confirmación.
+      // 'cancelled' tampoco: el usuario decidió no compartir.
+    } catch {
+      setToast('No se pudo preparar la imagen. Revisa tu conexión.');
+    } finally {
+      setSharingId(null);
+    }
+  }, [sharingId]);
+
   return (
     <FullScreenView isOpen={isOpen} onClose={onClose} title="Workplace">
       <LinkPromoteria />
 
       {ANNOUNCEMENTS.map((announcement) => (
-        <AnnouncementCard key={announcement.id} announcement={announcement} />
+        <AnnouncementCard
+          key={announcement.id}
+          announcement={announcement}
+          isSharing={sharingId === announcement.id}
+          onShare={(share) => handleShare(announcement.id, share)}
+        />
       ))}
+
+      <Toast message={toast} onDone={clearToast} />
     </FullScreenView>
   );
 }
