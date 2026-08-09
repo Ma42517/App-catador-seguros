@@ -87,3 +87,14 @@ export function addActivity(username, activity) {
   saveUser(username, { ...bucket, activities: [...bucket.activities, entry] });
   return entry;
 }
+
+/* ---------- Carga masiva y limpieza (datos de ejemplo) ---------- */
+
+/** Reemplaza toda la información del usuario; se usa para la semana demo. */
+export function replaceEntries(username, { activities = [], notes = [] }) {
+  saveUser(username, { activities, notes });
+}
+
+export function clearEntries(username) {
+  saveUser(username, { activities: [], notes: [] });
+}

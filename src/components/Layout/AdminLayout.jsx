@@ -17,7 +17,7 @@ import { useEvents } from '../../context/EventContext';
 export default function AdminLayout({
   onNavigate, onLogout, children, canUsePreview = false, isDark, onToggleTheme,
 }) {
-  const { addEvent, addNote } = useEvents();
+  const { addEvent, addNote, loadDemoWeek, clearAgenda } = useEvents();
   const [moreOpen, setMoreOpen] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -70,6 +70,8 @@ export default function AdminLayout({
         onOpenPreview={() => goTo('preview')}
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onLogout={onLogout}
+        onLoadDemo={() => { loadDemoWeek(); setMoreOpen(false); onNavigate('calendar'); }}
+        onClearAgenda={() => { clearAgenda(); setMoreOpen(false); }}
         canUsePreview={canUsePreview}
         isDark={isDark}
         onToggleTheme={onToggleTheme}

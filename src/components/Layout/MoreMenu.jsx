@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import {
   Gauge, UserRound, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
-  StickyNote,
+  StickyNote, Wand2, Eraser,
 } from 'lucide-react';
 
 /**
@@ -55,7 +55,7 @@ function MenuRow({ icon: Icon, label, hint, action, tone = 'default', onClick })
  */
 export default function MoreMenu({
   open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onLogout,
-  canUsePreview = false, isDark = true, onToggleTheme,
+  onLoadDemo, onClearAgenda, canUsePreview = false, isDark = true, onToggleTheme,
 }) {
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -142,6 +142,8 @@ export default function MoreMenu({
           {canUsePreview && (
             <MenuRow icon={MonitorSmartphone} label="Vista previa" onClick={onOpenPreview} />
           )}
+          <MenuRow icon={Wand2} label="Cargar semana demo" onClick={onLoadDemo} />
+          <MenuRow icon={Eraser} label="Vaciar agenda" onClick={onClearAgenda} />
           <MenuRow icon={LogOut} label="Cerrar Sesión" tone="danger" onClick={onLogout} />
         </div>
       </div>
