@@ -183,12 +183,24 @@ export default function DigitalCardPreview({
     los 650 px del diseño. Desde `sm` recupera la medida fija, porque en
     escritorio siempre hay sitio y la maqueta debe verse igual.
   */
+  /*
+    El alto tiene que estar DEFINIDO, no sólo acotado con un mínimo.
+
+    Las dos caras van en `absolute inset-0`, que es lo que permite superponerlas
+    para el giro. Al estar fuera del flujo no aportan alto, así que el contenido
+    no puede definirlo: si aquí sólo se pone `min-h`, el elemento que gira —que
+    mide `h-full`— resuelve su alto contra un padre sin alto y colapsa a cero.
+    Las caras se dibujan entonces dentro de una caja de cero píxeles y la tarjeta
+    desaparece por completo.
+
+    En edición se usa la medida del diseño y es la página la que se desplaza. En
+    presentación se limita a la pantalla disponible, donde no hay nada más
+    alrededor con lo que compartir el espacio.
+  */
   const sizeClasses = isFill
     ? 'h-full w-full'
     : `mx-auto w-full max-w-[320px] ${editable
-      // En edición el alto lo pone el contenido: con un alto fijo, el texto que
-      // crece se recorta y no hay forma de llegar a lo que falta por escribir.
-      ? 'min-h-[650px]'
+      ? 'h-[650px]'
       : 'h-[min(650px,calc(100dvh-11rem))] sm:h-[650px]'}`;
 
   // El marco se repite en las dos caras: si viviera en el contenedor que gira,
@@ -433,15 +445,14 @@ export default function DigitalCardPreview({
               si dos áreas se solapan, gana la de escribir. Tocar un texto edita
               el texto, nunca abre el selector de archivos.
 
-              En edición no hay desplazamiento propio. Dos zonas de scroll
-              anidadas —la tarjeta dentro de la página— se pelean por el gesto: al
-              arrastrar sobre la tarjeta, el movimiento se lo comía el scroll
-              interno y la página no bajaba. En el editor la tarjeta crece con su
-              contenido y desplaza la página, que es una sola cosa y no se traba.
+              El desplazamiento propio se conserva en los dos modos, porque es lo
+              que evita que el texto largo se corte dentro de una caja de alto
+              fijo. `overscroll-contain` es lo que impide que se trabe: cuando esta
+              zona llega a su tope, el gesto pasa a la página en lugar de morir
+              aquí.
             */
-            className={`relative z-40 ${editable
-              ? ''
-              : 'flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}
+            className="relative z-40 flex-1 overflow-y-auto overscroll-contain
+                       [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             <div
               className={`flex min-h-full flex-col justify-end text-left text-white
