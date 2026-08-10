@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, Sparkles,
+  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, RotateCcw,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
 import { toEmbedUrl } from '../../data/videoEmbed';
@@ -163,7 +163,9 @@ function StoryRingAvatar({ avatarUrl, fullName, onOpen }) {
  * 60% superior y, por debajo del contenido, la misma foto desenfocada al
  * extremo tiñe la tarjeta con los colores del retrato.
  */
-export default function DigitalCardPreview({ card, variant = 'frame', onAddContact }) {
+export default function DigitalCardPreview({
+  card, variant = 'frame', onAddContact, onFlipChange,
+}) {
   const {
     fullName, title, company, license, specialties = [], bio, phone, email, whatsapp,
     avatarUrl, presentationVideoUrl,
@@ -174,6 +176,20 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
   const [isQrOpen, setQrOpen] = useState(false);
   const [isVideoOpen, setVideoOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
+
+  /**
+   * Voltea la tarjeta y avisa a quien la contiene.
+   *
+   * El estado se queda aquí en lugar de subirlo al padre: girar es un asunto de
+   * la tarjeta, y el editor —que también la muestra— no tiene nada que hacer con
+   * ese dato. La notificación es opcional, así que sólo la pantalla completa,
+   * que necesita retirar su flecha de salida al ver el reverso, se suscribe.
+   */
+  const flipTo = (next) => {
+    tapFeedback();
+    setIsFlipped(next);
+    onFlipChange?.(next);
+  };
 
   /*
     El enlace se traduce a su dirección para incrustar y, si no se reconoce como
@@ -292,7 +308,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
           {/* Paso al reverso, discreto y siempre alcanzable */}
           <button
             type="button"
-            onClick={() => { tapFeedback(); setIsFlipped(true); }}
+            onClick={() => flipTo(true)}
             /*
               El rótulo visible dice "Servicios", que es lo que se busca, pero no
               dice qué va a pasar al tocarlo. Quien navega a ciegas necesita
@@ -306,7 +322,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
                        hover:bg-white/20 active:scale-95 focus-visible:outline-none
                        focus-visible:ring-2 focus-visible:ring-white/60"
           >
-            <Sparkles size={12} strokeWidth={2.4} aria-hidden="true" />
+            <RotateCcw size={12} strokeWidth={2.4} className="animate-flip-hint" aria-hidden="true" />
             Servicios
           </button>
 
@@ -528,7 +544,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
                       [transform:rotateY(180deg)]
                       ${faceFrame} ${isFlipped ? '' : hiddenFace}`}
         >
-          <ServicesHubBack card={card} onBack={() => setIsFlipped(false)} />
+          <ServicesHubBack card={card} onBack={() => flipTo(false)} />
         </div>
       </div>
 
