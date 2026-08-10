@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
   StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard,
 } from 'lucide-react';
+import { useSession } from '../../context/SessionContext';
 
 /**
  * Fila estándar del menú.
@@ -62,6 +63,44 @@ function MenuRow({ icon: Icon, label, hint, action, badge, tone = 'default', onC
 }
 
 /**
+ * Miniatura de la foto de perfil, o el ícono genérico si no hay ninguna.
+ *
+ * La foto sale de la identidad de la sesión, que se relee al guardar la tarjeta:
+ * por eso el cambio se ve al instante, sin recargar.
+ *
+ * Si la imagen no carga —una URL caducada, el bucket que dejó de ser público— se
+ * vuelve al ícono. Sin ese respaldo quedaría un hueco roto en el lugar más
+ * visible del panel.
+ */
+function CardAvatar({ url }) {
+  const [failed, setFailed] = useState(false);
+
+  // Una foto nueva merece otro intento: el fallo anterior era de la anterior.
+  useEffect(() => { setFailed(false); }, [url]);
+
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt="Tu foto de perfil"
+        onError={() => setFailed(true)}
+        className="h-12 w-12 shrink-0 rounded-full border border-white/20 object-cover"
+      />
+    );
+  }
+
+  return (
+    <span
+      className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10
+                 ring-1 ring-white/15"
+      aria-hidden="true"
+    >
+      <IdCard size={24} />
+    </span>
+  );
+}
+
+/**
  * Panel secundario (bottom sheet) abierto desde "Ver más".
  * Aloja el acceso destacado al Diagnóstico 360 y las opciones de cuenta.
  */
@@ -71,6 +110,8 @@ export default function MoreMenu({
   canUsePreview = false, isAdminUser = false, pendingCount = 0,
   isDark = true, onToggleTheme,
 }) {
+  const { identity } = useSession();
+
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
     if (!open) return undefined;
@@ -135,13 +176,7 @@ export default function MoreMenu({
                      shadow-zinc-950/40 ring-1 ring-white/10
                      transition-transform hover:scale-[1.01]"
         >
-          <span
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10
-                       ring-1 ring-white/15"
-            aria-hidden="true"
-          >
-            <IdCard size={24} />
-          </span>
+          <CardAvatar url={identity?.avatarUrl} />
           <span className="min-w-0 flex-1">
             <span className="block text-base font-bold leading-tight">Mi Tarjeta Digital</span>
             <span className="mt-0.5 block text-xs text-zinc-400">

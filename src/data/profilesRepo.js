@@ -89,7 +89,9 @@ function fromRow(row) {
     // Datos de la tarjeta digital. Se leen con respaldo porque las columnas
     // pueden no existir todavía en una base que no corrió la migración.
     title: row.title ?? '',
-    license: row.license ?? '',
+    // La columna se llama `license_number` en la base; en la app el campo es
+    // `license`. La traducción vive sólo aquí, como el resto del mapeo.
+    license: row.license_number ?? '',
     company: row.company ?? '',
     specialties: Array.isArray(row.specialties) ? row.specialties : [],
     bio: row.bio ?? '',
@@ -116,7 +118,7 @@ export async function saveMyCard(userId, card) {
       full_name: card.fullName?.trim() ?? '',
       avatar_url: card.avatarUrl ?? '',
       title: card.title?.trim() ?? '',
-      license: card.license?.trim() ?? '',
+      license_number: card.license?.trim() ?? '',
       company: card.company?.trim() ?? '',
       specialties: card.specialties ?? [],
       bio: card.bio?.trim() ?? '',
