@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, RotateCcw, ChevronLeft,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
+import { publicCardUrl } from '../../lib/publicRoute';
 import { toEmbedUrl } from '../../data/videoEmbed';
 import QrPassModal from './QrPassModal';
 import VideoStoryModal from './VideoStoryModal';
@@ -177,6 +178,20 @@ export default function DigitalCardPreview({
   const [isVideoOpen, setVideoOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
 
+  /*
+    Aviso de que el enlace se copió. Vive dentro de la tarjeta y no en un aviso
+    global porque la tarjeta se muestra dentro de otras pantallas, y cada una
+    tiene su propio sitio para los mensajes; uno global aparecería en un lugar
+    distinto según desde dónde se comparta.
+  */
+  const [shareNote, setShareNote] = useState('');
+
+  useEffect(() => {
+    if (!shareNote) return undefined;
+    const timer = setTimeout(() => setShareNote(''), 2200);
+    return () => clearTimeout(timer);
+  }, [shareNote]);
+
   const flipTo = (next) => {
     tapFeedback();
     setIsFlipped(next);
@@ -219,6 +234,38 @@ export default function DigitalCardPreview({
       return;
     }
     onExit?.();
+  };
+
+  /**
+   * Entrega el enlace público de la tarjeta.
+   *
+   * Se prueba primero la hoja de compartir del sistema, que es la que permite
+   * mandarlo por WhatsApp en un toque —la vía por la que esto se va a usar de
+   * verdad—. En escritorio no existe, así que se copia al portapapeles y se
+   * avisa; sin ese aviso, el asesor no sabría si el toque hizo algo.
+   */
+  const shareCard = async () => {
+    if (!card.id) return;
+    tapFeedback();
+
+    const url = publicCardUrl(card.id);
+    const title = fullName ? `Tarjeta de ${fullName}` : 'Mi tarjeta digital';
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setShareNote('Enlace copiado');
+    } catch {
+      /*
+        Cancelar la hoja de compartir también entra aquí, y no es un error: no se
+        avisa de nada porque la persona acaba de decidir que no quería compartir.
+        Sólo se informa si el portapapeles tampoco estaba disponible.
+      */
+      if (!navigator.share) setShareNote('No se pudo copiar el enlace');
+    }
   };
 
   /*
@@ -574,12 +621,28 @@ export default function DigitalCardPreview({
                 <QrCode size={20} />
               </button>
 
-              <span
-                className="grid h-9 w-9 place-items-center text-white/80"
-                aria-hidden="true"
+              {/*
+                Compartir el enlace público. Deja de ser un adorno porque sin él
+                la tarjeta compartible no llega a nadie: el asesor tendría que
+                armar la dirección a mano.
+
+                Sin `id` —una tarjeta que todavía no existe en la base, como la
+                del editor sin guardar— queda apagado, en vez de compartir una
+                dirección que daría error al abrirse.
+              */}
+              <button
+                type="button"
+                onClick={shareCard}
+                disabled={!card.id}
+                aria-label="Compartir el enlace de mi tarjeta"
+                className="grid h-9 w-9 place-items-center rounded-full text-white/80
+                           transition-colors hover:bg-white/10 hover:text-white
+                           active:scale-90 disabled:cursor-default disabled:text-white/30
+                           disabled:hover:bg-transparent focus-visible:outline-none
+                           focus-visible:ring-2 focus-visible:ring-white/60"
               >
                 <Share2 size={19} />
-              </span>
+              </button>
             </span>
 
             {/*
@@ -635,6 +698,18 @@ export default function DigitalCardPreview({
         onClose={() => setVideoOpen(false)}
         title={fullName ? `Presentación de ${fullName}` : 'Video de presentación'}
       />
+
+      {/* Confirmación de que el enlace quedó copiado */}
+      {shareNote && (
+        <p
+          role="status"
+          className="animate-fade-in-up absolute bottom-20 left-1/2 z-40 -translate-x-1/2
+                     whitespace-nowrap rounded-full bg-black/80 px-3 py-1.5 text-[11px]
+                     font-semibold text-white ring-1 ring-white/20 backdrop-blur-md"
+        >
+          {shareNote}
+        </p>
+      )}
 
       {/*
         La flecha se dibuja al final y con `z-50`, por encima de los paneles
