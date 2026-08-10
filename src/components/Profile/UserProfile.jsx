@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BadgeCheck, Phone, UserRound } from 'lucide-react';
+import { BadgeCheck, Phone, UserRound, IdCard, ChevronRight } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
 import { readAdvisorProfile, saveAdvisorProfile, initialsFrom } from '../../data/advisorProfile';
@@ -38,7 +38,7 @@ function MinimalField({ id, label, placeholder, value, onChange, icon: Icon, ...
  * Perfil del asesor. Captura el nombre y el teléfono que después se
  * estamparán como marca de agua en los flyers compartidos.
  */
-export default function UserProfile({ isOpen, onClose, username }) {
+export default function UserProfile({ isOpen, onClose, username, onEditCard }) {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [toast, setToast] = useState('');
@@ -99,6 +99,38 @@ export default function UserProfile({ isOpen, onClose, username }) {
           Así aparecerán tus datos en los flyers que compartas.
         </p>
       </section>
+
+      {/*
+        Acceso a la tarjeta digital. Vive aquí y no en la pantalla de la tarjeta
+        porque esa es para mostrarla: separar el editar del mostrar es lo que
+        evita tener un formulario delante del prospecto.
+      */}
+      {onEditCard && (
+        <button
+          type="button"
+          onClick={onEditCard}
+          className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-zinc-200
+                     bg-white p-4 text-left transition-colors hover:border-indigo-400
+                     dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <span
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-zinc-100
+                       text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+            aria-hidden="true"
+          >
+            <IdCard size={19} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-zinc-900 dark:text-white">
+              Editar mi tarjeta digital
+            </span>
+            <span className="block text-[11px] text-zinc-500">
+              Foto, título, cédula, especialidades y contacto
+            </span>
+          </span>
+          <ChevronRight size={16} className="shrink-0 text-zinc-400" aria-hidden="true" />
+        </button>
+      )}
 
       <form onSubmit={handleSubmit}>
         <MinimalField

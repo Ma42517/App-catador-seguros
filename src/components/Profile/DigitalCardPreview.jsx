@@ -45,17 +45,28 @@ function SocialButton({ label, href, children }) {
  * fondo, el degradado negro la cubre de abajo hacia arriba, y el contenido va
  * encima. Sin el degradado, un retrato con fondo claro deja el nombre ilegible.
  */
-export default function DigitalCardPreview({ card }) {
+export default function DigitalCardPreview({ card, variant = 'frame' }) {
   const {
     fullName, title, company, license, specialties = [], bio, phone, email, whatsapp, avatarUrl,
   } = card;
 
   const digits = (value) => String(value ?? '').replace(/[^\d+]/g, '');
 
+  /*
+    Dos presentaciones de la misma tarjeta:
+      - `frame`: maqueta de celular, para verla junto al formulario.
+      - `fill`:  ocupa la pantalla entera. En un teléfono el marco sobra —el
+                 dispositivo ya es el marco—, y dibujarlo dentro de otro marco
+                 hace la tarjeta más pequeña justo cuando se la enseña a alguien.
+  */
+  const isFill = variant === 'fill';
+
   return (
     <div
-      className="relative mx-auto h-[650px] w-[320px] overflow-hidden rounded-[2.5rem]
-                 border-4 border-zinc-900 shadow-2xl"
+      className={isFill
+        ? 'relative h-full w-full overflow-hidden'
+        : `relative mx-auto h-[650px] w-[320px] overflow-hidden rounded-[2.5rem]
+           border-4 border-zinc-900 shadow-2xl`}
     >
       {/* Capa 1: la foto como fondo completo */}
       {avatarUrl ? (
@@ -92,7 +103,7 @@ export default function DigitalCardPreview({ card }) {
       />
 
       {/* Capa 3: contenido */}
-      <div className="relative z-10 flex h-full flex-col justify-end p-5 text-white">
+      <div className={`relative z-10 flex h-full flex-col justify-end text-white ${isFill ? 'p-6' : 'p-5'}`}>
         <h2 className="text-3xl font-bold uppercase leading-none tracking-tight">
           {fullName || <span className="text-white/40">Tu nombre</span>}
         </h2>
@@ -164,8 +175,9 @@ export default function DigitalCardPreview({ card }) {
 
       {/* Barra de acción del celular */}
       <div
-        className="absolute bottom-0 left-0 z-20 flex w-full items-center justify-between
-                   rounded-b-[2rem] bg-black/90 px-4 py-3 backdrop-blur-lg"
+        className={`absolute bottom-0 left-0 z-20 flex w-full items-center justify-between
+                    bg-black/90 px-4 py-3 backdrop-blur-lg
+                    ${isFill ? 'pb-safe' : 'rounded-b-[2rem]'}`}
       >
         <span className="flex items-center gap-3 text-white/80" aria-hidden="true">
           <QrCode size={20} />

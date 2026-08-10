@@ -59,10 +59,33 @@ function explainOAuthError(code, description) {
   return `${hint}${original ? ` · Detalle: ${original}` : ''}`;
 }
 
+/**
+ * Nombre presentable a partir del correo, para cuando la ficha no tiene uno.
+ *
+ * Quien se registra con correo y contraseña puede no traer nombre, y saludar con
+ * "Hola, marco@promotoria.mx" se lee como un error de la app. Del correo se
+ * saca la parte local, se parten los separadores y se capitaliza: es una
+ * aproximación, pero siempre mejor que una dirección completa en un saludo.
+ */
+function friendlyNameFrom(email) {
+  const local = String(email ?? '').split('@')[0];
+  if (!local) return '';
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 function identityFromProfile(profile) {
   return {
     key: profile.id,
-    name: profile.fullName || profile.email || 'Asesor',
+    /*
+      El nombre sale de la tarjeta digital (`full_name` de `profiles`): es el que
+      la persona eligió para presentarse, y es con el que la app debe llamarla.
+      El correo sólo alimenta un respaldo aproximado.
+    */
+    name: profile.fullName || friendlyNameFrom(profile.email) || 'Asesor',
     email: profile.email,
     avatarUrl: profile.avatarUrl,
     role: profile.role,
@@ -259,6 +282,19 @@ export function SessionProvider({ children }) {
     setStatus(SESSION_STATUS.ANON);
   }, []);
 
+  /**
+   * Relee la ficha y reconstruye la identidad.
+   *
+   * Hace falta al guardar la tarjeta digital: el nombre con el que la app saluda
+   * sale de ahí, y sin releer seguiría mostrando el anterior hasta recargar.
+   */
+  const refreshIdentity = useCallback(async () => {
+    if (!identity?.key) return;
+    const { data } = await fetchProfile(identity.key);
+    if (!alive.current || !data) return;
+    setIdentity(identityFromProfile(data));
+  }, [identity]);
+
   /** Relee el rol: lo usa la sala de espera para comprobar si ya la aprobaron. */
   const refreshRole = useCallback(async () => {
     const { data, error: readError } = await fetchProfile(identity.key);
@@ -295,10 +331,12 @@ export function SessionProvider({ children }) {
       signUpWithPassword,
       signOut,
       refreshRole,
+      refreshIdentity,
     };
   }, [
     status, identity, error,
     signInWithGoogle, signInWithPassword, signUpWithPassword, signOut, refreshRole,
+    refreshIdentity,
   ]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

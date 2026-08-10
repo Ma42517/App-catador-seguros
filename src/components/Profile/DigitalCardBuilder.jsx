@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import DigitalCardPreview from './DigitalCardPreview';
-import DigitalCardStage from './DigitalCardStage';
 import { useSession } from '../../context/SessionContext';
 import { fetchProfile, saveMyCard, describeError } from '../../data/profilesRepo';
 import { uploadAttachment } from '../../data/announcementsRepo';
@@ -58,26 +57,22 @@ function Field({ id, label, icon: Icon, hint, children }) {
 }
 
 /**
- * Mi Tarjeta Digital, en dos modos dentro de la misma pantalla.
+ * Edición de la tarjeta digital. Se entra desde Mi Perfil.
  *
- *  - Presentación: sólo la tarjeta, para girar el teléfono hacia el prospecto.
- *    Es el modo en que se abre, porque mostrarla es lo que se hace a diario;
- *    editarla, una vez cada tantos meses.
- *  - Edición: pantalla partida, con el formulario a la izquierda y la tarjeta a
- *    la derecha. Un solo estado alimenta las dos columnas, así que lo escrito
- *    aparece al momento: es la única forma de decidir si un título cabe.
+ * Pantalla partida: el formulario a la izquierda y la tarjeta a la derecha. Un
+ * solo estado alimenta las dos columnas, así que lo escrito aparece al momento:
+ * es la única forma de decidir si un título cabe o si la biografía es larga.
  *
- * Los dos modos comparten un componente y una carga de datos. Separarlos en dos
- * pantallas apiladas obligaría a leer el perfil dos veces y a mantener dos
- * copias del mismo estado en sincronía.
+ * Mostrar la tarjeta es otra pantalla (`DigitalCardScreen`), sin cabecera y a
+ * pantalla completa. Aquí sí hay cabecera y botones: esto es capturar datos, no
+ * presentarse.
  *
- * En celular las columnas del modo edición se apilan y la vista previa va
- * primero: sin verla, el formulario es una lista de campos sin contexto.
+ * En celular las columnas se apilan y la vista previa va primero: sin verla, el
+ * formulario es una lista de campos sin contexto.
  */
 export default function DigitalCardBuilder({ isOpen, onClose }) {
-  const { identity } = useSession();
+  const { identity, refreshIdentity } = useSession();
 
-  const [isEditing, setEditing] = useState(false);
   const [card, setCard] = useState(EMPTY_CARD);
   const [isLoading, setLoading] = useState(false);
   const [isSaving, setSaving] = useState(false);
@@ -126,9 +121,6 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return;
     setStatus(null);
-    // Cada apertura empieza en presentación, aunque la vez anterior se cerrara
-    // editando: al sacar el teléfono se quiere mostrar, no seguir capturando.
-    setEditing(false);
     load();
   }, [isOpen, load]);
 
@@ -215,7 +207,13 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
       persona ya tiene el prospecto delante.
     */
     savedRef.current = card;
-    setEditing(false);
+
+    /*
+      Se relee la identidad de la sesión: el nombre con el que la app saluda sale
+      de esta misma ficha, y sin refrescar seguiría mostrando el anterior —o el
+      correo— hasta que la persona recargara.
+    */
+    refreshIdentity();
     setStatus({ type: 'ok', message: 'Tarjeta guardada.' });
   };
 
@@ -225,9 +223,9 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
     <FullScreenView
       isOpen={isOpen}
       onClose={onClose}
-      title="Mi Tarjeta Digital"
-      label="Mi tarjeta digital"
-      wide={isEditing}
+      title="Editar mi tarjeta"
+      label="Editar mi tarjeta digital"
+      wide
     >
       {status && (
         <p
@@ -244,14 +242,6 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
         </p>
       )}
 
-      {!isEditing ? (
-        <DigitalCardStage
-          card={card}
-          isLoading={isLoading}
-          error={null}
-          onEdit={() => { setStatus(null); setEditing(true); }}
-        />
-      ) : (
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* ── Vista previa. Va primero en el orden del documento para que en
               celular aparezca arriba, y se reordena en escritorio. ── */}
@@ -470,10 +460,10 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
               <button
                 type="button"
                 onClick={() => {
-                  // Descarta lo escrito y vuelve a lo último confirmado.
+                  // Descarta lo escrito y cierra sin guardar.
                   setCard(savedRef.current);
                   setStatus(null);
-                  setEditing(false);
+                  onClose();
                 }}
                 disabled={busy}
                 className="rounded-xl border border-zinc-300 px-4 py-3.5 text-sm font-semibold
@@ -501,7 +491,6 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
           )}
         </div>
       </div>
-      )}
     </FullScreenView>
   );
 }

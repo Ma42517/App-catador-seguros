@@ -7,6 +7,7 @@ import QuickNoteForm from '../Notes/QuickNoteForm';
 import NotesList from '../Notes/NotesList';
 import UserProfile from '../Profile/UserProfile';
 import DigitalCardBuilder from '../Profile/DigitalCardBuilder';
+import DigitalCardScreen from '../Profile/DigitalCardScreen';
 import AdminPanel from '../Admin/AdminPanel';
 import UserApprovals from '../Admin/UserApprovals';
 import { useEvents } from '../../context/EventContext';
@@ -37,6 +38,7 @@ export default function AdminLayout({
   const [notesOpen, setNotesOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
+  const [cardEditOpen, setCardEditOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [approvalsOpen, setApprovalsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
@@ -101,12 +103,23 @@ export default function AdminLayout({
 
       <NotesList isOpen={notesOpen} onClose={() => setNotesOpen(false)} />
 
-      <DigitalCardBuilder isOpen={cardOpen} onClose={() => setCardOpen(false)} />
+      {/* Mostrar la tarjeta y editarla son dos pantallas distintas. */}
+      <DigitalCardScreen
+        isOpen={cardOpen}
+        onClose={() => setCardOpen(false)}
+        onEdit={() => { setCardOpen(false); setCardEditOpen(true); }}
+      />
+
+      <DigitalCardBuilder
+        isOpen={cardEditOpen}
+        onClose={() => setCardEditOpen(false)}
+      />
 
       <UserProfile
         isOpen={profileOpen}
         onClose={() => setProfileOpen(false)}
         username={username}
+        onEditCard={() => { setProfileOpen(false); setCardEditOpen(true); }}
       />
 
       {/* Sin permiso no se monta: perder el permiso con el panel abierto lo cierra. */}
