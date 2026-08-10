@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, Loader2, Pencil } from 'lucide-react';
 import DigitalCardPreview from './DigitalCardPreview';
+import LeadCaptureModal from './LeadCaptureModal';
+import Toast from '../Layout/Toast';
+import { saveLead, downloadVCard } from '../../data/leads';
 import { useSession } from '../../context/SessionContext';
 import { fetchProfile } from '../../data/profilesRepo';
 
@@ -21,6 +24,8 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
   const { identity } = useSession();
   const [card, setCard] = useState(null);
   const [isLoading, setLoading] = useState(false);
+  const [isCapturing, setCapturing] = useState(false);
+  const [toast, setToast] = useState('');
 
   const load = useCallback(async () => {
     if (!identity?.key) return;
@@ -62,6 +67,27 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
     };
   }, [isOpen, onClose]);
 
+  /**
+   * Cierra el intercambio: guarda al prospecto y entrega el contacto.
+   *
+   * El orden importa. Primero se guarda y después se descarga: si la descarga
+   * falla —un navegador que la bloquea— el asesor al menos se queda con el dato
+   * de la persona, que es lo que no se puede recuperar después.
+   */
+  const completeExchange = useCallback(async (lead) => {
+    saveLead(identity?.key, lead);
+    setCapturing(false);
+
+    try {
+      downloadVCard(card ?? {});
+      setToast(`Gracias, ${lead.name.split(' ')[0]}. Contacto descargado.`);
+    } catch {
+      setToast('Tus datos quedaron guardados, pero el contacto no se pudo descargar.');
+    }
+  }, [identity, card]);
+
+  const clearToast = useCallback(() => setToast(''), []);
+
   if (!isOpen) return null;
 
   /*
@@ -92,7 +118,11 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
               <Loader2 size={20} className="animate-spin" />
             </p>
           ) : (
-            <DigitalCardPreview card={card} variant="fill" />
+            <DigitalCardPreview
+              card={card}
+              variant="fill"
+              onAddContact={() => setCapturing(true)}
+            />
           )}
         </div>
       </div>
@@ -116,6 +146,15 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
         pantalla es para mostrar, y editar vive en Mi Perfil. Sin este atajo, una
         tarjeta recién creada sería un callejón sin salida.
       */}
+      <LeadCaptureModal
+        isOpen={isCapturing}
+        onClose={() => setCapturing(false)}
+        onSubmit={completeExchange}
+        advisorName={(card?.fullName || '').split(' ')[0]}
+      />
+
+      <Toast message={toast} onDone={clearToast} />
+
       {isEmpty && (
         <button
           type="button"

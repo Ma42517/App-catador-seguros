@@ -45,7 +45,7 @@ function SocialButton({ label, href, children }) {
  * fondo, el degradado negro la cubre de abajo hacia arriba, y el contenido va
  * encima. Sin el degradado, un retrato con fondo claro deja el nombre ilegible.
  */
-export default function DigitalCardPreview({ card, variant = 'frame' }) {
+export default function DigitalCardPreview({ card, variant = 'frame', onAddContact }) {
   const {
     fullName, title, company, license, specialties = [], bio, phone, email, whatsapp, avatarUrl,
   } = card;
@@ -184,13 +184,30 @@ export default function DigitalCardPreview({ card, variant = 'frame' }) {
           <Share2 size={19} />
         </span>
 
-        <span
-          className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
-                     font-semibold text-black"
-        >
-          <UserPlus size={14} />
-          Add to Contact
-        </span>
+        {/*
+          Sin `onAddContact` la pieza es sólo un adorno de la vista previa: en el
+          editor no debe capturar prospectos, y un botón que no hace nada
+          confundiría más que un rótulo.
+        */}
+        {onAddContact ? (
+          <button
+            type="button"
+            onClick={onAddContact}
+            className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
+                       font-semibold text-black transition-transform active:scale-95"
+          >
+            <UserPlus size={14} />
+            Add to Contact
+          </button>
+        ) : (
+          <span
+            className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
+                       font-semibold text-black"
+          >
+            <UserPlus size={14} />
+            Add to Contact
+          </span>
+        )}
       </div>
     </div>
   );
