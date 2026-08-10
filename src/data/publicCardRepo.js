@@ -21,9 +21,25 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
  * en el aviso que devuelve.
  */
 
-/** Columnas que la tarjeta necesita. Se piden por nombre, nunca con `*`. */
-const CARD_COLUMNS = 'id, full_name, avatar_url, title, company,'
-  + ' specialties, bio, phone, whatsapp, photo_focus';
+/**
+ * Columnas que la tarjeta necesita. Se piden por nombre, nunca con `*`.
+ *
+ * Van separadas en dos grupos porque no todas son igual de importantes. Las
+ * básicas existen desde el principio; las opcionales llegan con una migración, y
+ * hasta que se aplica no están en la base.
+ *
+ * Sin esa separación, pedir una columna nueva rompía la tarjeta entera: Postgres
+ * rechaza la consulta completa por un solo nombre que no reconoce, así que un
+ * dato accesorio —el encuadre de la foto— dejaba la página en "no pudimos
+ * cargarla" hasta que alguien corriera el guion. Y quien abre un enlace
+ * compartido no tiene forma de saber que el problema es una migración pendiente.
+ */
+const BASE_COLUMNS = 'id, full_name, avatar_url, title, company,'
+  + ' specialties, bio, phone, whatsapp';
+
+const OPTIONAL_COLUMNS = ['photo_focus'];
+
+const CARD_COLUMNS = [BASE_COLUMNS, ...OPTIONAL_COLUMNS].join(', ');
 
 /** Traduce una fila a la forma que consumen los componentes de la tarjeta. */
 function toCard(row) {
@@ -77,13 +93,31 @@ export async function fetchPublicCard(advisorId) {
   let { data, error } = await read('public_cards', CARD_COLUMNS);
 
   /*
-    Respaldo mientras la migración no esté aplicada. Se piden las mismas
-    columnas, así que aunque `profiles` tenga el correo y el rol, esta consulta
-    no los trae: lo que protege aquí es la lista de columnas, y en la vista lo
-    protege además la base.
+    Tres intentos, de lo completo a lo imprescindible. El orden importa: primero
+    se prueba la vista sin las columnas opcionales —la vista sigue siendo la
+    lectura segura, porque no expone el correo ni el rol—, y sólo si tampoco
+    existe se cae a `profiles`.
+
+    Antes había un único respaldo, y pedía las mismas columnas que el intento
+    original: si lo que faltaba era una columna nueva, fallaban los dos y la
+    tarjeta quedaba inservible. El respaldo tiene que quitar aquello que pudo
+    causar el fallo, no repetirlo.
+  */
+  if (isMissingObject(error)) {
+    ({ data, error } = await read('public_cards', BASE_COLUMNS));
+  }
+
+  /*
+    Último recurso mientras la vista no exista. Se piden las mismas columnas, así
+    que aunque `profiles` tenga el correo y el rol, esta consulta no los trae: lo
+    que protege aquí es la lista de columnas, y en la vista lo protege además la
+    base.
   */
   if (isMissingObject(error)) {
     ({ data, error } = await read('profiles', CARD_COLUMNS));
+    if (isMissingObject(error)) {
+      ({ data, error } = await read('profiles', BASE_COLUMNS));
+    }
   }
 
   if (error) return { card: null, error };
