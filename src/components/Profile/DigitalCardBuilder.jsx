@@ -239,7 +239,7 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
           `pb-28` deja libre el alto del botón flotante. Sin ese hueco, el último
           bloque queda debajo del botón y no se puede alcanzar.
         */
-        <div className="flex flex-col gap-5 pb-28">
+        <div className="flex flex-col gap-5 pb-4">
           <p className="flex items-start gap-1.5 text-center text-[11px] leading-relaxed
                         text-zinc-500"
           >
@@ -296,26 +296,17 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
           </div>
 
           <ContactDrawer card={card} onChange={setField} />
-        </div>
-      )}
 
-      {/*
-        Guardar flota sobre el contenido: se llega a él desde cualquier punto del
-        editor, sin tener que bajar hasta el final. En una pantalla donde se toca
-        texto por todas partes, obligar a buscar el botón es la forma más fácil de
-        perder los cambios.
+          {/*
+            Guardar y cancelar, en el flujo y al final.
 
-        `fixed` y no `sticky` porque esta pantalla se desplaza dentro de su propio
-        contenedor: con `sticky` el botón se quedaría anclado a un bloque y
-        desaparecería al llegar al final.
-      */}
-      {!isLoading && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200/70
-                     bg-white/85 px-4 pb-6 pt-3 backdrop-blur-md
-                     dark:border-zinc-800 dark:bg-zinc-950/85"
-        >
-          <div className="mx-auto flex max-w-md gap-3">
+            Antes iban fijos al borde inferior de la pantalla. Flotando se
+            superponían a la tarjeta —y sobre todo a su barra de acción, que es
+            donde vive "Add to Contact"—, así que tapaban justo la parte que se
+            está intentando revisar. Aquí abajo se llega a ellos al terminar de
+            editar, que es cuando se buscan, y no estorban en ningún momento.
+          */}
+          <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={() => {
