@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { Check, X, ZoomIn, Loader2 } from 'lucide-react';
-import { CARD_ASPECT, cropToCardBackground, approximateBytes } from '../../data/cardPhoto';
+import { CARD_ASPECT, cropToCardBackground } from '../../data/cardPhoto';
 
 /**
  * Modal de recorte de la foto de fondo de la tarjeta.
