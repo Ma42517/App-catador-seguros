@@ -18,10 +18,13 @@ specialties.map(...)
 
 Comentarios y textos de interfaz, en español.
 
-## Paleta
+## El diseño visual queda libre
 
-Grises con `zinc`. Nunca `slate`, ni siquiera si se pide por nombre: mezclar las
-dos escalas deja bordes y fondos que no empatan entre pantallas.
+A propósito no hay reglas de paleta, espaciado ni composición. Las decisiones
+estéticas se toman en cada caso y se discuten con quien pide el cambio, no se
+heredan de este archivo.
+
+Lo único que sí aplica al diseño es lo de abajo, y no es cuestión de gusto.
 
 ## La interfaz no miente
 

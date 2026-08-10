@@ -29,6 +29,21 @@ Los scripts van en `.kiro/scratch/`. Escribir en `/tmp` falla sin avisar. Las
 órdenes que contienen `--port` o un número de puerto no corren en línea: van
 dentro de un archivo de script.
 
+## Verificar una vez, no en bucle
+
+Verificar cuesta tiempo y contexto, así que se hace bien una vez y no se repite:
+
+- Lo ya comprobado en la sesión no se vuelve a comprobar. Tampoco se releen
+  archivos que ya se leyeron.
+- Una sola corrida de comprobaciones al final, no una por cada archivo tocado.
+- Se lee sólo lo que hace falta para el cambio. Recorrer el proyecto entero
+  "por si acaso" no es rigor, es desperdicio.
+- Ante un fallo, dos intentos de arreglo como máximo. Si al segundo sigue
+  fallando, se para y se reporta con lo que se sabe. Insistir a ciegas gasta más
+  de lo que resuelve.
+- Si el fallo estaba en la prueba y no en el código, se corrige la prueba y se
+  sigue. No se rediseña el código para complacer una prueba mal escrita.
+
 ## Reportar con honestidad
 
 Al terminar se dice qué quedó comprobado y qué no, y por qué. Si algo se probó
