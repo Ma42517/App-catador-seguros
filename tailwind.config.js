@@ -152,19 +152,36 @@ export default {
           '50%': { boxShadow: '0 0 10px 2px rgb(255 255 255 / 0.55)' },
         },
         /*
-          Pista de que el botón voltea la tarjeta: el icono da una vuelta
-          completa y se queda quieto un rato.
+          Pista de que el botón voltea la tarjeta: el icono gira media vuelta,
+          se detiene, gira la otra media y vuelve a detenerse.
 
-          El truco está en el segundo fotograma. La vuelta termina en -360°, que
-          es la misma posición que 0°, y ahí se queda hasta el final del ciclo;
-          así, cuando la animación reinicia, el salto de -360° a 0° no se ve. Si
-          en cambio se volviera a 0° a mitad del recorrido, el icono desharía el
-          giro girando al revés, que es justo lo contrario de lo que se quiere
-          comunicar.
+          Dos medias vueltas y no una entera porque el movimiento se percibe el
+          doble de veces por ciclo, y cada tramo corto llama más la atención que
+          una vuelta larga y uniforme —que el ojo lee como algo girando de
+          fondo, no como una invitación—.
+
+          El truco está en el último fotograma: el ciclo cierra en -360°, la
+          misma posición que 0°, y ahí se queda hasta el final. Así el reinicio
+          no se ve. Volver a 0° a media animación haría que el icono deshiciera
+          el giro girando al revés, justo lo contrario de lo que se comunica.
         */
         'flip-hint': {
-          '0%': { transform: 'rotate(0deg)' },
-          '30%, 100%': { transform: 'rotate(-360deg)' },
+          '0%, 18%': { transform: 'rotate(0deg)' },
+          '32%, 60%': { transform: 'rotate(-180deg)' },
+          '74%, 100%': { transform: 'rotate(-360deg)' },
+        },
+        /*
+          Halo de atención del botón de servicios.
+
+          Anima la sombra y nunca la opacidad. Es una decisión de legibilidad:
+          `animate-pulse` baja la opacidad de todo el elemento —fondo, aro y
+          texto—, y este botón vive sobre una foto imprevisible donde el
+          contraste se acababa de asegurar a base de fondo oscuro y aro claro.
+          Atenuarlo dos veces por segundo devolvería el problema que se arregló.
+        */
+        'attention-halo': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgb(255 255 255 / 0)' },
+          '50%': { boxShadow: '0 0 12px 2px rgb(255 255 255 / 0.28)' },
         },
       },
       animation: {
@@ -197,11 +214,12 @@ export default {
         float: 'float 3s ease-in-out infinite',
         'glow-outline': 'glow-outline 2.8s ease-in-out infinite',
         /*
-          Cuatro segundos: la vuelta ocupa poco más de uno y el resto es
-          reposo. Girando sin pausa el botón se leería como un cargador —algo
-          que está ocupado— en lugar de una invitación a tocarlo.
+          Seis segundos para las dos medias vueltas y sus dos pausas. Girando sin
+          pausa el botón se leería como un cargador —algo que está ocupado— en
+          lugar de una invitación a tocarlo.
         */
-        'flip-hint': 'flip-hint 4s ease-in-out infinite',
+        'flip-hint': 'flip-hint 6s ease-in-out infinite',
+        'attention-halo': 'attention-halo 3s ease-in-out infinite',
       },
       backgroundImage: {
         'grid-fade':

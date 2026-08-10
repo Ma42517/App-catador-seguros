@@ -377,14 +377,26 @@ export default function DigitalCardPreview({
               caso en que el fondo de la foto sea exactamente igual de oscuro
               que el del botón.
             */
-            className="absolute right-4 top-4 z-30 flex items-center gap-1.5 rounded-full
-                       bg-black/55 py-1.5 pl-2.5 pr-3 text-[11px] font-semibold text-white
-                       ring-1 ring-white/30 backdrop-blur-md transition-colors
-                       [text-shadow:0_1px_2px_rgb(0_0_0/0.9)]
+            className="animate-attention-halo absolute right-4 top-4 z-30 flex items-center
+                       gap-1.5 rounded-full bg-black/55 py-1.5 pl-2.5 pr-3 text-[11px]
+                       font-semibold text-white ring-1 ring-white/30 backdrop-blur-md
+                       transition-colors [text-shadow:0_1px_2px_rgb(0_0_0/0.9)]
                        hover:bg-black/70 active:scale-95 focus-visible:outline-none
                        focus-visible:ring-2 focus-visible:ring-white"
           >
-            <RotateCcw size={12} strokeWidth={2.4} className="animate-flip-hint" aria-hidden="true" />
+            {/*
+              La rotación va sólo en el icono. En el botón entero arrastraría la
+              palabra "Servicios" en el giro y quedaría ilegible o del revés
+              durante buena parte del ciclo, que es justo lo que el rótulo tiene
+              que evitar. El halo sí puede ir en el botón porque una sombra no
+              mueve ni atenúa nada de lo que hay dentro.
+            */}
+            <RotateCcw
+              size={12}
+              strokeWidth={2.4}
+              className="animate-flip-hint shrink-0"
+              aria-hidden="true"
+            />
             Servicios
           </button>
 

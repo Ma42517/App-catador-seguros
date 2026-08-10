@@ -226,7 +226,9 @@
     .animate-float,
     .animate-glow-outline,
     /* Pista de giro en los dos botones que voltean la tarjeta. */
-    .animate-flip-hint {
+    .animate-flip-hint,
+    /* Halo de atención del botón de servicios. */
+    .animate-attention-halo {
       animation: none;
     }
 
