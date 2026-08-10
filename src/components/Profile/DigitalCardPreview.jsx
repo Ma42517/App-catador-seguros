@@ -4,7 +4,7 @@ import {
   Camera, Plus, Minus,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
-import { focusStyle, parseFocus, serializeFocus } from '../../data/cardPhoto';
+import { focusStyle, serializeFocus } from '../../data/cardPhoto';
 import usePhotoFraming from './usePhotoFraming';
 import QrPassModal from './QrPassModal';
 import ShareSheet from './ShareSheet';
@@ -117,9 +117,22 @@ export default function DigitalCardPreview({
     confirmación porque no hay nada que confirmar, lo que se ve ya es el
     resultado.
   */
+  /** Hay foto y estamos editando: se puede entrar a acomodarla. */
+  const canFrame = editable && Boolean(avatarUrl);
+
+  /*
+    Modo acomodar, activo o no.
+
+    Existe porque arrastrar la foto y desplazar la página son el mismo gesto
+    físico, y sólo uno de los dos puede ganar. Con el modo apagado gana la página
+    —que es lo que se hace el 99% del tiempo— y un toque simple, que no compite
+    con ningún arrastre, es lo que cede el gesto a la foto.
+  */
+  const [isFraming, setFraming] = useState(false);
+
   const framing = usePhotoFraming({
     focus: photoFocus,
-    enabled: editable && Boolean(avatarUrl),
+    enabled: isFraming,
     onChange: (next) => onChange('photoFocus', serializeFocus(next)),
   });
 
@@ -301,22 +314,33 @@ export default function DigitalCardPreview({
             Capa 1 — Retrato: nítido, en el 60% superior.
 
             En edición este contenedor deja de ser decorativo y pasa a recibir los
-            gestos: es el sitio donde la foto se arrastra y se pellizca. Por eso
-            recupera los eventos y `cursor-move`, y por eso `touch-none` es
-            imprescindible —sin él el navegador entiende el arrastre como un gesto
-            de desplazamiento de la página y se queda con él, así que la foto no se
-            movería ni un píxel en el móvil—.
-
-            Fuera de edición vuelve a ser una capa muerta que no intercepta nada.
+            gestos, pero sólo cuando el modo acomodar está encendido. Fuera de
+            edición vuelve a ser una capa muerta que no intercepta nada.
           */}
           <div
             ref={framing.frameRef}
-            {...framing.handlers}
+            {...(isFraming ? framing.handlers : {})}
+            onClick={canFrame && !isFraming ? () => setFraming(true) : undefined}
             aria-hidden={!editable}
+            /*
+              `touch-none` sólo mientras se está acomodando, y ahí está la clave.
+
+              Esa propiedad le quita al navegador el gesto de desplazar, que es lo
+              que permite arrastrar la foto… y también lo que rompía el scroll de
+              la página: pasar el dedo por el 60% superior dejaba de mover la
+              pantalla. El mismo movimiento no puede significar dos cosas a la vez.
+
+              Fuera del modo acomodar el contenedor no reclama nada: el dedo
+              desplaza la página como en cualquier otro sitio, y un toque simple
+              —que no es un arrastre y por tanto no compite con él— es lo que
+              entra a colocar la foto.
+            */
             className={`absolute left-0 top-0 h-[60%] w-full ${
-              editable && avatarUrl
-                ? 'z-20 cursor-move touch-none select-none'
-                : 'pointer-events-none'}`}
+              !canFrame
+                ? 'pointer-events-none'
+                : isFraming
+                  ? 'z-20 cursor-move touch-none select-none'
+                  : 'z-20 cursor-pointer'}`}
           >
             {avatarUrl ? (
               <img
@@ -418,7 +442,7 @@ export default function DigitalCardPreview({
             apilados en el borde de la foto y en su tamaño mínimo cómodo: es una
             ayuda, no la vía principal, que es el gesto.
           */}
-          {editable && avatarUrl && (
+          {isFraming && (
             <div className="absolute right-4 top-[3.25rem] z-50 flex flex-col overflow-hidden
                             rounded-full bg-black/55 ring-1 ring-white/30 backdrop-blur-md"
             >
@@ -445,19 +469,54 @@ export default function DigitalCardPreview({
           )}
 
           {/*
-            Pista del gesto, sólo mientras la foto sigue centrada por omisión.
-            En cuanto se mueve algo desaparece: ya se descubrió para qué sirve, y
-            dejarla sería repetir una instrucción que ya se cumplió.
+            Estado del encuadre, sobre la propia foto.
+
+            Apagado invita a entrar; encendido confirma que el dedo ya mueve la
+            imagen y ofrece la salida. Sin este aviso, el modo sería invisible: la
+            persona tocaría la foto, el scroll dejaría de funcionar ahí y no habría
+            nada que explicara por qué.
           */}
-          {editable && avatarUrl && parseFocus(photoFocus).x === 50
-            && parseFocus(photoFocus).y === 50 && parseFocus(photoFocus).zoom === 1 && (
-            <p
-              className="pointer-events-none absolute inset-x-0 top-[45%] z-20 text-center
-                         text-[11px] font-semibold text-white/85
-                         [text-shadow:0_1px_3px_rgb(0_0_0/0.9)]"
+          {canFrame && !isFraming && (
+            <button
+              type="button"
+              onClick={() => setFraming(true)}
+              className="absolute left-1/2 top-[45%] z-30 -translate-x-1/2 whitespace-nowrap
+                         rounded-full bg-black/55 px-3 py-1.5 text-[11px] font-semibold
+                         text-white ring-1 ring-white/25 backdrop-blur-md transition-colors
+                         hover:bg-black/75"
             >
-              Arrastra tu foto para acomodarla
-            </p>
+              Toca para acomodar tu foto
+            </button>
+          )}
+
+          {isFraming && (
+            <>
+              {/* Marca el área activa sin taparla: sólo su contorno. */}
+              <span
+                className="pointer-events-none absolute left-0 top-0 z-30 h-[60%] w-full
+                           ring-2 ring-inset ring-indigo-400/70"
+                aria-hidden="true"
+              />
+
+              <button
+                type="button"
+                onClick={() => setFraming(false)}
+                className="absolute left-1/2 top-[45%] z-40 -translate-x-1/2 whitespace-nowrap
+                           rounded-full bg-indigo-600 px-4 py-1.5 text-[11px] font-bold
+                           text-white shadow-lg ring-1 ring-white/30 transition-colors
+                           hover:bg-indigo-500"
+              >
+                Listo
+              </button>
+
+              <p
+                className="pointer-events-none absolute inset-x-0 top-3 z-30 text-center
+                           text-[10px] font-semibold uppercase tracking-wider text-white/80
+                           [text-shadow:0_1px_3px_rgb(0_0_0/0.9)]"
+              >
+                Arrastra o pellizca tu foto
+              </p>
+            </>
           )}
 
           {/* Paso al reverso, discreto y siempre alcanzable */}
