@@ -81,9 +81,9 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="min-h-screen w-full max-w-full bg-white dark:bg-black">
-      {/* pb-24 evita que el contenido quede bajo la barra inferior */}
-      <div className="min-w-0 pb-28">{children}</div>
+    <div className="w-full min-h-screen overflow-x-hidden flex flex-col relative bg-white dark:bg-black">
+      {/* pb-28 + mb-24 evita que el contenido quede bajo la barra inferior */}
+      <div className="flex-1 min-w-0 w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto px-4 pb-28 mb-24">{children}</div>
 
       <BottomTabBar
         onToday={() => goTo('home')}

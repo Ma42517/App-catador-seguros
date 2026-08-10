@@ -1,1 +1,39 @@
-/* Tailwind handles all styling - this file is intentionally minimal */
+/* ===== Global iOS / Mobile-First Performance Fixes ===== */
+
+/* Prevent Safari rubber-band bounce */
+html,
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Safe area padding utility (for devices with notch/home indicator) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+}
+
+/* Smooth momentum scroll for any scrollable container */
+.scroll-smooth-touch {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Hardware-accelerated interactive elements */
+button,
+a,
+[role="button"] {
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent horizontal overflow from any child */
+#root {
+  width: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
