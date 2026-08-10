@@ -176,7 +176,7 @@ export default function ContactDrawer({ card, onChange }) {
           >
             <VideoUploadField
               value={card.videoUrl ?? ''}
-              onChange={(url) => onChange('videoUrl', url)}
+              onVideoUploaded={(url) => onChange('videoUrl', url)}
             />
 
             {/*

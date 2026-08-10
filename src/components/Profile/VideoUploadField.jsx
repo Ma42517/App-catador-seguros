@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import {
+  CheckCircle2, Trash2, AlertTriangle, Loader2, UploadCloud,
+} from 'lucide-react';
 import {
   uploadVideo, abortVideoUpload, validateVideoFile, isVideoUploadConfigured,
   ACCEPT_VIDEO, MAX_VIDEO_SECONDS,
@@ -17,7 +19,7 @@ import { videoKind, videoFileUrl, videoPosterUrl } from '../../data/videoEmbed';
  * El enlace de YouTube sigue aceptándose en el campo de al lado: quien ya lo
  * tenía puesto no debe perderlo, y para un video largo sigue siendo mejor sitio.
  */
-export default function VideoUploadField({ value, onChange, disabled = false }) {
+export default function VideoUploadField({ value, onVideoUploaded, disabled = false }) {
   const inputRef = useRef(null);
   const [isUploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -66,7 +68,7 @@ export default function VideoUploadField({ value, onChange, disabled = false }) 
       return;
     }
 
-    onChange(url);
+    onVideoUploaded(url);
   };
 
   /*
@@ -94,6 +96,19 @@ export default function VideoUploadField({ value, onChange, disabled = false }) 
 
   return (
     <div>
+      {/*
+        El input va oculto y se dispara desde el botón de abajo.
+
+        No es sólo estética: el botón que dibuja el navegador para un `<input
+        type="file">` no se puede estilar del todo y cada sistema lo pinta a su
+        manera —en Android sale un "Elegir archivo" gris que en móvil se desborda
+        del panel—. Con el input escondido, el botón es un botón normal y se ve
+        igual en todas partes.
+
+        `sr-only` en lugar de `hidden`: un input oculto con `display:none` deja de
+        ser alcanzable por teclado y por los lectores de pantalla, y con él se
+        pierde la única forma de elegir el archivo sin ratón.
+      */}
       <input
         ref={inputRef}
         id="card-video-file"
@@ -101,17 +116,30 @@ export default function VideoUploadField({ value, onChange, disabled = false }) 
         accept={ACCEPT_VIDEO}
         onChange={pick}
         disabled={disabled || isUploading}
-        /*
-          Estilo del propio botón del navegador con `file:`. Un input de archivo
-          sin estilar rompe el resto del panel: cada sistema lo dibuja a su
-          manera y en móvil se sale del ancho.
-        */
-        className="block w-full cursor-pointer text-sm text-zinc-500
-                   file:mr-3 file:cursor-pointer file:rounded-full file:border-0
-                   file:bg-indigo-600 file:px-4 file:py-2 file:text-sm
-                   file:font-semibold file:text-white hover:file:bg-indigo-500
-                   disabled:cursor-wait disabled:opacity-50"
+        className="sr-only"
       />
+
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={disabled || isUploading}
+        className="flex w-full items-center justify-center gap-2 rounded-xl
+                   bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3
+                   text-sm font-bold text-white shadow-lg shadow-indigo-600/25
+                   transition-all hover:from-indigo-500 hover:to-violet-500
+                   active:scale-[0.98] disabled:cursor-wait disabled:opacity-60
+                   focus-visible:outline-none focus-visible:ring-2
+                   focus-visible:ring-indigo-400"
+      >
+        {isUploading
+          ? <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+          : <UploadCloud size={16} aria-hidden="true" />}
+        {isUploading
+          ? 'Subiendo video…'
+          : (hasFileVideo
+            ? 'Cambiar video de presentación'
+            : `Subir Video de Presentación (Max ${MAX_VIDEO_SECONDS}s)`)}
+      </button>
 
       {isUploading && (
         <div className="mt-3" role="status" aria-live="polite">
@@ -188,7 +216,7 @@ export default function VideoUploadField({ value, onChange, disabled = false }) 
 
           <button
             type="button"
-            onClick={() => { setError(''); onChange(''); }}
+            onClick={() => { setError(''); onVideoUploaded(''); }}
             className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500
                        transition-colors hover:text-rose-500"
           >

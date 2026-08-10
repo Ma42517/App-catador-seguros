@@ -16,8 +16,28 @@
  * veces en tráfico.
  */
 
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME ?? '';
-const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_VIDEO_PRESET ?? 'tarjetas_video';
+/*
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  TU_CLOUD_NAME — reemplaza la cadena vacía por el nombre de tu nube.    │
+  │  Está arriba a la derecha del panel de Cloudinary, en "Cloud name".     │
+  │  Ejemplo:  const TU_CLOUD_NAME = 'dq8xk2abc';                           │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  Se puede dejar vacía y usar la variable `VITE_CLOUDINARY_CLOUD_NAME` en Vercel,
+  que es lo preferible: el mismo código sirve para pruebas y para producción sin
+  editarlo. Pero escribirla aquí no es una fuga de seguridad y conviene saberlo:
+  el nombre de la nube viaja en la dirección de todos los videos que se entregan,
+  así que ya es público por definición. Lo que nunca debe escribirse en el código
+  es el API Secret de Cloudinary, y aquí no hace falta ninguno porque la subida es
+  "unsigned".
+*/
+const TU_CLOUD_NAME = '';
+
+/** El preset de subida, también configurable por variable de entorno. */
+const TU_UPLOAD_PRESET = 'tarjetas_video';
+
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || TU_CLOUD_NAME;
+const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_VIDEO_PRESET || TU_UPLOAD_PRESET;
 
 /** ¿Está configurado el servicio en este entorno? */
 export const isVideoUploadConfigured = Boolean(CLOUD_NAME);
