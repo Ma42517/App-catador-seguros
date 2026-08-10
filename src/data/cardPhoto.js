@@ -14,8 +14,21 @@
  * ve igual en cualquier dispositivo sin guardar datos de encuadre en la base.
  */
 
-/** Proporción del fondo de la tarjeta: ancho / alto, igual que un celular. */
-export const CARD_ASPECT = 9 / 16;
+/**
+ * Proporción del recorte: ancho / alto de la zona donde vive el retrato.
+ *
+ * No es la del teléfono entero, es la de la **mitad superior** de la tarjeta,
+ * que es lo único que se ve nítido. En el marco de 320 × 650 esa zona mide
+ * 320 × 390, o sea 0.82; se usa 4/5 (0.8), que es prácticamente el mismo valor y
+ * un formato estándar de retrato.
+ *
+ * Antes valía 9/16, la del teléfono completo. Con esa proporción el recuadro del
+ * recortador era mucho más alto y estrecho que el hueco real, así que lo que la
+ * persona encuadraba no era lo que después se veía: al pintarse en una zona más
+ * cuadrada, los bordes se perdían y la cara acababa descentrada. Ése era el
+ * origen del problema del encuadre.
+ */
+export const CARD_ASPECT = 4 / 5;
 
 /** Alto de salida. El ancho se deriva de `CARD_ASPECT` para mantener nitidez
  *  en pantallas grandes sin generar un archivo pesado. */
