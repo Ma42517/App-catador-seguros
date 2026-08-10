@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, RefreshCw,
+  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, Sparkles,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
 import { toEmbedUrl } from '../../data/videoEmbed';
 import QrPassModal from './QrPassModal';
 import VideoStoryModal from './VideoStoryModal';
-import ClientPortalBack from './ClientPortalBack';
+import ServicesHubBack from './ServicesHubBack';
 
 /**
  * Icono de WhatsApp: lucide no lo trae, así que va como trazo propio.
@@ -293,14 +293,21 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
           <button
             type="button"
             onClick={() => { tapFeedback(); setIsFlipped(true); }}
+            /*
+              El rótulo visible dice "Servicios", que es lo que se busca, pero no
+              dice qué va a pasar al tocarlo. Quien navega a ciegas necesita
+              saber que la tarjeta se voltea, o el cambio de contenido llega sin
+              explicación.
+            */
+            aria-label="Ver servicios y soluciones, voltea la tarjeta"
             className="absolute right-4 top-4 z-30 flex items-center gap-1.5 rounded-full
                        border border-white/20 bg-white/10 py-1.5 pl-2.5 pr-3 text-[11px]
                        font-semibold text-white backdrop-blur-md transition-colors
                        hover:bg-white/20 active:scale-95 focus-visible:outline-none
                        focus-visible:ring-2 focus-visible:ring-white/60"
           >
-            <RefreshCw size={12} strokeWidth={2.4} aria-hidden="true" />
-            Soy Cliente
+            <Sparkles size={12} strokeWidth={2.4} aria-hidden="true" />
+            Servicios
           </button>
 
           {/* Capa 3 — Contenido */}
@@ -521,7 +528,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
                       [transform:rotateY(180deg)]
                       ${faceFrame} ${isFlipped ? '' : hiddenFace}`}
         >
-          <ClientPortalBack card={card} onBack={() => setIsFlipped(false)} />
+          <ServicesHubBack card={card} onBack={() => setIsFlipped(false)} />
         </div>
       </div>
 
