@@ -23,7 +23,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 /** Columnas que la tarjeta necesita. Se piden por nombre, nunca con `*`. */
 const CARD_COLUMNS = 'id, full_name, avatar_url, title, license_number, company,'
-  + ' specialties, bio, phone, whatsapp, presentation_video_url';
+  + ' specialties, bio, phone, whatsapp';
 
 /** Traduce una fila a la forma que consumen los componentes de la tarjeta. */
 function toCard(row) {
@@ -38,7 +38,6 @@ function toCard(row) {
     bio: row.bio ?? '',
     phone: row.phone ?? '',
     whatsapp: row.whatsapp ?? '',
-    presentationVideoUrl: row.presentation_video_url ?? '',
 
     /*
       El correo no se trae. En la tarjeta pública el botón de correo queda
@@ -85,12 +84,6 @@ export async function fetchPublicCard(advisorId) {
   */
   if (isMissingObject(error)) {
     ({ data, error } = await read('profiles', CARD_COLUMNS));
-
-    // Sin la columna del video tampoco: es la única que puede faltar aparte.
-    if (isMissingObject(error)) {
-      const withoutVideo = CARD_COLUMNS.replace(', presentation_video_url', '');
-      ({ data, error } = await read('profiles', withoutVideo));
-    }
   }
 
   if (error) return { card: null, error };

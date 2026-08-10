@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Save, Loader2, ImagePlus, X, Check, AlertTriangle, User, Mail, Phone, Building2,
-  BadgeCheck, Sparkles, Video,
+  BadgeCheck, Sparkles,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import DigitalCardPreview from './DigitalCardPreview';
@@ -10,7 +10,6 @@ import { fetchProfile, saveMyCard, describeError } from '../../data/profilesRepo
 import { uploadAttachment } from '../../data/announcementsRepo';
 import ImageCropperModal from './ImageCropperModal';
 import { readImageFile, dataUrlToFile } from '../../data/cardPhoto';
-import { isEmbeddableVideoUrl } from '../../data/videoEmbed';
 import { saveAdvisorProfile } from '../../data/advisorProfile';
 
 const INPUT =
@@ -40,7 +39,6 @@ const MAX_SPECIALTIES = 3;
 const EMPTY_CARD = {
   fullName: '', title: '', license: '', company: '',
   specialties: [], bio: '', phone: '', email: '', whatsapp: '', avatarUrl: '',
-  presentationVideoUrl: '',
 };
 
 /** Campo de texto con icono, para que el formulario se lea de un barrido. */
@@ -421,47 +419,6 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
                   })}
                 </div>
               </div>
-
-              {/*
-                Video de presentación. Se guarda el enlace y no el archivo: un
-                video pesa cientos de megas y se ve unas pocas veces, así que
-                subirlo gastaría el almacenamiento del proyecto para hacer peor
-                lo que YouTube y Vimeo ya hacen.
-              */}
-              <Field
-                label="Video de presentación"
-                icon={Video}
-                id="card-video"
-                hint="Pega el enlace de YouTube o Vimeo. Aparecerá como un anillo animado sobre tu foto."
-              >
-                <input
-                  id="card-video"
-                  className={INPUT}
-                  value={card.presentationVideoUrl}
-                  onChange={setField('presentationVideoUrl')}
-                  placeholder="https://youtu.be/..."
-                  inputMode="url"
-                  autoComplete="off"
-                  spellCheck="false"
-                />
-
-                {/*
-                  El aviso salta en cuanto el enlace no sirve para incrustarse.
-                  Sin él, el asesor pegaría una dirección de un canal o una lista
-                  de reproducción, no vería el anillo en la tarjeta y no tendría
-                  forma de saber que el problema es el enlace y no la app.
-                */}
-                {card.presentationVideoUrl.trim()
-                  && !isEmbeddableVideoUrl(card.presentationVideoUrl) && (
-                  <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-amber-500 dark:text-amber-400">
-                    <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
-                    Ese enlace no se puede reproducir dentro de la tarjeta. Usa la
-                    dirección de un video de YouTube o Vimeo, como
-                    {' '}
-                    <span className="font-semibold">youtu.be/abc123</span>.
-                  </p>
-                )}
-              </Field>
 
               <Field label="Sobre mí" id="card-bio" hint="Dos o tres líneas. En la tarjeta hay poco espacio.">
                 <textarea
