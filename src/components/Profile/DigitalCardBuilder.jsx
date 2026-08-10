@@ -5,11 +5,13 @@ import {
 import FullScreenView from '../Layout/FullScreenView';
 import DigitalCardPreview from './DigitalCardPreview';
 import ContactDrawer from './ContactDrawer';
-import ImageCropperModal from './ImageCropperModal';
+import PhotoAdjustModal from './PhotoAdjustModal';
 import { useSession } from '../../context/SessionContext';
 import { fetchProfile, saveMyCard, describeError } from '../../data/profilesRepo';
 import { uploadAttachment } from '../../data/announcementsRepo';
-import { readImageFile, dataUrlToFile } from '../../data/cardPhoto';
+import {
+  readImageFile, dataUrlToFile, shrinkImageForUpload, serializeFocus, DEFAULT_FOCUS,
+} from '../../data/cardPhoto';
 import { saveAdvisorProfile } from '../../data/advisorProfile';
 
 const SPECIALTIES = [
@@ -23,6 +25,7 @@ const EMPTY_CARD = {
   id: '',
   fullName: '', title: '', company: '',
   specialties: [], bio: '', phone: '', email: '', whatsapp: '', avatarUrl: '',
+  photoFocus: '',
 };
 
 /**
@@ -51,9 +54,9 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   const [isSaving, setSaving] = useState(false);
   const [isUploading, setUploading] = useState(false);
 
-  // Imagen elegida en espera de recorte. Mientras exista, se muestra el
-  // recortador: subir antes de encuadrar obligaría a repetir la subida.
-  const [pendingImage, setPendingImage] = useState(null);
+  // El ajustador está abierto. No hay imagen "en espera": la foto se sube
+  // completa y el encuadre se decide después, tantas veces como se quiera.
+  const [isAdjusting, setAdjusting] = useState(false);
   const [status, setStatus] = useState(null);
   const fileRef = useRef(null);
 
@@ -123,45 +126,57 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   };
 
   /**
-   * Al elegir una foto no se sube: primero se encuadra.
+   * Sube la foto completa y abre el ajustador.
    *
-   * El retrato ocupa una zona concreta de la tarjeta, más alta que ancha, y una
-   * foto cualquiera no encaja ahí por sí sola. Subir antes de recortar llevaría a
-   * descubrir el mal encuadre cuando ya está guardado.
+   * Ya no se recorta antes de subir. Recortar destruía la parte de fuera, así que
+   * un encuadre mal elegido sólo se podía arreglar volviendo a buscar el archivo
+   * original —y quien ya lo había borrado del teléfono se quedaba con la foto
+   * torcida—. Guardando la imagen entera, recolocarla es gratis y repetible.
    */
   const pickPhoto = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setStatus(null);
-    try {
-      setPendingImage(await readImageFile(file));
-    } catch (error) {
-      setStatus({ type: 'error', message: error.message });
-    } finally {
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
-
-  /** Sube el recorte confirmado, que ya viene en la proporción del retrato. */
-  const uploadFramed = async (dataUrl) => {
     setUploading(true);
+
     try {
-      const file = await dataUrlToFile(dataUrl, `foto-${Date.now()}.jpg`);
-      const upload = await uploadAttachment(file, 'perfiles');
+      const original = await readImageFile(file);
+      // Se reduce, no se recorta: una foto de teléfono pesa varios megas y se va
+      // a ver en un recuadro de 320 píxeles.
+      const shrunk = await shrinkImageForUpload(original);
+      const uploadFile = await dataUrlToFile(shrunk, `foto-${Date.now()}.jpg`);
+      const upload = await uploadAttachment(uploadFile, 'perfiles');
 
       if (upload.error) {
         setStatus({ type: 'error', message: describeError(upload.error) });
         return;
       }
-      setCard((prev) => ({ ...prev, avatarUrl: upload.url }));
-      setPendingImage(null);
-      setStatus({ type: 'ok', message: 'Foto lista. Recuerda guardar la tarjeta.' });
+
+      /*
+        La foto nueva entra con el encuadre centrado y el ajustador se abre solo.
+        Es el momento en que la persona tiene la imagen en la cabeza, y dejarla
+        colocada por el sistema es justo lo que se veía mal.
+      */
+      setCard((prev) => ({
+        ...prev,
+        avatarUrl: upload.url,
+        photoFocus: serializeFocus(DEFAULT_FOCUS),
+      }));
+      setAdjusting(true);
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
       setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
     }
+  };
+
+  /** Guarda el encuadre elegido. La imagen no se toca. */
+  const applyFocus = (focus) => {
+    setCard((prev) => ({ ...prev, photoFocus: serializeFocus(focus) }));
+    setAdjusting(false);
+    setStatus({ type: 'ok', message: 'Encuadre listo. Recuerda guardar la tarjeta.' });
   };
 
   const save = async () => {
@@ -254,6 +269,7 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
             editable
             onChange={setField}
             onPickPhoto={() => fileRef.current?.click()}
+            onAdjustPhoto={() => setAdjusting(true)}
           />
 
           {/*
@@ -340,18 +356,14 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
         </div>
       )}
 
-      {/*
-        El recortador es una pantalla propia, encima de todo: necesita el espacio
-        completo para que arrastrar y acercar la foto se sienta natural.
-      */}
-      {pendingImage && (
-        <ImageCropperModal
-          imageSrc={pendingImage}
-          isUploading={isUploading}
-          onConfirm={uploadFramed}
-          onCancel={() => setPendingImage(null)}
-        />
-      )}
+      <PhotoAdjustModal
+        imageUrl={card.avatarUrl}
+        focus={card.photoFocus}
+        isOpen={isAdjusting && Boolean(card.avatarUrl)}
+        onConfirm={applyFocus}
+        onCancel={() => setAdjusting(false)}
+      />
+
     </FullScreenView>
   );
 }

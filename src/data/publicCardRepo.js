@@ -23,7 +23,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 /** Columnas que la tarjeta necesita. Se piden por nombre, nunca con `*`. */
 const CARD_COLUMNS = 'id, full_name, avatar_url, title, company,'
-  + ' specialties, bio, phone, whatsapp';
+  + ' specialties, bio, phone, whatsapp, photo_focus';
 
 /** Traduce una fila a la forma que consumen los componentes de la tarjeta. */
 function toCard(row) {
@@ -37,6 +37,7 @@ function toCard(row) {
     bio: row.bio ?? '',
     phone: row.phone ?? '',
     whatsapp: row.whatsapp ?? '',
+    photoFocus: row.photo_focus ?? '',
 
     /*
       El correo no se trae. En la tarjeta pública el botón de correo queda
