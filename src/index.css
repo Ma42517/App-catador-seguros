@@ -215,7 +215,11 @@
     .animate-swing,
     .animate-flicker,
     .animate-shine,
-    .animate-spin-slow {
+    .animate-spin-slow,
+    /* Fondo, entrada y reflejo de la tarjeta digital. */
+    .animate-ken-burns,
+    .animate-fade-in-up,
+    .animate-shimmer {
       animation: none;
     }
 

@@ -72,6 +72,25 @@ export default {
           from: { strokeDashoffset: 'var(--ring-length)' },
           to: { strokeDashoffset: 'var(--ring-target)' },
         },
+        /*
+          Ken Burns del fondo de la tarjeta: acerca y aleja muy despacio. Un solo
+          ciclo hace ida y vuelta (0 y 100 iguales, 50 en el extremo), así no se
+          necesita `alternate` ni se ve un salto al reiniciar.
+        */
+        'ken-burns': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.1)' },
+        },
+        // Entrada en cascada del contenido de la tarjeta.
+        'fade-in-up': {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        // Reflejo que recorre el cristal de "About Me".
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
         // Reflejo que recorre el monto de Dinero en la Mesa.
         shine: {
           '0%': { backgroundPosition: '-150% 50%' },
@@ -89,6 +108,13 @@ export default {
         'draw-ring': 'draw-ring 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         shine: 'shine 3.4s ease-in-out infinite',
         'spin-slow': 'spin 10s linear infinite',
+        'ken-burns': 'ken-burns 18s ease-in-out infinite',
+        /*
+          `both` es imprescindible con retraso: sin él el elemento se vería en su
+          estado final durante la espera y la cascada no existiría.
+        */
+        'fade-in-up': 'fade-in-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
+        shimmer: 'shimmer 4.5s linear infinite',
       },
       backgroundImage: {
         'grid-fade':

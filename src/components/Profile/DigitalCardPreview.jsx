@@ -12,7 +12,13 @@ function WhatsAppMark({ size = 18 }) {
   );
 }
 
-/** Botón circular blanco de contacto. Deshabilitado si no hay dato que usar. */
+/**
+ * Botón circular blanco de contacto.
+ *
+ * Se hunde al pulsarlo y se ilumina al pasar por encima: son los dos gestos que
+ * hacen que un botón se sienta físico. Deshabilitado si no hay dato que usar,
+ * porque enlazar a un `tel:` vacío le daría un error a quien lo toque.
+ */
 function SocialButton({ label, href, children }) {
   const enabled = Boolean(href);
 
@@ -26,7 +32,8 @@ function SocialButton({ label, href, children }) {
       onClick={(event) => { if (!enabled) event.preventDefault(); }}
       className={`grid h-11 w-11 place-items-center rounded-full transition-transform
         ${enabled
-          ? 'bg-white text-zinc-900 shadow-lg hover:scale-105 active:scale-95'
+          ? `bg-white text-zinc-900 shadow-lg active:scale-90
+             hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]`
           : 'cursor-default bg-white/30 text-zinc-600'}`}
     >
       {children}
@@ -35,7 +42,7 @@ function SocialButton({ label, href, children }) {
 }
 
 /**
- * Vista previa de la tarjeta digital, dentro de un marco de celular.
+ * Vista previa de la tarjeta digital.
  *
  * Es lo que verá el prospecto, así que se dibuja con los datos tal como están:
  * los campos vacíos muestran un texto de relleno en gris para que se note qué
@@ -44,6 +51,10 @@ function SocialButton({ label, href, children }) {
  * Las tres capas van en este orden y ninguna es opcional: la foto ocupa todo el
  * fondo, el degradado negro la cubre de abajo hacia arriba, y el contenido va
  * encima. Sin el degradado, un retrato con fondo claro deja el nombre ilegible.
+ *
+ * El contenido entra en cascada. Los retrasos van como `animation-delay` y no
+ * con las clases `delay-*` de Tailwind: ésas escriben `transition-delay`, que no
+ * afecta a una animación de keyframes y dejaría todo entrando a la vez.
  */
 export default function DigitalCardPreview({ card, variant = 'frame', onAddContact }) {
   const {
@@ -68,33 +79,39 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
         : `relative mx-auto h-[650px] w-[320px] overflow-hidden rounded-[2.5rem]
            border-4 border-zinc-900 shadow-2xl`}
     >
-      {/* Capa 1: la foto como fondo completo */}
-      {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <div
-          className="absolute inset-0 bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950"
-          aria-hidden="true"
-        >
-          {/*
-            Marca de agua de la inicial mientras no hay foto. Va en el tercio
-            superior y no centrada: al centro caía justo sobre el nombre y la
-            empresa, y se leía como un defecto de dibujo en lugar de un relleno.
-          */}
-          <span
-            className="absolute inset-x-0 top-24 text-center text-[7rem] font-black leading-none
-                       text-white/[0.07]"
-          >
-            {(fullName || '?').trim().charAt(0).toUpperCase()}
-          </span>
-
-        </div>
-      )}
+      {/*
+        Capa 1: la foto, en un recorte propio.
+        El contenedor recorta y la imagen se mueve dentro: sin `overflow-hidden`
+        aquí, el acercamiento lento desbordaría la tarjeta.
+      */}
+      <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            /*
+              `object-top` ancla el recorte arriba, donde está la cara. Con el
+              centro por omisión, un retrato de cuerpo entero se recortaba a la
+              altura del pecho y dejaba la cabeza fuera.
+            */
+            className="animate-ken-burns h-full w-full object-cover object-top"
+          />
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950">
+            {/*
+              Marca de agua de la inicial mientras no hay foto. Va en el tercio
+              superior y no centrada: al centro caía justo sobre el nombre y la
+              empresa, y se leía como un defecto de dibujo.
+            */}
+            <span
+              className="absolute inset-x-0 top-24 text-center text-[7rem] font-black
+                         leading-none text-white/[0.07]"
+            >
+              {(fullName || '?').trim().charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Capa 2: degradado que hace legible el texto */}
       <div
@@ -104,33 +121,46 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
 
       {/* Capa 3: contenido */}
       <div className={`relative z-10 flex h-full flex-col justify-end text-white ${isFill ? 'p-6' : 'p-5'}`}>
-        <h2 className="text-3xl font-bold uppercase leading-none tracking-tight">
-          {fullName || <span className="text-white/40">Tu nombre</span>}
-        </h2>
+        {/* Estado de disponibilidad, encima del nombre */}
+        <div
+          className="animate-fade-in-up mb-2.5 flex w-max items-center gap-2 rounded-full
+                     bg-black/40 px-3 py-1 backdrop-blur-sm"
+        >
+          <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" aria-hidden="true" />
+          <span className="text-[10px] uppercase tracking-wider text-zinc-200">
+            Disponible para asesoría
+          </span>
+        </div>
 
-        <p className="mt-1.5 text-sm text-zinc-300">
-          {title || <span className="text-white/35">Tu título profesional</span>}
-        </p>
+        <div className="animate-fade-in-up">
+          <h2 className="text-3xl font-bold uppercase leading-none tracking-tight">
+            {fullName || <span className="text-white/40">Tu nombre</span>}
+          </h2>
 
-        {company && (
-          <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-            {company}
+          <p className="mt-1.5 text-sm text-zinc-300">
+            {title || <span className="text-white/35">Tu título profesional</span>}
           </p>
-        )}
 
-        {license && (
-          <p className="mt-1.5 text-[11px] text-zinc-400">
-            Cédula: {license}
-          </p>
-        )}
+          {company && (
+            <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              {company}
+            </p>
+          )}
+
+          {license && (
+            <p className="mt-1.5 text-[11px] text-zinc-400">Cédula: {license}</p>
+          )}
+        </div>
 
         {specialties.length > 0 && (
-          <ul className="mt-2.5 flex flex-wrap gap-1.5">
+          <ul
+            className="animate-fade-in-up mt-2.5 flex flex-wrap gap-1.5"
+            style={{ animationDelay: '100ms' }}
+          >
             {specialties.map((item) => (
               <li
                 key={item}
-                className="rounded-full bg-white/20 px-2 py-1 text-xs font-medium
-                           backdrop-blur-sm"
+                className="rounded-full bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm"
               >
                 {item}
               </li>
@@ -139,7 +169,10 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
         )}
 
         {/* Contacto */}
-        <div className="mt-4 flex gap-2.5">
+        <div
+          className="animate-fade-in-up mt-4 flex gap-2.5"
+          style={{ animationDelay: '200ms' }}
+        >
           <SocialButton label="Llamar" href={phone ? `tel:${digits(phone)}` : ''}>
             <Phone size={18} />
           </SocialButton>
@@ -158,18 +191,36 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
         </div>
 
         {/* Sobre mí. `mb-16` deja libre el alto de la barra inferior. */}
-        <div className="mb-16 mt-4 rounded-2xl bg-white/10 p-4 backdrop-blur-md">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-300">
-            About Me
-          </p>
-          <p className="mt-1.5 text-xs leading-relaxed text-zinc-200">
-            {bio || (
-              <span className="text-white/40">
-                Escribe unas líneas sobre a quién ayudas y cómo. Es lo que hace que
-                un prospecto te escriba.
-              </span>
-            )}
-          </p>
+        <div
+          className="animate-fade-in-up relative mb-16 mt-4 overflow-hidden rounded-2xl
+                     bg-white/10 p-4 backdrop-blur-md"
+          style={{ animationDelay: '300ms' }}
+        >
+          {/*
+            Reflejo que recorre el cristal. Va como capa aparte y no como fondo
+            del bloque: encima del texto lo atenuaría, y el degradado tiene que
+            pasar por debajo para que parezca luz sobre la superficie.
+          */}
+          <span
+            className="animate-shimmer pointer-events-none absolute inset-0
+                       bg-gradient-to-r from-transparent via-white/10 to-transparent
+                       bg-[length:200%_100%]"
+            aria-hidden="true"
+          />
+
+          <div className="relative">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-300">
+              About Me
+            </p>
+            <p className="mt-1.5 text-xs leading-relaxed text-zinc-200">
+              {bio || (
+                <span className="text-white/40">
+                  Escribe unas líneas sobre a quién ayudas y cómo. Es lo que hace que
+                  un prospecto te escriba.
+                </span>
+              )}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -194,7 +245,8 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
             type="button"
             onClick={onAddContact}
             className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
-                       font-semibold text-black transition-transform active:scale-95"
+                       font-semibold text-black transition-transform active:scale-90
+                       hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]"
           >
             <UserPlus size={14} />
             Add to Contact
