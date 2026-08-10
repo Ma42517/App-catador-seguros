@@ -2,14 +2,19 @@ import { useState, useEffect } from 'react';
 import {
   ArrowLeft, Snowflake, Handshake, FileSignature, ChevronRight, Hammer,
 } from 'lucide-react';
+import CitaInicialWizard from './CitaInicialWizard';
+import CierreCuestionarioMedico from './CierreCuestionarioMedico';
 
 /** Duración de la entrada y salida de la pantalla. */
 const ANIM_MS = 300;
 
 /**
- * Las tres etapas del ciclo de prospección. Cada una abrirá su propio guion
- * (agradecimiento, argumentos y siguientes pasos) construido con los datos
- * del cliente; por ahora sólo se presenta la etapa.
+ * Las tres etapas del ciclo de prospección.
+ *
+ * `Component` es opcional: la etapa que lo trae abre su propia herramienta y la
+ * que no, cae en el marcador de "guion en construcción". Es lo que permite ir
+ * sustituyendo etapas de una en una sin tocar el resto de la pantalla —ni el hub
+ * de Productividad, ni la barra inferior, ni el enrutamiento—.
  */
 const STAGES = [
   {
@@ -26,6 +31,7 @@ const STAGES = [
     label: 'Cita Inicial',
     description: 'Análisis de Necesidades (ANF)',
     Icon: Handshake,
+    Component: CitaInicialWizard,
     gradient: 'from-zinc-900 via-indigo-950 to-indigo-900',
     glow: 'hover:shadow-[0_0_28px_rgba(99,102,241,0.35)]',
     iconTone: 'text-indigo-300/80',
@@ -35,6 +41,7 @@ const STAGES = [
     label: 'Cierre',
     description: 'Presentación de propuesta y firma',
     Icon: FileSignature,
+    Component: CierreCuestionarioMedico,
     gradient: 'from-zinc-900 via-emerald-950 to-emerald-900',
     glow: 'hover:shadow-[0_0_28px_rgba(16,185,129,0.35)]',
     iconTone: 'text-emerald-300/80',
@@ -182,7 +189,16 @@ export default function ProspectaScreen({ isOpen, onClose }) {
         aria-hidden="true"
       />
 
-      <div className="relative mx-auto max-w-md px-4 pb-16 pt-6">
+      {/*
+        El ancho se amplía sólo cuando la etapa trae herramienta. El cuestionario
+        médico es de dos columnas en escritorio y en `max-w-md` no caben; la lista
+        de etapas, en cambio, se diseñó para esa medida y ensancharla dejaría tres
+        botones estirados en medio de la nada.
+      */}
+      <div
+        className={`relative mx-auto px-4 pb-16 pt-6
+                    ${selected?.Component ? 'max-w-md md:max-w-3xl' : 'max-w-md'}`}
+      >
         <button
           type="button"
           onClick={onClose}
@@ -194,7 +210,16 @@ export default function ProspectaScreen({ isOpen, onClose }) {
         </button>
 
         {selected ? (
-          <StageDetail stage={selected} onBack={() => setSelected(null)} />
+          /*
+            La etapa con herramienta la monta directamente; la que no la tiene
+            sigue mostrando el marcador. El `onBack` es el mismo en los dos casos,
+            así que el camino de vuelta no cambia según dónde estés.
+          */
+          selected.Component ? (
+            <selected.Component onBack={() => setSelected(null)} />
+          ) : (
+            <StageDetail stage={selected} onBack={() => setSelected(null)} />
+          )
         ) : (
           <>
             <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">
