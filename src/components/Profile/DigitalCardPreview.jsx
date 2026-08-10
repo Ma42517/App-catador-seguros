@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, RotateCcw,
+  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, RotateCcw, ChevronLeft,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
 import { toEmbedUrl } from '../../data/videoEmbed';
@@ -164,7 +164,7 @@ function StoryRingAvatar({ avatarUrl, fullName, onOpen }) {
  * extremo tiñe la tarjeta con los colores del retrato.
  */
 export default function DigitalCardPreview({
-  card, variant = 'frame', onAddContact, onFlipChange,
+  card, variant = 'frame', onAddContact, onExit,
 }) {
   const {
     fullName, title, company, license, specialties = [], bio, phone, email, whatsapp,
@@ -177,18 +177,48 @@ export default function DigitalCardPreview({
   const [isVideoOpen, setVideoOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  /**
-   * Voltea la tarjeta y avisa a quien la contiene.
-   *
-   * El estado se queda aquí en lugar de subirlo al padre: girar es un asunto de
-   * la tarjeta, y el editor —que también la muestra— no tiene nada que hacer con
-   * ese dato. La notificación es opcional, así que sólo la pantalla completa,
-   * que necesita retirar su flecha de salida al ver el reverso, se suscribe.
-   */
   const flipTo = (next) => {
     tapFeedback();
     setIsFlipped(next);
-    onFlipChange?.(next);
+  };
+
+  /*
+    Retroceso jerárquico: la flecha deshace lo último que se abrió en lugar de
+    abandonar la tarjeta.
+
+    El botón vive aquí y no en la pantalla que contiene la tarjeta, y ésa es la
+    razón de que funcione: el estado de cada capa —el QR, el video, la cara
+    volteada— es de la tarjeta, y un botón de atrás que no sabe qué hay abierto
+    sólo puede hacer una cosa, salir. Antes salía al menú incluso con el QR a
+    pantalla completa encima, así que un toque de más en la esquina hacía perder
+    la tarjeta que se estaba enseñando.
+
+    El orden importa: se cierra primero lo que está más arriba. El video puede
+    abrirse teniendo el reverso detrás, y salir del reverso antes que del video
+    dejaría el reproductor flotando sobre una cara que ya cambió.
+  */
+  const layerToDismiss = () => {
+    if (isVideoOpen) return () => setVideoOpen(false);
+    if (isQrOpen) return () => setQrOpen(false);
+    return null;
+  };
+
+  const dismissLayer = layerToDismiss();
+
+  /*
+    En el reverso no se dibuja: su propio botón de giro ya es el camino de
+    vuelta, y dos flechas de regreso a la vez dejan al prospecto adivinando cuál
+    le hace perder lo que está viendo.
+  */
+  const showBackButton = Boolean(onExit) && !isFlipped;
+
+  const handleBack = () => {
+    tapFeedback();
+    if (dismissLayer) {
+      dismissLayer();
+      return;
+    }
+    onExit?.();
   };
 
   /*
@@ -561,6 +591,27 @@ export default function DigitalCardPreview({
         onClose={() => setVideoOpen(false)}
         title={fullName ? `Presentación de ${fullName}` : 'Video de presentación'}
       />
+
+      {/*
+        La flecha se dibuja al final y con `z-50`, por encima de los paneles
+        —que van en `z-40`—: si quedara debajo, al abrir el QR desaparecería
+        justo cuando sirve para volver.
+
+        `mt-safe` la baja del área del sistema en los teléfonos con muesca.
+      */}
+      {showBackButton && (
+        <button
+          type="button"
+          onClick={handleBack}
+          aria-label={dismissLayer ? 'Volver a la tarjeta' : 'Volver'}
+          className="mt-safe absolute left-4 top-4 z-50 grid h-11 w-11 place-items-center
+                     rounded-full bg-black/40 text-white ring-1 ring-white/25 backdrop-blur-md
+                     transition-colors hover:bg-black/60 active:scale-95
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        >
+          <ChevronLeft size={22} />
+        </button>
+      )}
     </div>
   );
 }
