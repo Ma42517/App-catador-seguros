@@ -8,7 +8,7 @@ import { focusStyle, serializeFocus } from '../../data/cardPhoto';
 import usePhotoFraming from './usePhotoFraming';
 import QrPassModal from './QrPassModal';
 import ShareSheet from './ShareSheet';
-import { InlineInput, InlineTextarea } from './InlineField';
+import { InlineInput } from './InlineField';
 import ServicesHubBack from './ServicesHubBack';
 
 /**
@@ -105,7 +105,7 @@ export default function DigitalCardPreview({
   editable = false, onChange = () => {}, onPickPhoto,
 }) {
   const {
-    fullName, title, company, specialties = [], bio, phone, email, whatsapp,
+    fullName, title, company, specialties = [], phone, email, whatsapp,
     avatarUrl, photoFocus,
   } = card;
 
@@ -630,29 +630,22 @@ export default function DigitalCardPreview({
             )}
 
             {/*
-              ── Bloque de identidad ──
+              ── Identidad ──
 
-              Nombre, título, empresa y especialidades viven aquí, en su propio
-              recuadro sólido, y no flotando sobre el retrato.
+              Sin recuadro: el texto va directo sobre el degradado, que es lo que
+              hace que la tarjeta se lea como una sola pieza y no como fichas
+              apiladas. Un bloque opaco resolvía el contraste, pero partía la
+              composición en dos y pesaba más que la foto.
 
-              Antes iban encima de la foto y eso traía dos problemas juntos: el
-              texto caía sobre la cara —tapándola justo donde importa— y su área de
-              toque se solapaba con la del retrato, así que al intentar mover la
-              foto se abría la edición del nombre. Separarlos en dos cajas resuelve
-              las dos cosas de una vez, porque ya no comparten espacio.
-
-              El fondo es opaco a propósito: sobre él el texto se lee sin depender
-              del color de la foto, y por eso desaparecen las sombras de texto que
-              antes hacían falta.
+              Lo que evita que tape la cara no es una caja, es el sitio: la foto
+              ocupa la mitad superior y esto se apoya en el borde inferior, así que
+              queda sobre el fondo ambiental y no sobre el retrato.
             */}
-            <div
-              className="animate-fade-in-up rounded-2xl border border-white/10 bg-zinc-900/85
-                         p-4 backdrop-blur-md"
-            >
+            <div className="animate-fade-in-up">
             {/* Pulso de disponibilidad, encima del nombre */}
             <div
               className="mb-2.5 flex w-max items-center gap-2 rounded-full
-                         border border-white/15 bg-white/10 px-3 py-1"
+                         border border-white/15 bg-white/10 px-3 py-1 backdrop-blur-md"
             >
               <span
                 className="h-2 w-2 animate-pulse rounded-full bg-green-500"
@@ -670,17 +663,20 @@ export default function DigitalCardPreview({
               cambio de diseño, y la promesa de "editas lo que se ve" se rompería
               sin que nadie lo note.
             */}
-            <div>
+            <div className="mt-1">
               {editable ? (
                 <InlineInput
                   value={fullName}
                   onChange={(v) => onChange('fullName', v)}
                   label="Tu nombre completo"
                   placeholder="Tu nombre"
-                  className="text-3xl font-bold uppercase leading-none tracking-tight"
+                  className="text-3xl font-bold uppercase leading-none tracking-tight
+                             drop-shadow-lg"
                 />
               ) : (
-                <h2 className="text-3xl font-bold uppercase leading-none tracking-tight">
+                <h2 className="text-3xl font-bold uppercase leading-none tracking-tight
+                               drop-shadow-lg"
+                >
                   {fullName || <span className="text-white/40">Tu nombre</span>}
                 </h2>
               )}
@@ -691,16 +687,16 @@ export default function DigitalCardPreview({
                   onChange={(v) => onChange('title', v)}
                   label="Tu título profesional"
                   placeholder="Tu título profesional"
-                  className="mt-1.5 text-sm text-zinc-200"
+                  className="mt-1.5 text-sm text-zinc-200 drop-shadow"
                 />
               ) : (
-                <p className="mt-1.5 text-sm text-zinc-200">
+                <p className="mt-1.5 text-sm text-zinc-200 drop-shadow">
                   {title || <span className="text-white/35">Tu título profesional</span>}
                 </p>
               )}
 
               {/*
-                Empresa y cédula sólo aparecen si tienen contenido, pero en
+                La empresa sólo aparece si tiene contenido, pero en
                 edición se muestran siempre: un campo que se oculta cuando está
                 vacío no se puede llenar, y sería invisible justo para quien
                 todavía no lo ha puesto.
@@ -729,8 +725,8 @@ export default function DigitalCardPreview({
                 {specialties.map((item) => (
                   <li
                     key={item}
-                    className="rounded-full border border-white/15 bg-white/10 px-2 py-1
-                               text-xs font-medium"
+                    className="rounded-full border border-white/15 bg-white/15 px-2 py-1
+                               text-xs font-medium backdrop-blur-md"
                   >
                     {item}
                   </li>
@@ -774,55 +770,6 @@ export default function DigitalCardPreview({
               </SocialButton>
             </div>
 
-            {/*
-              "About Me" en cristal: el desenfoque de fondo deja pasar los
-              colores abstractos de la capa ambiental, y el borde claro es lo que
-              define el canto del cristal —sin él, sobre un fondo de color el
-              bloque pierde su silueta y parece una mancha.
-            */}
-            <div
-              className="animate-fade-in-up relative mt-4 overflow-hidden rounded-2xl border
-                         border-white/20 bg-white/10 p-4 backdrop-blur-md"
-              style={{ animationDelay: '300ms' }}
-            >
-              {/*
-                Reflejo que recorre el cristal. Va como capa aparte y no como
-                fondo del bloque: encima del texto lo atenuaría, y el degradado
-                tiene que pasar por debajo para que parezca luz sobre la
-                superficie.
-              */}
-              <span
-                className="animate-shimmer pointer-events-none absolute inset-0
-                           bg-gradient-to-r from-transparent via-white/10 to-transparent
-                           bg-[length:200%_100%]"
-                aria-hidden="true"
-              />
-
-              <div className="relative">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-200">
-                  About Me
-                </p>
-
-                {editable ? (
-                  <InlineTextarea
-                    value={bio}
-                    onChange={(v) => onChange('bio', v)}
-                    label="Sobre mí"
-                    placeholder="Escribe unas líneas sobre a quién ayudas y cómo."
-                    className="mt-1.5 text-xs leading-relaxed text-zinc-100"
-                  />
-                ) : (
-                  <p className="mt-1.5 text-xs leading-relaxed text-zinc-100">
-                    {bio || (
-                      <span className="text-white/40">
-                        Escribe unas líneas sobre a quién ayudas y cómo. Es lo que hace que
-                        un prospecto te escriba.
-                      </span>
-                    )}
-                  </p>
-                )}
-              </div>
-            </div>
           </div>
           </div>
 
