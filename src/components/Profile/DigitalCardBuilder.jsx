@@ -37,6 +37,7 @@ const SPECIALTIES = [
 const MAX_SPECIALTIES = 3;
 
 const EMPTY_CARD = {
+  id: '',
   fullName: '', title: '', license: '', company: '',
   specialties: [], bio: '', phone: '', email: '', whatsapp: '', avatarUrl: '',
 };
@@ -115,6 +116,11 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
     const loaded = {
       ...EMPTY_CARD,
       ...(data ?? {}),
+      // Sin identificador no hay dirección pública, y sin ella el QR y el panel
+      // de compartir no tienen nada que entregar. Se cae a la clave de la sesión,
+      // que es el mismo `id` del perfil, para cubrir el caso en que la lectura
+      // de la base falle.
+      id: data?.id || identity.key,
       fullName: data?.fullName || identity.name || '',
       email: identity.email || '',
       avatarUrl: data?.avatarUrl || identity.avatarUrl || '',
