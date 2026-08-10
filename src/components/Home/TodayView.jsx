@@ -8,9 +8,8 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  * 360 ya no ocupa la vista principal, se abre desde "Ver más".
  *
  * El día y el saludo viven arriba; el centro lo ocupa la secuencia de inicio.
- * El saludo ya no es texto estático: entra palabra por palabra con un pulso de
- * vibración por cada una, para que el arranque de la app se sienta vivo desde
- * el primer instante.
+ * El saludo entra palabra por palabra, con un pulso de vibración por cada una,
+ * para que el arranque de la app se sienta vivo desde el primer instante.
  */
 export default function TodayView({ name }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
@@ -28,7 +27,7 @@ export default function TodayView({ name }) {
           <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
             {fecha}
           </p>
-          <div className="mt-1 text-zinc-900 dark:text-white">
+          <div className="mt-1">
             <HapticGreeting text={greeting} accentWords={saludo.split(' ')} />
           </div>
         </div>
