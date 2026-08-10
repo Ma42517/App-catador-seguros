@@ -13,6 +13,9 @@ import {
   readHistory, recordCompletion, statsFor,
 } from '../../data/timeBlocks';
 import { primeAudio, playChime } from '../../data/chime';
+import {
+  tapFeedback, MILESTONE_PATTERN, SESSION_END_PATTERN, MILESTONE_STEP_SEC,
+} from '../../lib/haptics';
 
 /** Iconos disponibles para los bloques, por nombre. */
 const ICONS = { Phone, ClipboardList, Timer };
@@ -95,6 +98,34 @@ export default function TimeBlocks({ username }) {
    */
   const notifiedFor = useRef(null);
 
+  /**
+   * Último tramo de cinco minutos que ya avisó, y el restante de la vuelta
+   * anterior.
+   *
+   * Los dos son refs y no estado a propósito: sólo sirven para decidir si toca
+   * vibrar, y guardarlos en estado provocaría un render extra por segundo sin
+   * cambiar nada de lo que se ve.
+   *
+   * El candado es imprescindible. El restante no vive en el estado, se calcula
+   * del reloj en cada render, así que un render de más —y en StrictMode hay uno
+   * de más garantizado— volvería a ver el mismo segundo y dispararía una ráfaga
+   * de vibraciones sobre el mismo tramo.
+   */
+  const lastMilestone = useRef(null);
+  const prevRemaining = useRef(null);
+
+  /**
+   * Olvida el rastro de vibraciones para que el bloque empiece de cero.
+   *
+   * Sin esto, una segunda vuelta del mismo bloque no volvería a avisar en sus
+   * tramos: el candado seguiría marcando como ya avisado el último múltiplo de
+   * la vuelta anterior.
+   */
+  const resetHaptics = useCallback(() => {
+    lastMilestone.current = null;
+    prevRemaining.current = null;
+  }, []);
+
   const blocks = useMemo(() => [...DEFAULT_BLOCKS, ...custom], [custom]);
 
   const today = useMemo(() => statsFor(history), [history]);
@@ -120,7 +151,8 @@ export default function TimeBlocks({ username }) {
     setHistory(readHistory(username));
     setCompleted(null);
     notifiedFor.current = null;
-  }, [username]);
+    resetHaptics();
+  }, [username, resetHaptics]);
 
   useEffect(() => {
     writeCustomBlocks(username, custom);
@@ -142,6 +174,39 @@ export default function TimeBlocks({ username }) {
     return () => clearInterval(id);
   }, [isRunning]);
 
+  /*
+    Aviso al cruzar cada tramo de cinco minutos.
+
+    Se compara contra el restante de la vuelta anterior en lugar de exigir que
+    el segundo caiga exacto en un múltiplo de 300: con la pestaña de fondo el
+    navegador estrangula el intervalo y el restante puede saltar de 902 a 898,
+    sin pisar nunca el 900. Mirando el salto, el tramo se detecta igual.
+
+    El múltiplo que quedó atrás en el salto es lo que se guarda en el candado,
+    así que cada tramo avisa una sola vez aunque el efecto se evalúe de más.
+  */
+  useEffect(() => {
+    const previous = prevRemaining.current;
+    prevRemaining.current = remaining;
+
+    if (!isRunning || previous === null || remaining >= previous) return;
+
+    // Múltiplo de cinco minutos más alto que el salto dejó atrás.
+    const crossed = Math.floor(previous / MILESTONE_STEP_SEC) * MILESTONE_STEP_SEC;
+
+    /*
+      `crossed > 0` deja el cero fuera: ése es el final del bloque y tiene su
+      propio patrón. `crossed < totalSec` evita vibrar al arrancar, cuando el
+      restante todavía es la duración completa —que en un bloque de 25 o 50
+      minutos también es múltiplo de cinco.
+    */
+    if (crossed <= 0 || crossed >= session.totalSec) return;
+    if (remaining > crossed || lastMilestone.current === crossed) return;
+
+    lastMilestone.current = crossed;
+    tapFeedback(MILESTONE_PATTERN);
+  }, [isRunning, remaining, session]);
+
   // Cierre del bloque: se detiene, suena y avisa. Una sola vez por sesión.
   useEffect(() => {
     if (!session || !isRunning || remaining > 0) return;
@@ -160,6 +225,15 @@ export default function TimeBlocks({ username }) {
     setHistory(updated);
 
     playChime();
+
+    /*
+      El cierre va acompañado de vibración porque el sonido no siempre llega:
+      el teléfono puede estar en silencio, que es como suele quedarse durante
+      un bloque de enfoque. Este efecto ya está protegido por `recorded` y por
+      `notifiedFor`, así que el patrón se dispara una sola vez por sesión.
+    */
+    tapFeedback(SESSION_END_PATTERN);
+
     setCompleted({ label: session.label, minutes, stats: statsFor(updated) });
   }, [session, isRunning, remaining, username]);
 
@@ -168,6 +242,7 @@ export default function TimeBlocks({ username }) {
   /** Selecciona un bloque y lo deja listo, sin arrancar. */
   const selectBlock = (block) => {
     notifiedFor.current = null;
+    resetHaptics();
     setSession({
       blockId: block.id,
       label: block.label,
@@ -189,7 +264,10 @@ export default function TimeBlocks({ username }) {
     setSession((prev) => {
       if (!prev) return prev;
       const seconds = prev.status === 'done' ? prev.totalSec : (prev.remainingSec ?? prev.totalSec);
-      if (prev.status === 'done') notifiedFor.current = null;
+      if (prev.status === 'done') {
+        notifiedFor.current = null;
+        resetHaptics();
+      }
       return {
         ...prev,
         status: 'running',
@@ -216,6 +294,7 @@ export default function TimeBlocks({ username }) {
   /** Vuelve el bloque a su duración completa, sin cerrarlo. */
   const reset = () => {
     notifiedFor.current = null;
+    resetHaptics();
     setSession((prev) => (prev
       ? { ...prev, status: 'paused', remainingSec: prev.totalSec, endsAt: null, startedAt: Date.now(), recorded: false }
       : prev));
@@ -223,6 +302,7 @@ export default function TimeBlocks({ username }) {
 
   const close = () => {
     notifiedFor.current = null;
+    resetHaptics();
     setSession(null);
   };
 
