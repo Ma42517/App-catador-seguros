@@ -19,6 +19,8 @@ import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
 import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
+import PublicCardView from './pages/PublicCardView';
+import { publicCardIdFromPath } from './lib/publicRoute';
 import { readTheme, applyTheme, THEMES } from './theme';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
@@ -366,6 +368,20 @@ function Gate({ isPreview }) {
 
 export default function App() {
   const [isPreview] = useState(isPreviewFrame);
+
+  /*
+    Única dirección que se atiende sin sesión. Se resuelve antes de montar
+    `SessionProvider` a propósito: así la tarjeta pública no espera a que se
+    consulte la sesión, no enseña el splash y —sobre todo— no puede acabar
+    detrás de la puerta de acceso por un cambio futuro en `Gate`. Lo que no pasa
+    por ahí no se puede proteger por error, ni desproteger por descuido.
+
+    Todo lo demás sigue entrando por `Gate`, que manda al inicio de sesión a
+    quien no tenga cuenta. No hace falta declarar rutas protegidas una por una:
+    lo protegido es el caso por omisión.
+  */
+  const [publicCardId] = useState(publicCardIdFromPath);
+  if (publicCardId) return <PublicCardView advisorId={publicCardId} />;
 
   return (
     <SessionProvider>

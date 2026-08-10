@@ -3,6 +3,7 @@ import { Users, Trash2, Phone, Check, X } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import { useSession } from '../../context/SessionContext';
 import { readLeads, removeLead, capturedLabel, followUpLink } from '../../data/leads';
+import { listMyLeads, deleteLead } from '../../data/leadsRepo';
 
 /** Icono de WhatsApp: lucide no lo trae, así que va como trazo propio. */
 function WhatsAppMark({ size = 15 }) {
@@ -23,6 +24,7 @@ function WhatsAppMark({ size = 15 }) {
  */
 function LeadRow({ lead, advisorName, onRemove }) {
   const [confirming, setConfirming] = useState(false);
+  const fromLink = lead.storage === 'cloud';
 
   return (
     <li
@@ -43,6 +45,12 @@ function LeadRow({ lead, advisorName, onRemove }) {
         </p>
         <p className="truncate text-[11px] text-zinc-500">
           {lead.whatsapp} · {capturedLabel(lead.capturedAt)}
+          {/*
+            Se distingue de dónde vino. No es un detalle técnico: quien llegó por
+            el enlace no conoce al asesor en persona, y el primer mensaje se
+            escribe distinto que a quien acaba de tener el teléfono en la mano.
+          */}
+          {fromLink && ' · por tu enlace'}
         </p>
       </div>
 
@@ -50,7 +58,7 @@ function LeadRow({ lead, advisorName, onRemove }) {
         <span className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => { onRemove(lead.id); setConfirming(false); }}
+            onClick={() => { onRemove(); setConfirming(false); }}
             aria-label={`Confirmar eliminar ${lead.name}`}
             className="grid h-9 w-9 place-items-center rounded-xl bg-rose-500 text-white
                        transition-transform active:scale-90"
@@ -117,18 +125,42 @@ export default function LeadsList({ isOpen, onClose }) {
   const { identity } = useSession();
   const [leads, setLeads] = useState([]);
 
-  const load = useCallback(() => {
-    setLeads(readLeads(identity?.key));
+  /**
+   * Junta las dos procedencias de un prospecto.
+   *
+   * Hay dos porque hay dos formas de capturarlo: en mano, prestando el teléfono
+   * —eso se guardó siempre en este dispositivo—, y a distancia, cuando alguien
+   * abre el enlace público desde su propio móvil y no hay más sitio donde
+   * dejarlo que la base.
+   *
+   * Se muestran en una sola lista ordenada por fecha, porque para decidir a
+   * quién escribir primero da igual por dónde entró. Cada fila recuerda su
+   * procedencia para que al borrarla se borre donde vive de verdad.
+   */
+  const load = useCallback(async () => {
+    const local = readLeads(identity?.key).map((lead) => ({ ...lead, storage: 'local' }));
+
+    const { data: remote } = await listMyLeads();
+    const cloud = (remote ?? []).map((lead) => ({ ...lead, storage: 'cloud' }));
+
+    setLeads([...cloud, ...local].sort((a, b) => b.capturedAt - a.capturedAt));
   }, [identity]);
 
   useEffect(() => {
     if (isOpen) load();
   }, [isOpen, load]);
 
-  const remove = (id) => {
-    removeLead(identity?.key, id);
+  const remove = async (lead) => {
+    if (lead.storage === 'cloud') {
+      await deleteLead(lead.id);
+    } else {
+      removeLead(identity?.key, lead.id);
+    }
     load();
   };
+
+  // El aviso de abajo sólo aplica a los que viven en este teléfono.
+  const localCount = leads.filter((lead) => lead.storage === 'local').length;
 
   return (
     <FullScreenView
@@ -161,8 +193,8 @@ export default function LeadsList({ isOpen, onClose }) {
             Todavía no capturas prospectos
           </p>
           <p className="mx-auto mt-1.5 max-w-xs text-xs leading-relaxed text-zinc-500">
-            Abre tu tarjeta digital, gírala hacia la persona y pídele que toque
-            &quot;Add to Contact&quot;. Sus datos aparecerán aquí.
+            Comparte el enlace de tu tarjeta, o ábrela y gírala hacia la persona
+            para que toque &quot;Add to Contact&quot;. Sus datos aparecerán aquí.
           </p>
         </div>
       ) : (
@@ -172,7 +204,7 @@ export default function LeadsList({ isOpen, onClose }) {
               key={lead.id}
               lead={lead}
               advisorName={identity?.name}
-              onRemove={remove}
+              onRemove={() => remove(lead)}
             />
           ))}
         </ul>
@@ -183,12 +215,17 @@ export default function LeadsList({ isOpen, onClose }) {
         tratar como su cartera de clientes, y perderla por limpiar el navegador
         sin haber sido advertido sería grave.
       */}
-      {leads.length > 0 && (
+      {localCount > 0 && (
         <p className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3
                       text-[11px] leading-relaxed text-amber-700 dark:text-amber-300"
         >
-          Estos prospectos se guardan sólo en este teléfono. No se sincronizan con
-          otros dispositivos y se pierden si borras los datos del navegador.
+          {localCount === 1
+            ? 'Uno de estos prospectos se guardó'
+            : `${localCount} de estos prospectos se guardaron`}
+          {' '}
+          sólo en este teléfono, porque se capturaron aquí mismo: no se sincronizan
+          y se pierden si borras los datos del navegador. Los que llegan por tu
+          enlace compartido sí quedan guardados en tu cuenta.
         </p>
       )}
     </FullScreenView>
