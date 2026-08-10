@@ -366,11 +366,17 @@ export default function DigitalCardPreview({
             <button
               type="button"
               onClick={onPickPhoto}
-              className="absolute right-4 top-[60%] z-30 flex -translate-y-[calc(100%+0.75rem)]
-                         items-center gap-1.5 rounded-full bg-black/60 px-3 py-2 text-[11px]
-                         font-semibold text-white ring-1 ring-white/30 backdrop-blur-md
-                         transition-colors hover:bg-black/80 active:scale-95
-                         focus-visible:outline-none focus-visible:ring-2
+              /*
+                Arriba a la izquierda, dentro del retrato. Antes se anclaba al
+                límite del 60% y quedaba flotando a media tarjeta, en tierra de
+                nadie: no se leía como parte de la foto ni como parte de los datos.
+                Aquí, junto al borde superior, no hay duda de a qué pertenece, y no
+                choca con "Servicios", que ocupa la esquina de enfrente.
+              */
+              className="absolute left-4 top-4 z-30 flex items-center gap-1.5 rounded-full
+                         bg-black/60 px-3 py-2 text-[11px] font-semibold text-white ring-1
+                         ring-white/30 backdrop-blur-md transition-colors hover:bg-black/80
+                         active:scale-95 focus-visible:outline-none focus-visible:ring-2
                          focus-visible:ring-white"
             >
               <Camera size={14} strokeWidth={2.2} aria-hidden="true" />
@@ -441,22 +447,44 @@ export default function DigitalCardPreview({
           */}
           <div
             /*
-              `z-40` deja el contenido por encima del botón de la foto (`z-30`):
-              si dos áreas se solapan, gana la de escribir. Tocar un texto edita
-              el texto, nunca abre el selector de archivos.
+              `pointer-events-none` en este contenedor y `auto` en el bloque de
+              dentro. Es lo que arregla dos cosas de golpe.
 
-              El desplazamiento propio se conserva en los dos modos, porque es lo
-              que evita que el texto largo se corte dentro de una caja de alto
-              fijo. `overscroll-contain` es lo que impide que se trabe: cuando esta
-              zona llega a su tope, el gesto pasa a la página en lugar de morir
-              aquí.
+              Este elemento es `flex-1`, así que ocupa todo el alto libre —también
+              la mitad de la foto, aunque su contenido esté pegado abajo—. Con
+              `z-40` y eventos activos se convertía en una lámina invisible sobre
+              el retrato: el botón de cambiar la foto, que está por debajo en
+              `z-30`, no recibía ni un solo toque. Y en la parte vacía, el dedo
+              tampoco llegaba a la página, así que el gesto de desplazar moría
+              contra esa lámina.
+
+              Apagándolo, el hueco vacío deja pasar tanto los clics como el
+              desplazamiento, y el bloque de texto —que sí los reactiva— sigue
+              recibiendo lo suyo.
+
+              En edición no lleva desplazamiento propio: dos zonas de scroll
+              anidadas se pelean por el gesto y la página no baja. El alto sigue
+              definido en el contenedor de la tarjeta, así que el giro no se rompe.
             */
-            className="relative z-40 flex-1 overflow-y-auto overscroll-contain
-                       [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className={`pointer-events-none relative z-40 flex flex-1 flex-col justify-end
+              ${editable
+                ? ''
+                : 'overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}
           >
+            {/*
+              En edición este bloque mide sólo lo que ocupa su texto, y ahí está
+              la diferencia: con `min-h-full` volvería a estirarse hasta arriba y
+              su `pointer-events-auto` taparía otra vez el retrato y el botón de la
+              foto. El padre ya lo empuja abajo con `justify-end`.
+
+              En presentación sí conserva `min-h-full`, porque ahí el bloque se
+              desplaza y necesita apoyarse abajo mientras cabe y crecer hacia
+              arriba cuando no; en esa vista no hay ningún botón debajo al que
+              pudiera robarle los toques.
+            */}
             <div
-              className={`flex min-h-full flex-col justify-end text-left text-white
-                          ${isFill ? 'p-6' : 'p-5'}`}
+              className={`pointer-events-auto flex flex-col justify-end text-left text-white
+                          ${editable ? '' : 'min-h-full'} ${isFill ? 'p-6' : 'p-5'}`}
             >
             {/* Pulso de disponibilidad, encima del nombre */}
             <div
