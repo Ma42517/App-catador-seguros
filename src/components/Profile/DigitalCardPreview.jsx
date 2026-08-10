@@ -181,20 +181,50 @@ export default function DigitalCardPreview({
     const url = publicCardUrl(card.id);
     const title = fullName ? `Tarjeta de ${fullName}` : 'Mi tarjeta digital';
 
-    try {
-      if (navigator.share) {
+    // 1) Hoja del sistema: la vía real de uso, mandarlo por WhatsApp en un toque.
+    if (navigator.share) {
+      try {
         await navigator.share({ title, url });
         return;
+      } catch {
+        /*
+          Cancelar la hoja entra aquí y no es un fallo: la persona acaba de
+          decidir que no quería compartir. Se sigue a los respaldos porque el
+          navegador también rechaza la hoja cuando el documento no está enfocado,
+          y en ese caso sí conviene dejar el enlace copiado.
+        */
       }
+    }
+
+    // 2) Portapapeles moderno. Exige contexto seguro y permiso del navegador.
+    try {
       await navigator.clipboard.writeText(url);
       setShareNote('Enlace copiado');
+      return;
     } catch {
-      /*
-        Cancelar la hoja de compartir también entra aquí, y no es un error: no se
-        avisa de nada porque la persona acaba de decidir que no quería compartir.
-        Sólo se informa si el portapapeles tampoco estaba disponible.
-      */
-      if (!navigator.share) setShareNote('No se pudo copiar el enlace');
+      /* Se intenta el respaldo antiguo antes de rendirse. */
+    }
+
+    /*
+      3) Respaldo con `execCommand`, que está obsoleto pero sigue siendo el único
+      que funciona sin permisos y en navegadores donde el portapapeles moderno
+      está bloqueado. El campo se coloca fuera de la vista y se quita enseguida:
+      visible, robaría el foco y movería la página.
+    */
+    try {
+      const field = document.createElement('textarea');
+      field.value = url;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.top = '-1000px';
+      document.body.appendChild(field);
+      field.select();
+      const copied = document.execCommand('copy');
+      field.remove();
+      setShareNote(copied ? 'Enlace copiado' : url);
+    } catch {
+      // 4) Si nada copió, se muestra el enlace para que se pueda leer y escribir.
+      setShareNote(url);
     }
   };
 
@@ -607,9 +637,15 @@ export default function DigitalCardPreview({
       {shareNote && (
         <p
           role="status"
-          className="animate-fade-in-up absolute bottom-20 left-1/2 z-40 -translate-x-1/2
-                     whitespace-nowrap rounded-full bg-black/80 px-3 py-1.5 text-[11px]
-                     font-semibold text-white ring-1 ring-white/20 backdrop-blur-md"
+          /*
+            Sin `whitespace-nowrap`: cuando el aviso es el enlace completo
+            —porque no se pudo copiar—, en una línea se saldría de la tarjeta.
+            `break-all` permite partirlo por donde toque para que se lea entero.
+          */
+          className="animate-fade-in-up absolute bottom-20 left-1/2 z-40 max-w-[85%]
+                     -translate-x-1/2 break-all rounded-2xl bg-black/85 px-3 py-1.5
+                     text-center text-[11px] font-semibold text-white ring-1 ring-white/20
+                     backdrop-blur-md"
         >
           {shareNote}
         </p>

@@ -6,11 +6,20 @@ import { buildVCard, canBuildVCard } from '../../data/vcard';
 /**
  * QR a pantalla completa, en plan "pase de abordaje".
  *
+ * El código lleva una vCard: el nombre, el título, la empresa, el teléfono, el
+ * WhatsApp y el correo del asesor, en el formato que reconocen las libretas de
+ * direcciones. Al escanearlo con la cámara, el teléfono ofrece guardar el
+ * contacto en el acto.
+ *
+ * Se eligió la vCard y no la dirección de la tarjeta porque el momento en que
+ * este código se usa es cuando dos personas están frente a frente: lo que hace
+ * falta ahí es que el número quede guardado, no abrir una página. Además funciona
+ * sin depender de que el otro teléfono tenga señal.
+ *
  * Se dibuja como `absolute inset-0` y no `fixed`: así queda dentro del marco de
- * la tarjeta cuando ésta se muestra como maqueta de celular junto al
- * formulario, y ocupa toda la pantalla cuando la tarjeta ya es la pantalla. Con
- * `fixed`, en el editor el QR saltaría fuera del "teléfono" y se comería la
- * interfaz de alrededor.
+ * la tarjeta cuando ésta se muestra como maqueta de celular junto al formulario,
+ * y ocupa toda la pantalla cuando la tarjeta ya es la pantalla. Con `fixed`, en
+ * el editor el QR saltaría fuera del "teléfono" y se comería la interfaz.
  *
  * El QR se genera en SVG y no en canvas: se mantiene nítido al escalarlo, y de
  * eso depende que la cámara del otro teléfono lo lea al primer intento.
@@ -60,8 +69,12 @@ export default function QrPassModal({ card, isOpen, onClose }) {
             <div className="rounded-2xl bg-white p-4 shadow-2xl">
               <QRCodeSVG
                 value={buildVCard(card)}
-                // El tamaño se fija en el SVG y se deja escalar por CSS, para
-                // que llene la tarjeta sin recalcular la matriz del código.
+                /*
+                  Una vCard genera bastantes más módulos que una dirección, así
+                  que el nivel de corrección se deja en `M`: subirlo densificaría
+                  el dibujo y lo volvería más difícil de leer, que es justo lo
+                  contrario de lo que se busca.
+                */
                 size={256}
                 level="M"
                 marginSize={2}
@@ -70,8 +83,8 @@ export default function QrPassModal({ card, isOpen, onClose }) {
             </div>
 
             <p className="mt-5 max-w-[16rem] text-xs leading-relaxed text-zinc-400">
-              Apunta la cámara de tu teléfono al código y tus datos quedarán
-              guardados como contacto.
+              Apunta la cámara de tu teléfono al código y mi nombre, teléfono y
+              correo quedarán guardados como contacto.
             </p>
           </>
         ) : (
