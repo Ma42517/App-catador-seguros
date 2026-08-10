@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import {
   toYouTubeEmbed, videoKind, videoFileUrl, videoPosterUrl,
 } from '../../data/videoEmbed';
@@ -11,16 +12,13 @@ import {
  * porque quien ya había pegado su enlace no tiene por qué perderlo al aparecer
  * la subida directa, y porque un video largo sigue teniendo sentido en YouTube.
  *
- * Con 16:9 y no 9:16: el reverso tiene que mostrar el video, las preguntas y el
- * botón de agendar en la misma pantalla sin desplazar. Un video vertical se come
- * la altura completa de la tarjeta y empuja el botón —que es la razón de ser de
- * esta cara— fuera de la vista.
- *
  * Sin enlace no se dibuja nada. Un marco negro vacío en la tarjeta de un
  * desconocido se lee como algo roto, y el asesor se enteraría del problema por
  * su prospecto.
  */
-export default function PitchVideo({ url, fullName }) {
+export default function PitchVideo({ url, fullName, isActive = false }) {
+  const videoRef = useRef(null);
+
   /*
     Orientación real del archivo, leída de sus metadatos.
 
@@ -29,40 +27,75 @@ export default function PitchVideo({ url, fullName }) {
     forzado, un video vertical aparecía como una columna estrecha entre dos
     franjas negras enormes: la cara del asesor quedaba diminuta justo en la
     pieza que existe para que se le vea la cara.
-
-    Arranca en `false` —horizontal— porque es la orientación recomendada y la del
-    caso de YouTube, así que el marco correcto ya está puesto antes de que el
-    archivo diga nada y no hay salto al cargar.
   */
   const [isPortrait, setPortrait] = useState(false);
 
+  /*
+    Arranca en silencio y no por gusto: los navegadores bloquean la reproducción
+    automática con sonido, y un `play()` con audio se rechaza sin más. La
+    alternativa —esperar a que alguien pulse play— desperdicia el único momento
+    en que se tiene la atención completa: justo después de girar la tarjeta.
+
+    Así que empieza muda y con un botón grande para oírla. Es el mismo trato que
+    hacen las redes sociales, y el prospecto ya lo conoce.
+  */
+  const [isMuted, setMuted] = useState(true);
+
   const kind = videoKind(url);
+
+  /*
+    Reproduce al girar la tarjeta y pausa al volver.
+
+    La pausa importa tanto como el arranque: sin ella, el video sigue corriendo
+    detrás de la cara frontal, gastando datos de quien ya se fue a otra cosa.
+
+    `play()` devuelve una promesa que se rechaza si el navegador decide no
+    permitirlo. Se recoge el fallo en silencio: el video se queda en su portada
+    con los controles a la vista, que es exactamente lo que había antes de
+    intentarlo.
+  */
+  useEffect(() => {
+    const node = videoRef.current;
+    if (!node || kind !== 'file') return;
+
+    if (isActive) {
+      node.play().catch(() => {});
+    } else {
+      node.pause();
+      node.currentTime = 0;
+    }
+  }, [isActive, kind]);
+
   if (!kind) return null;
 
   const who = fullName ? fullName.split(' ')[0] : 'tu asesor';
+
+  const toggleSound = () => {
+    const node = videoRef.current;
+    if (!node) return;
+    const next = !isMuted;
+    node.muted = next;
+    setMuted(next);
+    // Al quitar el silencio se reanuda: si el gesto llega con el video pausado,
+    // subir el volumen de algo detenido no produce ningún sonido.
+    if (!next) node.play().catch(() => {});
+  };
 
   /*
     El vertical se muestra en 4:5 y no en 9:16, que es su proporción nativa.
 
     Un 9:16 dentro de una tarjeta de teléfono ocupa la pantalla completa y empuja
-    el botón de agendar fuera de la vista: la cara se ve enorme y la acción
-    desaparece. El 4:5 conserva la sensación vertical, deja las preguntas y el
-    botón asomando, y con `object-contain` no recorta nada de la imagen.
+    el resto fuera de la vista. El 4:5 conserva la sensación vertical, deja el
+    enganche y el botón asomando, y con `object-contain` no recorta nada.
   */
   const frameAspect = kind === 'file' && isPortrait ? 'aspect-[4/5]' : 'aspect-video';
 
   return (
     <figure className="mb-4">
-      {/*
-        `aspect-video` reserva el hueco antes de que el reproductor cargue. Sin
-        esa reserva, el contenido de abajo salta hacia su sitio cuando el video
-        aparece, y el salto ocurre justo cuando el pulgar ya iba hacia el botón
-        de agendar.
-      */}
       <div
-        className={`relative w-full overflow-hidden rounded-2xl border border-white/10
-                    bg-black shadow-lg shadow-black/40 transition-[aspect-ratio]
-                    duration-300 ${frameAspect}`}
+        className={`relative mx-auto w-full max-w-sm overflow-hidden rounded-xl border
+                    border-white/10 bg-zinc-800 shadow-lg shadow-black/40
+                    transition-[aspect-ratio] duration-300 ${frameAspect}`}
       >
         {kind === 'youtube' ? (
           <iframe
@@ -76,60 +109,72 @@ export default function PitchVideo({ url, fullName }) {
             */
             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen
-            /*
-              `loading="lazy"`: el reverso está oculto hasta que alguien voltea la
-              tarjeta. Sin esto, el reproductor se carga en cuanto se abre la cara
-              frontal y le cuesta datos a quien nunca va a girarla.
-            */
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"
             className="absolute inset-0 h-full w-full border-0"
           />
         ) : (
-          <video
-            src={videoFileUrl(url)}
-            poster={videoPosterUrl(url)}
-            controls
-            /*
-              `playsInline` es lo que impide que iOS se lleve el video a pantalla
-              completa al pulsar play. Sin él, el prospecto sale de la tarjeta y
-              vuelve a ella con el reproductor del sistema encima: se pierde el
-              botón de agendar, que es a donde tenía que llegar.
-            */
-            playsInline
-            /*
-              `preload="metadata"`: se traen las dimensiones y la duración, no el
-              video. Es lo que permite que la barra de tiempo aparezca completa
-              desde el principio sin descargar diez segundos de video a quien
-              todavía no ha decidido verlo.
-            */
-            preload="metadata"
-            title={`Video de presentación de ${who}`}
-            /*
-              Aquí se mide la orientación. `videoWidth` y `videoHeight` son las
-              dimensiones reales del archivo, no las del elemento, así que dicen
-              cómo se grabó y no cómo se está pintando.
-            */
-            onLoadedMetadata={(event) => {
-              const { videoWidth, videoHeight } = event.currentTarget;
-              if (videoWidth && videoHeight) setPortrait(videoHeight > videoWidth);
-            }}
-            className="absolute inset-0 h-full w-full bg-black object-contain"
-          >
+          <>
+            <video
+              ref={videoRef}
+              src={videoFileUrl(url)}
+              poster={videoPosterUrl(url)}
+              controls
+              muted={isMuted}
+              /*
+                `playsInline` es lo que impide que iOS se lleve el video a
+                pantalla completa al arrancar. Sin él, el prospecto sale de la
+                tarjeta y vuelve con el reproductor del sistema encima: se pierde
+                el botón de agendar, que es a donde tenía que llegar. Sin esto,
+                además, el arranque automático ni siquiera se permite en iPhone.
+              */
+              playsInline
+              preload="metadata"
+              title={`Video de presentación de ${who}`}
+              /*
+                Aquí se mide la orientación. `videoWidth` y `videoHeight` son las
+                dimensiones reales del archivo, no las del elemento, así que dicen
+                cómo se grabó y no cómo se está pintando.
+              */
+              onLoadedMetadata={(event) => {
+                const { videoWidth, videoHeight } = event.currentTarget;
+                if (videoWidth && videoHeight) setPortrait(videoHeight > videoWidth);
+              }}
+              className="absolute inset-0 h-full w-full bg-zinc-800 object-contain"
+            >
+              <track kind="captions" />
+            </video>
+
             {/*
-              Los subtítulos no existen todavía, pero la pista vacía evita que los
-              validadores de accesibilidad marquen el video como contenido sin
-              alternativa, y deja el sitio donde irían.
+              Botón de sonido, arriba a la derecha para no tapar los controles del
+              reproductor, que viven abajo.
+
+              Mientras está mudo el botón se anuncia solo con un anillo claro: es
+              la única pista de que hay audio que no se está oyendo, y sin ella el
+              prospecto ve mover la boca y da por hecho que el video no trae voz.
             */}
-            <track kind="captions" />
-          </video>
+            <button
+              type="button"
+              onClick={toggleSound}
+              aria-label={isMuted ? 'Activar el sonido del video' : 'Silenciar el video'}
+              className={`absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full
+                          bg-black/60 text-white backdrop-blur-md transition-all
+                          active:scale-90 focus-visible:outline-none focus-visible:ring-2
+                          focus-visible:ring-white
+                          ${isMuted ? 'ring-2 ring-white/70' : 'ring-1 ring-white/20'}`}
+            >
+              {isMuted
+                ? <VolumeX size={16} aria-hidden="true" />
+                : <Volume2 size={16} aria-hidden="true" />}
+            </button>
+          </>
         )}
       </div>
 
       <figcaption className="mt-2 text-center text-[11px] leading-snug text-zinc-500">
-        Conoce en un minuto cómo trabaja
-        {' '}
-        {who}
+        {kind === 'file' && isMuted
+          ? 'Toca el altavoz para escucharlo'
+          : `Conoce en un minuto cómo trabaja ${who}`}
       </figcaption>
     </figure>
   );
