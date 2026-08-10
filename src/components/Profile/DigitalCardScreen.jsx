@@ -36,6 +36,19 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
     // Aunque la lectura falle se muestra lo que se sabe por la sesión, en lugar
     // de una pantalla vacía delante de un prospecto.
     setCard({
+      /*
+        El identificador es lo que convierte la tarjeta en algo compartible: de
+        él salen la dirección pública, el QR y el enlace del panel de compartir.
+        Al construir este objeto campo por campo se había quedado fuera, y sin él
+        el QR mostraba "guarda tu tarjeta" —aunque estuviera guardada— y el botón
+        de compartir se dibujaba desactivado.
+
+        Se cae a `identity.key`, que es el mismo valor: la sesión guarda ahí el
+        `id` del perfil. Así la tarjeta sigue siendo compartible incluso si la
+        lectura de la base falla, que es justo el caso en que esta pantalla se
+        alimenta de la sesión.
+      */
+      id: data?.id || identity.key,
       fullName: data?.fullName || identity.name || '',
       title: data?.title || '',
       company: data?.company || '',

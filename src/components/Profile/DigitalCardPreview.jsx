@@ -142,8 +142,14 @@ export default function DigitalCardPreview({
     En el reverso no se dibuja: su propio botón de giro ya es el camino de
     vuelta, y dos flechas de regreso a la vez dejan al prospecto adivinando cuál
     le hace perder lo que está viendo.
+
+    Se dibuja también cuando hay una capa abierta aunque no haya `onExit`. Ese es
+    el caso de la tarjeta compartida: ahí no existe salida —no hay app detrás a la
+    que volver— pero sí se puede abrir el QR o el panel de compartir, y sin este
+    botón el prospecto quedaba encerrado en ellos, con la tarjeta tapada y ningún
+    gesto para descubrirla.
   */
-  const showBackButton = Boolean(onExit) && !isFlipped;
+  const showBackButton = (Boolean(onExit) || Boolean(dismissLayer)) && !isFlipped;
 
   const handleBack = () => {
     tapFeedback();
