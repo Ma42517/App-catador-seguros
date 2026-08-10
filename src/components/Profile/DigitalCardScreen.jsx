@@ -107,9 +107,13 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
     "Vacía" se mide por los campos que la persona tiene que llenar, no por el
     nombre: ese se deduce del correo cuando falta, así que nunca está vacío y el
     atajo para completarla no llegaría a aparecer nunca.
+
+    `bio` quedó fuera de la cuenta al retirarse el bloque "About Me": ya no se
+    puede escribir desde el editor, así que un texto viejo guardado en la base
+    daría la tarjeta por completa sin que se vea nada en pantalla.
   */
   const isEmpty = card
-    && !card.title && !card.avatarUrl && !card.bio && !card.company;
+    && !card.title && !card.avatarUrl && !card.company;
 
   return (
     <div
