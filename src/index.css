@@ -221,9 +221,10 @@
     .animate-fade-in-up,
     .animate-shimmer,
     /* Vida de los iconos de contacto de la tarjeta digital. */
-    .animate-wiggle,
+    .animate-ring,
     .animate-soft-pulse,
-    .animate-float {
+    .animate-float,
+    .animate-glow-outline {
       animation: none;
     }
 

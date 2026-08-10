@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
+import QrPassModal from './QrPassModal';
 
 /**
  * Icono de WhatsApp: lucide no lo trae, así que va como trazo propio.
@@ -38,7 +40,7 @@ function WhatsAppMark({ size = 18, className = '' }) {
  * daría un error a quien lo toque. Deshabilitado tampoco se anima: un icono
  * moviéndose invita a tocarlo, y tocar aquí no haría nada.
  */
-function SocialButton({ label, href, children }) {
+function SocialButton({ label, href, glow = false, children }) {
   const enabled = Boolean(href);
 
   return (
@@ -55,11 +57,18 @@ function SocialButton({ label, href, children }) {
         }
         tapFeedback();
       }}
+      /*
+        El brillo del contorno vive en el círculo y no en el icono: es la
+        silueta del botón la que tiene que destellar. Sólo se enciende si el
+        botón sirve, porque un botón que llama la atención sin poder usarse
+        promete algo que no cumple.
+      */
       className={`grid h-11 w-11 place-items-center rounded-full transition-transform
         will-change-transform
         ${enabled
           ? `bg-white text-zinc-900 shadow-lg active:scale-90
-             hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]`
+             hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]
+             ${glow ? 'animate-glow-outline' : ''}`
           : 'cursor-default bg-white/30 text-zinc-600'}`}
     >
       {children}
@@ -93,6 +102,8 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
   } = card;
 
   const digits = (value) => String(value ?? '').replace(/[^\d+]/g, '');
+
+  const [isQrOpen, setQrOpen] = useState(false);
 
   /*
     Dos presentaciones de la misma tarjeta:
@@ -243,24 +254,21 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
           style={{ animationDelay: '200ms' }}
         >
           <SocialButton label="Llamar" href={phone ? `tel:${digits(phone)}` : ''}>
-            {/* Timbre corto cada cinco segundos, como un teléfono en silencio. */}
-            <Phone size={18} className={phone ? 'animate-wiggle' : ''} />
+            {/* Repique corto cada tres segundos, como un teléfono sonando bajito. */}
+            <Phone size={18} className={phone ? 'animate-ring' : ''} />
           </SocialButton>
 
           <SocialButton label="Enviar correo" href={email ? `mailto:${email}` : ''}>
             <Mail size={18} className={email ? 'animate-float' : ''} />
           </SocialButton>
 
-          <SocialButton label="Enviar mensaje" href={phone ? `sms:${digits(phone)}` : ''}>
-            {/*
-              Medio segundo de retraso respecto al correo: los dos flotan igual,
-              y sin desfase subirían y bajarían como una sola pieza.
-            */}
-            <MessageSquare
-              size={18}
-              className={phone ? 'animate-float' : ''}
-              style={phone ? { animationDelay: '500ms' } : undefined}
-            />
+          {/* Mensaje: el destello va en el contorno del círculo, no en el icono. */}
+          <SocialButton
+            label="Enviar mensaje"
+            href={phone ? `sms:${digits(phone)}` : ''}
+            glow
+          >
+            <MessageSquare size={18} />
           </SocialButton>
 
           <SocialButton
@@ -279,7 +287,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
         */}
         <div
           className="animate-fade-in-up relative mt-4 overflow-hidden rounded-2xl border
-                     border-white/20 bg-white/10 p-4 backdrop-blur-xl"
+                     border-white/20 bg-white/10 p-4 backdrop-blur-md"
           style={{ animationDelay: '300ms' }}
         >
           {/*
@@ -317,12 +325,33 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
       */}
       <div
         className={`absolute bottom-0 left-0 z-20 flex w-full items-center justify-between
-                    border-t border-white/10 bg-black/40 px-4 py-3 backdrop-blur-xl
+                    border-t border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md
                     ${isFill ? 'pb-safe' : 'rounded-b-[2rem]'}`}
       >
-        <span className="flex items-center gap-3 text-white/80" aria-hidden="true">
-          <QrCode size={20} />
-          <Share2 size={19} />
+        <span className="flex items-center gap-1">
+          {/*
+            El QR pasa de adorno a botón: es la forma más rápida de entregar el
+            contacto en persona, sin dictar un número ni pedirle al prospecto
+            que escriba nada.
+          */}
+          <button
+            type="button"
+            onClick={() => { tapFeedback(); setQrOpen(true); }}
+            aria-label="Mostrar mi código QR a pantalla completa"
+            className="grid h-9 w-9 place-items-center rounded-full text-white/80
+                       transition-colors hover:bg-white/10 hover:text-white
+                       active:scale-90 focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <QrCode size={20} />
+          </button>
+
+          <span
+            className="grid h-9 w-9 place-items-center text-white/80"
+            aria-hidden="true"
+          >
+            <Share2 size={19} />
+          </span>
         </span>
 
         {/*
@@ -351,6 +380,13 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
           </span>
         )}
       </div>
+
+      {/*
+        Va al final y como hermano de las capas, no dentro del contenido: al ser
+        `absolute inset-0` cubre la tarjeta entera, incluida la barra inferior
+        que lo abre.
+      */}
+      <QrPassModal card={card} isOpen={isQrOpen} onClose={() => setQrOpen(false)} />
     </div>
   );
 }

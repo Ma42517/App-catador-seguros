@@ -116,26 +116,40 @@ export default {
         */
 
         /*
-          Teléfono que suena bajito. El giro se concentra en el primer 20% del
+          Teléfono que repica. El giro se concentra en el primer tercio del
           ciclo y el resto es reposo: un vaivén continuo parecería un error de
-          maquetación, mientras que un timbre corto cada tantos segundos se lee
+          maquetación, mientras que un repique corto cada tres segundos se lee
           como intención.
         */
-        wiggle: {
-          '0%, 20%, 100%': { transform: 'rotate(0deg)' },
-          '5%': { transform: 'rotate(-5deg)' },
-          '10%': { transform: 'rotate(5deg)' },
-          '15%': { transform: 'rotate(-5deg)' },
+        ring: {
+          '0%, 35%, 100%': { transform: 'rotate(0deg)' },
+          '7%': { transform: 'rotate(-8deg)' },
+          '14%': { transform: 'rotate(8deg)' },
+          '21%': { transform: 'rotate(-6deg)' },
+          '28%': { transform: 'rotate(4deg)' },
         },
-        // WhatsApp: pulso muy suave, como una notificación en espera.
+        // WhatsApp: pulso de tamaño suave y continuo.
         'soft-pulse': {
           '0%, 100%': { transform: 'scale(1)' },
-          '50%': { transform: 'scale(1.05)' },
+          '50%': { transform: 'scale(1.1)' },
         },
-        // Correo y mensaje: flotan dos píxeles, sin llegar a rebotar.
+        /*
+          Correo: flotación vertical de 4 px, el equivalente a `-translate-y-1`.
+          Se escribe en píxeles y no con la utilidad porque una animación de
+          keyframes necesita el valor final, no una clase.
+        */
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-2px)' },
+          '50%': { transform: 'translateY(-4px)' },
+        },
+        /*
+          Mensaje: brillo que recorre el contorno del círculo. Se anima la
+          sombra y no la opacidad para que el destello quede en el canto y no
+          apague el icono, que es lo que hay que seguir leyendo.
+        */
+        'glow-outline': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgb(255 255 255 / 0)' },
+          '50%': { boxShadow: '0 0 10px 2px rgb(255 255 255 / 0.55)' },
         },
       },
       animation: {
@@ -158,13 +172,15 @@ export default {
         'fade-in-up': 'fade-in-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
         shimmer: 'shimmer 4.5s linear infinite',
         /*
-          Ciclos largos y distintos entre sí (5, 3 y 4 s). Con la misma duración
-          los cuatro iconos se moverían al unísono y la fila parecería un solo
-          bloque animado en lugar de cuatro piezas con vida propia.
+          Ciclos distintos entre sí (3, 2.5, 3 y 2.8 s) y sin divisores comunes
+          evidentes. Con la misma duración los cuatro iconos se moverían al
+          unísono y la fila parecería un solo bloque animado en lugar de cuatro
+          accesos con vida propia.
         */
-        wiggle: 'wiggle 5s ease-in-out infinite',
-        'soft-pulse': 'soft-pulse 3s ease-in-out infinite',
-        float: 'float 4s ease-in-out infinite',
+        ring: 'ring 3s ease-in-out infinite',
+        'soft-pulse': 'soft-pulse 2.5s ease-in-out infinite',
+        float: 'float 3s ease-in-out infinite',
+        'glow-outline': 'glow-outline 2.8s ease-in-out infinite',
       },
       backgroundImage: {
         'grid-fade':
