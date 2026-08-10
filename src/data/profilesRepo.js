@@ -97,18 +97,19 @@ function fromRow(row) {
     bio: row.bio ?? '',
     phone: row.phone ?? '',
     whatsapp: row.whatsapp ?? '',
+    agendaUrl: row.agenda_url ?? '',
   };
 }
 
 /**
  * Columnas de la tarjeta que pueden faltar en una base sin la migración al día.
  *
- * Está vacío a propósito, no de sobra: es el punto donde se declara la siguiente
- * columna nueva para que el guardado siga funcionando en una base que aún no la
- * tiene. Sin este mecanismo, Postgres rechaza el `update` completo por una sola
- * columna desconocida y se perderían también el nombre y el teléfono.
+ * Sin este mecanismo, Postgres rechaza el `update` completo por una sola columna
+ * desconocida: al añadir un campo nuevo y publicar antes de correr la migración,
+ * el asesor no podría guardar *nada* de su tarjeta —ni el nombre ni el teléfono—
+ * por un dato accesorio.
  */
-const OPTIONAL_COLUMNS = [];
+const OPTIONAL_COLUMNS = ['agenda_url'];
 
 /**
  * ¿El error dice que una columna no existe?
@@ -144,6 +145,7 @@ export async function saveMyCard(userId, card) {
     bio: card.bio?.trim() ?? '',
     phone: card.phone?.trim() ?? '',
     whatsapp: card.whatsapp?.trim() ?? '',
+    agenda_url: card.agendaUrl?.trim() ?? '',
   };
 
   const write = (body) => supabase

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, RotateCcw, ChevronLeft,
+  ImagePlus,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
 import QrPassModal from './QrPassModal';
 import ShareSheet from './ShareSheet';
+import { InlineInput, InlineTextarea } from './InlineField';
 import ServicesHubBack from './ServicesHubBack';
 
 /**
@@ -98,6 +100,7 @@ function SocialButton({ label, href, glow = false, children }) {
  */
 export default function DigitalCardPreview({
   card, variant = 'frame', onAddContact, onExit,
+  editable = false, onChange = () => {}, onPickPhoto,
 }) {
   const {
     fullName, title, company, license, specialties = [], bio, phone, email, whatsapp,
@@ -169,7 +172,20 @@ export default function DigitalCardPreview({
   */
   const isFill = variant === 'fill';
 
-  const sizeClasses = isFill ? 'h-full w-full' : 'mx-auto h-[650px] w-[320px]';
+  /*
+    En `fill` la tarjeta ocupa lo que le da su contenedor. En `frame` era
+    `h-[650px]` fijo, y ahí estaba el desbordamiento: en un teléfono la pantalla
+    útil ronda los 600 px y con la cabecera del editor encima la tarjeta no
+    cabía, así que la barra inferior quedaba fuera de la vista.
+
+    Ahora el alto se limita a lo que queda de pantalla —`100dvh` mide el espacio
+    real, descontando las barras del navegador, que `100vh` no hace— sin pasar de
+    los 650 px del diseño. Desde `sm` recupera la medida fija, porque en
+    escritorio siempre hay sitio y la maqueta debe verse igual.
+  */
+  const sizeClasses = isFill
+    ? 'h-full w-full'
+    : 'mx-auto h-[min(650px,calc(100dvh-11rem))] w-full max-w-[320px] sm:h-[650px]';
 
   // El marco se repite en las dos caras: si viviera en el contenedor que gira,
   // el recorte aplanaría la escena 3D y el giro dejaría de verse.
@@ -198,16 +214,37 @@ export default function DigitalCardPreview({
   return (
     <div className={`relative [perspective:1000px] ${sizeClasses}`}>
       <div
-        className={`relative h-full w-full transition-transform duration-700
-                    [transform-style:preserve-3d]
-                    ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
+        className="relative h-full w-full transition-transform duration-700"
+        /*
+          El 3D va en estilos en línea y no sólo en clases. Safari necesita las
+          propiedades prefijadas, y Tailwind no las genera: con la clase
+          `[transform-style:preserve-3d]` sola, WebKit aplanaba la escena y las
+          dos caras se mezclaban —se veía el frente en espejo encima del reverso—.
+
+          La rotación también se declara aquí para que salga en la misma
+          propiedad `transform` que el resto y no compita con ninguna clase.
+        */
+        style={{
+          WebkitTransformStyle: 'preserve-3d',
+          transformStyle: 'preserve-3d',
+          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+        }}
       >
         {/* ───────── Cara frontal: prospectos ───────── */}
         <div
           aria-hidden={isFlipped}
-          className={`absolute inset-0 h-full w-full overflow-hidden bg-zinc-950
-                      [backface-visibility:hidden] [-webkit-backface-visibility:hidden]
-                      ${faceFrame} ${isFlipped ? hiddenFace : ''}`}
+          className={`absolute inset-0 flex h-full w-full flex-col overflow-hidden
+                      bg-zinc-950 ${faceFrame} ${isFlipped ? hiddenFace : ''}`}
+          /*
+            `translateZ(0)` no es un truco de rendimiento aquí: obliga a WebKit a
+            dar a esta cara su propia capa en el espacio 3D. Sin ella, Safari la
+            trata como plana y la sigue dibujando cuando está de espaldas.
+          */
+          style={{
+            WebkitBackfaceVisibility: 'hidden',
+            backfaceVisibility: 'hidden',
+            transform: 'translateZ(0)',
+          }}
         >
           {/* Capa 0 — Ambiental: la foto convertida en luz de color */}
           {avatarUrl && (
@@ -287,6 +324,35 @@ export default function DigitalCardPreview({
             aria-hidden="true"
           />
 
+          {/*
+            Cambiar la foto: se toca el retrato, que es lo que se quiere cambiar.
+
+            El botón cubre la zona nítida —el 60% superior— y no un icono en una
+            esquina: así el gesto es "toco mi foto para cambiarla" en lugar de
+            buscar un control. El rótulo aparece al pasar por encima o al enfocar,
+            para no tapar el retrato mientras se editan los textos de abajo.
+          */}
+          {editable && onPickPhoto && (
+            <button
+              type="button"
+              onClick={onPickPhoto}
+              aria-label={avatarUrl ? 'Cambiar mi foto' : 'Subir mi foto'}
+              className="group absolute left-0 top-0 z-20 flex h-[60%] w-full items-start
+                         justify-center pt-8 transition-colors hover:bg-black/30
+                         focus-visible:bg-black/30 focus-visible:outline-none"
+            >
+              <span
+                className="flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5
+                           text-[11px] font-semibold text-white opacity-0 ring-1
+                           ring-white/30 backdrop-blur-md transition-opacity
+                           group-hover:opacity-100 group-focus-visible:opacity-100"
+              >
+                <ImagePlus size={13} strokeWidth={2.2} aria-hidden="true" />
+                {avatarUrl ? 'Cambiar foto' : 'Subir foto'}
+              </span>
+            </button>
+          )}
+
           {/* Paso al reverso, discreto y siempre alcanzable */}
           <button
             type="button"
@@ -332,11 +398,30 @@ export default function DigitalCardPreview({
             Servicios
           </button>
 
-          {/* Capa 3 — Contenido */}
+          {/*
+            Capa 3 — Contenido, en el flujo y con desplazamiento propio.
+
+            Antes ocupaba todo el alto con la barra inferior encima en posición
+            absoluta, y el hueco se reservaba a mano con `pb-20`. Eso se rompía en
+            cuanto la pantalla era más baja que el diseño: el contenido no tenía a
+            dónde ir y los últimos bloques quedaban cortados, con la barra tapando
+            lo que faltaba por leer.
+
+            Ahora la barra es un hermano que no se encoge y esta zona absorbe lo
+            que sobra. El contenedor interior lleva `min-h-full` con
+            `justify-end`: así el contenido se apoya abajo mientras cabe, y cuando
+            no cabe crece hacia arriba y se puede desplazar. Poner `justify-end`
+            directamente en el elemento que se desplaza dejaría el principio del
+            contenido fuera de alcance, que es un defecto conocido de flexbox.
+          */}
           <div
-            className={`relative z-10 flex h-full flex-col justify-end text-left text-white
-                        ${isFill ? 'p-6 pb-24' : 'p-5 pb-20'}`}
+            className="relative z-10 flex-1 overflow-y-auto overscroll-contain
+                       [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
+            <div
+              className={`flex min-h-full flex-col justify-end text-left text-white
+                          ${isFill ? 'p-6' : 'p-5'}`}
+            >
             {/* Pulso de disponibilidad, encima del nombre */}
             <div
               className="animate-fade-in-up mb-2.5 flex w-max items-center gap-2 rounded-full
@@ -351,18 +436,61 @@ export default function DigitalCardPreview({
               </span>
             </div>
 
+            {/*
+              Los mismos textos, editables o no según `editable`. Comparten estas
+              clases a propósito: si el editor tuviera su propio marcado, lo que
+              se escribe y lo que ve el prospecto empezarían a separarse con cada
+              cambio de diseño, y la promesa de "editas lo que se ve" se rompería
+              sin que nadie lo note.
+            */}
             <div className="animate-fade-in-up">
-              <h2 className="text-3xl font-bold uppercase leading-none tracking-tight
+              {editable ? (
+                <InlineInput
+                  value={fullName}
+                  onChange={(v) => onChange('fullName', v)}
+                  label="Tu nombre completo"
+                  placeholder="Tu nombre"
+                  className="text-3xl font-bold uppercase leading-none tracking-tight
                              drop-shadow-lg"
-              >
-                {fullName || <span className="text-white/40">Tu nombre</span>}
-              </h2>
+                />
+              ) : (
+                <h2 className="text-3xl font-bold uppercase leading-none tracking-tight
+                               drop-shadow-lg"
+                >
+                  {fullName || <span className="text-white/40">Tu nombre</span>}
+                </h2>
+              )}
 
-              <p className="mt-1.5 text-sm text-zinc-200 drop-shadow">
-                {title || <span className="text-white/35">Tu título profesional</span>}
-              </p>
+              {editable ? (
+                <InlineInput
+                  value={title}
+                  onChange={(v) => onChange('title', v)}
+                  label="Tu título profesional"
+                  placeholder="Tu título profesional"
+                  className="mt-1.5 text-sm text-zinc-200 drop-shadow"
+                />
+              ) : (
+                <p className="mt-1.5 text-sm text-zinc-200 drop-shadow">
+                  {title || <span className="text-white/35">Tu título profesional</span>}
+                </p>
+              )}
 
-              {company && (
+              {/*
+                Empresa y cédula sólo aparecen si tienen contenido, pero en
+                edición se muestran siempre: un campo que se oculta cuando está
+                vacío no se puede llenar, y sería invisible justo para quien
+                todavía no lo ha puesto.
+              */}
+              {editable ? (
+                <InlineInput
+                  value={company}
+                  onChange={(v) => onChange('company', v)}
+                  label="Empresa o promotoría"
+                  placeholder="Empresa o promotoría"
+                  className="mt-0.5 text-xs font-semibold uppercase tracking-wider
+                             text-zinc-300"
+                />
+              ) : company && (
                 <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider
                               text-zinc-300"
                 >
@@ -370,7 +498,18 @@ export default function DigitalCardPreview({
                 </p>
               )}
 
-              {license && (
+              {editable ? (
+                <span className="mt-1.5 flex items-baseline gap-1 text-[11px] text-zinc-300">
+                  Cédula:
+                  <InlineInput
+                    value={license}
+                    onChange={(v) => onChange('license', v)}
+                    label="Cédula profesional"
+                    placeholder="123456"
+                    className="text-[11px] text-zinc-300"
+                  />
+                </span>
+              ) : license && (
                 <p className="mt-1.5 text-[11px] text-zinc-300">Cédula: {license}</p>
               )}
             </div>
@@ -455,25 +594,41 @@ export default function DigitalCardPreview({
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-200">
                   About Me
                 </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-zinc-100">
-                  {bio || (
-                    <span className="text-white/40">
-                      Escribe unas líneas sobre a quién ayudas y cómo. Es lo que hace que
-                      un prospecto te escriba.
-                    </span>
-                  )}
-                </p>
+
+                {editable ? (
+                  <InlineTextarea
+                    value={bio}
+                    onChange={(v) => onChange('bio', v)}
+                    label="Sobre mí"
+                    placeholder="Escribe unas líneas sobre a quién ayudas y cómo."
+                    className="mt-1.5 text-xs leading-relaxed text-zinc-100"
+                  />
+                ) : (
+                  <p className="mt-1.5 text-xs leading-relaxed text-zinc-100">
+                    {bio || (
+                      <span className="text-white/40">
+                        Escribe unas líneas sobre a quién ayudas y cómo. Es lo que hace que
+                        un prospecto te escriba.
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
             </div>
+          </div>
           </div>
 
           {/*
             Barra de acción del celular. Pasa de negro casi opaco a cristal:
             dejarla sólida cortaría en seco la luz de color justo en el borde
             inferior, que es donde el efecto ambiental se ve mejor.
+
+            `shrink-0` es lo que garantiza que "Add to Contact" nunca se recorte:
+            es la acción por la que existe la tarjeta, y en una pantalla baja el
+            contenedor flex la habría comprimido antes que nada.
           */}
           <div
-            className={`absolute bottom-0 left-0 z-20 flex w-full items-center justify-between
+            className={`relative z-20 flex w-full shrink-0 items-center justify-between
                         border-t border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md
                         ${isFill ? 'pb-safe' : 'rounded-b-[2rem]'}`}
           >
@@ -550,10 +705,18 @@ export default function DigitalCardPreview({
         {/* ───────── Cara trasera: clientes activos ───────── */}
         <div
           aria-hidden={!isFlipped}
-          className={`absolute inset-0 h-full w-full overflow-hidden
-                      [backface-visibility:hidden] [-webkit-backface-visibility:hidden]
-                      [transform:rotateY(180deg)]
+          className={`absolute inset-0 h-full w-full overflow-hidden bg-zinc-900
                       ${faceFrame} ${isFlipped ? '' : hiddenFace}`}
+          /*
+            La media vuelta va junta con `translateZ(0)` en la misma propiedad:
+            declaradas por separado, la segunda sustituiría a la primera y el
+            reverso se vería del derecho, con el texto en espejo.
+          */
+          style={{
+            WebkitBackfaceVisibility: 'hidden',
+            backfaceVisibility: 'hidden',
+            transform: 'rotateY(180deg) translateZ(0)',
+          }}
         >
           <ServicesHubBack card={card} onBack={() => flipTo(false)} />
         </div>

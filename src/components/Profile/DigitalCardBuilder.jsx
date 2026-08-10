@@ -1,33 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Save, Loader2, ImagePlus, X, Check, AlertTriangle, User, Mail, Phone, Building2,
-  BadgeCheck, Sparkles,
+  Save, Loader2, Check, AlertTriangle, Sparkles,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import DigitalCardPreview from './DigitalCardPreview';
+import ContactDrawer from './ContactDrawer';
+import ImageCropperModal from './ImageCropperModal';
 import { useSession } from '../../context/SessionContext';
 import { fetchProfile, saveMyCard, describeError } from '../../data/profilesRepo';
 import { uploadAttachment } from '../../data/announcementsRepo';
-import ImageCropperModal from './ImageCropperModal';
 import { readImageFile, dataUrlToFile } from '../../data/cardPhoto';
 import { saveAdvisorProfile } from '../../data/advisorProfile';
-
-const INPUT =
-  'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
-  + 'placeholder:text-zinc-400 transition-colors focus:border-indigo-500 focus:outline-none '
-  + 'focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950/60 '
-  + 'dark:text-zinc-100 dark:placeholder:text-zinc-600';
-
-const LABEL = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500';
-
-/** Títulos sugeridos. Es un `datalist`: sugiere sin obligar. */
-const TITLE_SUGGESTIONS = [
-  'Consultor Financiero Patrimonial',
-  'Especialista en Retiro',
-  'Agente de Seguros',
-  'Asesor Patrimonial Certificado',
-  'Consultor en Protección Familiar',
-];
 
 const SPECIALTIES = [
   'Vida', 'GMM', 'Ahorro', 'Retiro', 'Educativo', 'Inversiones', 'Empresarial', 'Auto',
@@ -40,37 +23,26 @@ const EMPTY_CARD = {
   id: '',
   fullName: '', title: '', license: '', company: '',
   specialties: [], bio: '', phone: '', email: '', whatsapp: '', avatarUrl: '',
+  agendaUrl: '',
 };
 
-/** Campo de texto con icono, para que el formulario se lea de un barrido. */
-function Field({ id, label, icon: Icon, hint, children }) {
-  return (
-    <div>
-      <label className={LABEL} htmlFor={id}>
-        <span className="inline-flex items-center gap-1.5">
-          {Icon && <Icon size={12} aria-hidden="true" />}
-          {label}
-        </span>
-      </label>
-      {children}
-      {hint && <p className="mt-1 text-[11px] text-zinc-500">{hint}</p>}
-    </div>
-  );
-}
-
 /**
- * Edición de la tarjeta digital. Se entra desde Mi Perfil.
+ * Editor de la tarjeta digital: se escribe encima de la tarjeta.
  *
- * Pantalla partida: el formulario a la izquierda y la tarjeta a la derecha. Un
- * solo estado alimenta las dos columnas, así que lo escrito aparece al momento:
- * es la única forma de decidir si un título cabe o si la biografía es larga.
+ * Antes había un formulario a un lado y la tarjeta al otro. Funcionaba, pero
+ * obligaba a traducir todo el tiempo: se escribía en un campo llamado "Título de
+ * alto impacto" y había que mirar a la derecha para ver si cabía, si se cortaba,
+ * si pesaba demasiado junto al nombre. Con el texto editable en su sitio, esa
+ * traducción desaparece —lo que se escribe ya está en su tamaño, su color y su
+ * ancho definitivo—.
  *
- * Mostrar la tarjeta es otra pantalla (`DigitalCardScreen`), sin cabecera y a
- * pantalla completa. Aquí sí hay cabecera y botones: esto es capturar datos, no
- * presentarse.
+ * Queda fuera de la tarjeta lo que la tarjeta no muestra como texto: los números
+ * de contacto, que viven en los botones redondos, y las especialidades, que son
+ * una lista cerrada y se eligen, no se escriben.
  *
- * En celular las columnas se apilan y la vista previa va primero: sin verla, el
- * formulario es una lista de campos sin contexto.
+ * Guardar es explícito y no automático. Es la tarjeta con la que alguien se
+ * presenta: escribir a medias el título y que eso quede publicado al instante,
+ * sin haberlo decidido, sería peor que tener que pulsar un botón.
  */
 export default function DigitalCardBuilder({ isOpen, onClose }) {
   const { identity, refreshIdentity } = useSession();
@@ -80,26 +52,25 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   const [isSaving, setSaving] = useState(false);
   const [isUploading, setUploading] = useState(false);
 
-  // Imagen elegida en espera de encuadre. Mientras exista, se muestran los
-  // controles: subir antes de ajustar obligaría a repetir la subida.
+  // Imagen elegida en espera de recorte. Mientras exista, se muestra el
+  // recortador: subir antes de encuadrar obligaría a repetir la subida.
   const [pendingImage, setPendingImage] = useState(null);
   const [status, setStatus] = useState(null);
   const fileRef = useRef(null);
 
   /*
-    Última versión confirmada de la tarjeta: lo que se leyó de la base o lo que
-    se acabó de guardar. "Cancelar" restaura desde aquí. Sin esta copia, salir
-    de la edición dejaba los cambios en pantalla y el botón prometía algo que no
-    hacía.
+    Última versión confirmada: lo que se leyó de la base o lo que se acabó de
+    guardar. "Cancelar" restaura desde aquí. Sin esta copia, salir de la edición
+    dejaba los cambios en pantalla y el botón prometía algo que no hacía.
   */
   const savedRef = useRef(EMPTY_CARD);
 
-  const setField = (key) => (event) => {
-    setCard((prev) => ({ ...prev, [key]: event.target.value }));
+  /** Un solo manejador para todos los campos, venga de la tarjeta o del panel. */
+  const setField = useCallback((key, value) => {
+    setCard((prev) => ({ ...prev, [key]: value }));
     setStatus(null);
-  };
+  }, []);
 
-  /** Carga la ficha guardada; el correo sale de la sesión, no se captura. */
   const load = useCallback(async () => {
     if (!identity?.key) return;
     setLoading(true);
@@ -108,7 +79,7 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
 
     /*
       Aunque la lectura falle se siembra lo que ya se sabe por la sesión. Salir
-      aquí dejaba el formulario en blanco —sin nombre ni correo— y parecía que la
+      aquí dejaba el editor en blanco —sin nombre ni correo— y parecía que la
       cuenta no tuviera datos, cuando el problema era la consulta.
     */
     if (error) setStatus({ type: 'error', message: describeError(error) });
@@ -117,9 +88,7 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
       ...EMPTY_CARD,
       ...(data ?? {}),
       // Sin identificador no hay dirección pública, y sin ella el QR y el panel
-      // de compartir no tienen nada que entregar. Se cae a la clave de la sesión,
-      // que es el mismo `id` del perfil, para cubrir el caso en que la lectura
-      // de la base falle.
+      // de compartir no tienen nada que entregar.
       id: data?.id || identity.key,
       fullName: data?.fullName || identity.name || '',
       email: identity.email || '',
@@ -157,10 +126,9 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   /**
    * Al elegir una foto no se sube: primero se encuadra.
    *
-   * El fondo de la tarjeta es vertical y mucho más alto que ancho, así que una
-   * foto normal necesita decidir qué parte se conserva. Subir antes de eso
-   * llevaría a descubrir el recorte malo cuando ya está guardado. Aquí sólo se
-   * lee el archivo a una URL de datos; el recorte real ocurre en el modal.
+   * El retrato ocupa una zona concreta de la tarjeta, más alta que ancha, y una
+   * foto cualquiera no encaja ahí por sí sola. Subir antes de recortar llevaría a
+   * descubrir el mal encuadre cuando ya está guardado.
    */
   const pickPhoto = async (event) => {
     const file = event.target.files?.[0];
@@ -176,7 +144,7 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
     }
   };
 
-  /** Sube el recorte confirmado, que ya viene en la proporción de la tarjeta. */
+  /** Sube el recorte confirmado, que ya viene en la proporción del retrato. */
   const uploadFramed = async (dataUrl) => {
     setUploading(true);
     try {
@@ -222,18 +190,7 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
       phone: card.phone.trim(),
     });
 
-    /*
-      Guardar devuelve a presentación. Es lo que se quiere hacer justo después de
-      terminar de capturar, y ahorra un toque de más en el momento en que la
-      persona ya tiene el prospecto delante.
-    */
     savedRef.current = card;
-
-    /*
-      Se relee la identidad de la sesión: el nombre con el que la app saluda sale
-      de esta misma ficha, y sin refrescar seguiría mostrando el anterior —o el
-      correo— hasta que la persona recargara.
-    */
     refreshIdentity();
     setStatus({ type: 'ok', message: 'Tarjeta guardada.' });
   };
@@ -244,14 +201,24 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
     <FullScreenView
       isOpen={isOpen}
       onClose={onClose}
-      title="Editar mi tarjeta"
+      title="Mi tarjeta"
       label="Editar mi tarjeta digital"
-      wide
     >
+      {/* El archivo se elige desde la propia foto de la tarjeta. */}
+      <input
+        ref={fileRef}
+        id="card-photo"
+        type="file"
+        accept="image/*"
+        onChange={pickPhoto}
+        disabled={busy}
+        className="sr-only"
+      />
+
       {status && (
         <p
           role={status.type === 'error' ? 'alert' : 'status'}
-          className={`mb-5 flex items-start gap-2 rounded-xl border p-3 text-xs leading-relaxed
+          className={`mb-4 flex items-start gap-2 rounded-xl border p-3 text-xs leading-relaxed
             ${status.type === 'error'
               ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300'
               : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'}`}
@@ -263,262 +230,129 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* ── Vista previa. Va primero en el orden del documento para que en
-              celular aparezca arriba, y se reordena en escritorio. ── */}
-        <div className="lg:order-2">
-          <div className="lg:sticky lg:top-20">
-            <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider
-                          text-zinc-500"
+      {isLoading ? (
+        <p className="flex items-center gap-2 py-16 text-sm text-zinc-500">
+          <Loader2 size={16} className="animate-spin" />
+          Cargando tu tarjeta...
+        </p>
+      ) : (
+        /*
+          `pb-28` deja libre el alto del botón flotante. Sin ese hueco, el último
+          bloque queda debajo del botón y no se puede alcanzar.
+        */
+        <div className="flex flex-col gap-5 pb-28">
+          <p className="flex items-start gap-1.5 text-center text-[11px] leading-relaxed
+                        text-zinc-500"
+          >
+            <Sparkles size={12} className="mt-0.5 shrink-0 text-indigo-400" aria-hidden="true" />
+            Toca cualquier texto de la tarjeta para escribirlo, o toca tu foto para
+            cambiarla.
+          </p>
+
+          {/* La tarjeta es el editor. */}
+          <DigitalCardPreview
+            card={card}
+            editable
+            onChange={setField}
+            onPickPhoto={() => fileRef.current?.click()}
+          />
+
+          {/*
+            Las especialidades no se editan sobre la tarjeta: son una lista
+            cerrada con un tope de tres, y eso se elige tocando, no escribiendo.
+            Dentro de la tarjeta habría que inventar un gesto para quitarlas.
+          */}
+          <div>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider
+                             text-zinc-500"
             >
-              Así la verá tu prospecto
-            </p>
-            <DigitalCardPreview card={card} />
-          </div>
-        </div>
+              Especialidades
+              <span className="ml-1 normal-case tracking-normal text-zinc-400">
+                ({card.specialties.length} de {MAX_SPECIALTIES})
+              </span>
+            </span>
 
-        {/* ── Formulario ── */}
-        <div className="lg:order-1">
-          {isLoading ? (
-            <p className="flex items-center gap-2 py-10 text-sm text-zinc-500">
-              <Loader2 size={16} className="animate-spin" />
-              Cargando tu tarjeta...
-            </p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {/* Foto */}
-              <Field label="Foto de perfil" icon={ImagePlus} id="card-photo">
-                <input
-                  ref={fileRef}
-                  id="card-photo"
-                  type="file"
-                  accept="image/*"
-                  onChange={pickPhoto}
-                  disabled={busy}
-                  className="peer sr-only"
-                />
-                <div className="flex items-center gap-3">
-                  {card.avatarUrl && (
-                    <span className="relative shrink-0">
-                      <img
-                        src={card.avatarUrl}
-                        alt="Tu foto"
-                        className="h-16 w-16 rounded-xl object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setCard((prev) => ({ ...prev, avatarUrl: '' }))}
-                        aria-label="Quitar foto"
-                        className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center
-                                   rounded-full bg-zinc-900 text-white transition-colors
-                                   hover:bg-rose-500"
-                      >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  )}
-
-                  {/* El botón nativo se rotula en el idioma del navegador y no
-                      se puede traducir; la etiqueta hace de disparador. */}
-                  <label
-                    htmlFor="card-photo"
-                    className={`flex flex-1 cursor-pointer items-center justify-center gap-2
-                                rounded-xl border border-dashed border-zinc-300 py-5 text-xs
-                                font-semibold text-zinc-500 transition-colors
-                                hover:border-indigo-500 hover:text-indigo-500
-                                peer-focus-visible:border-indigo-500
-                                dark:border-zinc-700
-                                ${busy ? 'pointer-events-none opacity-60' : ''}`}
+            <div role="group" aria-label="Especialidades" className="flex flex-wrap gap-2">
+              {SPECIALTIES.map((item) => {
+                const active = card.specialties.includes(item);
+                const full = card.specialties.length >= MAX_SPECIALTIES;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggleSpecialty(item)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold
+                      transition-all active:scale-95
+                      ${active
+                        ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                        : `border-zinc-200 text-zinc-500 dark:border-zinc-700
+                           ${full ? 'opacity-40' : 'hover:border-zinc-400'}`}`}
                   >
-                    {isUploading
-                      ? <><Loader2 size={15} className="animate-spin" /> Subiendo...</>
-                      : <><ImagePlus size={15} /> {card.avatarUrl ? 'Cambiar foto' : 'Elegir foto'}</>}
-                  </label>
-                </div>
-
-              </Field>
-
-              <Field label="Nombre completo" icon={User} id="card-name">
-                <input
-                  id="card-name"
-                  className={INPUT}
-                  value={card.fullName}
-                  onChange={setField('fullName')}
-                  placeholder="Marco Antonio Ramírez"
-                  autoComplete="name"
-                />
-              </Field>
-
-              <Field
-                label="Título de alto impacto"
-                icon={Sparkles}
-                id="card-title"
-                hint="Escribe el tuyo o elige una sugerencia."
-              >
-                <input
-                  id="card-title"
-                  className={INPUT}
-                  value={card.title}
-                  onChange={setField('title')}
-                  placeholder="Consultor Financiero Patrimonial"
-                  list="card-title-options"
-                  autoComplete="off"
-                />
-                <datalist id="card-title-options">
-                  {TITLE_SUGGESTIONS.map((option) => <option key={option} value={option} />)}
-                </datalist>
-              </Field>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Cédula profesional" icon={BadgeCheck} id="card-license">
-                  <input
-                    id="card-license"
-                    className={INPUT}
-                    value={card.license}
-                    onChange={setField('license')}
-                    placeholder="123456"
-                    autoComplete="off"
-                  />
-                </Field>
-
-                <Field label="Empresa / Promotoría" icon={Building2} id="card-company">
-                  <input
-                    id="card-company"
-                    className={INPUT}
-                    value={card.company}
-                    onChange={setField('company')}
-                    placeholder="Promotoría Central"
-                    autoComplete="organization"
-                  />
-                </Field>
-              </div>
-
-              {/* Especialidades */}
-              <div>
-                <span className={LABEL}>
-                  Especialidades
-                  <span className="ml-1 normal-case tracking-normal text-zinc-400">
-                    ({card.specialties.length} de {MAX_SPECIALTIES})
-                  </span>
-                </span>
-
-                <div role="group" aria-label="Especialidades" className="flex flex-wrap gap-2">
-                  {SPECIALTIES.map((item) => {
-                    const active = card.specialties.includes(item);
-                    const full = card.specialties.length >= MAX_SPECIALTIES;
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        aria-pressed={active}
-                        onClick={() => toggleSpecialty(item)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold
-                          transition-all active:scale-95
-                          ${active
-                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
-                            : `border-zinc-200 text-zinc-500 dark:border-zinc-700
-                               ${full ? 'opacity-40' : 'hover:border-zinc-400'}`}`}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <Field label="Sobre mí" id="card-bio" hint="Dos o tres líneas. En la tarjeta hay poco espacio.">
-                <textarea
-                  id="card-bio"
-                  rows={3}
-                  maxLength={240}
-                  className={`${INPUT} resize-none`}
-                  value={card.bio}
-                  onChange={setField('bio')}
-                  placeholder="Ayudo a familias a proteger su patrimonio y a planear su retiro con claridad."
-                />
-              </Field>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <Field label="Teléfono" icon={Phone} id="card-phone">
-                  <input
-                    id="card-phone"
-                    className={INPUT}
-                    value={card.phone}
-                    onChange={setField('phone')}
-                    placeholder="5512345678"
-                    inputMode="tel"
-                    autoComplete="tel"
-                  />
-                </Field>
-
-                <Field label="WhatsApp" icon={Phone} id="card-whatsapp">
-                  <input
-                    id="card-whatsapp"
-                    className={INPUT}
-                    value={card.whatsapp}
-                    onChange={setField('whatsapp')}
-                    placeholder="525512345678"
-                    inputMode="tel"
-                  />
-                </Field>
-
-                <Field label="Correo" icon={Mail} id="card-email">
-                  <input
-                    id="card-email"
-                    className={`${INPUT} disabled:opacity-70`}
-                    value={card.email}
-                    disabled
-                    readOnly
-                  />
-                </Field>
-              </div>
-
-              <p className="text-[11px] leading-relaxed text-zinc-500">
-                El correo es el de tu cuenta y no se edita aquí: cambiarlo separaría
-                la tarjeta de la sesión con la que entras.
-              </p>
-
-              <div className="mt-1 flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  // Descarta lo escrito y cierra sin guardar.
-                  setCard(savedRef.current);
-                  setStatus(null);
-                  onClose();
-                }}
-                disabled={busy}
-                className="rounded-xl border border-zinc-300 px-4 py-3.5 text-sm font-semibold
-                           text-zinc-600 transition-colors hover:bg-zinc-100
-                           disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300
-                           dark:hover:bg-zinc-900"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="button"
-                onClick={save}
-                disabled={busy}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl
-                           bg-indigo-600 px-4 py-3.5 text-base font-semibold text-white
-                           shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500
-                           active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
-              >
-                {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
-                {isSaving ? 'Guardando...' : 'Guardar Tarjeta'}
-              </button>
-              </div>
+                    {item}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+
+          <ContactDrawer card={card} onChange={setField} />
         </div>
-      </div>
+      )}
 
       {/*
-        El recortador es una pantalla propia, encima de todo: necesita el
-        espacio completo para que arrastrar y acercar la foto se sienta natural,
-        y anidarlo dentro del formulario lo encogería justo cuando más espacio
-        necesita.
+        Guardar flota sobre el contenido: se llega a él desde cualquier punto del
+        editor, sin tener que bajar hasta el final. En una pantalla donde se toca
+        texto por todas partes, obligar a buscar el botón es la forma más fácil de
+        perder los cambios.
+
+        `fixed` y no `sticky` porque esta pantalla se desplaza dentro de su propio
+        contenedor: con `sticky` el botón se quedaría anclado a un bloque y
+        desaparecería al llegar al final.
+      */}
+      {!isLoading && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200/70
+                     bg-white/85 px-4 pb-6 pt-3 backdrop-blur-md
+                     dark:border-zinc-800 dark:bg-zinc-950/85"
+        >
+          <div className="mx-auto flex max-w-md gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                // Descarta lo escrito y cierra sin guardar.
+                setCard(savedRef.current);
+                setStatus(null);
+                onClose();
+              }}
+              disabled={busy}
+              className="rounded-xl border border-zinc-300 px-4 py-3.5 text-sm font-semibold
+                         text-zinc-600 transition-colors hover:bg-zinc-100
+                         disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300
+                         dark:hover:bg-zinc-900"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              onClick={save}
+              disabled={busy}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl
+                         bg-indigo-600 px-4 py-3.5 text-base font-semibold text-white
+                         shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500
+                         active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+            >
+              {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+              {isSaving ? 'Guardando...' : 'Guardar Tarjeta'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/*
+        El recortador es una pantalla propia, encima de todo: necesita el espacio
+        completo para que arrastrar y acercar la foto se sienta natural.
       */}
       {pendingImage && (
         <ImageCropperModal
