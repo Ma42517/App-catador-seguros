@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
-import { X, User, Phone, Mail, Lock, Loader2 } from 'lucide-react';
+import { X, User, Phone, Lock, Loader2 } from 'lucide-react';
 
 const INPUT =
   'w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-white '
@@ -32,18 +32,15 @@ const IconInput = forwardRef(({ id, label, icon: Icon, ...props }, ref) => {
 
 IconInput.displayName = 'IconInput';
 
-/** Correo con forma razonable. No valida existencia, sólo estructura. */
-function looksLikeEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());
-}
-
 /**
  * Captura del prospecto antes de entregar el contacto del asesor.
  *
  * Quien llena esto no es el asesor: es la persona que tiene el teléfono en la
- * mano un momento. De ahí las decisiones de esta pantalla —tres campos y nada
- * más, textos en segunda persona, y el teclado correcto en cada campo—: cada
+ * mano un momento. De ahí las decisiones de esta pantalla —dos campos y nada
+ * más, textos en segunda persona, y el teclado correcto en cada uno—: cada
  * fricción extra es una probabilidad de que devuelva el teléfono sin escribir.
+ * El nombre y el WhatsApp bastan para dar seguimiento; pedir además el correo
+ * alargaba el trámite sin añadir una vía de contacto que se use.
  *
  * El intercambio es explícito: sus datos a cambio del contacto. Por eso el botón
  * dice qué obtiene y la nota de privacidad va debajo, donde se lee justo antes
@@ -52,7 +49,6 @@ function looksLikeEmail(value) {
 export default function LeadCaptureModal({ isOpen, onClose, onSubmit, advisorName }) {
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isSending, setSending] = useState(false);
 
@@ -63,7 +59,6 @@ export default function LeadCaptureModal({ isOpen, onClose, onSubmit, advisorNam
 
     setName('');
     setWhatsapp('');
-    setEmail('');
     setError('');
     setSending(false);
 
@@ -97,13 +92,8 @@ export default function LeadCaptureModal({ isOpen, onClose, onSubmit, advisorNam
       setError('Escribe tu WhatsApp a 10 dígitos.');
       return;
     }
-    if (!looksLikeEmail(email)) {
-      setError('Revisa tu correo, parece incompleto.');
-      return;
-    }
-
     setSending(true);
-    await onSubmit({ name: name.trim(), whatsapp: whatsapp.trim(), email: email.trim() });
+    await onSubmit({ name: name.trim(), whatsapp: whatsapp.trim() });
     setSending(false);
   };
 
@@ -161,10 +151,8 @@ export default function LeadCaptureModal({ isOpen, onClose, onSubmit, advisorNam
           </p>
 
           {/*
-            `noValidate` desactiva la validación del navegador. Con `type=email`,
-            un correo incompleto detenía el envío antes de llegar aquí y mostraba
-            una burbuja nativa —en el idioma del navegador, no de la app— en
-            lugar de nuestro mensaje. Así los tres avisos se ven igual.
+            `noValidate` deja la validación en nuestras manos: las burbujas del
+            navegador salen en su propio idioma, no en el de la app.
           */}
           <form onSubmit={submit} noValidate className="flex flex-col gap-3">
             <IconInput
@@ -188,19 +176,6 @@ export default function LeadCaptureModal({ isOpen, onClose, onSubmit, advisorNam
               placeholder="Tu WhatsApp"
               inputMode="tel"
               autoComplete="tel"
-            />
-
-            <IconInput
-              id="lead-email"
-              label="Tu correo electrónico"
-              icon={Mail}
-              type="email"
-              value={email}
-              onChange={(event) => { setEmail(event.target.value); setError(''); }}
-              placeholder="Tu Correo Electrónico"
-              inputMode="email"
-              autoComplete="email"
-              autoCapitalize="none"
             />
 
             {error && (

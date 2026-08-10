@@ -40,7 +40,6 @@ export function saveLead(advisorKey, lead) {
     id: newId(),
     name: String(lead.name ?? '').trim(),
     whatsapp: String(lead.whatsapp ?? '').trim(),
-    email: String(lead.email ?? '').trim(),
     capturedAt: Date.now(),
   };
   if (!entry.name) return null;
