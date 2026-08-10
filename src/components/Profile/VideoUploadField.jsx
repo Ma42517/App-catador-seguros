@@ -232,7 +232,8 @@ export default function VideoUploadField({ value, onVideoUploaded, disabled = fa
           {' '}
           {MAX_VIDEO_SECONDS}
           {' '}
-          segundos. Grábate en horizontal, di quién eres y a quién ayudas.
+          segundos. Mejor en horizontal —deja el botón de agendar a la vista—, di
+          quién eres y a quién ayudas. Si lo grabas en vertical también funciona.
         </p>
       )}
     </div>

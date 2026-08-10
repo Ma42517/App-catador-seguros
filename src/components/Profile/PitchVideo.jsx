@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   toYouTubeEmbed, videoKind, videoFileUrl, videoPosterUrl,
 } from '../../data/videoEmbed';
@@ -20,10 +21,35 @@ import {
  * su prospecto.
  */
 export default function PitchVideo({ url, fullName }) {
+  /*
+    Orientación real del archivo, leída de sus metadatos.
+
+    Se detecta en lugar de imponer un marco fijo porque la gente graba con el
+    teléfono como lo tiene en la mano, y eso es en vertical. Con un marco 16:9
+    forzado, un video vertical aparecía como una columna estrecha entre dos
+    franjas negras enormes: la cara del asesor quedaba diminuta justo en la
+    pieza que existe para que se le vea la cara.
+
+    Arranca en `false` —horizontal— porque es la orientación recomendada y la del
+    caso de YouTube, así que el marco correcto ya está puesto antes de que el
+    archivo diga nada y no hay salto al cargar.
+  */
+  const [isPortrait, setPortrait] = useState(false);
+
   const kind = videoKind(url);
   if (!kind) return null;
 
   const who = fullName ? fullName.split(' ')[0] : 'tu asesor';
+
+  /*
+    El vertical se muestra en 4:5 y no en 9:16, que es su proporción nativa.
+
+    Un 9:16 dentro de una tarjeta de teléfono ocupa la pantalla completa y empuja
+    el botón de agendar fuera de la vista: la cara se ve enorme y la acción
+    desaparece. El 4:5 conserva la sensación vertical, deja las preguntas y el
+    botón asomando, y con `object-contain` no recorta nada de la imagen.
+  */
+  const frameAspect = kind === 'file' && isPortrait ? 'aspect-[4/5]' : 'aspect-video';
 
   return (
     <figure className="mb-4">
@@ -34,8 +60,9 @@ export default function PitchVideo({ url, fullName }) {
         de agendar.
       */}
       <div
-        className="relative aspect-video w-full overflow-hidden rounded-2xl border
-                   border-white/10 bg-black shadow-lg shadow-black/40"
+        className={`relative w-full overflow-hidden rounded-2xl border border-white/10
+                    bg-black shadow-lg shadow-black/40 transition-[aspect-ratio]
+                    duration-300 ${frameAspect}`}
       >
         {kind === 'youtube' ? (
           <iframe
@@ -78,6 +105,15 @@ export default function PitchVideo({ url, fullName }) {
             */
             preload="metadata"
             title={`Video de presentación de ${who}`}
+            /*
+              Aquí se mide la orientación. `videoWidth` y `videoHeight` son las
+              dimensiones reales del archivo, no las del elemento, así que dicen
+              cómo se grabó y no cómo se está pintando.
+            */
+            onLoadedMetadata={(event) => {
+              const { videoWidth, videoHeight } = event.currentTarget;
+              if (videoWidth && videoHeight) setPortrait(videoHeight > videoWidth);
+            }}
             className="absolute inset-0 h-full w-full bg-black object-contain"
           >
             {/*
