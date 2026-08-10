@@ -84,6 +84,11 @@ function CardAvatar({ url }) {
         src={url}
         alt="Tu foto de perfil"
         onError={() => setFailed(true)}
+        /*
+          Sin esta política, las fotos alojadas por Google responden 403 cuando
+          el navegador manda la cabecera de referencia.
+        */
+        referrerPolicy="no-referrer"
         className="h-12 w-12 shrink-0 rounded-full border border-white/20 object-cover"
       />
     );

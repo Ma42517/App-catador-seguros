@@ -13,6 +13,7 @@ import AdminPanel from '../Admin/AdminPanel';
 import UserApprovals from '../Admin/UserApprovals';
 import { useEvents } from '../../context/EventContext';
 import { useAccess } from '../../context/AccessContext';
+import { useSession } from '../../context/SessionContext';
 import { countPendingProfiles } from '../../data/profilesRepo';
 
 /**
@@ -32,6 +33,7 @@ export default function AdminLayout({
   // haber desbloqueado el modo promotor con el código y su contraseña. Son
   // permisos distintos que llevan al mismo lugar.
   const { isPromoter } = useAccess();
+  const { refreshIdentity } = useSession();
   const canOpenAdmin = isAdminUser || isPromoter;
 
   const [moreOpen, setMoreOpen] = useState(false);
@@ -63,6 +65,13 @@ export default function AdminLayout({
 
   const openMore = () => {
     refreshPending();
+    /*
+      Se relee la identidad al abrir el panel. Antes sólo se leía al iniciar
+      sesión, así que una pestaña abierta desde antes de guardar la tarjeta
+      seguía mostrando el ícono genérico en lugar de la foto —y el nombre
+      anterior— hasta recargar la página.
+    */
+    refreshIdentity();
     setMoreOpen(true);
   };
 

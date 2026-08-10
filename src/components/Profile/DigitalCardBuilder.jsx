@@ -8,7 +8,8 @@ import DigitalCardPreview from './DigitalCardPreview';
 import { useSession } from '../../context/SessionContext';
 import { fetchProfile, saveMyCard, describeError } from '../../data/profilesRepo';
 import { uploadAttachment } from '../../data/announcementsRepo';
-import { prepareGoalImage } from '../../data/goalImage';
+import PhotoFramer from './PhotoFramer';
+import { loadImageFromFile, dataUrlToFile } from '../../data/cardPhoto';
 import { saveAdvisorProfile } from '../../data/advisorProfile';
 
 const INPUT =
@@ -77,6 +78,10 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   const [isLoading, setLoading] = useState(false);
   const [isSaving, setSaving] = useState(false);
   const [isUploading, setUploading] = useState(false);
+
+  // Imagen elegida en espera de encuadre. Mientras exista, se muestran los
+  // controles: subir antes de ajustar obligaría a repetir la subida.
+  const [pendingImage, setPendingImage] = useState(null);
   const [status, setStatus] = useState(null);
   const fileRef = useRef(null);
 
@@ -144,35 +149,44 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   };
 
   /**
-   * Sube la foto.
+   * Al elegir una foto no se sube: primero se encuadra.
    *
-   * Se reescala antes de subir con el mismo preparador de las metas: una foto de
-   * celular pesa varios megas y aquí va a mostrarse en 320 px de ancho, así que
-   * subirla entera sólo gastaría almacenamiento y tiempo de carga al prospecto.
+   * El marco de la tarjeta es mucho más alto que ancho, así que una foto normal
+   * necesita decidir qué parte se conserva. Subir antes de eso llevaría a
+   * descubrir el recorte malo cuando ya está guardado.
    */
   const pickPhoto = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setStatus(null);
+    try {
+      setPendingImage(await loadImageFromFile(file));
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message });
+    } finally {
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  /** Sube el recorte confirmado, que ya viene en la proporción de la tarjeta. */
+  const uploadFramed = async (dataUrl) => {
     setUploading(true);
     try {
-      const { dataUrl } = await prepareGoalImage(file);
-      const blob = await (await fetch(dataUrl)).blob();
-      const named = new File([blob], `foto-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const file = await dataUrlToFile(dataUrl, `foto-${Date.now()}.jpg`);
+      const upload = await uploadAttachment(file, 'perfiles');
 
-      const upload = await uploadAttachment(named, 'perfiles');
       if (upload.error) {
         setStatus({ type: 'error', message: describeError(upload.error) });
         return;
       }
       setCard((prev) => ({ ...prev, avatarUrl: upload.url }));
-      setStatus({ type: 'ok', message: 'Foto subida. Recuerda guardar la tarjeta.' });
+      setPendingImage(null);
+      setStatus({ type: 'ok', message: 'Foto lista. Recuerda guardar la tarjeta.' });
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
@@ -314,6 +328,17 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
                       : <><ImagePlus size={15} /> {card.avatarUrl ? 'Cambiar foto' : 'Elegir foto'}</>}
                   </label>
                 </div>
+
+                {pendingImage && (
+                  <div className="mt-3">
+                    <PhotoFramer
+                      image={pendingImage}
+                      isUploading={isUploading}
+                      onConfirm={uploadFramed}
+                      onCancel={() => setPendingImage(null)}
+                    />
+                  </div>
+                )}
               </Field>
 
               <Field label="Nombre completo" icon={User} id="card-name">

@@ -94,6 +94,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
               centro por omisión, un retrato de cuerpo entero se recortaba a la
               altura del pecho y dejaba la cabeza fuera.
             */
+            referrerPolicy="no-referrer"
             className="animate-ken-burns h-full w-full object-cover object-top"
           />
         ) : (
