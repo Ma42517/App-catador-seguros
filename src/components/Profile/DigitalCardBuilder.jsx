@@ -247,8 +247,8 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
                         text-zinc-500"
           >
             <Sparkles size={12} className="mt-0.5 shrink-0 text-indigo-400" aria-hidden="true" />
-            Toca cualquier texto para escribirlo. Arrastra tu foto con el dedo para
-            acomodarla, y pellizca para acercarla.
+            Toca cualquier texto para escribirlo. Al subir una foto podrás
+            acomodarla con el dedo antes de dejarla fija.
           </p>
 
           {/* La tarjeta es el editor. */}

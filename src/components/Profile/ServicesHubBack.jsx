@@ -187,15 +187,16 @@ export default function ServicesHubBack({ card, onBack }) {
         La lista se desplaza en lugar de comprimirse. Con cuatro accesos y dos
         rótulos ya no cabe centrada en la pantalla de un teléfono pequeño, y sin
         esto el último botón quedaría cortado sin forma de alcanzarlo.
-        `overscroll-contain` evita que el gesto arrastre la página de detrás al
-        llegar al final.
+        No lleva `overscroll-contain`: esa propiedad prohíbe que el gesto se
+        propague, así que al llegar al final del listado el movimiento moriría aquí
+        en lugar de seguir desplazando lo que haya detrás.
 
         El `pt-16` reserva la banda del botón de cerrar. Sin esa reserva, el
         título arrancaría a la misma altura que el botón y el texto le pasaría
         por debajo; al desplazar la lista sí lo hace, pero entonces es
         deliberado: el cristal del botón deja ver el contenido correr detrás.
       */}
-      <div className="relative flex-1 overflow-y-auto overscroll-contain px-5 pb-8 pt-16">
+      <div className="relative flex-1 overflow-y-auto px-5 pb-8 pt-16">
         <div className="mb-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">
             Servicios y Soluciones
