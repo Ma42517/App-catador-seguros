@@ -157,9 +157,26 @@ function explain(raw, status) {
   if (/Invalid image file|not a valid|unsupported/i.test(text)) {
     return 'Cloudinary no pudo procesar ese archivo. Prueba con un video en MP4.';
   }
+  /*
+    "Unknown API key" con un 401 suena a credenciales, y no lo es.
+
+    Cloudinary contesta eso cuando no reconoce la petición como una subida sin
+    firma, y entonces busca una clave de API que aquí nunca se manda. Comprobado
+    contra la API: devuelve exactamente el mismo texto con un preset inventado,
+    con un nombre de nube inventado y sin preset alguno, así que el mensaje no
+    distingue la causa y culpar al nombre de la nube manda a revisar lo que casi
+    siempre está bien.
+
+    El orden de las causas es el de su frecuencia real: el nombre del preset
+    escrito distinto —un punto donde va un guion bajo— es lo más común, y que la
+    cuenta no tenga habilitadas las subidas sin firma lo segundo.
+  */
   if (status === 401 || /Unknown API key|disabled/i.test(text)) {
-    return 'Cloudinary rechazó la petición. Revisa el nombre de la nube '
-      + '(VITE_CLOUDINARY_CLOUD_NAME) y que el preset siga activo.';
+    return 'Cloudinary no reconoció la subida. Revisa, en este orden: '
+      + `1) que el preset se llame exactamente "${UPLOAD_PRESET}" `
+      + '—con guion bajo, no con punto—; '
+      + '2) que en Settings › Upload esté habilitado el uso de presets sin firma; '
+      + '3) que el preset esté guardado con Signing mode en "Unsigned".';
   }
   if (status === 420 || /Rate limit/i.test(text)) {
     return 'Demasiadas subidas seguidas. Espera un momento y vuelve a intentar.';
