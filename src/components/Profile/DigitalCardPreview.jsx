@@ -69,11 +69,11 @@ function SocialButton({ label, href, glow = false, children }) {
         botón sirve, porque un botón que llama la atención sin poder usarse
         promete algo que no cumple.
       */
-      className={`grid h-11 w-11 place-items-center rounded-full transition-transform
+      className={`grid h-10 w-10 place-items-center rounded-full transition-transform
         will-change-transform
         ${enabled
-          ? `bg-white text-zinc-900 shadow-lg active:scale-90
-             hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]
+          ? `bg-white text-zinc-900 shadow-md shadow-black/20 active:scale-90
+             hover:shadow-[0_0_12px_rgba(255,255,255,0.35)]
              ${glow ? 'animate-glow-outline' : ''}`
           : 'cursor-default bg-white/30 text-zinc-600'}`}
     >
@@ -644,14 +644,14 @@ export default function DigitalCardPreview({
             <div className="animate-fade-in-up">
             {/* Pulso de disponibilidad, encima del nombre */}
             <div
-              className="mb-2.5 flex w-max items-center gap-2 rounded-full
-                         border border-white/15 bg-white/10 px-3 py-1 backdrop-blur-md"
+              className="mb-2 flex w-max items-center gap-1.5 rounded-full
+                         border border-white/10 bg-white/[0.07] px-2.5 py-[3px] backdrop-blur-md"
             >
               <span
-                className="h-2 w-2 animate-pulse rounded-full bg-green-500"
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"
                 aria-hidden="true"
               />
-              <span className="text-[10px] uppercase tracking-wider text-zinc-100">
+              <span className="text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-300">
                 Disponible para asesoría
               </span>
             </div>
@@ -670,12 +670,12 @@ export default function DigitalCardPreview({
                   onChange={(v) => onChange('fullName', v)}
                   label="Tu nombre completo"
                   placeholder="Tu nombre"
-                  className="text-3xl font-bold uppercase leading-none tracking-tight
-                             drop-shadow-lg"
+                  className="text-2xl font-semibold uppercase leading-tight tracking-[0.01em]
+                             drop-shadow-md"
                 />
               ) : (
-                <h2 className="text-3xl font-bold uppercase leading-none tracking-tight
-                               drop-shadow-lg"
+                <h2 className="text-2xl font-semibold uppercase leading-tight tracking-[0.01em]
+                               drop-shadow-md"
                 >
                   {fullName || <span className="text-white/40">Tu nombre</span>}
                 </h2>
@@ -687,10 +687,10 @@ export default function DigitalCardPreview({
                   onChange={(v) => onChange('title', v)}
                   label="Tu título profesional"
                   placeholder="Tu título profesional"
-                  className="mt-1.5 text-sm text-zinc-200 drop-shadow"
+                  className="mt-0.5 text-[13px] font-light text-zinc-300/90 drop-shadow"
                 />
               ) : (
-                <p className="mt-1.5 text-sm text-zinc-200 drop-shadow">
+                <p className="mt-0.5 text-[13px] font-light text-zinc-300/90 drop-shadow">
                   {title || <span className="text-white/35">Tu título profesional</span>}
                 </p>
               )}
@@ -707,12 +707,12 @@ export default function DigitalCardPreview({
                   onChange={(v) => onChange('company', v)}
                   label="Empresa o promotoría"
                   placeholder="Empresa o promotoría"
-                  className="mt-0.5 text-xs font-semibold uppercase tracking-wider
-                             text-zinc-300"
+                  className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em]
+                             text-zinc-400"
                 />
               ) : company && (
-                <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider
-                              text-zinc-300"
+                <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em]
+                              text-zinc-400"
                 >
                   {company}
                 </p>
@@ -721,12 +721,13 @@ export default function DigitalCardPreview({
             </div>
 
             {specialties.length > 0 && (
-              <ul className="mt-3 flex flex-wrap gap-1.5">
+              <ul className="mt-2.5 flex flex-wrap gap-1.5">
                 {specialties.map((item) => (
                   <li
                     key={item}
-                    className="rounded-full border border-white/15 bg-white/15 px-2 py-1
-                               text-xs font-medium backdrop-blur-md"
+                    className="rounded-full border border-white/10 bg-white/[0.07] px-2 py-0.5
+                               text-[10px] font-medium tracking-wide text-zinc-200
+                               backdrop-blur-md"
                   >
                     {item}
                   </li>
@@ -741,16 +742,16 @@ export default function DigitalCardPreview({
               un solo bloque parpadeando en vez de cuatro accesos con vida propia.
             */}
             <div
-              className="animate-fade-in-up mt-4 flex gap-2.5"
+              className="animate-fade-in-up mt-3.5 flex gap-2"
               style={{ animationDelay: '200ms' }}
             >
               <SocialButton label="Llamar" href={phone ? `tel:${digits(phone)}` : ''}>
                 {/* Repique corto cada tres segundos, como un teléfono sonando bajito. */}
-                <Phone size={18} className={phone ? 'animate-ring' : ''} />
+                <Phone size={16} className={phone ? 'animate-ring' : ''} />
               </SocialButton>
 
               <SocialButton label="Enviar correo" href={email ? `mailto:${email}` : ''}>
-                <Mail size={18} className={email ? 'animate-float' : ''} />
+                <Mail size={16} className={email ? 'animate-float' : ''} />
               </SocialButton>
 
               {/* Mensaje: el destello va en el contorno del círculo, no en el icono. */}
@@ -759,14 +760,14 @@ export default function DigitalCardPreview({
                 href={phone ? `sms:${digits(phone)}` : ''}
                 glow
               >
-                <MessageSquare size={18} />
+                <MessageSquare size={16} />
               </SocialButton>
 
               <SocialButton
                 label="Abrir WhatsApp"
                 href={whatsapp ? `https://wa.me/${digits(whatsapp).replace(/^\+/, '')}` : ''}
               >
-                <WhatsAppMark size={19} className={whatsapp ? 'animate-soft-pulse' : ''} />
+                <WhatsAppMark size={17} className={whatsapp ? 'animate-soft-pulse' : ''} />
               </SocialButton>
             </div>
 
