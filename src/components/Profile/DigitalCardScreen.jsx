@@ -52,7 +52,6 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
       fullName: data?.fullName || identity.name || '',
       title: data?.title || '',
       company: data?.company || '',
-      license: data?.license || '',
       specialties: data?.specialties || [],
       bio: data?.bio || '',
       phone: data?.phone || '',

@@ -44,7 +44,6 @@ create view public.public_cards as
     full_name,
     avatar_url,
     title,
-    license_number,
     company,
     specialties,
     bio,

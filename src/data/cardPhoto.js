@@ -14,21 +14,32 @@
  * ve igual en cualquier dispositivo sin guardar datos de encuadre en la base.
  */
 
+/*
+  Medidas del hueco del retrato, tomadas del diseño de la tarjeta.
+
+  Se declaran por separado y no como un número suelto para que la proporción se
+  pueda comprobar contra el componente: si mañana la tarjeta cambia de ancho o la
+  foto deja de ocupar el 60%, el recortador se corrige aquí y sigue coincidiendo.
+*/
+const FRAME_WIDTH = 320;
+const FRAME_HEIGHT = 650;
+const PHOTO_SHARE = 0.6;
+
 /**
- * Proporción del recorte: ancho / alto de la zona donde vive el retrato.
+ * Proporción del recorte: exactamente la del hueco donde vive el retrato.
  *
- * No es la del teléfono entero, es la de la **mitad superior** de la tarjeta,
- * que es lo único que se ve nítido. En el marco de 320 × 650 esa zona mide
- * 320 × 390, o sea 0.82; se usa 4/5 (0.8), que es prácticamente el mismo valor y
- * un formato estándar de retrato.
+ * No es la del teléfono entero, sino la de la zona nítida: 320 × 390, es decir
+ * 0.8205. Antes valía 9/16 (0.5625), la del teléfono completo, y ahí estaba el
+ * problema del encuadre: el recuadro del recortador era mucho más alto y
+ * estrecho que el hueco real, así que lo que la persona encuadraba no era lo que
+ * después se veía —al pintarse en una zona más cuadrada, se perdían los lados y
+ * la cara quedaba descentrada—.
  *
- * Antes valía 9/16, la del teléfono completo. Con esa proporción el recuadro del
- * recortador era mucho más alto y estrecho que el hueco real, así que lo que la
- * persona encuadraba no era lo que después se veía: al pintarse en una zona más
- * cuadrada, los bordes se perdían y la cara acababa descentrada. Ése era el
- * origen del problema del encuadre.
+ * Se usa el valor calculado y no 4/5 redondeado: con 0.8 sobraba un 2% de alto
+ * que el navegador tenía que recortar por su cuenta, y ese recorte lo decide él,
+ * no la persona.
  */
-export const CARD_ASPECT = 4 / 5;
+export const CARD_ASPECT = FRAME_WIDTH / (FRAME_HEIGHT * PHOTO_SHARE);
 
 /** Alto de salida. El ancho se deriva de `CARD_ASPECT` para mantener nitidez
  *  en pantallas grandes sin generar un archivo pesado. */

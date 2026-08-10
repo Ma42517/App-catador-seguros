@@ -22,7 +22,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
  */
 
 /** Columnas que la tarjeta necesita. Se piden por nombre, nunca con `*`. */
-const CARD_COLUMNS = 'id, full_name, avatar_url, title, license_number, company,'
+const CARD_COLUMNS = 'id, full_name, avatar_url, title, company,'
   + ' specialties, bio, phone, whatsapp';
 
 /** Traduce una fila a la forma que consumen los componentes de la tarjeta. */
@@ -32,7 +32,6 @@ function toCard(row) {
     fullName: row.full_name ?? '',
     avatarUrl: row.avatar_url ?? '',
     title: row.title ?? '',
-    license: row.license_number ?? '',
     company: row.company ?? '',
     specialties: Array.isArray(row.specialties) ? row.specialties : [],
     bio: row.bio ?? '',
