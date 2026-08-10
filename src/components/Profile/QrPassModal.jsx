@@ -1,16 +1,27 @@
 import { useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { QrCode } from 'lucide-react';
-import { buildVCard, canBuildVCard } from '../../data/vcard';
+import { publicCardUrl } from '../../lib/publicRoute';
 
 /**
  * QR a pantalla completa, en plan "pase de abordaje".
  *
+ * El código lleva la dirección de la tarjeta, no una vCard.
+ *
+ * Antes llevaba los datos de contacto en crudo: al escanearlo, el teléfono
+ * ofrecía guardar el contacto y ahí terminaba. Funcionaba, pero entregaba lo
+ * mínimo —un nombre y un número— y dejaba fuera todo lo que la tarjeta explica:
+ * el título, las especialidades, la biografía y los servicios del reverso.
+ *
+ * Con la dirección, quien escanea abre la tarjeta completa en su propio
+ * teléfono, la puede recorrer, y desde ahí guardar el contacto si quiere. Además
+ * se lleva algo que puede volver a abrir después, en lugar de una ficha suelta
+ * en su libreta de direcciones.
+ *
  * Se dibuja como `absolute inset-0` y no `fixed`: así queda dentro del marco de
- * la tarjeta cuando ésta se muestra como maqueta de celular junto al
- * formulario, y ocupa toda la pantalla cuando la tarjeta ya es la pantalla. Con
- * `fixed`, en el editor el QR saltaría fuera del "teléfono" y se comería la
- * interfaz de alrededor.
+ * la tarjeta cuando ésta se muestra como maqueta de celular junto al formulario,
+ * y ocupa toda la pantalla cuando la tarjeta ya es la pantalla. Con `fixed`, en
+ * el editor el QR saltaría fuera del "teléfono" y se comería la interfaz.
  *
  * El QR se genera en SVG y no en canvas: se mantiene nítido al escalarlo, y de
  * eso depende que la cámara del otro teléfono lo lea al primer intento.
@@ -25,7 +36,12 @@ export default function QrPassModal({ card, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const isUsable = canBuildVCard(card);
+  /*
+    Sin identificador no hay dirección que codificar: pasa con una tarjeta que
+    todavía no se ha guardado. Se explica en lugar de dibujar un código que
+    llevaría a una página inexistente.
+  */
+  const url = card?.id ? publicCardUrl(card.id) : '';
 
   return (
     /*
@@ -36,7 +52,7 @@ export default function QrPassModal({ card, isOpen, onClose }) {
     */
     <div
       role="dialog"
-      aria-label="Código QR de mi contacto"
+      aria-label="Código QR de mi tarjeta"
       className="absolute inset-0 z-40 flex flex-col bg-black/95 backdrop-blur-sm"
     >
       {/*
@@ -45,10 +61,10 @@ export default function QrPassModal({ card, isOpen, onClose }) {
         dudar de si hacen lo mismo. El `pt-20` reserva su banda.
       */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-20 text-center">
-        {isUsable ? (
+        {url ? (
           <>
             <p className="mb-5 text-sm font-semibold text-white">
-              Escanea para guardar mi contacto
+              Escanea para ver mi tarjeta
             </p>
 
             {/*
@@ -59,27 +75,26 @@ export default function QrPassModal({ card, isOpen, onClose }) {
             */}
             <div className="rounded-2xl bg-white p-4 shadow-2xl">
               <QRCodeSVG
-                value={buildVCard(card)}
-                // El tamaño se fija en el SVG y se deja escalar por CSS, para
-                // que llene la tarjeta sin recalcular la matriz del código.
+                value={url}
+                /*
+                  La dirección es corta, así que la matriz del código queda con
+                  pocos módulos y muy legible. Se sube la corrección de errores a
+                  `Q`: aguanta que el código salga algo borroso en la foto o con
+                  un reflejo encima, que es lo normal al escanear una pantalla.
+                */
                 size={256}
-                level="M"
+                level="Q"
                 marginSize={2}
                 className="h-auto w-full max-w-[240px]"
               />
             </div>
 
             <p className="mt-5 max-w-[16rem] text-xs leading-relaxed text-zinc-400">
-              Apunta la cámara de tu teléfono al código y tus datos quedarán
-              guardados como contacto.
+              Apunta la cámara de tu teléfono al código y se abrirá mi tarjeta
+              completa, con todos mis datos.
             </p>
           </>
         ) : (
-          /*
-            Sin nombre y sin al menos una vía de contacto, el QR crearía un
-            contacto vacío: el prospecto se iría creyendo que tiene los datos.
-            Más vale decir qué falta.
-          */
           <>
             <span
               className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border
@@ -89,11 +104,11 @@ export default function QrPassModal({ card, isOpen, onClose }) {
               <QrCode size={26} />
             </span>
             <p className="text-sm font-semibold text-white">
-              Todavía no hay datos que compartir
+              Guarda tu tarjeta para generar el código
             </p>
             <p className="mt-2 max-w-[17rem] text-xs leading-relaxed text-zinc-400">
-              Completa tu nombre y al menos un teléfono o correo en la tarjeta.
-              El código se genera con esos datos.
+              El código apunta a la dirección de tu tarjeta, y esa dirección
+              existe a partir de que la guardas.
             </p>
           </>
         )}
