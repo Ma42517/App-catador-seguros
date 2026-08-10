@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { X } from 'lucide-react';
-import { tapFeedback } from '../../lib/haptics';
+
 
 /**
  * Reproductor del video de presentación, a pantalla completa sobre la tarjeta.
@@ -26,26 +25,22 @@ export default function VideoStoryModal({ embedUrl, isOpen, onClose, title }) {
   if (!isOpen || !embedUrl) return null;
 
   return (
+    /*
+      No lleva `aria-modal`: no cubre la aplicación entera, sólo la tarjeta. Y
+      declararlo tendría un coste real —algunos lectores de pantalla encierran la
+      navegación dentro del elemento marcado como modal, y el único botón para
+      salir de aquí es la flecha de la tarjeta, que vive fuera—.
+    */
     <div
       role="dialog"
-      aria-modal="true"
       aria-label="Video de presentación"
       className="absolute inset-0 z-40 flex flex-col bg-black/95 backdrop-blur-sm"
     >
-      <div className="flex items-center justify-end p-4">
-        <button
-          type="button"
-          onClick={() => { tapFeedback(); onClose(); }}
-          className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10
-                     px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md
-                     transition-colors hover:bg-white/20 active:scale-95"
-        >
-          <X size={15} />
-          Cerrar
-        </button>
-      </div>
-
-      <div className="flex flex-1 items-center justify-center px-4 pb-10">
+      {/*
+        Sin botón de cerrar propio: la flecha de la tarjeta ya retrocede desde
+        aquí. El `pt-20` reserva su banda para que no se apoye en el reproductor.
+      */}
+      <div className="flex flex-1 items-center justify-center px-4 pb-10 pt-20">
         {/*
           El hueco 16:9 se reserva con `aspect-video` antes de que el
           reproductor cargue. Sin él, el `iframe` nace con alto cero y la
