@@ -5,7 +5,6 @@ import {
 import FullScreenView from '../Layout/FullScreenView';
 import DigitalCardPreview from './DigitalCardPreview';
 import ContactDrawer from './ContactDrawer';
-import PhotoAdjustModal from './PhotoAdjustModal';
 import { useSession } from '../../context/SessionContext';
 import { fetchProfile, saveMyCard, describeError } from '../../data/profilesRepo';
 import { uploadAttachment } from '../../data/announcementsRepo';
@@ -54,9 +53,6 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   const [isSaving, setSaving] = useState(false);
   const [isUploading, setUploading] = useState(false);
 
-  // El ajustador está abierto. No hay imagen "en espera": la foto se sube
-  // completa y el encuadre se decide después, tantas veces como se quiera.
-  const [isAdjusting, setAdjusting] = useState(false);
   const [status, setStatus] = useState(null);
   const fileRef = useRef(null);
 
@@ -154,29 +150,21 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
       }
 
       /*
-        La foto nueva entra con el encuadre centrado y el ajustador se abre solo.
-        Es el momento en que la persona tiene la imagen en la cabeza, y dejarla
-        colocada por el sistema es justo lo que se veía mal.
+        La foto entra centrada y desde ahí se acomoda arrastrándola sobre la
+        tarjeta. El encuadre se reinicia al centro en cada foto nueva: heredar el
+        de la anterior dejaría la imagen desplazada sin motivo aparente.
       */
       setCard((prev) => ({
         ...prev,
         avatarUrl: upload.url,
         photoFocus: serializeFocus(DEFAULT_FOCUS),
       }));
-      setAdjusting(true);
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
     }
-  };
-
-  /** Guarda el encuadre elegido. La imagen no se toca. */
-  const applyFocus = (focus) => {
-    setCard((prev) => ({ ...prev, photoFocus: serializeFocus(focus) }));
-    setAdjusting(false);
-    setStatus({ type: 'ok', message: 'Encuadre listo. Recuerda guardar la tarjeta.' });
   };
 
   const save = async () => {
@@ -259,8 +247,8 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
                         text-zinc-500"
           >
             <Sparkles size={12} className="mt-0.5 shrink-0 text-indigo-400" aria-hidden="true" />
-            Toca cualquier texto de la tarjeta para escribirlo, o toca tu foto para
-            cambiarla.
+            Toca cualquier texto para escribirlo. Arrastra tu foto con el dedo para
+            acomodarla, y pellizca para acercarla.
           </p>
 
           {/* La tarjeta es el editor. */}
@@ -269,7 +257,6 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
             editable
             onChange={setField}
             onPickPhoto={() => fileRef.current?.click()}
-            onAdjustPhoto={() => setAdjusting(true)}
           />
 
           {/*
@@ -355,14 +342,6 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
           </div>
         </div>
       )}
-
-      <PhotoAdjustModal
-        imageUrl={card.avatarUrl}
-        focus={card.photoFocus}
-        isOpen={isAdjusting && Boolean(card.avatarUrl)}
-        onConfirm={applyFocus}
-        onCancel={() => setAdjusting(false)}
-      />
 
     </FullScreenView>
   );
