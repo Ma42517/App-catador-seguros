@@ -97,7 +97,23 @@ function fromRow(row) {
     bio: row.bio ?? '',
     phone: row.phone ?? '',
     whatsapp: row.whatsapp ?? '',
+    presentationVideoUrl: row.presentation_video_url ?? '',
   };
+}
+
+/** Columnas de la tarjeta que pueden faltar en una base sin la migración al día. */
+const OPTIONAL_COLUMNS = ['presentation_video_url'];
+
+/**
+ * ¿El error dice que una columna no existe?
+ *
+ * Postgres lo reporta como `42703` (`undefined_column`). Se comprueba el código
+ * y no el texto del mensaje, que cambia según el idioma del servidor.
+ */
+function isMissingColumn(error, column) {
+  if (!error) return false;
+  if (error.code === '42703') return true;
+  return String(error.message ?? '').includes(column);
 }
 
 /**
@@ -112,22 +128,44 @@ export async function saveMyCard(userId, card) {
     return { data: null, error: { message: 'Supabase no está configurado.' } };
   }
 
-  const { data, error } = await supabase
+  const payload = {
+    full_name: card.fullName?.trim() ?? '',
+    avatar_url: card.avatarUrl ?? '',
+    title: card.title?.trim() ?? '',
+    license_number: card.license?.trim() ?? '',
+    company: card.company?.trim() ?? '',
+    specialties: card.specialties ?? [],
+    bio: card.bio?.trim() ?? '',
+    phone: card.phone?.trim() ?? '',
+    whatsapp: card.whatsapp?.trim() ?? '',
+    presentation_video_url: card.presentationVideoUrl?.trim() ?? '',
+  };
+
+  const write = (body) => supabase
     .from(TABLE)
-    .update({
-      full_name: card.fullName?.trim() ?? '',
-      avatar_url: card.avatarUrl ?? '',
-      title: card.title?.trim() ?? '',
-      license_number: card.license?.trim() ?? '',
-      company: card.company?.trim() ?? '',
-      specialties: card.specialties ?? [],
-      bio: card.bio?.trim() ?? '',
-      phone: card.phone?.trim() ?? '',
-      whatsapp: card.whatsapp?.trim() ?? '',
-    })
+    .update(body)
     .eq('id', userId)
     .select()
     .maybeSingle();
+
+  let { data, error } = await write(payload);
+
+  /*
+    Si la base todavía no tiene alguna de las columnas nuevas, se reintenta sin
+    ellas en lugar de dar el guardado por perdido.
+
+    Sin este reintento, publicar la app antes de correr la migración dejaría al
+    asesor sin poder guardar *nada* de su tarjeta: Postgres rechaza el `update`
+    completo por una sola columna que no conoce, así que también se perderían el
+    nombre y el teléfono. El video es lo accesorio; la ficha es lo que no puede
+    dejar de funcionar.
+  */
+  const missing = OPTIONAL_COLUMNS.filter((column) => isMissingColumn(error, column));
+  if (error && missing.length > 0) {
+    const fallback = { ...payload };
+    missing.forEach((column) => { delete fallback[column]; });
+    ({ data, error } = await write(fallback));
+  }
 
   if (error) return { data: null, error };
 
