@@ -1,4 +1,5 @@
 import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
+import { priorityByKey } from '../Activities/priorities';
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
@@ -17,7 +18,8 @@ const LABEL = 'text-[10px] font-medium leading-none';
  * - Cada botón usa flex-1 para distribuirse uniformemente.
  */
 export default function BottomTabBar({
-  onToday, onProductivity, onAgenda, onAdd, onMore, agendaCount = 0,
+  onToday, onProductivity, onAgenda, onAdd, onMore,
+  agendaCount = 0, agendaPriority = null,
 }) {
   const today = new Date().getDate();
 
@@ -25,6 +27,17 @@ export default function BottomTabBar({
   // "muchos": el número exacto deja de aportar y ensancharía la pastilla.
   const hasAgendaAlert = agendaCount > 0;
   const agendaBadge = agendaCount > 9 ? '9+' : String(agendaCount);
+
+  /*
+    El color lo pone la prioridad más alta del día, con el mismo verde, ámbar y
+    rojo que el resto de la app usa para esos niveles: el aviso y la actividad
+    que lo provoca se reconocen como la misma cosa. Si la prioridad no llega o
+    no se reconoce, se cae al índigo neutro de la interfaz antes que a un color
+    de urgencia que no corresponda.
+  */
+  const agendaLevel = priorityByKey(agendaPriority);
+  const agendaTone = agendaLevel?.badge
+    ?? 'bg-indigo-500 text-white shadow-indigo-500/40 dark:bg-indigo-400 dark:text-zinc-950';
 
   return (
     <nav
@@ -82,8 +95,14 @@ export default function BottomTabBar({
             type="button"
             onClick={onAgenda}
             className={TAB}
+            /*
+              La prioridad se nombra además de pintarse: quien no distingue el
+              verde del rojo, o usa un lector de pantalla, recibe lo mismo que
+              comunica el color.
+            */
             aria-label={hasAgendaAlert
               ? `Agenda, ${agendaCount} ${agendaCount === 1 ? 'actividad pendiente' : 'actividades pendientes'} hoy`
+                + `${agendaLevel ? `, prioridad ${agendaLevel.label.toLowerCase()}` : ''}`
               : 'Agenda'}
           >
             {/*
@@ -96,17 +115,16 @@ export default function BottomTabBar({
 
               {hasAgendaAlert && (
                 /*
-                  Aviso en el índigo de la interfaz, no en rojo: no es una
-                  alerta ni un error, es la carga del día. El `ring` toma el
-                  color de fondo de la barra para que la pastilla se lea
-                  recortada sobre ella y no pegada encima del icono.
+                  El `ring` toma el color de fondo de la barra para que la
+                  pastilla se lea recortada sobre ella y no pegada encima del
+                  icono. El relleno lo trae `agendaTone`, según la prioridad
+                  más alta que haya hoy.
                 */
                 <span
-                  className="absolute -right-2 -top-1.5 grid h-[17px] min-w-[17px]
-                             place-items-center rounded-full bg-indigo-500 px-1
-                             text-[9px] font-bold leading-none text-white
-                             shadow-sm shadow-indigo-500/40 ring-2 ring-white
-                             dark:bg-indigo-400 dark:text-zinc-950 dark:ring-zinc-950"
+                  className={`absolute -right-2 -top-1.5 grid h-[17px] min-w-[17px]
+                              place-items-center rounded-full px-1 text-[9px] font-bold
+                              leading-none shadow-sm ring-2 ring-white
+                              dark:ring-zinc-950 ${agendaTone}`}
                 >
                   {agendaBadge}
                 </span>

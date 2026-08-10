@@ -15,6 +15,7 @@ import { useEvents } from '../../context/EventContext';
 import { useAccess } from '../../context/AccessContext';
 import { useSession } from '../../context/SessionContext';
 import { countPendingProfiles } from '../../data/profilesRepo';
+import { highestPriorityOf } from '../Activities/priorities';
 
 /**
  * Chrome de navegación del área autenticada.
@@ -92,6 +93,7 @@ export default function AdminLayout({
         onAdd={() => setQuickAddOpen(true)}
         onMore={openMore}
         agendaCount={activeToday.length}
+        agendaPriority={highestPriorityOf(activeToday)}
       />
 
       <QuickAddMenu
