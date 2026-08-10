@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Check, X, ZoomIn, MoveVertical, Loader2 } from 'lucide-react';
-import { cropToCard, approximateBytes, verticalSlack } from '../../data/cardPhoto';
+import { cropToAvatar, approximateBytes, verticalSlack } from '../../data/cardPhoto';
 
 const SLIDER =
   'w-full accent-indigo-600 cursor-pointer';
@@ -28,9 +28,9 @@ export default function PhotoFramer({ image, onConfirm, onCancel, isUploading })
 
   /*
     Se arranca en 0.2 y no centrado: en un retrato la cara está en el tercio
-    superior, y encuadrar al centro la dejaba cortada por arriba. Con el zoom al
-    mínimo esto no cambia nada —no sobra alto que repartir—, pero deja el
-    recorte alto en cuanto se acerca.
+    superior, y encuadrar al centro la dejaba cortada por arriba. Con el recorte
+    cuadrado esto ya se nota desde el primer momento en cualquier foto vertical,
+    sin tener que acercar.
   */
   useEffect(() => {
     setZoom(1);
@@ -42,7 +42,7 @@ export default function PhotoFramer({ image, onConfirm, onCancel, isUploading })
   const preview = useMemo(() => {
     if (!image) return '';
     try {
-      return cropToCard(image, { zoom, offsetY });
+      return cropToAvatar(image, { zoom, offsetY });
     } catch {
       return '';
     }
@@ -66,12 +66,17 @@ export default function PhotoFramer({ image, onConfirm, onCancel, isUploading })
       </p>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        {/* Vista previa: el recorte real, en la proporción de la tarjeta */}
+        {/*
+          Vista previa: el recorte real, redondo como se verá en la tarjeta. Se
+          muestra en círculo y no en cuadrado a propósito: encuadrar mirando un
+          cuadrado engaña, porque las esquinas que ahí se ven sí se pierden
+          después y la cara acaba más justa de lo que parecía.
+        */}
         <div className="mx-auto shrink-0 sm:mx-0">
           <img
             src={preview}
             alt="Vista previa del encuadre"
-            className="h-[260px] w-[128px] rounded-xl border border-zinc-300 object-cover
+            className="h-[150px] w-[150px] rounded-full border-4 border-zinc-300 object-cover
                        dark:border-zinc-700"
           />
           <p className="mt-1.5 text-center text-[10px] text-zinc-500">≈ {peso} KB</p>

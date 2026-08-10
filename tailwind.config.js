@@ -81,6 +81,17 @@ export default {
           '0%, 100%': { transform: 'scale(1)' },
           '50%': { transform: 'scale(1.1)' },
         },
+        /*
+          Igual que el anterior, pero nunca baja de 1.15. Se usa sobre el fondo
+          desenfocado de la tarjeta: un desenfoque fuerte arrastra los píxeles
+          del borde hacia dentro y deja un halo claro en el perímetro, que sólo
+          se tapa si la imagen sobresale del marco. Empezar en 1 —como hace
+          `ken-burns`— destaparía ese halo en cada vuelta del ciclo.
+        */
+        'ken-burns-blur': {
+          '0%, 100%': { transform: 'scale(1.15)' },
+          '50%': { transform: 'scale(1.25)' },
+        },
         // Entrada en cascada del contenido de la tarjeta.
         'fade-in-up': {
           from: { opacity: '0', transform: 'translateY(12px)' },
@@ -109,6 +120,7 @@ export default {
         shine: 'shine 3.4s ease-in-out infinite',
         'spin-slow': 'spin 10s linear infinite',
         'ken-burns': 'ken-burns 18s ease-in-out infinite',
+        'ken-burns-blur': 'ken-burns-blur 22s ease-in-out infinite',
         /*
           `both` es imprescindible con retraso: sin él el elemento se vería en su
           estado final durante la espera y la cascada no existiría.

@@ -1,24 +1,33 @@
 /**
  * Recorte de la foto de la tarjeta digital.
  *
- * El marco de la tarjeta es muy alto y estrecho (320×650, proporción 0.49). Una
- * foto normal —apaisada o cuadrada— metida ahí con `object-cover` se amplía
- * enormemente: se recorta a lo ancho hasta dejar sólo el centro, y el resultado
- * parece un acercamiento accidental.
+ * La foto se usa en dos lugares de la tarjeta: como retrato nítido dentro de un
+ * círculo, y como fondo desenfocado a pantalla completa. El círculo es el que
+ * manda, porque es donde se ve el detalle, y un círculo necesita un cuadrado:
+ * cualquier otra proporción obliga al navegador a recortar por su cuenta al
+ * meterla ahí, y ese recorte automático parte por el centro, justo donde no está
+ * la cara. El fondo no impone nada, ya que un desenfoque fuerte oculta la
+ * proporción de origen.
  *
- * No se resuelve con clases de CSS: el problema es que la foto y el marco tienen
- * proporciones distintas. Aquí se recorta la imagen a la proporción del marco
- * antes de subirla, de modo que el archivo guardado ya encaja y `object-cover`
- * no tiene nada que recortar. Como el recorte queda grabado en el archivo, la
- * tarjeta se ve igual en cualquier dispositivo sin guardar datos de encuadre.
+ * Antes se recortaba al marco entero de la tarjeta (320×650, muy alto y
+ * estrecho) porque el diseño anterior usaba la foto como fondo nítido a sangre.
+ * Al pasar al retrato circular, esa tira alta habría quedado peor que la foto
+ * original: el círculo la habría recortado a su parte central y decapitado al
+ * retrato.
+ *
+ * El recorte queda grabado en el archivo que se sube, así que la tarjeta se ve
+ * igual en cualquier dispositivo sin guardar datos de encuadre en la base.
  */
 
-/** Proporción del marco de la tarjeta: 320 de ancho por 650 de alto. */
-export const CARD_ASPECT = 320 / 650;
+/** El retrato es circular, así que el recorte es cuadrado. */
+export const AVATAR_ASPECT = 1;
 
-/** Tamaño de salida. El doble del marco, para que se vea nítida en pantallas densas. */
-const OUTPUT_WIDTH = 640;
-const OUTPUT_HEIGHT = Math.round(OUTPUT_WIDTH / CARD_ASPECT);
+/**
+ * Tamaño de salida. El círculo se dibuja a 128 px, pero el mismo archivo se
+ * estira a pantalla completa como fondo, y ahí 128 px se verían como una malla
+ * de bloques incluso desenfocados.
+ */
+const OUTPUT_SIZE = 640;
 
 /** Calidad JPEG: por debajo de 0.8 se notan bloques en la piel de un retrato. */
 const QUALITY = 0.82;
@@ -50,7 +59,7 @@ export function loadImageFromFile(file) {
 }
 
 /**
- * Recorta la imagen al marco de la tarjeta y devuelve una URL de datos.
+ * Recorta la imagen a un cuadrado y devuelve una URL de datos.
  *
  * `zoom` es 1 en el encuadre más amplio posible: el que aprovecha toda la foto
  * que cabe. `offsetY` va de 0 (arriba) a 1 (abajo) y decide qué parte se
@@ -59,30 +68,29 @@ export function loadImageFromFile(file) {
  * El mismo cálculo alimenta la vista previa y el archivo final, así que lo que
  * se ve al ajustar es exactamente lo que se guarda.
  */
-export function cropToCard(image, { zoom = 1, offsetY = 0.5 } = {}) {
+export function cropToAvatar(image, { zoom = 1, offsetY = 0.5 } = {}) {
   const canvas = document.createElement('canvas');
-  canvas.width = OUTPUT_WIDTH;
-  canvas.height = OUTPUT_HEIGHT;
+  canvas.width = OUTPUT_SIZE;
+  canvas.height = OUTPUT_SIZE;
 
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Este navegador no pudo procesar la imagen.');
 
-  // Escala mínima que cubre el marco por completo, ampliada por el zoom.
-  const cover = Math.max(OUTPUT_WIDTH / image.width, OUTPUT_HEIGHT / image.height);
+  // Escala mínima que cubre el cuadro por completo, ampliada por el zoom.
+  const cover = Math.max(OUTPUT_SIZE / image.width, OUTPUT_SIZE / image.height);
   const scale = cover * Math.max(1, zoom);
 
   // Trozo de la foto original que acaba siendo visible.
-  const sourceWidth = OUTPUT_WIDTH / scale;
-  const sourceHeight = OUTPUT_HEIGHT / scale;
+  const sourceSize = OUTPUT_SIZE / scale;
 
   // Horizontal siempre centrado; vertical lo decide la persona.
-  const sourceX = Math.max(0, (image.width - sourceWidth) / 2);
-  const sourceY = Math.max(0, (image.height - sourceHeight) * Math.min(1, Math.max(0, offsetY)));
+  const sourceX = Math.max(0, (image.width - sourceSize) / 2);
+  const sourceY = Math.max(0, (image.height - sourceSize) * Math.min(1, Math.max(0, offsetY)));
 
   context.drawImage(
     image,
-    sourceX, sourceY, sourceWidth, sourceHeight,
-    0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT,
+    sourceX, sourceY, sourceSize, sourceSize,
+    0, 0, OUTPUT_SIZE, OUTPUT_SIZE,
   );
 
   // Siempre JPEG: un PNG de retrato pesa varias veces más sin ganancia visible.
@@ -93,19 +101,17 @@ export function cropToCard(image, { zoom = 1, offsetY = 0.5 } = {}) {
  * Píxeles de alto que sobran con este zoom, es decir, cuánto margen hay para
  * subir o bajar el recorte.
  *
- * Casi siempre vale 0 con el zoom al mínimo. La escala se calcula con el mayor
- * de los dos factores necesarios para cubrir el marco, así que la dimensión que
- * manda se usa entera y sólo sobra la otra. Como el marco es más alto que 2:1,
- * en una foto normal —apaisada, cuadrada o retrato 3:4— lo que sobra es el
- * ancho: la altura entra completa y no hay nada que decidir. Sólo al acercar
- * aparece margen vertical.
+ * Con un recorte cuadrado hay margen desde el principio en cualquier foto más
+ * alta que ancha —la mayoría de los retratos—, así que el control de altura
+ * sirve sin necesidad de acercar. En una foto apaisada, en cambio, el alto entra
+ * completo y lo que sobra es el ancho: ahí vale 0 hasta que se acerca.
  *
  * Lo usa la interfaz para no ofrecer un control que no haría nada.
  */
 export function verticalSlack(image, zoom = 1) {
-  const cover = Math.max(OUTPUT_WIDTH / image.width, OUTPUT_HEIGHT / image.height);
+  const cover = Math.max(OUTPUT_SIZE / image.width, OUTPUT_SIZE / image.height);
   const scale = cover * Math.max(1, zoom);
-  return Math.max(0, image.height - OUTPUT_HEIGHT / scale);
+  return Math.max(0, image.height - OUTPUT_SIZE / scale);
 }
 
 /** Convierte la URL de datos del recorte en un archivo listo para subir. */
