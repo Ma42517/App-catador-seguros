@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import DigitalCardPreview from './DigitalCardPreview';
+import DigitalCardStage from './DigitalCardStage';
 import { useSession } from '../../context/SessionContext';
 import { fetchProfile, saveMyCard, describeError } from '../../data/profilesRepo';
 import { uploadAttachment } from '../../data/announcementsRepo';
@@ -57,25 +58,40 @@ function Field({ id, label, icon: Icon, hint, children }) {
 }
 
 /**
- * Constructor de la tarjeta digital del asesor.
+ * Mi Tarjeta Digital, en dos modos dentro de la misma pantalla.
  *
- * Pantalla partida: se edita a la izquierda y se ve el resultado a la derecha,
- * en un marco de celular. Un solo estado alimenta las dos columnas, así que lo
- * que se escribe aparece en la tarjeta al momento: es la única forma de decidir
- * si un título cabe o si la biografía es demasiado larga.
+ *  - Presentación: sólo la tarjeta, para girar el teléfono hacia el prospecto.
+ *    Es el modo en que se abre, porque mostrarla es lo que se hace a diario;
+ *    editarla, una vez cada tantos meses.
+ *  - Edición: pantalla partida, con el formulario a la izquierda y la tarjeta a
+ *    la derecha. Un solo estado alimenta las dos columnas, así que lo escrito
+ *    aparece al momento: es la única forma de decidir si un título cabe.
  *
- * En celular las columnas se apilan y la vista previa va primero: sin verla, el
- * formulario es una lista de campos sin contexto.
+ * Los dos modos comparten un componente y una carga de datos. Separarlos en dos
+ * pantallas apiladas obligaría a leer el perfil dos veces y a mantener dos
+ * copias del mismo estado en sincronía.
+ *
+ * En celular las columnas del modo edición se apilan y la vista previa va
+ * primero: sin verla, el formulario es una lista de campos sin contexto.
  */
 export default function DigitalCardBuilder({ isOpen, onClose }) {
   const { identity } = useSession();
 
+  const [isEditing, setEditing] = useState(false);
   const [card, setCard] = useState(EMPTY_CARD);
   const [isLoading, setLoading] = useState(false);
   const [isSaving, setSaving] = useState(false);
   const [isUploading, setUploading] = useState(false);
   const [status, setStatus] = useState(null);
   const fileRef = useRef(null);
+
+  /*
+    Última versión confirmada de la tarjeta: lo que se leyó de la base o lo que
+    se acabó de guardar. "Cancelar" restaura desde aquí. Sin esta copia, salir
+    de la edición dejaba los cambios en pantalla y el botón prometía algo que no
+    hacía.
+  */
+  const savedRef = useRef(EMPTY_CARD);
 
   const setField = (key) => (event) => {
     setCard((prev) => ({ ...prev, [key]: event.target.value }));
@@ -96,17 +112,24 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
     */
     if (error) setStatus({ type: 'error', message: describeError(error) });
 
-    setCard({
+    const loaded = {
       ...EMPTY_CARD,
       ...(data ?? {}),
       fullName: data?.fullName || identity.name || '',
       email: identity.email || '',
       avatarUrl: data?.avatarUrl || identity.avatarUrl || '',
-    });
+    };
+    savedRef.current = loaded;
+    setCard(loaded);
   }, [identity]);
 
   useEffect(() => {
-    if (isOpen) { setStatus(null); load(); }
+    if (!isOpen) return;
+    setStatus(null);
+    // Cada apertura empieza en presentación, aunque la vez anterior se cerrara
+    // editando: al sacar el teléfono se quiere mostrar, no seguir capturando.
+    setEditing(false);
+    load();
   }, [isOpen, load]);
 
   const toggleSpecialty = (item) => {
@@ -186,6 +209,13 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
       phone: card.phone.trim(),
     });
 
+    /*
+      Guardar devuelve a presentación. Es lo que se quiere hacer justo después de
+      terminar de capturar, y ahorra un toque de más en el momento en que la
+      persona ya tiene el prospecto delante.
+    */
+    savedRef.current = card;
+    setEditing(false);
     setStatus({ type: 'ok', message: 'Tarjeta guardada.' });
   };
 
@@ -197,7 +227,7 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
       onClose={onClose}
       title="Mi Tarjeta Digital"
       label="Mi tarjeta digital"
-      wide
+      wide={isEditing}
     >
       {status && (
         <p
@@ -214,6 +244,14 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
         </p>
       )}
 
+      {!isEditing ? (
+        <DigitalCardStage
+          card={card}
+          isLoading={isLoading}
+          error={null}
+          onEdit={() => { setStatus(null); setEditing(true); }}
+        />
+      ) : (
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* ── Vista previa. Va primero en el orden del documento para que en
               celular aparezca arriba, y se reordena en escritorio. ── */}
@@ -428,11 +466,29 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
                 la tarjeta de la sesión con la que entras.
               </p>
 
+              <div className="mt-1 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  // Descarta lo escrito y vuelve a lo último confirmado.
+                  setCard(savedRef.current);
+                  setStatus(null);
+                  setEditing(false);
+                }}
+                disabled={busy}
+                className="rounded-xl border border-zinc-300 px-4 py-3.5 text-sm font-semibold
+                           text-zinc-600 transition-colors hover:bg-zinc-100
+                           disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300
+                           dark:hover:bg-zinc-900"
+              >
+                Cancelar
+              </button>
+
               <button
                 type="button"
                 onClick={save}
                 disabled={busy}
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl
                            bg-indigo-600 px-4 py-3.5 text-base font-semibold text-white
                            shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500
                            active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
@@ -440,10 +496,12 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
                 {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
                 {isSaving ? 'Guardando...' : 'Guardar Tarjeta'}
               </button>
+              </div>
             </div>
           )}
         </div>
       </div>
+      )}
     </FullScreenView>
   );
 }

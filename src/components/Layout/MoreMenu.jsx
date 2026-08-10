@@ -120,31 +120,39 @@ export default function MoreMenu({
           </button>
         </div>
 
-        {/* Tarjeta destacada: Diagnóstico 360 */}
+        {/*
+          Pieza destacada: la tarjeta digital.
+          Es lo que el asesor abre delante de un prospecto, así que ocupa el
+          primer lugar del panel. El Diagnóstico 360 baja a la lista de opciones:
+          sigue completo, pero es una herramienta de trabajo interno y no algo
+          que se enseñe en una mesa.
+        */}
         <button
           type="button"
-          onClick={onOpenDiagnostico}
+          onClick={onOpenCard}
           className="mb-4 flex w-full items-center gap-4 rounded-2xl bg-gradient-to-br
-                     from-indigo-600 to-violet-600 p-4 text-left text-white shadow-lg
-                     shadow-indigo-600/30 transition-transform hover:scale-[1.01]"
+                     from-zinc-800 via-zinc-900 to-black p-4 text-left text-white shadow-lg
+                     shadow-zinc-950/40 ring-1 ring-white/10
+                     transition-transform hover:scale-[1.01]"
         >
           <span
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/20"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10
+                       ring-1 ring-white/15"
             aria-hidden="true"
           >
-            <Gauge size={24} />
+            <IdCard size={24} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-base font-bold leading-tight">Diagnóstico 360</span>
-            <span className="mt-0.5 block text-xs text-indigo-100">
-              Captura tus finanzas y obtén tu diagnóstico completo
+            <span className="block text-base font-bold leading-tight">Mi Tarjeta Digital</span>
+            <span className="mt-0.5 block text-xs text-zinc-400">
+              Tu presentación profesional, lista para mostrar
             </span>
           </span>
-          <ChevronRight size={18} className="shrink-0 opacity-80" aria-hidden="true" />
+          <ChevronRight size={18} className="shrink-0 opacity-70" aria-hidden="true" />
         </button>
 
         <div className="space-y-1 pb-2">
-          <MenuRow icon={IdCard} label="Mi Tarjeta Digital" onClick={onOpenCard} />
+          <MenuRow icon={Gauge} label="Diagnóstico 360" onClick={onOpenDiagnostico} />
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
           {/* Aprobar usuarios va antes del panel técnico: es la tarea que el
               administrador repite, y el distintivo avisa sin abrir nada. */}
