@@ -2,7 +2,8 @@ import { useState } from 'react';
 import {
   Phone, Mail, CalendarClock, ChevronUp, ChevronDown, Sparkles, Video,
 } from 'lucide-react';
-import { isEmbeddableVideo } from '../../data/videoEmbed';
+import { videoKind } from '../../data/videoEmbed';
+import VideoUploadField from './VideoUploadField';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900'
@@ -64,7 +65,8 @@ export default function ContactDrawer({ card, onChange }) {
   // estados que decir —"no es de YouTube" y "listo"— y ninguno debe aparecer
   // mientras el campo está vacío, que es lo normal al empezar.
   const hasVideoText = Boolean(String(card.videoUrl ?? '').trim());
-  const isVideoValid = hasVideoText && isEmbeddableVideo(card.videoUrl);
+  const isVideoValid = hasVideoText && videoKind(card.videoUrl) !== '';
+  const hasUploadedVideo = videoKind(card.videoUrl) === 'file';
 
   return (
     <section
@@ -154,45 +156,70 @@ export default function ContactDrawer({ card, onChange }) {
           {/*
             Video del reverso.
 
-            Se pide un enlace de YouTube y no un archivo. Subir el video aquí
-            sería cómodo una vez y caro siempre: cada prospecto que abre la
-            tarjeta se descargaría el original completo, sin calidades
-            alternativas, y el espacio de la promotoría se llenaría con unos
-            cuantos videos.
+            La subida directa es la vía principal y el enlace de YouTube la
+            alternativa, no al revés. Pedir el enlace obliga a una tarea de
+            cuatro pasos —abrir YouTube, subir, esperar el proceso, copiar,
+            volver, pegar— para algo que el asesor vive como "grabo y listo", y
+            la mayoría abandona antes de terminar.
 
-            El campo acepta cualquier forma del enlace —el de compartir, el de la
-            barra del navegador, el de un Short— y avisa en el momento si lo
-            pegado no es de YouTube. Enterarse al guardar, o peor, por un
-            prospecto que ve un marco en blanco, llega demasiado tarde.
+            El archivo no se aloja en Supabase aunque el bucket ya exista: un
+            video de iPhone sale en HEVC y ese formato no se reproduce en Chrome
+            ni en casi ningún Android. Guardado tal cual, el asesor vería su
+            video perfecto y sus prospectos un cuadro negro —el peor fallo
+            posible, porque quien publica no puede detectarlo—.
           */}
           <Field
             label="Video de presentación"
             icon={Video}
-            id="contact-video"
-            hint="Enlace de YouTube. Aparece arriba del reverso de tu tarjeta."
+            id="card-video-file"
+            hint="Aparece arriba del reverso de tu tarjeta, antes del botón de agendar."
           >
-            <input
-              id="contact-video"
-              className={INPUT}
+            <VideoUploadField
               value={card.videoUrl ?? ''}
-              onChange={(e) => onChange('videoUrl', e.target.value)}
-              placeholder="https://youtu.be/xxxxxxxxxxx"
-              inputMode="url"
-              autoComplete="off"
-              spellCheck="false"
+              onChange={(url) => onChange('videoUrl', url)}
             />
 
-            {hasVideoText && !isVideoValid && (
-              <p className="mt-1.5 text-[11px] leading-relaxed text-amber-500">
-                Ese enlace no es de YouTube, así que el video no se mostrará. Copia el
-                que te da el botón "Compartir" del video.
-              </p>
-            )}
+            {/*
+              El campo del enlace se esconde cuando ya hay un archivo subido: dos
+              formas de poner lo mismo, visibles a la vez, obligan a preguntarse
+              cuál manda.
+            */}
+            {!hasUploadedVideo && (
+              <div className="mt-4 border-t border-dashed border-zinc-200 pt-3
+                              dark:border-zinc-700"
+              >
+                <label
+                  className="mb-1.5 block text-[10px] font-semibold uppercase
+                             tracking-wider text-zinc-500"
+                  htmlFor="contact-video"
+                >
+                  O pega un enlace de YouTube
+                </label>
 
-            {isVideoValid && (
-              <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-500">
-                Enlace correcto. Voltea tu tarjeta para verlo.
-              </p>
+                <input
+                  id="contact-video"
+                  className={INPUT}
+                  value={card.videoUrl ?? ''}
+                  onChange={(e) => onChange('videoUrl', e.target.value)}
+                  placeholder="https://youtu.be/xxxxxxxxxxx"
+                  inputMode="url"
+                  autoComplete="off"
+                  spellCheck="false"
+                />
+
+                {hasVideoText && !isVideoValid && (
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-amber-500">
+                    Ese enlace no se puede incrustar. Copia el que te da el botón
+                    "Compartir" de YouTube, o sube el archivo aquí arriba.
+                  </p>
+                )}
+
+                {isVideoValid && (
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-500">
+                    Enlace correcto. Voltea tu tarjeta para verlo.
+                  </p>
+                )}
+              </div>
             )}
           </Field>
 
