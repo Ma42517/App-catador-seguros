@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { X, QrCode } from 'lucide-react';
+import { QrCode } from 'lucide-react';
 import { buildVCard, canBuildVCard } from '../../data/vcard';
-import { tapFeedback } from '../../lib/haptics';
 
 /**
  * QR a pantalla completa, en plan "pase de abordaje".
@@ -29,27 +28,23 @@ export default function QrPassModal({ card, isOpen, onClose }) {
   const isUsable = canBuildVCard(card);
 
   return (
+    /*
+      No lleva `aria-modal`: no cubre la aplicación entera, sólo la tarjeta. Y
+      declararlo tendría un coste real —algunos lectores de pantalla encierran la
+      navegación dentro del elemento marcado como modal, y el único botón para
+      salir de aquí es la flecha de la tarjeta, que vive fuera—.
+    */
     <div
       role="dialog"
-      aria-modal="true"
       aria-label="Código QR de mi contacto"
       className="absolute inset-0 z-40 flex flex-col bg-black/95 backdrop-blur-sm"
     >
-      {/* Cerrar, arriba y alineado a la derecha */}
-      <div className="flex items-center justify-end p-4">
-        <button
-          type="button"
-          onClick={() => { tapFeedback(); onClose(); }}
-          className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10
-                     px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md
-                     transition-colors hover:bg-white/20 active:scale-95"
-        >
-          <X size={15} />
-          Cerrar
-        </button>
-      </div>
-
-      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 text-center">
+      {/*
+        Sin botón de cerrar propio. La flecha de la tarjeta ya retrocede a la
+        tarjeta desde aquí, y dos botones para lo mismo en la misma franja hacen
+        dudar de si hacen lo mismo. El `pt-20` reserva su banda.
+      */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-20 text-center">
         {isUsable ? (
           <>
             <p className="mb-5 text-sm font-semibold text-white">

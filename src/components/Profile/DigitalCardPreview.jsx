@@ -335,6 +335,26 @@ export default function DigitalCardPreview({
             aria-hidden="true"
           />
 
+          {/*
+            Capa 2b — Sombra de los controles superiores.
+
+            El velo de legibilidad sube desde abajo y termina transparente, así
+            que arriba no protege nada: los botones de esa franja quedaban sobre
+            la foto desnuda y desaparecían en cuanto el retrato tenía un fondo
+            claro —cielo, pared blanca, camisa clara—. Con la foto elegida por
+            cada asesor, ahí no se puede contar con ningún color.
+
+            Es el mismo recurso que usan los reproductores de video para sus
+            controles: una sombra corta que sólo cubre la banda donde hay
+            botones. A 8 rem no alcanza la cara del retrato, y al ser un
+            degradado que muere en transparente no se percibe como una barra.
+          */}
+          <div
+            className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60
+                       via-black/25 to-transparent"
+            aria-hidden="true"
+          />
+
           {/* Paso al reverso, discreto y siempre alcanzable */}
           <button
             type="button"
@@ -346,11 +366,23 @@ export default function DigitalCardPreview({
               explicación.
             */
             aria-label="Ver servicios y soluciones, voltea la tarjeta"
+            /*
+              El contraste no se deja al azar de la foto. El botón lleva su
+              propio fondo oscuro —no un cristal claro, que sobre un retrato
+              luminoso se volvía invisible— y encima un aro claro.
+
+              Los dos juntos cubren los dos extremos: sobre una foto clara
+              destaca el fondo negro, y sobre una oscura destacan el aro y el
+              texto blancos. La sombra del texto es el último respaldo, para el
+              caso en que el fondo de la foto sea exactamente igual de oscuro
+              que el del botón.
+            */
             className="absolute right-4 top-4 z-30 flex items-center gap-1.5 rounded-full
-                       border border-white/20 bg-white/10 py-1.5 pl-2.5 pr-3 text-[11px]
-                       font-semibold text-white backdrop-blur-md transition-colors
-                       hover:bg-white/20 active:scale-95 focus-visible:outline-none
-                       focus-visible:ring-2 focus-visible:ring-white/60"
+                       bg-black/55 py-1.5 pl-2.5 pr-3 text-[11px] font-semibold text-white
+                       ring-1 ring-white/30 backdrop-blur-md transition-colors
+                       [text-shadow:0_1px_2px_rgb(0_0_0/0.9)]
+                       hover:bg-black/70 active:scale-95 focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-white"
           >
             <RotateCcw size={12} strokeWidth={2.4} className="animate-flip-hint" aria-hidden="true" />
             Servicios
@@ -604,9 +636,14 @@ export default function DigitalCardPreview({
           type="button"
           onClick={handleBack}
           aria-label={dismissLayer ? 'Volver a la tarjeta' : 'Volver'}
+          /*
+            Mismo fondo y mismo aro que el botón de servicios: los dos viven en
+            la misma franja, sobre la misma foto imprevisible, y con opacidades
+            distintas uno de los dos acabaría siendo el que no se ve.
+          */
           className="mt-safe absolute left-4 top-4 z-50 grid h-11 w-11 place-items-center
-                     rounded-full bg-black/40 text-white ring-1 ring-white/25 backdrop-blur-md
-                     transition-colors hover:bg-black/60 active:scale-95
+                     rounded-full bg-black/55 text-white ring-1 ring-white/30 backdrop-blur-md
+                     transition-colors hover:bg-black/70 active:scale-95
                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
         >
           <ChevronLeft size={22} />
