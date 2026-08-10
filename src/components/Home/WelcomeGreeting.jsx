@@ -1,44 +1,33 @@
 import { useState, useEffect, useMemo } from 'react';
 
-/**
- * Tiempo que tarda en aparecer cada palabra.
- *
- * Deliberadamente lento: cada palabra lleva su propio pulso, y por debajo de
- * ~250 ms los pulsos se encadenan y el motor del teléfono se siente como un
- * zumbido continuo en lugar de un golpeteo con ritmo.
- */
-const WORD_MS = 350;
+/** Tiempo que tarda en aparecer cada palabra. */
+const WORD_MS = 220;
 
-/** Pulso de una palabra: corto y seco, un "tic". */
-const TICK_MS = 15;
-
-/** Pulso de cierre de la frase: golpe-pausa-golpe, para marcar el final. */
-const FINAL_PATTERN = [20, 50, 20];
-
-/** Si el usuario pidió menos movimiento, el texto aparece completo y sin vibrar. */
+/** Si el usuario pidió menos movimiento, el texto aparece completo de una vez. */
 function prefersReducedMotion() {
   return typeof window !== 'undefined'
     && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**
- * Saludo de bienvenida con revelación palabra por palabra y vibración
- * sincronizada 1:1 con el texto.
+ * Saludo de bienvenida que entra palabra por palabra.
  *
- * La secuencia no la lleva un `setInterval` que corre por su cuenta, sino una
- * cadena de `setTimeout` gobernada por `visibleIndex`: cada palabra que entra
- * programa la siguiente, y el pulso se dispara en el mismo momento en que el
- * índice avanza. Así no hay forma de que el texto y la vibración se separen,
- * que es lo que pasaba cuando el temporizador y el render iban por caminos
- * distintos.
+ * No vibra, y no es un olvido. Una vibración de bienvenida no se siente en
+ * ningún teléfono: Chrome en Android la descarta mientras la persona no haya
+ * tocado la página, y WebKit —todo navegador en iPhone— no implementa la API.
+ * Además, un teléfono que vibra solo al abrir la app se siente como una
+ * notificación que nadie pidió. El golpe al tacto vive donde sí aporta y sí
+ * funciona: en los botones y en los avisos del cronómetro (`src/lib/haptics.js`).
  *
- * El `clearTimeout` del cierre es lo que evita que el teléfono siga vibrando
- * si la persona cambia de pantalla a media frase.
+ * La secuencia la lleva una cadena de `setTimeout` gobernada por
+ * `visibleIndex`: cada palabra programa la siguiente, y el `clearTimeout` del
+ * cierre evita que siga corriendo si la persona cambia de pantalla a media
+ * frase.
  *
  * `accentWords` marca qué palabras (normalmente el nombre del asesor) se
  * pintan con el color de acento en vez del color de texto normal.
  */
-export default function HapticGreeting({ text, accentWords = [], className = '' }) {
+export default function WelcomeGreeting({ text, accentWords = [], className = '' }) {
   const words = useMemo(() => text.trim().split(/\s+/), [text]);
   const reduced = prefersReducedMotion();
 
@@ -54,17 +43,7 @@ export default function HapticGreeting({ text, accentWords = [], className = '' 
     if (reduced) return undefined;
     if (visibleIndex >= words.length) return undefined;
 
-    const timer = setTimeout(() => {
-      const isLastWord = visibleIndex === words.length - 1;
-
-      // El avance del índice y el pulso ocurren juntos: la palabra se pinta y
-      // el teléfono responde en el mismo tic, no uno detrás del otro.
-      setVisibleIndex(visibleIndex + 1);
-
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(isLastWord ? FINAL_PATTERN : TICK_MS);
-      }
-    }, WORD_MS);
+    const timer = setTimeout(() => setVisibleIndex(visibleIndex + 1), WORD_MS);
 
     // Cambiar de pantalla a media frase corta la cadena aquí mismo.
     return () => clearTimeout(timer);
@@ -85,8 +64,7 @@ export default function HapticGreeting({ text, accentWords = [], className = '' 
         {/*
           Todas las palabras se montan desde el principio y sólo cambian de
           opacidad. Ocupar el espacio desde el inicio evita que el texto salte
-          de línea mientras se escribe, y sin `delay` en la transición la
-          palabra aparece exactamente cuando avanza el índice.
+          de línea mientras se escribe.
         */}
         {words.map((word, index) => (
           <span

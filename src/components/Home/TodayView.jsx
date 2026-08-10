@@ -1,5 +1,5 @@
 import AISequence from './AISequence';
-import HapticGreeting from './HapticGreeting';
+import WelcomeGreeting from './WelcomeGreeting';
 
 const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
 
@@ -8,8 +8,8 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  * 360 ya no ocupa la vista principal, se abre desde "Ver más".
  *
  * El día y el saludo viven arriba; el centro lo ocupa la secuencia de inicio.
- * El saludo entra palabra por palabra, con un pulso de vibración por cada una,
- * para que el arranque de la app se sienta vivo desde el primer instante.
+ * El saludo entra palabra por palabra, sin vibración: el golpe al tacto se
+ * reserva para los botones y los avisos del cronómetro.
  */
 export default function TodayView({ name }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
@@ -28,7 +28,7 @@ export default function TodayView({ name }) {
             {fecha}
           </p>
           <div className="mt-1">
-            <HapticGreeting text={greeting} accentWords={saludo.split(' ')} />
+            <WelcomeGreeting text={greeting} accentWords={saludo.split(' ')} />
           </div>
         </div>
       )}

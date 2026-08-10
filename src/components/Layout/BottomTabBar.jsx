@@ -1,5 +1,6 @@
 import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
 import { priorityByKey } from '../Activities/priorities';
+import { tapFeedback } from '../../lib/haptics';
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
@@ -39,6 +40,20 @@ export default function BottomTabBar({
   const agendaTone = agendaLevel?.badge
     ?? 'bg-indigo-500 text-white shadow-indigo-500/40 dark:bg-indigo-400 dark:text-zinc-950';
 
+  /**
+   * Envuelve el manejador de un destino con el golpe al tacto.
+   *
+   * Va aquí, en la barra, y no dentro de cada `onNavigate` de la app: cambiar
+   * de sección es lo mismo si se llega por la barra o por otro camino, pero la
+   * respuesta física pertenece al botón que se tocó. Además, el golpe se
+   * dispara antes de navegar, porque la sección destino puede desmontar esta
+   * barra y el evento se perdería.
+   */
+  const withTap = (handler) => () => {
+    tapFeedback();
+    handler();
+  };
+
   return (
     <nav
       aria-label="Navegación inferior"
@@ -52,7 +67,7 @@ export default function BottomTabBar({
       >
         <div className="flex w-full items-center justify-between">
           {/* Hoy */}
-          <button type="button" onClick={onToday} className={TAB}>
+          <button type="button" onClick={withTap(onToday)} className={TAB}>
             <span
               className="grid h-6 w-6 place-items-center rounded-md border border-current
                          text-[11px] font-bold leading-none"
@@ -64,7 +79,7 @@ export default function BottomTabBar({
           </button>
 
           {/* Productividad */}
-          <button type="button" onClick={onProductivity} className={TAB}>
+          <button type="button" onClick={withTap(onProductivity)} className={TAB}>
             <TrendingUp size={22} strokeWidth={1.8} aria-hidden="true" />
             <span className={LABEL}>Productividad</span>
           </button>
@@ -73,7 +88,7 @@ export default function BottomTabBar({
           <div className="flex-1 flex justify-center">
             <button
               type="button"
-              onClick={onAdd}
+              onClick={withTap(onAdd)}
               className="group flex flex-col items-center transition-transform will-change-transform hover:scale-105
                          focus-visible:outline-none"
             >
@@ -93,7 +108,7 @@ export default function BottomTabBar({
           {/* Agenda — con el aviso de lo que queda pendiente hoy */}
           <button
             type="button"
-            onClick={onAgenda}
+            onClick={withTap(onAgenda)}
             className={TAB}
             /*
               La prioridad se nombra además de pintarse: quien no distingue el
@@ -135,7 +150,7 @@ export default function BottomTabBar({
           </button>
 
           {/* Ver más */}
-          <button type="button" onClick={onMore} className={TAB}>
+          <button type="button" onClick={withTap(onMore)} className={TAB}>
             <Menu size={22} strokeWidth={1.8} aria-hidden="true" />
             <span className={LABEL}>Ver más</span>
           </button>
