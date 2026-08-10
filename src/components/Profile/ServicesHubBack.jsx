@@ -1,5 +1,5 @@
 import {
-  Calculator, PieChart, Stethoscope, FileText, ChevronLeft, ExternalLink,
+  Calculator, PieChart, Stethoscope, FileText, X, ExternalLink,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
 
@@ -149,20 +149,29 @@ export default function ServicesHubBack({ card, onBack }) {
         aria-hidden="true"
       />
 
-      {/* Regreso a la cara frontal. `shrink-0` lo mantiene siempre visible. */}
-      <div className="relative shrink-0 p-5 pb-0">
-        <button
-          type="button"
-          onClick={() => { tapFeedback(); onBack(); }}
-          className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5
-                     py-1.5 pl-2 pr-3 text-xs font-semibold text-zinc-300 backdrop-blur-md
-                     transition-colors hover:bg-white/10 hover:text-white active:scale-95
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-        >
-          <ChevronLeft size={15} />
-          Volver
-        </button>
-      </div>
+      {/*
+        Cierre del reverso, arriba a la derecha.
+
+        Estaba a la izquierda y chocaba con la flecha de "Volver" de la pantalla
+        de la tarjeta, que vive en `left-4 top-4`: dos botones de regreso
+        superpuestos, y el de abajo inalcanzable. A la derecha no hay nada que
+        disputar, y además queda donde está el botón "Servicios" de la cara
+        frontal: se entra y se sale por el mismo sitio.
+
+        Va fuera del área que se desplaza —no dentro— para que no se vaya de la
+        vista al bajar la lista. El `z-50` lo mantiene por encima del contenido
+        desplazable, que no crea contexto de apilamiento propio.
+      */}
+      <button
+        type="button"
+        onClick={() => { tapFeedback(); onBack(); }}
+        aria-label="Cerrar servicios y volver al frente de la tarjeta"
+        className="absolute right-4 top-4 z-50 rounded-full bg-white/10 p-2 backdrop-blur-md
+                   transition-colors hover:bg-white/20 active:scale-95
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+      >
+        <X size={20} className="text-white" />
+      </button>
 
       {/*
         La lista se desplaza en lugar de comprimirse. Con cuatro accesos y dos
@@ -170,8 +179,13 @@ export default function ServicesHubBack({ card, onBack }) {
         esto el último botón quedaría cortado sin forma de alcanzarlo.
         `overscroll-contain` evita que el gesto arrastre la página de detrás al
         llegar al final.
+
+        El `pt-16` reserva la banda del botón de cerrar. Sin esa reserva, el
+        título arrancaría a la misma altura que el botón y el texto le pasaría
+        por debajo; al desplazar la lista sí lo hace, pero entonces es
+        deliberado: el cristal del botón deja ver el contenido correr detrás.
       */}
-      <div className="relative flex-1 overflow-y-auto overscroll-contain px-5 pb-8 pt-4">
+      <div className="relative flex-1 overflow-y-auto overscroll-contain px-5 pb-8 pt-16">
         <div className="mb-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">
             Servicios y Soluciones
