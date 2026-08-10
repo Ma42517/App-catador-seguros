@@ -330,7 +330,7 @@ export default function DigitalCardPreview({
           )}
 
           {/*
-            Capa 1 — Retrato: nítido, en el 60% superior.
+            Capa 1 — Retrato: nítido, en la mitad superior.
 
             En edición este contenedor deja de ser decorativo y pasa a recibir los
             gestos, pero sólo cuando el modo acomodar está encendido. Fuera de
@@ -353,7 +353,7 @@ export default function DigitalCardPreview({
               —que no es un arrastre y por tanto no compite con él— es lo que
               entra a colocar la foto.
             */
-            className={`absolute left-0 top-0 h-[60%] w-full ${
+            className={`absolute left-0 top-0 h-[50%] w-full ${
               isFraming
                 ? 'z-20 cursor-move touch-none select-none'
                 : 'pointer-events-none'}`}
@@ -454,72 +454,20 @@ export default function DigitalCardPreview({
           )}
 
           {/*
-            Acercar y alejar, para quien usa ratón o prefiere no pellizcar. Van
-            apilados en el borde de la foto y en su tamaño mínimo cómodo: es una
-            ayuda, no la vía principal, que es el gesto.
+            Contorno del área activa mientras se acomoda. Es lo único que queda
+            sobre la foto, y no intercepta ni un toque: `pointer-events-none`.
+
+            Los controles —el aviso, el zoom y el botón "Listo"— se fueron a una
+            barra propia dentro de la zona de datos. Encima de la foto se
+            superponían al retrato y a los campos de texto, así que al buscar
+            "Listo" se acababa abriendo la edición del nombre.
           */}
           {isFraming && (
-            <div className="absolute right-4 top-[3.25rem] z-50 flex flex-col overflow-hidden
-                            rounded-full bg-black/55 ring-1 ring-white/30 backdrop-blur-md"
-            >
-              <button
-                type="button"
-                onClick={() => framing.stepZoom(0.15)}
-                aria-label="Acercar la foto"
-                className="grid h-8 w-8 place-items-center text-white transition-colors
-                           hover:bg-white/15 active:scale-95 focus-visible:outline-none"
-              >
-                <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
-              </button>
-              <span className="mx-auto h-px w-4 bg-white/25" aria-hidden="true" />
-              <button
-                type="button"
-                onClick={() => framing.stepZoom(-0.15)}
-                aria-label="Alejar la foto"
-                className="grid h-8 w-8 place-items-center text-white transition-colors
-                           hover:bg-white/15 active:scale-95 focus-visible:outline-none"
-              >
-                <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
-              </button>
-            </div>
-          )}
-
-          {/*
-            Estado del encuadre, sobre la propia foto.
-
-            Apagado invita a entrar; encendido confirma que el dedo ya mueve la
-            imagen y ofrece la salida. Sin este aviso, el modo sería invisible: la
-            persona tocaría la foto, el scroll dejaría de funcionar ahí y no habría
-            nada que explicara por qué.
-          */}
-          {isFraming && (
-            <>
-              {/* Marca el área activa sin taparla: sólo su contorno. */}
-              <span
-                className="pointer-events-none absolute left-0 top-0 z-30 h-[60%] w-full
-                           ring-2 ring-inset ring-indigo-400/70"
-                aria-hidden="true"
-              />
-
-              <button
-                type="button"
-                onClick={() => setFraming(false)}
-                className="absolute left-1/2 top-[45%] z-40 -translate-x-1/2 whitespace-nowrap
-                           rounded-full bg-indigo-600 px-4 py-1.5 text-[11px] font-bold
-                           text-white shadow-lg ring-1 ring-white/30 transition-colors
-                           hover:bg-indigo-500"
-              >
-                Listo
-              </button>
-
-              <p
-                className="pointer-events-none absolute inset-x-0 top-3 z-30 text-center
-                           text-[10px] font-semibold uppercase tracking-wider text-white/80
-                           [text-shadow:0_1px_3px_rgb(0_0_0/0.9)]"
-              >
-                Arrastra o pellizca tu foto
-              </p>
-            </>
+            <span
+              className="pointer-events-none absolute left-0 top-0 z-30 h-[50%] w-full
+                         ring-2 ring-inset ring-indigo-400/70"
+              aria-hidden="true"
+            />
           )}
 
           {/* Paso al reverso, discreto y siempre alcanzable */}
@@ -615,7 +563,7 @@ export default function DigitalCardPreview({
               zona reservada, así que un contenedor desplazable sólo servía para
               competir con la página por el mismo gesto.
             */
-            className={`pointer-events-none relative z-40 mt-auto flex max-h-[58%] w-full
+            className={`pointer-events-none relative z-40 mt-auto flex max-h-[50%] w-full
                         flex-col justify-end ${editable
                           ? ''
                           : 'overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}
@@ -630,10 +578,81 @@ export default function DigitalCardPreview({
               className={`pointer-events-auto flex flex-col justify-end text-left text-white
                           ${isFill ? 'p-6' : 'p-5'}`}
             >
+            {/*
+              Barra de acciones del modo acomodar.
+
+              Vive en la zona de datos, separada de la foto, y por eso se puede
+              pulsar sin miedo: no hay ningún campo de texto ni ninguna imagen
+              debajo con la que competir. "Listo" queda a la derecha, donde la vista
+              termina de leer la fila.
+            */}
+            {isFraming && (
+              <div
+                className="animate-fade-in-up mb-2.5 flex items-center gap-2 rounded-2xl
+                           border border-indigo-400/40 bg-zinc-900/90 p-2 pl-3 backdrop-blur-md"
+              >
+                <span className="min-w-0 flex-1 text-[11px] font-semibold leading-tight
+                                 text-indigo-200"
+                >
+                  Arrastra o pellizca tu foto
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => framing.stepZoom(-0.15)}
+                  aria-label="Alejar la foto"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10
+                             text-white transition-colors hover:bg-white/20 active:scale-95"
+                >
+                  <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => framing.stepZoom(0.15)}
+                  aria-label="Acercar la foto"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10
+                             text-white transition-colors hover:bg-white/20 active:scale-95"
+                >
+                  <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFraming(false)}
+                  className="shrink-0 rounded-full bg-indigo-600 px-4 py-2 text-[11px]
+                             font-bold text-white transition-colors hover:bg-indigo-500
+                             active:scale-95"
+                >
+                  Listo
+                </button>
+              </div>
+            )}
+
+            {/*
+              ── Bloque de identidad ──
+
+              Nombre, título, empresa y especialidades viven aquí, en su propio
+              recuadro sólido, y no flotando sobre el retrato.
+
+              Antes iban encima de la foto y eso traía dos problemas juntos: el
+              texto caía sobre la cara —tapándola justo donde importa— y su área de
+              toque se solapaba con la del retrato, así que al intentar mover la
+              foto se abría la edición del nombre. Separarlos en dos cajas resuelve
+              las dos cosas de una vez, porque ya no comparten espacio.
+
+              El fondo es opaco a propósito: sobre él el texto se lee sin depender
+              del color de la foto, y por eso desaparecen las sombras de texto que
+              antes hacían falta.
+            */}
+            <div
+              className="animate-fade-in-up rounded-2xl border border-white/10 bg-zinc-900/85
+                         p-4 backdrop-blur-md"
+            >
             {/* Pulso de disponibilidad, encima del nombre */}
             <div
-              className="animate-fade-in-up mb-2.5 flex w-max items-center gap-2 rounded-full
-                         border border-white/15 bg-white/10 px-3 py-1 backdrop-blur-md"
+              className="mb-2.5 flex w-max items-center gap-2 rounded-full
+                         border border-white/15 bg-white/10 px-3 py-1"
             >
               <span
                 className="h-2 w-2 animate-pulse rounded-full bg-green-500"
@@ -651,20 +670,17 @@ export default function DigitalCardPreview({
               cambio de diseño, y la promesa de "editas lo que se ve" se rompería
               sin que nadie lo note.
             */}
-            <div className="animate-fade-in-up">
+            <div>
               {editable ? (
                 <InlineInput
                   value={fullName}
                   onChange={(v) => onChange('fullName', v)}
                   label="Tu nombre completo"
                   placeholder="Tu nombre"
-                  className="text-3xl font-bold uppercase leading-none tracking-tight
-                             drop-shadow-lg"
+                  className="text-3xl font-bold uppercase leading-none tracking-tight"
                 />
               ) : (
-                <h2 className="text-3xl font-bold uppercase leading-none tracking-tight
-                               drop-shadow-lg"
-                >
+                <h2 className="text-3xl font-bold uppercase leading-none tracking-tight">
                   {fullName || <span className="text-white/40">Tu nombre</span>}
                 </h2>
               )}
@@ -675,10 +691,10 @@ export default function DigitalCardPreview({
                   onChange={(v) => onChange('title', v)}
                   label="Tu título profesional"
                   placeholder="Tu título profesional"
-                  className="mt-1.5 text-sm text-zinc-200 drop-shadow"
+                  className="mt-1.5 text-sm text-zinc-200"
                 />
               ) : (
-                <p className="mt-1.5 text-sm text-zinc-200 drop-shadow">
+                <p className="mt-1.5 text-sm text-zinc-200">
                   {title || <span className="text-white/35">Tu título profesional</span>}
                 </p>
               )}
@@ -709,21 +725,19 @@ export default function DigitalCardPreview({
             </div>
 
             {specialties.length > 0 && (
-              <ul
-                className="animate-fade-in-up mt-2.5 flex flex-wrap gap-1.5"
-                style={{ animationDelay: '100ms' }}
-              >
+              <ul className="mt-3 flex flex-wrap gap-1.5">
                 {specialties.map((item) => (
                   <li
                     key={item}
-                    className="rounded-full border border-white/15 bg-white/15 px-2 py-1
-                               text-xs font-medium backdrop-blur-md"
+                    className="rounded-full border border-white/15 bg-white/10 px-2 py-1
+                               text-xs font-medium"
                   >
                     {item}
                   </li>
                 ))}
               </ul>
             )}
+            </div>
 
             {/*
               Fila de contacto. Cada icono lleva su propio movimiento y su propio
