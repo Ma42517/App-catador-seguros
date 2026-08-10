@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, RotateCcw, ChevronLeft,
-  Camera, Move,
+  Camera, Plus, Minus,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
-import { focusStyle } from '../../data/cardPhoto';
+import { focusStyle, parseFocus, serializeFocus } from '../../data/cardPhoto';
+import usePhotoFraming from './usePhotoFraming';
 import QrPassModal from './QrPassModal';
 import ShareSheet from './ShareSheet';
 import { InlineInput, InlineTextarea } from './InlineField';
@@ -101,7 +102,7 @@ function SocialButton({ label, href, glow = false, children }) {
  */
 export default function DigitalCardPreview({
   card, variant = 'frame', onAddContact, onExit,
-  editable = false, onChange = () => {}, onPickPhoto, onAdjustPhoto,
+  editable = false, onChange = () => {}, onPickPhoto,
 }) {
   const {
     fullName, title, company, specialties = [], bio, phone, email, whatsapp,
@@ -109,6 +110,18 @@ export default function DigitalCardPreview({
   } = card;
 
   const digits = (value) => String(value ?? '').replace(/[^\d+]/g, '');
+
+  /*
+    Encuadre en vivo. El gesto escribe en el mismo campo que la tarjeta lee, así
+    que la foto se recoloca mientras el dedo la arrastra: no hay un paso de
+    confirmación porque no hay nada que confirmar, lo que se ve ya es el
+    resultado.
+  */
+  const framing = usePhotoFraming({
+    focus: photoFocus,
+    enabled: editable && Boolean(avatarUrl),
+    onChange: (next) => onChange('photoFocus', serializeFocus(next)),
+  });
 
   const [isQrOpen, setQrOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -284,8 +297,27 @@ export default function DigitalCardPreview({
             </div>
           )}
 
-          {/* Capa 1 — Retrato: nítido, en el 60% superior */}
-          <div className="pointer-events-none absolute left-0 top-0 h-[60%] w-full" aria-hidden="true">
+          {/*
+            Capa 1 — Retrato: nítido, en el 60% superior.
+
+            En edición este contenedor deja de ser decorativo y pasa a recibir los
+            gestos: es el sitio donde la foto se arrastra y se pellizca. Por eso
+            recupera los eventos y `cursor-move`, y por eso `touch-none` es
+            imprescindible —sin él el navegador entiende el arrastre como un gesto
+            de desplazamiento de la página y se queda con él, así que la foto no se
+            movería ni un píxel en el móvil—.
+
+            Fuera de edición vuelve a ser una capa muerta que no intercepta nada.
+          */}
+          <div
+            ref={framing.frameRef}
+            {...framing.handlers}
+            aria-hidden={!editable}
+            className={`absolute left-0 top-0 h-[60%] w-full ${
+              editable && avatarUrl
+                ? 'z-20 cursor-move touch-none select-none'
+                : 'pointer-events-none'}`}
+          >
             {avatarUrl ? (
               <img
                 src={avatarUrl}
@@ -355,61 +387,77 @@ export default function DigitalCardPreview({
           />
 
           {/*
-            Botón de la foto, reducido a su propia esquina.
+            Un solo control de foto: subir. El encuadre ya no necesita botón
+            porque se hace con el dedo sobre la propia imagen.
 
-            Antes era una zona invisible que cubría todo el 60% superior. Parecía
-            buena idea —"toco mi foto para cambiarla"— pero al crecer el texto
-            hacia arriba, el nombre y el título acababan por debajo de esa zona:
-            tocarlos abría el selector de archivos en lugar de dejar escribir. Un
-            área de toque invisible y enorme siempre acaba comiéndose algo.
-
-            Ahora ocupa sólo su rincón, con rótulo visible, y se apoya en el borde
-            del hueco del retrato para que se lea como "esto es de la foto".
+            Antes había dos rótulos apilados en la esquina, "Cambiar foto" y
+            "Ajustar foto", que competían por el mismo sitio y obligaban a
+            distinguir entre dos acciones que la persona vive como una sola:
+            poner bien su foto. Queda el icono a secas —la acción de reemplazar es
+            la única que necesita un botón— y el ajuste pasa a ser el gesto obvio
+            sobre la imagen.
           */}
           {editable && onPickPhoto && (
             <button
               type="button"
               onClick={onPickPhoto}
-              /*
-                Arriba a la izquierda, dentro del retrato. Antes se anclaba al
-                límite del 60% y quedaba flotando a media tarjeta, en tierra de
-                nadie: no se leía como parte de la foto ni como parte de los datos.
-                Aquí, junto al borde superior, no hay duda de a qué pertenece, y no
-                choca con "Servicios", que ocupa la esquina de enfrente.
-              */
-              className="absolute left-4 top-4 z-50 flex items-center gap-1.5 rounded-full
-                         bg-black/60 px-3 py-2 text-[11px] font-semibold text-white ring-1
-                         ring-white/30 backdrop-blur-md transition-colors hover:bg-black/80
-                         active:scale-95 focus-visible:outline-none focus-visible:ring-2
+              aria-label={avatarUrl ? 'Cambiar mi foto' : 'Subir mi foto'}
+              title={avatarUrl ? 'Cambiar foto' : 'Subir foto'}
+              className="absolute left-4 top-4 z-50 grid h-9 w-9 place-items-center rounded-full
+                         bg-black/55 text-white ring-1 ring-white/30 backdrop-blur-md
+                         transition-colors hover:bg-black/75 active:scale-95
+                         focus-visible:outline-none focus-visible:ring-2
                          focus-visible:ring-white"
             >
-              <Camera size={14} strokeWidth={2.2} aria-hidden="true" />
-              {avatarUrl ? 'Cambiar foto' : 'Añadir foto'}
+              <Camera size={16} strokeWidth={2} aria-hidden="true" />
             </button>
           )}
 
           {/*
-            Ajustar el encuadre de la foto que ya está puesta.
-
-            Va separado de "Cambiar foto" porque son dos cosas distintas y antes
-            estaban confundidas en una: para recolocar el retrato había que volver
-            a subir el archivo, y quien ya no lo tenía en el teléfono no podía
-            arreglar un encuadre malo. Sólo aparece si hay foto, porque ajustar lo
-            que no existe no significa nada.
+            Acercar y alejar, para quien usa ratón o prefiere no pellizcar. Van
+            apilados en el borde de la foto y en su tamaño mínimo cómodo: es una
+            ayuda, no la vía principal, que es el gesto.
           */}
-          {editable && onAdjustPhoto && avatarUrl && (
-            <button
-              type="button"
-              onClick={onAdjustPhoto}
-              className="absolute left-4 top-[3.75rem] z-50 flex items-center gap-1.5
-                         rounded-full bg-black/60 px-3 py-2 text-[11px] font-semibold
-                         text-white ring-1 ring-white/30 backdrop-blur-md transition-colors
-                         hover:bg-black/80 active:scale-95 focus-visible:outline-none
-                         focus-visible:ring-2 focus-visible:ring-white"
+          {editable && avatarUrl && (
+            <div className="absolute right-4 top-[3.25rem] z-50 flex flex-col overflow-hidden
+                            rounded-full bg-black/55 ring-1 ring-white/30 backdrop-blur-md"
             >
-              <Move size={14} strokeWidth={2.2} aria-hidden="true" />
-              Ajustar foto
-            </button>
+              <button
+                type="button"
+                onClick={() => framing.stepZoom(0.15)}
+                aria-label="Acercar la foto"
+                className="grid h-8 w-8 place-items-center text-white transition-colors
+                           hover:bg-white/15 active:scale-95 focus-visible:outline-none"
+              >
+                <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
+              </button>
+              <span className="mx-auto h-px w-4 bg-white/25" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={() => framing.stepZoom(-0.15)}
+                aria-label="Alejar la foto"
+                className="grid h-8 w-8 place-items-center text-white transition-colors
+                           hover:bg-white/15 active:scale-95 focus-visible:outline-none"
+              >
+                <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+
+          {/*
+            Pista del gesto, sólo mientras la foto sigue centrada por omisión.
+            En cuanto se mueve algo desaparece: ya se descubrió para qué sirve, y
+            dejarla sería repetir una instrucción que ya se cumplió.
+          */}
+          {editable && avatarUrl && parseFocus(photoFocus).x === 50
+            && parseFocus(photoFocus).y === 50 && parseFocus(photoFocus).zoom === 1 && (
+            <p
+              className="pointer-events-none absolute inset-x-0 top-[45%] z-20 text-center
+                         text-[11px] font-semibold text-white/85
+                         [text-shadow:0_1px_3px_rgb(0_0_0/0.9)]"
+            >
+              Arrastra tu foto para acomodarla
+            </p>
           )}
 
           {/* Paso al reverso, discreto y siempre alcanzable */}
