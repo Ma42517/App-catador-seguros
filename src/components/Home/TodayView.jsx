@@ -1,4 +1,5 @@
 import AISequence from './AISequence';
+import HapticGreeting from './HapticGreeting';
 
 const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
 
@@ -7,10 +8,17 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  * 360 ya no ocupa la vista principal, se abre desde "Ver más".
  *
  * El día y el saludo viven arriba; el centro lo ocupa la secuencia de inicio.
+ * El saludo ya no es texto estático: entra palabra por palabra con un pulso de
+ * vibración por cada una, para que el arranque de la app se sienta vivo desde
+ * el primer instante.
  */
 export default function TodayView({ name }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
+
+  const greeting = saludo
+    ? `Hola, ${saludo}. ¿Cerramos un negocio hoy?`
+    : 'Hola. ¿Cerramos un negocio hoy?';
 
   return (
     <AISequence
@@ -20,9 +28,9 @@ export default function TodayView({ name }) {
           <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
             {fecha}
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl dark:text-white">
-            Hola{saludo ? `, ${saludo}` : ''}
-          </h1>
+          <div className="mt-1 text-zinc-900 dark:text-white">
+            <HapticGreeting text={greeting} accentWords={saludo.split(' ')} />
+          </div>
         </div>
       )}
     />
