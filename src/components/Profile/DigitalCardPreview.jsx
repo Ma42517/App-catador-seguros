@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, RotateCcw, ChevronLeft,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
-import { publicCardUrl } from '../../lib/publicRoute';
 import QrPassModal from './QrPassModal';
+import ShareSheet from './ShareSheet';
 import ServicesHubBack from './ServicesHubBack';
 
 /**
@@ -108,20 +108,7 @@ export default function DigitalCardPreview({
 
   const [isQrOpen, setQrOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
-
-  /*
-    Aviso de que el enlace se copió. Vive dentro de la tarjeta y no en un aviso
-    global porque la tarjeta se muestra dentro de otras pantallas, y cada una
-    tiene su propio sitio para los mensajes; uno global aparecería en un lugar
-    distinto según desde dónde se comparta.
-  */
-  const [shareNote, setShareNote] = useState('');
-
-  useEffect(() => {
-    if (!shareNote) return undefined;
-    const timer = setTimeout(() => setShareNote(''), 2200);
-    return () => clearTimeout(timer);
-  }, [shareNote]);
+  const [isShareOpen, setShareOpen] = useState(false);
 
   const flipTo = (next) => {
     tapFeedback();
@@ -144,6 +131,7 @@ export default function DigitalCardPreview({
     entre los componentes que la abren.
   */
   const layerToDismiss = () => {
+    if (isShareOpen) return () => setShareOpen(false);
     if (isQrOpen) return () => setQrOpen(false);
     return null;
   };
@@ -164,68 +152,6 @@ export default function DigitalCardPreview({
       return;
     }
     onExit?.();
-  };
-
-  /**
-   * Entrega el enlace público de la tarjeta.
-   *
-   * Se prueba primero la hoja de compartir del sistema, que es la que permite
-   * mandarlo por WhatsApp en un toque —la vía por la que esto se va a usar de
-   * verdad—. En escritorio no existe, así que se copia al portapapeles y se
-   * avisa; sin ese aviso, el asesor no sabría si el toque hizo algo.
-   */
-  const shareCard = async () => {
-    if (!card.id) return;
-    tapFeedback();
-
-    const url = publicCardUrl(card.id);
-    const title = fullName ? `Tarjeta de ${fullName}` : 'Mi tarjeta digital';
-
-    // 1) Hoja del sistema: la vía real de uso, mandarlo por WhatsApp en un toque.
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, url });
-        return;
-      } catch {
-        /*
-          Cancelar la hoja entra aquí y no es un fallo: la persona acaba de
-          decidir que no quería compartir. Se sigue a los respaldos porque el
-          navegador también rechaza la hoja cuando el documento no está enfocado,
-          y en ese caso sí conviene dejar el enlace copiado.
-        */
-      }
-    }
-
-    // 2) Portapapeles moderno. Exige contexto seguro y permiso del navegador.
-    try {
-      await navigator.clipboard.writeText(url);
-      setShareNote('Enlace copiado');
-      return;
-    } catch {
-      /* Se intenta el respaldo antiguo antes de rendirse. */
-    }
-
-    /*
-      3) Respaldo con `execCommand`, que está obsoleto pero sigue siendo el único
-      que funciona sin permisos y en navegadores donde el portapapeles moderno
-      está bloqueado. El campo se coloca fuera de la vista y se quita enseguida:
-      visible, robaría el foco y movería la página.
-    */
-    try {
-      const field = document.createElement('textarea');
-      field.value = url;
-      field.setAttribute('readonly', '');
-      field.style.position = 'fixed';
-      field.style.top = '-1000px';
-      document.body.appendChild(field);
-      field.select();
-      const copied = document.execCommand('copy');
-      field.remove();
-      setShareNote(copied ? 'Enlace copiado' : url);
-    } catch {
-      // 4) Si nada copió, se muestra el enlace para que se pueda leer y escribir.
-      setShareNote(url);
-    }
   };
 
   /*
@@ -574,7 +500,7 @@ export default function DigitalCardPreview({
               */}
               <button
                 type="button"
-                onClick={shareCard}
+                onClick={() => { tapFeedback(); setShareOpen(true); }}
                 disabled={!card.id}
                 aria-label="Compartir el enlace de mi tarjeta"
                 className="grid h-9 w-9 place-items-center rounded-full text-white/80
@@ -633,23 +559,7 @@ export default function DigitalCardPreview({
       */}
       <QrPassModal card={card} isOpen={isQrOpen} onClose={() => setQrOpen(false)} />
 
-      {/* Confirmación de que el enlace quedó copiado */}
-      {shareNote && (
-        <p
-          role="status"
-          /*
-            Sin `whitespace-nowrap`: cuando el aviso es el enlace completo
-            —porque no se pudo copiar—, en una línea se saldría de la tarjeta.
-            `break-all` permite partirlo por donde toque para que se lea entero.
-          */
-          className="animate-fade-in-up absolute bottom-20 left-1/2 z-40 max-w-[85%]
-                     -translate-x-1/2 break-all rounded-2xl bg-black/85 px-3 py-1.5
-                     text-center text-[11px] font-semibold text-white ring-1 ring-white/20
-                     backdrop-blur-md"
-        >
-          {shareNote}
-        </p>
-      )}
+      <ShareSheet card={card} isOpen={isShareOpen} onClose={() => setShareOpen(false)} />
 
       {/*
         La flecha se dibuja al final y con `z-50`, por encima de los paneles
