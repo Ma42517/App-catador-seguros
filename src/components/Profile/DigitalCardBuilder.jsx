@@ -8,8 +8,8 @@ import DigitalCardPreview from './DigitalCardPreview';
 import { useSession } from '../../context/SessionContext';
 import { fetchProfile, saveMyCard, describeError } from '../../data/profilesRepo';
 import { uploadAttachment } from '../../data/announcementsRepo';
-import PhotoFramer from './PhotoFramer';
-import { loadImageFromFile, dataUrlToFile } from '../../data/cardPhoto';
+import ImageCropperModal from './ImageCropperModal';
+import { readImageFile, dataUrlToFile } from '../../data/cardPhoto';
 import { saveAdvisorProfile } from '../../data/advisorProfile';
 
 const INPUT =
@@ -151,9 +151,10 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
   /**
    * Al elegir una foto no se sube: primero se encuadra.
    *
-   * El marco de la tarjeta es mucho más alto que ancho, así que una foto normal
-   * necesita decidir qué parte se conserva. Subir antes de eso llevaría a
-   * descubrir el recorte malo cuando ya está guardado.
+   * El fondo de la tarjeta es vertical y mucho más alto que ancho, así que una
+   * foto normal necesita decidir qué parte se conserva. Subir antes de eso
+   * llevaría a descubrir el recorte malo cuando ya está guardado. Aquí sólo se
+   * lee el archivo a una URL de datos; el recorte real ocurre en el modal.
    */
   const pickPhoto = async (event) => {
     const file = event.target.files?.[0];
@@ -161,7 +162,7 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
 
     setStatus(null);
     try {
-      setPendingImage(await loadImageFromFile(file));
+      setPendingImage(await readImageFile(file));
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
@@ -329,16 +330,6 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
                   </label>
                 </div>
 
-                {pendingImage && (
-                  <div className="mt-3">
-                    <PhotoFramer
-                      image={pendingImage}
-                      isUploading={isUploading}
-                      onConfirm={uploadFramed}
-                      onCancel={() => setPendingImage(null)}
-                    />
-                  </div>
-                )}
               </Field>
 
               <Field label="Nombre completo" icon={User} id="card-name">
@@ -516,6 +507,21 @@ export default function DigitalCardBuilder({ isOpen, onClose }) {
           )}
         </div>
       </div>
+
+      {/*
+        El recortador es una pantalla propia, encima de todo: necesita el
+        espacio completo para que arrastrar y acercar la foto se sienta natural,
+        y anidarlo dentro del formulario lo encogería justo cuando más espacio
+        necesita.
+      */}
+      {pendingImage && (
+        <ImageCropperModal
+          imageSrc={pendingImage}
+          isUploading={isUploading}
+          onConfirm={uploadFramed}
+          onCancel={() => setPendingImage(null)}
+        />
+      )}
     </FullScreenView>
   );
 }
