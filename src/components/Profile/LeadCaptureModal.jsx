@@ -6,13 +6,44 @@ const INPUT =
   + 'outline-none transition-colors placeholder:text-zinc-500 focus:border-blue-500';
 
 /**
+ * Espera antes de arrastrar el campo a la vista.
+ *
+ * El teclado del sistema tarda en desplegarse, y hasta que termina el navegador
+ * no ha recalculado el alto visible. Desplazar antes de eso mueve el campo a un
+ * centro que está por dejar de existir, y el teclado acaba tapándolo igual.
+ */
+const KEYBOARD_SETTLE_MS = 300;
+
+/**
  * Campo con el icono dentro, para guiar sin necesidad de etiqueta visible.
  *
  * Va con `forwardRef` porque el modal enfoca el primer campo al abrirse: sin
  * reenviar la referencia, ésta apuntaría al componente y no al `input`, y el
  * foco nunca llegaría.
+ *
+ * Al recibir el foco, el campo se arrastra al centro de lo que queda visible.
+ * Esa lógica vive aquí y no en cada uso: repetida campo por campo, el día que
+ * se añada un tercero se olvidaría justo en el que quede más abajo, que es el
+ * que más lo necesita.
  */
-const IconInput = forwardRef(({ id, label, icon: Icon, ...props }, ref) => {
+const IconInput = forwardRef(({ id, label, icon: Icon, onFocus, ...props }, ref) => {
+  const scrollTimer = useRef(null);
+
+  // Si el modal se cierra durante la espera, el temporizador queda vivo. El
+  // desplazamiento ya no haría nada visible, pero dejarlo suelto es una fuga.
+  useEffect(() => () => clearTimeout(scrollTimer.current), []);
+
+  const handleFocus = (event) => {
+    const field = event.target;
+    clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, KEYBOARD_SETTLE_MS);
+
+    // Se respeta el manejador que llegue por props en lugar de sustituirlo.
+    onFocus?.(event);
+  };
+
   return (
     <div>
       {/* La etiqueta existe para el lector de pantalla: sin ella, el campo se
@@ -24,7 +55,7 @@ const IconInput = forwardRef(({ id, label, icon: Icon, ...props }, ref) => {
           className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
           aria-hidden="true"
         />
-        <input ref={ref} id={id} className={INPUT} {...props} />
+        <input ref={ref} id={id} className={INPUT} onFocus={handleFocus} {...props} />
       </div>
     </div>
   );
@@ -98,9 +129,33 @@ export default function LeadCaptureModal({ isOpen, onClose, onSubmit, advisorNam
   };
 
   return (
+    /*
+      El overlay desplaza en lugar de recortar. Con el modal centrado a la
+      fuerza, al abrirse el teclado el alto visible se parte por la mitad y el
+      centro de esa mitad cae detrás del teclado: los campos quedaban
+      inalcanzables, sin forma de llegar a ellos.
+
+      Ahora el contenido se ancla arriba en móvil y puede deslizarse, y el
+      `pb-32` reserva el hueco que el teclado va a ocupar, para que el último
+      campo pueda subir por encima de él. En pantallas medianas vuelve al
+      centro, donde no hay teclado que estorbe.
+
+      Ese hueco se iguala a partir de `md` (`md:pb-8 md:pt-8`). Centrar con
+      128 px de relleno abajo y 48 arriba no centra: el desequilibrio empuja la
+      tarjeta unos 40 px sobre el eje, y en escritorio —donde no hay teclado que
+      justifique el hueco— se nota como un error de alineación.
+
+      `z-[80]` se conserva en lugar del `z-50` indicado: este modal se monta
+      dentro de `DigitalCardScreen`, que es `fixed z-[75]`, y la app tiene una
+      escala de capas ya establecida —hojas en 60, pantallas completas en 70,
+      avisos en 80—. El z-index no influye en el solape del teclado, así que
+      bajarlo no arreglaría nada y sí dejaría el modal por debajo de esas capas
+      el día que se monte desde otro sitio.
+    */
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4
-                 backdrop-blur-md"
+      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto
+                 bg-black/60 px-4 pb-32 pt-12 backdrop-blur-md
+                 md:items-center md:pb-8 md:pt-8"
       role="dialog"
       aria-modal="true"
       aria-labelledby="lead-title"
@@ -110,12 +165,19 @@ export default function LeadCaptureModal({ isOpen, onClose, onSubmit, advisorNam
         type="button"
         aria-label="Cerrar"
         onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default"
+        className="fixed inset-0 h-full w-full cursor-default"
       />
 
+      {/*
+        `shrink-0` evita que el contenedor flex comprima la tarjeta cuando el
+        alto disponible se queda corto: aplastada, los campos se solapan entre
+        sí en vez de poder deslizarse. `my-8` mantiene aire arriba y abajo
+        durante el desplazamiento.
+      */}
       <div
-        className="animate-rise relative w-full max-w-sm overflow-hidden rounded-3xl border
-                   border-white/10 bg-zinc-900/80 p-6 shadow-2xl"
+        className="animate-rise relative my-8 w-full max-w-sm shrink-0 overflow-hidden
+                   rounded-3xl border border-white/10 bg-zinc-900/90 p-6 shadow-2xl
+                   md:my-auto"
       >
         {/* Resplandor de fondo: es lo que da profundidad al cristal */}
         <span
