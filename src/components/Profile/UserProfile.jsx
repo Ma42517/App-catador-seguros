@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BadgeCheck, Phone, UserRound, IdCard, ChevronRight } from 'lucide-react';
+import { BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
 import { readAdvisorProfile, saveAdvisorProfile, initialsFrom } from '../../data/advisorProfile';
+import { readLeads } from '../../data/leads';
 
 /** Campo minimalista: sin caja, sólo un filo inferior que se enciende al enfocar. */
 function MinimalField({ id, label, placeholder, value, onChange, icon: Icon, ...rest }) {
@@ -38,17 +39,60 @@ function MinimalField({ id, label, placeholder, value, onChange, icon: Icon, ...
  * Perfil del asesor. Captura el nombre y el teléfono que después se
  * estamparán como marca de agua en los flyers compartidos.
  */
-export default function UserProfile({ isOpen, onClose, username, onEditCard }) {
+/** Fila de acceso del perfil, con distintivo opcional. */
+function ProfileRow({ icon: Icon, title, subtitle, badge, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4
+                 text-left transition-colors hover:border-indigo-400
+                 dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <span
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-zinc-100
+                   text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+        aria-hidden="true"
+      >
+        <Icon size={19} />
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-zinc-900 dark:text-white">
+          {title}
+        </span>
+        <span className="block text-[11px] text-zinc-500">{subtitle}</span>
+      </span>
+
+      {badge ? (
+        <span
+          className="shrink-0 rounded-full bg-indigo-500/15 px-2 py-0.5 text-[11px] font-bold
+                     text-indigo-600 dark:text-indigo-300"
+        >
+          {badge}
+        </span>
+      ) : (
+        <ChevronRight size={16} className="shrink-0 text-zinc-400" aria-hidden="true" />
+      )}
+    </button>
+  );
+}
+
+export default function UserProfile({ isOpen, onClose, username, onEditCard, onOpenLeads }) {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [toast, setToast] = useState('');
+  const [leadCount, setLeadCount] = useState(0);
 
   // Cada apertura carga lo guardado, para editar en vez de volver a capturar.
+  // El conteo se relee aquí y no con un temporizador: sólo cambia cuando alguien
+  // deja sus datos, y al volver a esta pantalla ya está actualizado.
   useEffect(() => {
     if (!isOpen) return;
     const saved = readAdvisorProfile(username);
     setDisplayName(saved.displayName);
     setPhone(saved.phone);
+    setLeadCount(readLeads(username).length);
     setToast('');
   }, [isOpen, username]);
 
@@ -101,36 +145,32 @@ export default function UserProfile({ isOpen, onClose, username, onEditCard }) {
       </section>
 
       {/*
-        Acceso a la tarjeta digital. Vive aquí y no en la pantalla de la tarjeta
-        porque esa es para mostrarla: separar el editar del mostrar es lo que
-        evita tener un formulario delante del prospecto.
+        Accesos a la tarjeta y a los prospectos. Viven aquí y no en la pantalla de
+        la tarjeta porque esa es para mostrarla: separar el editar del mostrar es
+        lo que evita tener un formulario delante del prospecto.
       */}
-      {onEditCard && (
-        <button
-          type="button"
-          onClick={onEditCard}
-          className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-zinc-200
-                     bg-white p-4 text-left transition-colors hover:border-indigo-400
-                     dark:border-zinc-800 dark:bg-zinc-900"
-        >
-          <span
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-zinc-100
-                       text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-            aria-hidden="true"
-          >
-            <IdCard size={19} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-zinc-900 dark:text-white">
-              Editar mi tarjeta digital
-            </span>
-            <span className="block text-[11px] text-zinc-500">
-              Foto, título, cédula, especialidades y contacto
-            </span>
-          </span>
-          <ChevronRight size={16} className="shrink-0 text-zinc-400" aria-hidden="true" />
-        </button>
-      )}
+      <div className="mb-6 flex flex-col gap-2">
+        {onEditCard && (
+          <ProfileRow
+            icon={IdCard}
+            title="Editar mi tarjeta digital"
+            subtitle="Foto, título, cédula, especialidades y contacto"
+            onClick={onEditCard}
+          />
+        )}
+
+        {onOpenLeads && (
+          <ProfileRow
+            icon={Users}
+            title="Prospectos capturados"
+            subtitle={leadCount > 0
+              ? `${leadCount} ${leadCount === 1 ? 'persona dejó' : 'personas dejaron'} sus datos`
+              : 'Aún nadie ha dejado sus datos'}
+            badge={leadCount > 0 ? leadCount : undefined}
+            onClick={onOpenLeads}
+          />
+        )}
+      </div>
 
       <form onSubmit={handleSubmit}>
         <MinimalField

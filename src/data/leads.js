@@ -55,6 +55,61 @@ export function saveLead(advisorKey, lead) {
   return entry;
 }
 
+export function removeLead(advisorKey, id) {
+  if (!advisorKey) return;
+  try {
+    const all = readAll();
+    const list = Array.isArray(all[advisorKey]) ? all[advisorKey] : [];
+    localStorage.setItem(KEY, JSON.stringify({
+      ...all,
+      [advisorKey]: list.filter((lead) => lead.id !== id),
+    }));
+  } catch {
+    // Sin persistencia el borrado no sobrevive a la recarga; se acepta.
+  }
+}
+
+/**
+ * Cuándo se capturó, en la forma que sirve para decidir a quién llamar.
+ *
+ * Relativo mientras la fecha importa para el seguimiento —"hace 3 días" dice si
+ * ya se enfrió— y absoluto a partir de una semana, cuando "hace 23 días" deja de
+ * ser útil y lo que se quiere es la fecha.
+ */
+export function capturedLabel(timestamp) {
+  const days = Math.floor((Date.now() - timestamp) / 86400000);
+
+  if (days === 0) {
+    const minutes = Math.floor((Date.now() - timestamp) / 60000);
+    if (minutes < 1) return 'Ahora';
+    if (minutes < 60) return `Hace ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    return `Hace ${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+  }
+  if (days === 1) return 'Ayer';
+  if (days < 7) return `Hace ${days} días`;
+
+  return new Date(timestamp).toLocaleDateString('es-MX', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+/**
+ * Mensaje inicial de WhatsApp, ya escrito.
+ *
+ * El seguimiento se pierde por la fricción de redactar: con el saludo puesto, el
+ * asesor sólo revisa y envía. Se nombra a la persona y se recuerda dónde se
+ * conocieron, que es lo que evita que el mensaje parezca masivo.
+ */
+export function followUpLink(lead, advisorName) {
+  const number = String(lead.whatsapp ?? '').replace(/\D/g, '');
+  const firstName = String(lead.name ?? '').trim().split(/\s+/)[0] || '';
+  const from = advisorName ? ` Soy ${advisorName}.` : '';
+  const text = `Hola ${firstName}, mucho gusto.${from} Intercambiamos datos hace poco `
+    + 'y quería ponerme a tus órdenes por si tienes alguna duda.';
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+}
+
 // ── Tarjeta de contacto ───────────────────────────────────────────────────
 
 /**
