@@ -33,7 +33,12 @@
 -- tabla. Es exactamente el mecanismo que permite publicar un subconjunto sin
 -- abrir el resto.
 
-create or replace view public.public_cards as
+-- Se borra antes de crear: `create or replace view` no admite cambiar la lista de
+-- columnas, así que al reaplicar el guion tras quitar una columna fallaría con
+-- «cannot change name of view column».
+drop view if exists public.public_cards;
+
+create view public.public_cards as
   select
     id,
     full_name,
@@ -44,8 +49,7 @@ create or replace view public.public_cards as
     specialties,
     bio,
     phone,
-    whatsapp,
-    presentation_video_url
+    whatsapp
   from public.profiles
   -- Sólo asesores en activo. Una cuenta en revisión o revocada no debe seguir
   -- entregando contactos desde un enlace que ya circula por ahí.

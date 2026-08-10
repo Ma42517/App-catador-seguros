@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
-  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, RotateCcw, ChevronLeft,
+  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, RotateCcw, ChevronLeft,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
 import { publicCardUrl } from '../../lib/publicRoute';
-import { toEmbedUrl } from '../../data/videoEmbed';
 import QrPassModal from './QrPassModal';
-import VideoStoryModal from './VideoStoryModal';
 import ServicesHubBack from './ServicesHubBack';
 
 /**
@@ -81,72 +79,6 @@ function SocialButton({ label, href, glow = false, children }) {
 }
 
 /**
- * Avatar con anillo giratorio, al estilo de las historias de Instagram.
- *
- * Sólo aparece si hay un video que abrir. Un anillo animado es una promesa de
- * que algo pasa al tocarlo: puesto sin video, sería un adorno que enseña a
- * ignorar los adornos.
- *
- * El gradiente gira en su propia capa, por debajo de la foto: si girara el
- * contenedor entero, el retrato daría vueltas con él.
- */
-function StoryRingAvatar({ avatarUrl, fullName, onOpen }) {
-  return (
-    <button
-      type="button"
-      onClick={() => { tapFeedback(); onOpen(); }}
-      aria-label="Ver video de presentación"
-      className="group mb-3 w-max cursor-pointer transition-transform will-change-transform
-                 hover:scale-105 focus-visible:outline-none focus-visible:ring-2
-                 focus-visible:ring-white/70 focus-visible:ring-offset-2
-                 focus-visible:ring-offset-transparent rounded-full"
-    >
-      <span className="relative grid place-items-center rounded-full p-1">
-        {/* Anillo: gira despacio y en continuo, detrás de la foto */}
-        <span
-          className="animate-spin-slow absolute inset-0 rounded-full bg-gradient-to-tr
-                     from-blue-500 via-indigo-500 to-purple-500"
-          aria-hidden="true"
-        />
-
-        {/*
-          El borde oscuro es el que separa la foto del anillo. Sin esa franja,
-          el gradiente toca el retrato y el efecto se lee como un halo de color
-          mal recortado en lugar de un anillo.
-        */}
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt=""
-            referrerPolicy="no-referrer"
-            className="relative h-16 w-16 rounded-full border-2 border-zinc-950 object-cover
-                       object-top"
-          />
-        ) : (
-          <span
-            className="relative grid h-16 w-16 place-items-center rounded-full border-2
-                       border-zinc-950 bg-zinc-800 text-xl font-black text-white/70"
-            aria-hidden="true"
-          >
-            {(fullName || '?').trim().charAt(0).toUpperCase()}
-          </span>
-        )}
-
-        {/* Señal de reproducción: dice qué hay detrás del anillo. */}
-        <span
-          className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center
-                     rounded-full border-2 border-zinc-950 bg-white text-zinc-900
-                     transition-transform group-hover:scale-110"
-          aria-hidden="true"
-        >
-          <Play size={11} strokeWidth={3} className="translate-x-[1px]" fill="currentColor" />
-        </span>
-      </span>
-    </button>
-  );
-}
-
-/**
  * Tarjeta digital de dos caras.
  *
  * El frente está pensado para convencer a un desconocido; el reverso, para
@@ -169,13 +101,12 @@ export default function DigitalCardPreview({
 }) {
   const {
     fullName, title, company, license, specialties = [], bio, phone, email, whatsapp,
-    avatarUrl, presentationVideoUrl,
+    avatarUrl,
   } = card;
 
   const digits = (value) => String(value ?? '').replace(/[^\d+]/g, '');
 
   const [isQrOpen, setQrOpen] = useState(false);
-  const [isVideoOpen, setVideoOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
 
   /*
@@ -208,12 +139,11 @@ export default function DigitalCardPreview({
     pantalla completa encima, así que un toque de más en la esquina hacía perder
     la tarjeta que se estaba enseñando.
 
-    El orden importa: se cierra primero lo que está más arriba. El video puede
-    abrirse teniendo el reverso detrás, y salir del reverso antes que del video
-    dejaría el reproductor flotando sobre una cara que ya cambió.
+    Hoy sólo hay una capa que cerrar, el QR, pero la forma se conserva: cuando
+    se añada otra, el orden de cierre tiene que decidirse aquí y no repartirse
+    entre los componentes que la abren.
   */
   const layerToDismiss = () => {
-    if (isVideoOpen) return () => setVideoOpen(false);
     if (isQrOpen) return () => setQrOpen(false);
     return null;
   };
@@ -267,13 +197,6 @@ export default function DigitalCardPreview({
       if (!navigator.share) setShareNote('No se pudo copiar el enlace');
     }
   };
-
-  /*
-    El enlace se traduce a su dirección para incrustar y, si no se reconoce como
-    YouTube o Vimeo, queda en `null`: entonces no hay anillo ni video. Es la
-    misma comprobación que impide incrustar una dirección arbitraria.
-  */
-  const embedUrl = toEmbedUrl(presentationVideoUrl);
 
   /*
     Dos presentaciones de la misma tarjeta:
@@ -452,17 +375,6 @@ export default function DigitalCardPreview({
             className={`relative z-10 flex h-full flex-col justify-end text-left text-white
                         ${isFill ? 'p-6 pb-24' : 'p-5 pb-20'}`}
           >
-            {/* Anillo de historia: sólo si hay video que mostrar */}
-            {embedUrl && (
-              <div className="animate-fade-in-up">
-                <StoryRingAvatar
-                  avatarUrl={avatarUrl}
-                  fullName={fullName}
-                  onOpen={() => setVideoOpen(true)}
-                />
-              </div>
-            )}
-
             {/* Pulso de disponibilidad, encima del nombre */}
             <div
               className="animate-fade-in-up mb-2.5 flex w-max items-center gap-2 rounded-full
@@ -686,18 +598,10 @@ export default function DigitalCardPreview({
       </div>
 
       {/*
-        Los dos paneles viven fuera del elemento que gira. Dentro heredarían la
-        rotación de la cara y se verían en espejo, y al voltear la tarjeta se
-        irían con ella.
+        El panel vive fuera del elemento que gira. Dentro heredaría la rotación
+        de la cara y se vería en espejo, y al voltear la tarjeta se iría con ella.
       */}
       <QrPassModal card={card} isOpen={isQrOpen} onClose={() => setQrOpen(false)} />
-
-      <VideoStoryModal
-        embedUrl={embedUrl}
-        isOpen={isVideoOpen}
-        onClose={() => setVideoOpen(false)}
-        title={fullName ? `Presentación de ${fullName}` : 'Video de presentación'}
-      />
 
       {/* Confirmación de que el enlace quedó copiado */}
       {shareNote && (
