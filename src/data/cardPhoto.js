@@ -23,7 +23,16 @@
 */
 const FRAME_WIDTH = 320;
 const FRAME_HEIGHT = 650;
-const PHOTO_SHARE = 0.6;
+
+/**
+ * Fracción del alto que ocupa el retrato.
+ *
+ * Baja del 60% al 50% porque los datos dejaron de ir encima de la foto y pasaron
+ * a un bloque propio: ese bloque necesita sitio de verdad, y quitárselo a la
+ * mitad inferior habría vuelto a empujar el texto sobre la cara, que es justo lo
+ * que se está corrigiendo.
+ */
+const PHOTO_SHARE = 0.5;
 
 /**
  * Proporción del recorte: exactamente la del hueco donde vive el retrato.
