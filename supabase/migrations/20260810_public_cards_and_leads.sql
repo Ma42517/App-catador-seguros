@@ -77,6 +77,20 @@ create table if not exists public.leads (
 create index if not exists leads_advisor_created_idx
   on public.leads (advisor_id, created_at desc);
 
+-- Privilegios de Postgres, que son una capa distinta de las políticas.
+--
+-- Hacen falta LAS DOS COSAS. Sin el grant, la inserción falla con "permission
+-- denied for table leads" (42501) aunque la política la permita: la política
+-- decide qué filas puede tocar un rol que ya tiene permiso sobre la tabla, no le
+-- concede ese permiso. Es el mismo tropiezo que está documentado para
+-- `announcements` en .env.example.
+--
+-- `anon` recibe sólo `insert`. Nada de `select`: de eso se encarga la política,
+-- pero negarlo también aquí deja la intención por escrito en los dos sitios.
+grant usage on schema public to anon, authenticated;
+grant insert on public.leads to anon, authenticated;
+grant select, delete on public.leads to authenticated;
+
 alter table public.leads enable row level security;
 
 -- Inserción sin sesión: es el caso normal aquí. Quien llena el formulario en una
