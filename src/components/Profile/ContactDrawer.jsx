@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import {
-  Phone, Mail, CalendarClock, ChevronUp, ChevronDown, Sparkles,
+  Phone, Mail, CalendarClock, ChevronUp, ChevronDown, Sparkles, Video,
 } from 'lucide-react';
+import { isEmbeddableVideo } from '../../data/videoEmbed';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900'
@@ -58,6 +59,12 @@ export default function ContactDrawer({ card, onChange }) {
   // importa aquí, y puesta en el encabezado ahorra abrir el panel para mirar.
   const missing = ['phone', 'whatsapp', 'email']
     .filter((key) => !String(card[key] ?? '').trim()).length;
+
+  // El aviso del enlace de video se calcula aquí y no dentro del campo: hay dos
+  // estados que decir —"no es de YouTube" y "listo"— y ninguno debe aparecer
+  // mientras el campo está vacío, que es lo normal al empezar.
+  const hasVideoText = Boolean(String(card.videoUrl ?? '').trim());
+  const isVideoValid = hasVideoText && isEmbeddableVideo(card.videoUrl);
 
   return (
     <section
@@ -142,6 +149,51 @@ export default function ContactDrawer({ card, onChange }) {
               disabled
               readOnly
             />
+          </Field>
+
+          {/*
+            Video del reverso.
+
+            Se pide un enlace de YouTube y no un archivo. Subir el video aquí
+            sería cómodo una vez y caro siempre: cada prospecto que abre la
+            tarjeta se descargaría el original completo, sin calidades
+            alternativas, y el espacio de la promotoría se llenaría con unos
+            cuantos videos.
+
+            El campo acepta cualquier forma del enlace —el de compartir, el de la
+            barra del navegador, el de un Short— y avisa en el momento si lo
+            pegado no es de YouTube. Enterarse al guardar, o peor, por un
+            prospecto que ve un marco en blanco, llega demasiado tarde.
+          */}
+          <Field
+            label="Video de presentación"
+            icon={Video}
+            id="contact-video"
+            hint="Enlace de YouTube. Aparece arriba del reverso de tu tarjeta."
+          >
+            <input
+              id="contact-video"
+              className={INPUT}
+              value={card.videoUrl ?? ''}
+              onChange={(e) => onChange('videoUrl', e.target.value)}
+              placeholder="https://youtu.be/xxxxxxxxxxx"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck="false"
+            />
+
+            {hasVideoText && !isVideoValid && (
+              <p className="mt-1.5 text-[11px] leading-relaxed text-amber-500">
+                Ese enlace no es de YouTube, así que el video no se mostrará. Copia el
+                que te da el botón "Compartir" del video.
+              </p>
+            )}
+
+            {isVideoValid && (
+              <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-500">
+                Enlace correcto. Voltea tu tarjeta para verlo.
+              </p>
+            )}
           </Field>
 
           {/*

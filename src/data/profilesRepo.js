@@ -95,6 +95,7 @@ function fromRow(row) {
     phone: row.phone ?? '',
     whatsapp: row.whatsapp ?? '',
     photoFocus: row.photo_focus ?? '',
+    videoUrl: row.video_url ?? '',
   };
 }
 
@@ -106,7 +107,7 @@ function fromRow(row) {
  * el asesor no podría guardar *nada* de su tarjeta —ni el nombre ni el teléfono—
  * por un dato accesorio.
  */
-const OPTIONAL_COLUMNS = ['photo_focus'];
+const OPTIONAL_COLUMNS = ['photo_focus', 'video_url'];
 
 /**
  * ¿El error dice que una columna no existe?
@@ -142,6 +143,7 @@ export async function saveMyCard(userId, card) {
     phone: card.phone?.trim() ?? '',
     whatsapp: card.whatsapp?.trim() ?? '',
     photo_focus: card.photoFocus ?? '',
+    video_url: card.videoUrl?.trim() ?? '',
   };
 
   const write = (body) => supabase

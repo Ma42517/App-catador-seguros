@@ -37,7 +37,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 const BASE_COLUMNS = 'id, full_name, avatar_url, title, company,'
   + ' specialties, bio, phone, whatsapp';
 
-const OPTIONAL_COLUMNS = ['photo_focus'];
+const OPTIONAL_COLUMNS = ['photo_focus', 'video_url'];
 
 const CARD_COLUMNS = [BASE_COLUMNS, ...OPTIONAL_COLUMNS].join(', ');
 
@@ -54,6 +54,7 @@ function toCard(row) {
     phone: row.phone ?? '',
     whatsapp: row.whatsapp ?? '',
     photoFocus: row.photo_focus ?? '',
+    videoUrl: row.video_url ?? '',
 
     /*
       El correo no se trae. En la tarjeta pública el botón de correo queda
