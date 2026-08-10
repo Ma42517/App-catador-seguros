@@ -38,11 +38,10 @@ function Field({ id, label, icon: Icon, hint, children }) {
 /**
  * Panel de los datos que no se ven escritos en la tarjeta.
  *
- * El teléfono, el WhatsApp, el correo y el enlace de agenda no aparecen como
- * texto: son lo que hace funcionar los botones redondos. No se pueden editar
- * sobre la tarjeta porque ahí no hay nada que editar, sólo un icono, y escribir
- * un número dentro de un círculo de 44 píxeles no es escribir en su sitio, es
- * esconderlo.
+ * El teléfono, el WhatsApp y el correo no aparecen como texto: son lo que hace
+ * funcionar los botones redondos. No se pueden editar sobre la tarjeta porque ahí
+ * no hay nada que editar, sólo un icono, y escribir un número dentro de un
+ * círculo de 44 píxeles no es escribir en su sitio, es esconderlo.
  *
  * Va cerrado por omisión. Lo que se cambia a diario son el título y la
  * biografía; el teléfono se pone una vez y no se vuelve a tocar, así que ocupar
@@ -145,23 +144,35 @@ export default function ContactDrawer({ card, onChange }) {
             />
           </Field>
 
-          <Field
-            label="Enlace de agenda"
-            icon={CalendarClock}
-            id="contact-agenda"
-            hint="Calendly, Google Calendar o similar, para que agenden sin escribirte."
-          >
-            <input
-              id="contact-agenda"
-              className={INPUT}
-              value={card.agendaUrl}
-              onChange={(e) => onChange('agendaUrl', e.target.value)}
-              placeholder="https://calendly.com/tu-usuario"
-              inputMode="url"
-              autoComplete="off"
-              spellCheck="false"
-            />
-          </Field>
+          {/*
+            Agenda: no hay campo de enlace, hay una conexión pendiente.
+
+            Un campo para pegar una dirección de Calendly resolvía la mitad
+            floja del problema: seguiría siendo el asesor quien copia, pega y
+            mantiene ese enlace, y el prospecto acabaría en una herramienta
+            ajena sin que la app sepa nunca si la cita ocurrió. Conectar la
+            cuenta de Google permite crear el evento y leer los huecos libres.
+
+            El botón queda a la vista y desactivado en lugar de escondido: así se
+            sabe que la función viene, y el rótulo dice qué falta en vez de dejar
+            pulsando algo que no responde.
+          */}
+          <div className="rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-4">
+            <button
+              type="button"
+              disabled
+              className="flex w-full items-center justify-center gap-2 rounded-xl
+                         bg-gradient-to-r from-blue-600 to-indigo-600 py-3 text-sm
+                         font-bold text-white opacity-60"
+            >
+              <CalendarClock size={16} aria-hidden="true" />
+              Sincronizar con Google Calendar
+            </button>
+            <p className="mt-2.5 text-center text-[11px] leading-relaxed text-zinc-500">
+              Próximamente. Al conectar tu cuenta, tus prospectos podrán agendar
+              en tus horarios libres y la cita entrará directo a tu calendario.
+            </p>
+          </div>
 
           <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-zinc-500">
             <Sparkles size={12} className="mt-0.5 shrink-0" aria-hidden="true" />

@@ -89,15 +89,11 @@ function fromRow(row) {
     // Datos de la tarjeta digital. Se leen con respaldo porque las columnas
     // pueden no existir todavía en una base que no corrió la migración.
     title: row.title ?? '',
-    // La columna se llama `license_number` en la base; en la app el campo es
-    // `license`. La traducción vive sólo aquí, como el resto del mapeo.
-    license: row.license_number ?? '',
     company: row.company ?? '',
     specialties: Array.isArray(row.specialties) ? row.specialties : [],
     bio: row.bio ?? '',
     phone: row.phone ?? '',
     whatsapp: row.whatsapp ?? '',
-    agendaUrl: row.agenda_url ?? '',
   };
 }
 
@@ -109,7 +105,7 @@ function fromRow(row) {
  * el asesor no podría guardar *nada* de su tarjeta —ni el nombre ni el teléfono—
  * por un dato accesorio.
  */
-const OPTIONAL_COLUMNS = ['agenda_url'];
+const OPTIONAL_COLUMNS = [];
 
 /**
  * ¿El error dice que una columna no existe?
@@ -139,13 +135,11 @@ export async function saveMyCard(userId, card) {
     full_name: card.fullName?.trim() ?? '',
     avatar_url: card.avatarUrl ?? '',
     title: card.title?.trim() ?? '',
-    license_number: card.license?.trim() ?? '',
     company: card.company?.trim() ?? '',
     specialties: card.specialties ?? [],
     bio: card.bio?.trim() ?? '',
     phone: card.phone?.trim() ?? '',
     whatsapp: card.whatsapp?.trim() ?? '',
-    agenda_url: card.agendaUrl?.trim() ?? '',
   };
 
   const write = (body) => supabase

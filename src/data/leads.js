@@ -165,11 +165,7 @@ export function buildVCard(card) {
   if (card.email) lines.push(`EMAIL;TYPE=INTERNET:${escapeVCard(card.email)}`);
   if (card.avatarUrl) lines.push(`PHOTO;VALUE=URI:${card.avatarUrl}`);
 
-  // La cédula va en la nota: no hay campo estándar para ella y perderla sería
-  // borrar el dato que acredita al asesor.
-  const note = [card.bio, card.license ? `Cédula profesional: ${card.license}` : '']
-    .filter(Boolean)
-    .join(' — ');
+  const note = card.bio;
   if (note) lines.push(`NOTE:${escapeVCard(note)}`);
 
   lines.push('END:VCARD');

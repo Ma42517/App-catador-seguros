@@ -61,7 +61,7 @@ export function canBuildVCard(card) {
 /** Texto vCard listo para codificarse en un QR. */
 export function buildVCard(card = {}) {
   const {
-    fullName, title, company, phone, whatsapp, email, license,
+    fullName, title, company, phone, whatsapp, email,
   } = card;
 
   const { given, family } = splitName(fullName);
@@ -89,7 +89,6 @@ export function buildVCard(card = {}) {
   if (wa && wa !== cell) lines.push(`TEL;TYPE=WORK:${wa}`);
 
   if (email) lines.push(`EMAIL;TYPE=INTERNET:${escapeValue(email)}`);
-  if (license) lines.push(`NOTE:${escapeValue(`Cédula profesional: ${license}`)}`);
 
   lines.push('END:VCARD');
 

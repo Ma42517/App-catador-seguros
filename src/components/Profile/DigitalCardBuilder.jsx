@@ -21,9 +21,8 @@ const MAX_SPECIALTIES = 3;
 
 const EMPTY_CARD = {
   id: '',
-  fullName: '', title: '', license: '', company: '',
+  fullName: '', title: '', company: '',
   specialties: [], bio: '', phone: '', email: '', whatsapp: '', avatarUrl: '',
-  agendaUrl: '',
 };
 
 /**

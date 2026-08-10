@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, RotateCcw, ChevronLeft,
-  ImagePlus,
+  Camera,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
 import QrPassModal from './QrPassModal';
@@ -103,7 +103,7 @@ export default function DigitalCardPreview({
   editable = false, onChange = () => {}, onPickPhoto,
 }) {
   const {
-    fullName, title, company, license, specialties = [], bio, phone, email, whatsapp,
+    fullName, title, company, specialties = [], bio, phone, email, whatsapp,
     avatarUrl,
   } = card;
 
@@ -185,7 +185,11 @@ export default function DigitalCardPreview({
   */
   const sizeClasses = isFill
     ? 'h-full w-full'
-    : 'mx-auto h-[min(650px,calc(100dvh-11rem))] w-full max-w-[320px] sm:h-[650px]';
+    : `mx-auto w-full max-w-[320px] ${editable
+      // En edición el alto lo pone el contenido: con un alto fijo, el texto que
+      // crece se recorta y no hay forma de llegar a lo que falta por escribir.
+      ? 'min-h-[650px]'
+      : 'h-[min(650px,calc(100dvh-11rem))] sm:h-[650px]'}`;
 
   // El marco se repite en las dos caras: si viviera en el contenedor que gira,
   // el recorte aplanaría la escena 3D y el giro dejaría de verse.
@@ -248,7 +252,7 @@ export default function DigitalCardPreview({
         >
           {/* Capa 0 — Ambiental: la foto convertida en luz de color */}
           {avatarUrl && (
-            <div className="absolute inset-0" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
               {/*
                 `scale-110` es obligatorio, no decorativo: un desenfoque de este
                 tamaño arrastra los píxeles del borde hacia dentro y deja un halo
@@ -268,13 +272,23 @@ export default function DigitalCardPreview({
           )}
 
           {/* Capa 1 — Retrato: nítido, en el 60% superior */}
-          <div className="absolute left-0 top-0 h-[60%] w-full" aria-hidden="true">
+          <div className="pointer-events-none absolute left-0 top-0 h-[60%] w-full" aria-hidden="true">
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt=""
                 referrerPolicy="no-referrer"
-                className={`h-full w-full object-cover object-top ${portraitFade}`}
+                /*
+                  Sin `object-top`, y es lo que hace que el recorte sirva de algo.
+
+                  Esa clase anclaba la imagen al borde superior del hueco, así que
+                  volvía a encuadrarla por su cuenta: daba igual lo que la persona
+                  hubiera centrado en el recortador, el navegador lo descartaba y
+                  mostraba la franja de arriba. Como la foto ya llega recortada en
+                  la proporción exacta del hueco, el encuadre correcto es el
+                  centrado por omisión: se ve tal cual se dejó.
+                */
+                className={`h-full w-full object-cover ${portraitFade}`}
               />
             ) : (
               <div
@@ -299,8 +313,8 @@ export default function DigitalCardPreview({
             transparencias, así que el color ambiental sigue leyéndose debajo.
           */}
           <div
-            className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25
-                       to-transparent"
+            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70
+                       via-black/25 to-transparent"
             aria-hidden="true"
           />
 
@@ -319,37 +333,36 @@ export default function DigitalCardPreview({
             degradado que muere en transparente no se percibe como una barra.
           */}
           <div
-            className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60
-                       via-black/25 to-transparent"
+            className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b
+                       from-black/60 via-black/25 to-transparent"
             aria-hidden="true"
           />
 
           {/*
-            Cambiar la foto: se toca el retrato, que es lo que se quiere cambiar.
+            Botón de la foto, reducido a su propia esquina.
 
-            El botón cubre la zona nítida —el 60% superior— y no un icono en una
-            esquina: así el gesto es "toco mi foto para cambiarla" en lugar de
-            buscar un control. El rótulo aparece al pasar por encima o al enfocar,
-            para no tapar el retrato mientras se editan los textos de abajo.
+            Antes era una zona invisible que cubría todo el 60% superior. Parecía
+            buena idea —"toco mi foto para cambiarla"— pero al crecer el texto
+            hacia arriba, el nombre y el título acababan por debajo de esa zona:
+            tocarlos abría el selector de archivos en lugar de dejar escribir. Un
+            área de toque invisible y enorme siempre acaba comiéndose algo.
+
+            Ahora ocupa sólo su rincón, con rótulo visible, y se apoya en el borde
+            del hueco del retrato para que se lea como "esto es de la foto".
           */}
           {editable && onPickPhoto && (
             <button
               type="button"
               onClick={onPickPhoto}
-              aria-label={avatarUrl ? 'Cambiar mi foto' : 'Subir mi foto'}
-              className="group absolute left-0 top-0 z-20 flex h-[60%] w-full items-start
-                         justify-center pt-8 transition-colors hover:bg-black/30
-                         focus-visible:bg-black/30 focus-visible:outline-none"
+              className="absolute right-4 top-[60%] z-30 flex -translate-y-[calc(100%+0.75rem)]
+                         items-center gap-1.5 rounded-full bg-black/60 px-3 py-2 text-[11px]
+                         font-semibold text-white ring-1 ring-white/30 backdrop-blur-md
+                         transition-colors hover:bg-black/80 active:scale-95
+                         focus-visible:outline-none focus-visible:ring-2
+                         focus-visible:ring-white"
             >
-              <span
-                className="flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5
-                           text-[11px] font-semibold text-white opacity-0 ring-1
-                           ring-white/30 backdrop-blur-md transition-opacity
-                           group-hover:opacity-100 group-focus-visible:opacity-100"
-              >
-                <ImagePlus size={13} strokeWidth={2.2} aria-hidden="true" />
-                {avatarUrl ? 'Cambiar foto' : 'Subir foto'}
-              </span>
+              <Camera size={14} strokeWidth={2.2} aria-hidden="true" />
+              {avatarUrl ? 'Cambiar foto' : 'Añadir foto'}
             </button>
           )}
 
@@ -415,8 +428,20 @@ export default function DigitalCardPreview({
             contenido fuera de alcance, que es un defecto conocido de flexbox.
           */}
           <div
-            className="relative z-10 flex-1 overflow-y-auto overscroll-contain
-                       [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            /*
+              `z-40` deja el contenido por encima del botón de la foto (`z-30`):
+              si dos áreas se solapan, gana la de escribir. Tocar un texto edita
+              el texto, nunca abre el selector de archivos.
+
+              En edición no hay desplazamiento propio. Dos zonas de scroll
+              anidadas —la tarjeta dentro de la página— se pelean por el gesto: al
+              arrastrar sobre la tarjeta, el movimiento se lo comía el scroll
+              interno y la página no bajaba. En el editor la tarjeta crece con su
+              contenido y desplaza la página, que es una sola cosa y no se traba.
+            */
+            className={`relative z-40 ${editable
+              ? ''
+              : 'flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}
           >
             <div
               className={`flex min-h-full flex-col justify-end text-left text-white
@@ -498,20 +523,6 @@ export default function DigitalCardPreview({
                 </p>
               )}
 
-              {editable ? (
-                <span className="mt-1.5 flex items-baseline gap-1 text-[11px] text-zinc-300">
-                  Cédula:
-                  <InlineInput
-                    value={license}
-                    onChange={(v) => onChange('license', v)}
-                    label="Cédula profesional"
-                    placeholder="123456"
-                    className="text-[11px] text-zinc-300"
-                  />
-                </span>
-              ) : license && (
-                <p className="mt-1.5 text-[11px] text-zinc-300">Cédula: {license}</p>
-              )}
             </div>
 
             {specialties.length > 0 && (
