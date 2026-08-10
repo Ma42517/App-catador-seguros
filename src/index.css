@@ -219,7 +219,11 @@
     /* Fondo, entrada y reflejo de la tarjeta digital. */
     .animate-ken-burns,
     .animate-fade-in-up,
-    .animate-shimmer {
+    .animate-shimmer,
+    /* Vida de los iconos de contacto de la tarjeta digital. */
+    .animate-wiggle,
+    .animate-soft-pulse,
+    .animate-float {
       animation: none;
     }
 

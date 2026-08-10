@@ -107,6 +107,36 @@ export default {
           '0%': { backgroundPosition: '-150% 50%' },
           '100%': { backgroundPosition: '250% 50%' },
         },
+        /*
+          Iconos de contacto de la tarjeta digital. Los tres son lentos y de
+          recorrido corto a propósito: la tarjeta se le muestra a un prospecto
+          mientras se le habla, y un movimiento que se note le roba la atención
+          a la conversación. La idea es que la tarjeta parezca viva, no que los
+          botones pidan ser tocados.
+        */
+
+        /*
+          Teléfono que suena bajito. El giro se concentra en el primer 20% del
+          ciclo y el resto es reposo: un vaivén continuo parecería un error de
+          maquetación, mientras que un timbre corto cada tantos segundos se lee
+          como intención.
+        */
+        wiggle: {
+          '0%, 20%, 100%': { transform: 'rotate(0deg)' },
+          '5%': { transform: 'rotate(-5deg)' },
+          '10%': { transform: 'rotate(5deg)' },
+          '15%': { transform: 'rotate(-5deg)' },
+        },
+        // WhatsApp: pulso muy suave, como una notificación en espera.
+        'soft-pulse': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.05)' },
+        },
+        // Correo y mensaje: flotan dos píxeles, sin llegar a rebotar.
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-2px)' },
+        },
       },
       animation: {
         breathe: 'breathe 6s ease-in-out infinite',
@@ -127,6 +157,14 @@ export default {
         */
         'fade-in-up': 'fade-in-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
         shimmer: 'shimmer 4.5s linear infinite',
+        /*
+          Ciclos largos y distintos entre sí (5, 3 y 4 s). Con la misma duración
+          los cuatro iconos se moverían al unísono y la fila parecería un solo
+          bloque animado en lugar de cuatro piezas con vida propia.
+        */
+        wiggle: 'wiggle 5s ease-in-out infinite',
+        'soft-pulse': 'soft-pulse 3s ease-in-out infinite',
+        float: 'float 4s ease-in-out infinite',
       },
       backgroundImage: {
         'grid-fade':
