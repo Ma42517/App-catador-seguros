@@ -874,7 +874,18 @@ export default function DigitalCardPreview({
             transform: 'rotateY(180deg) translateZ(0)',
           }}
         >
-          <ServicesHubBack card={card} onBack={() => flipTo(false)} />
+          {/*
+            `isActive` le dice al reverso que está a la vista. Lo necesita el
+            video: arrancar solo tiene sentido cuando alguien acaba de girar la
+            tarjeta, y mientras la cara frontal está al frente el reverso existe
+            en el DOM pero nadie lo ve —un video sonando ahí sería un ruido sin
+            origen visible—.
+          */}
+          <ServicesHubBack
+            card={card}
+            onBack={() => flipTo(false)}
+            isActive={isFlipped}
+          />
         </div>
       </div>
 
