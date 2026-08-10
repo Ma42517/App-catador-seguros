@@ -151,6 +151,21 @@ export default {
           '0%, 100%': { boxShadow: '0 0 0 0 rgb(255 255 255 / 0)' },
           '50%': { boxShadow: '0 0 10px 2px rgb(255 255 255 / 0.55)' },
         },
+        /*
+          Pista de que el botón voltea la tarjeta: el icono da una vuelta
+          completa y se queda quieto un rato.
+
+          El truco está en el segundo fotograma. La vuelta termina en -360°, que
+          es la misma posición que 0°, y ahí se queda hasta el final del ciclo;
+          así, cuando la animación reinicia, el salto de -360° a 0° no se ve. Si
+          en cambio se volviera a 0° a mitad del recorrido, el icono desharía el
+          giro girando al revés, que es justo lo contrario de lo que se quiere
+          comunicar.
+        */
+        'flip-hint': {
+          '0%': { transform: 'rotate(0deg)' },
+          '30%, 100%': { transform: 'rotate(-360deg)' },
+        },
       },
       animation: {
         breathe: 'breathe 6s ease-in-out infinite',
@@ -181,6 +196,12 @@ export default {
         'soft-pulse': 'soft-pulse 2.5s ease-in-out infinite',
         float: 'float 3s ease-in-out infinite',
         'glow-outline': 'glow-outline 2.8s ease-in-out infinite',
+        /*
+          Cuatro segundos: la vuelta ocupa poco más de uno y el resto es
+          reposo. Girando sin pausa el botón se leería como un cargador —algo
+          que está ocupado— en lugar de una invitación a tocarlo.
+        */
+        'flip-hint': 'flip-hint 4s ease-in-out infinite',
       },
       backgroundImage: {
         'grid-fade':

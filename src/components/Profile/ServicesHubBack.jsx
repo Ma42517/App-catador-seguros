@@ -1,5 +1,5 @@
 import {
-  Calculator, PieChart, Stethoscope, FileText, X, ExternalLink,
+  Calculator, PieChart, Stethoscope, FileText, RotateCcw, ExternalLink,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
 
@@ -161,16 +161,26 @@ export default function ServicesHubBack({ card, onBack }) {
         Va fuera del área que se desplaza —no dentro— para que no se vaya de la
         vista al bajar la lista. El `z-50` lo mantiene por encima del contenido
         desplazable, que no crea contexto de apilamiento propio.
+
+        El icono es una flecha circular y no una equis: una equis dice "esto se
+        cierra", y aquí nada se cierra —la tarjeta vuelve a su cara frontal—. La
+        vuelta que da cada pocos segundos anticipa el movimiento que va a hacer
+        la tarjeta al pulsarlo.
       */}
       <button
         type="button"
-        onClick={() => { tapFeedback(); onBack(); }}
-        aria-label="Cerrar servicios y volver al frente de la tarjeta"
-        className="absolute right-4 top-4 z-50 rounded-full bg-white/10 p-2 backdrop-blur-md
-                   transition-colors hover:bg-white/20 active:scale-95
+        /*
+          El golpe al tacto no se dispara aquí: lo hace `flipTo` en la tarjeta,
+          que es quien gobierna el giro. Llamarlo en los dos sitios daba una
+          vibración doble en un solo toque.
+        */
+        onClick={onBack}
+        aria-label="Voltear la tarjeta y volver al frente"
+        className="group absolute right-4 top-4 z-50 rounded-full bg-white/10 p-2
+                   backdrop-blur-md transition-colors hover:bg-white/20 active:scale-95
                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
       >
-        <X size={20} className="text-white" />
+        <RotateCcw size={20} className="animate-flip-hint text-white" />
       </button>
 
       {/*

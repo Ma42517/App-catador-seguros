@@ -224,7 +224,9 @@
     .animate-ring,
     .animate-soft-pulse,
     .animate-float,
-    .animate-glow-outline {
+    .animate-glow-outline,
+    /* Pista de giro en los dos botones que voltean la tarjeta. */
+    .animate-flip-hint {
       animation: none;
     }
 

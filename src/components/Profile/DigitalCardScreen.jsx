@@ -27,6 +27,13 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
   const [isCapturing, setCapturing] = useState(false);
   const [toast, setToast] = useState('');
 
+  /*
+    La tarjeta gobierna su propio giro; aquí sólo se escucha para saber qué cara
+    está al frente. Es lo que permite retirar la flecha de salida mientras se
+    muestra el reverso, que ya trae su propio botón de regreso.
+  */
+  const [isCardFlipped, setCardFlipped] = useState(false);
+
   const load = useCallback(async () => {
     if (!identity?.key) return;
     setLoading(true);
@@ -122,21 +129,39 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
               card={card}
               variant="fill"
               onAddContact={() => setCapturing(true)}
+              onFlipChange={setCardFlipped}
             />
           )}
         </div>
       </div>
 
-      {/* Volver: sobre la tarjeta, sin barra ni título */}
+      {/*
+        Volver al menú: sobre la tarjeta, sin barra ni título.
+
+        Se esconde mientras la tarjeta está volteada. En el reverso ya hay un
+        botón de regreso propio, y dos flechas de vuelta a la vez —una que
+        devuelve a la cara frontal y otra que abandona la tarjeta— dejan al
+        prospecto adivinando cuál de las dos le hace perder lo que está viendo.
+
+        Se atenúa en lugar de desmontarse, para que acompañe al giro en vez de
+        desaparecer de golpe. `pointer-events-none` y `aria-hidden` lo apagan de
+        verdad: invisible pero pulsable sería peor que visible, porque el toque
+        sacaría de la tarjeta sin que nada lo anticipe.
+      */}
       <button
         type="button"
         onClick={onClose}
         aria-label="Volver"
-        className="absolute left-4 top-4 z-30 grid h-11 w-11 place-items-center rounded-full
+        aria-hidden={isCardFlipped}
+        tabIndex={isCardFlipped ? -1 : 0}
+        className={`absolute left-4 top-4 z-30 grid h-11 w-11 place-items-center rounded-full
                    bg-black/40 text-white ring-1 ring-white/25 backdrop-blur-md
-                   transition-colors hover:bg-black/60 active:scale-95
+                   transition-all duration-300 hover:bg-black/60 active:scale-95
                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white
-                   mt-safe"
+                   mt-safe
+                   ${isCardFlipped
+                     ? 'pointer-events-none scale-90 opacity-0'
+                     : 'scale-100 opacity-100'}`}
       >
         <ChevronLeft size={22} />
       </button>
