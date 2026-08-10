@@ -41,11 +41,6 @@ const PHOTO_SHARE = 0.6;
  */
 export const CARD_ASPECT = FRAME_WIDTH / (FRAME_HEIGHT * PHOTO_SHARE);
 
-/** Alto de salida. El ancho se deriva de `CARD_ASPECT` para mantener nitidez
- *  en pantallas grandes sin generar un archivo pesado. */
-const OUTPUT_HEIGHT = 1280;
-const OUTPUT_WIDTH = Math.round(OUTPUT_HEIGHT * CARD_ASPECT);
-
 /** Calidad JPEG: por debajo de 0.8 se notan bloques en fotos de personas. */
 const QUALITY = 0.85;
 
@@ -88,37 +83,6 @@ function loadImage(src) {
   });
 }
 
-/**
- * Recorta la imagen al área elegida en el recortador y la escala al tamaño de
- * salida de la tarjeta.
- *
- * `croppedAreaPixels` viene de `onCropComplete` de `react-easy-crop`: es el
- * rectángulo, en píxeles de la imagen original, que el asesor dejó dentro del
- * marco. Aquí sólo se traduce ese rectángulo a un archivo real.
- */
-export async function cropToCardBackground(imageSrc, croppedAreaPixels) {
-  const image = await loadImage(imageSrc);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = OUTPUT_WIDTH;
-  canvas.height = OUTPUT_HEIGHT;
-
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('Este navegador no pudo procesar la imagen.');
-
-  const { x, y, width, height } = croppedAreaPixels;
-
-  context.drawImage(
-    image,
-    x, y, width, height,
-    0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT,
-  );
-
-  // Siempre JPEG: un PNG de fondo de tarjeta pesa varias veces más sin
-  // ganancia visible, y el degradado oscuro ya cubre buena parte de la foto.
-  return canvas.toDataURL('image/jpeg', QUALITY);
-}
-
 /** Convierte la URL de datos del recorte en un archivo listo para subir. */
 export async function dataUrlToFile(dataUrl, name = 'foto.jpg') {
   const blob = await (await fetch(dataUrl)).blob();
@@ -128,4 +92,109 @@ export async function dataUrlToFile(dataUrl, name = 'foto.jpg') {
 /** Peso aproximado del recorte, para avisar antes de subir algo enorme. */
 export function approximateBytes(dataUrl) {
   return Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
+}
+
+
+// ── Encuadre no destructivo ──────────────────────────────────────────────────
+
+/**
+ * Encuadre por omisión: centrado y sin acercamiento.
+ *
+ * `x` e `y` son porcentajes de `object-position`, así que 50/50 es el centro.
+ * Es el punto de partida de cualquier foto nueva.
+ */
+export const DEFAULT_FOCUS = { x: 50, y: 50, zoom: 1 };
+
+/** Límites del acercamiento en el ajustador. */
+export const MIN_ZOOM = 1;
+export const MAX_ZOOM = 3;
+
+/**
+ * Lee el encuadre guardado, que viaja como texto JSON.
+ *
+ * Cualquier valor que no se entienda cae al centro en lugar de romper la
+ * tarjeta: es un dato de presentación, y una foto centrada siempre es preferible
+ * a una pantalla en blanco.
+ */
+export function parseFocus(raw) {
+  if (!raw) return DEFAULT_FOCUS;
+
+  try {
+    const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const clamp = (n, min, max) => Math.min(max, Math.max(min, Number(n)));
+
+    return {
+      x: Number.isFinite(Number(value?.x)) ? clamp(value.x, 0, 100) : 50,
+      y: Number.isFinite(Number(value?.y)) ? clamp(value.y, 0, 100) : 50,
+      zoom: Number.isFinite(Number(value?.zoom)) ? clamp(value.zoom, MIN_ZOOM, MAX_ZOOM) : 1,
+    };
+  } catch {
+    return DEFAULT_FOCUS;
+  }
+}
+
+/** Serializa el encuadre para guardarlo. */
+export function serializeFocus(focus) {
+  const safe = parseFocus(focus);
+  // Se redondea a un decimal: más precisión no se distingue a simple vista y
+  // alargaría el texto guardado sin ninguna ganancia.
+  return JSON.stringify({
+    x: Math.round(safe.x * 10) / 10,
+    y: Math.round(safe.y * 10) / 10,
+    zoom: Math.round(safe.zoom * 100) / 100,
+  });
+}
+
+/**
+ * Estilos con los que se pinta el retrato según su encuadre.
+ *
+ * El acercamiento va como `scale` y la posición como `objectPosition`, y ninguna
+ * de las dos toca los píxeles del archivo: la misma foto se puede recolocar
+ * tantas veces como se quiera sin perder nada, porque lo que cambia es cómo se
+ * mira, no lo que se guardó.
+ *
+ * `transformOrigin` sigue al punto elegido para que al acercar la imagen crezca
+ * alrededor de lo que interesa —normalmente la cara— y no alrededor del centro
+ * geométrico, que la desplazaría fuera del marco.
+ */
+export function focusStyle(focus) {
+  const { x, y, zoom } = parseFocus(focus);
+  return {
+    objectPosition: `${x}% ${y}%`,
+    transform: zoom === 1 ? undefined : `scale(${zoom})`,
+    transformOrigin: `${x}% ${y}%`,
+  };
+}
+
+/** Alto máximo al que se reduce la foto antes de subirla. */
+const UPLOAD_MAX_SIDE = 1400;
+
+/**
+ * Reduce la foto sin recortarla y la devuelve como URL de datos.
+ *
+ * Es lo contrario de lo que hacía el recorte previo, y a propósito: al conservar
+ * la imagen entera, el encuadre deja de ser una decisión irreversible que se toma
+ * antes de subir. Se guarda todo y se elige después qué parte se muestra, tantas
+ * veces como haga falta.
+ *
+ * El lado mayor se limita porque una foto de teléfono actual pesa varios megas y
+ * se va a ver en un recuadro de 320 píxeles: subirla intacta gastaría el
+ * almacenamiento y haría lenta la tarjeta sin que se note ninguna mejora.
+ */
+export async function shrinkImageForUpload(dataUrl) {
+  const image = await loadImage(dataUrl);
+
+  const scale = Math.min(1, UPLOAD_MAX_SIDE / Math.max(image.width, image.height));
+  const width = Math.round(image.width * scale);
+  const height = Math.round(image.height * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Este navegador no pudo procesar la imagen.');
+
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', QUALITY);
 }

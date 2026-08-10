@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, RotateCcw, ChevronLeft,
-  Camera,
+  Camera, Move,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
+import { focusStyle } from '../../data/cardPhoto';
 import QrPassModal from './QrPassModal';
 import ShareSheet from './ShareSheet';
 import { InlineInput, InlineTextarea } from './InlineField';
@@ -100,11 +101,11 @@ function SocialButton({ label, href, glow = false, children }) {
  */
 export default function DigitalCardPreview({
   card, variant = 'frame', onAddContact, onExit,
-  editable = false, onChange = () => {}, onPickPhoto,
+  editable = false, onChange = () => {}, onPickPhoto, onAdjustPhoto,
 }) {
   const {
     fullName, title, company, specialties = [], bio, phone, email, whatsapp,
-    avatarUrl,
+    avatarUrl, photoFocus,
   } = card;
 
   const digits = (value) => String(value ?? '').replace(/[^\d+]/g, '');
@@ -291,15 +292,18 @@ export default function DigitalCardPreview({
                 alt=""
                 referrerPolicy="no-referrer"
                 /*
-                  Sin `object-top`, y es lo que hace que el recorte sirva de algo.
+                  El encuadre viene del ajustador y se aplica al mirar, no al
+                  guardar: `objectPosition` decide qué parte de la foto entra en el
+                  hueco y `scale` cuánto se acerca. La imagen guardada está
+                  completa, así que se puede recolocar tantas veces como se quiera
+                  sin perder nada.
 
-                  Esa clase anclaba la imagen al borde superior del hueco, así que
-                  volvía a encuadrarla por su cuenta: daba igual lo que la persona
-                  hubiera centrado en el recortador, el navegador lo descartaba y
-                  mostraba la franja de arriba. Como la foto ya llega recortada en
-                  la proporción exacta del hueco, el encuadre correcto es el
-                  centrado por omisión: se ve tal cual se dejó.
+                  Antes esto llevaba `object-top`, que anclaba la imagen al borde
+                  superior por su cuenta y descartaba cualquier ajuste. Y sin
+                  ningún ajuste, el sistema la centraba a ciegas: en un retrato de
+                  cuerpo entero eso dejaba la cara fuera del hueco.
                 */
+                style={focusStyle(photoFocus)}
                 className={`h-full w-full object-cover ${portraitFade}`}
               />
             ) : (
@@ -373,7 +377,7 @@ export default function DigitalCardPreview({
                 Aquí, junto al borde superior, no hay duda de a qué pertenece, y no
                 choca con "Servicios", que ocupa la esquina de enfrente.
               */
-              className="absolute left-4 top-4 z-30 flex items-center gap-1.5 rounded-full
+              className="absolute left-4 top-4 z-50 flex items-center gap-1.5 rounded-full
                          bg-black/60 px-3 py-2 text-[11px] font-semibold text-white ring-1
                          ring-white/30 backdrop-blur-md transition-colors hover:bg-black/80
                          active:scale-95 focus-visible:outline-none focus-visible:ring-2
@@ -381,6 +385,30 @@ export default function DigitalCardPreview({
             >
               <Camera size={14} strokeWidth={2.2} aria-hidden="true" />
               {avatarUrl ? 'Cambiar foto' : 'Añadir foto'}
+            </button>
+          )}
+
+          {/*
+            Ajustar el encuadre de la foto que ya está puesta.
+
+            Va separado de "Cambiar foto" porque son dos cosas distintas y antes
+            estaban confundidas en una: para recolocar el retrato había que volver
+            a subir el archivo, y quien ya no lo tenía en el teléfono no podía
+            arreglar un encuadre malo. Sólo aparece si hay foto, porque ajustar lo
+            que no existe no significa nada.
+          */}
+          {editable && onAdjustPhoto && avatarUrl && (
+            <button
+              type="button"
+              onClick={onAdjustPhoto}
+              className="absolute left-4 top-[3.75rem] z-50 flex items-center gap-1.5
+                         rounded-full bg-black/60 px-3 py-2 text-[11px] font-semibold
+                         text-white ring-1 ring-white/30 backdrop-blur-md transition-colors
+                         hover:bg-black/80 active:scale-95 focus-visible:outline-none
+                         focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <Move size={14} strokeWidth={2.2} aria-hidden="true" />
+              Ajustar foto
             </button>
           )}
 
@@ -406,7 +434,7 @@ export default function DigitalCardPreview({
               caso en que el fondo de la foto sea exactamente igual de oscuro
               que el del botón.
             */
-            className="animate-attention-halo absolute right-4 top-4 z-30 flex items-center
+            className="animate-attention-halo absolute right-4 top-4 z-50 flex items-center
                        gap-1.5 rounded-full bg-black/55 py-1.5 pl-2.5 pr-3 text-[11px]
                        font-semibold text-white ring-1 ring-white/30 backdrop-blur-md
                        transition-colors [text-shadow:0_1px_2px_rgb(0_0_0/0.9)]
@@ -447,44 +475,36 @@ export default function DigitalCardPreview({
           */}
           <div
             /*
-              `pointer-events-none` en este contenedor y `auto` en el bloque de
-              dentro. Es lo que arregla dos cosas de golpe.
+              Zona de datos, delimitada de verdad.
 
-              Este elemento es `flex-1`, así que ocupa todo el alto libre —también
-              la mitad de la foto, aunque su contenido esté pegado abajo—. Con
-              `z-40` y eventos activos se convertía en una lámina invisible sobre
-              el retrato: el botón de cambiar la foto, que está por debajo en
-              `z-30`, no recibía ni un solo toque. Y en la parte vacía, el dedo
-              tampoco llegaba a la página, así que el gesto de desplazar moría
-              contra esa lámina.
+              `max-h-[58%]` con `mt-auto` es lo que impide que el texto invada la
+              foto. Antes era `flex-1`: crecía hasta llenar todo el alto libre, así
+              que con un nombre largo, tres especialidades y una descripción de
+              varias líneas el bloque subía hasta la cara. En un teléfono alto
+              sobraba sitio y se veía bien; en uno más bajo, el mismo contenido
+              tapaba el retrato. De ahí que se viera distinto en cada aparato.
 
-              Apagándolo, el hueco vacío deja pasar tanto los clics como el
-              desplazamiento, y el bloque de texto —que sí los reactiva— sigue
-              recibiendo lo suyo.
+              Con el tope, la foto siempre conserva su 42% superior libre y lo que
+              no cabe se desplaza dentro de esta zona en lugar de comerse la
+              imagen.
 
-              En edición no lleva desplazamiento propio: dos zonas de scroll
-              anidadas se pelean por el gesto y la página no baja. El alto sigue
-              definido en el contenedor de la tarjeta, así que el giro no se rompe.
+              `pointer-events-none` aquí y `auto` en el bloque de dentro: el hueco
+              vacío deja pasar los toques y el gesto de desplazar la página, que
+              es lo que antes moría contra esta capa.
             */
-            className={`pointer-events-none relative z-40 flex flex-1 flex-col justify-end
-              ${editable
-                ? ''
-                : 'overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}
+            className="pointer-events-none relative z-40 mt-auto flex max-h-[58%] w-full
+                       flex-col justify-end overflow-y-auto overscroll-contain
+                       [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {/*
-              En edición este bloque mide sólo lo que ocupa su texto, y ahí está
-              la diferencia: con `min-h-full` volvería a estirarse hasta arriba y
-              su `pointer-events-auto` taparía otra vez el retrato y el botón de la
-              foto. El padre ya lo empuja abajo con `justify-end`.
-
-              En presentación sí conserva `min-h-full`, porque ahí el bloque se
-              desplaza y necesita apoyarse abajo mientras cabe y crecer hacia
-              arriba cuando no; en esa vista no hay ningún botón debajo al que
-              pudiera robarle los toques.
+              Este bloque mide sólo lo que ocupa su texto. Sin `min-h-full`: con
+              él se estiraría hasta el techo de la zona y su `pointer-events-auto`
+              volvería a tapar el retrato y los controles de arriba. El padre ya lo
+              apoya abajo con `justify-end`.
             */}
             <div
               className={`pointer-events-auto flex flex-col justify-end text-left text-white
-                          ${editable ? '' : 'min-h-full'} ${isFill ? 'p-6' : 'p-5'}`}
+                          ${isFill ? 'p-6' : 'p-5'}`}
             >
             {/* Pulso de disponibilidad, encima del nombre */}
             <div
