@@ -262,8 +262,8 @@ export default function DigitalCardPreview({
     foto terminaría en un borde recto a media tarjeta.
   */
   const portraitFade =
-    '[mask-image:linear-gradient(to_bottom,#000_45%,transparent_100%)] '
-    + '[-webkit-mask-image:linear-gradient(to_bottom,#000_45%,transparent_100%)]';
+    '[mask-image:linear-gradient(to_bottom,#000_82%,transparent_100%)] '
+    + '[-webkit-mask-image:linear-gradient(to_bottom,#000_82%,transparent_100%)]';
 
   /*
     La cara que está de espaldas se apaga para el ratón y para el lector de
@@ -330,7 +330,7 @@ export default function DigitalCardPreview({
           )}
 
           {/*
-            Capa 1 — Retrato: nítido, en la mitad superior.
+            Capa 1 — Retrato: nítido, en los dos tercios superiores.
 
             En edición este contenedor deja de ser decorativo y pasa a recibir los
             gestos, pero sólo cuando el modo acomodar está encendido. Fuera de
@@ -345,7 +345,7 @@ export default function DigitalCardPreview({
 
               Esa propiedad le quita al navegador el gesto de desplazar, que es lo
               que permite arrastrar la foto… y también lo que rompía el scroll de
-              la página: pasar el dedo por el 60% superior dejaba de mover la
+              la página: pasar el dedo por la franja del retrato dejaba de mover la
               pantalla. El mismo movimiento no puede significar dos cosas a la vez.
 
               Fuera del modo acomodar el contenedor no reclama nada: el dedo
@@ -353,7 +353,7 @@ export default function DigitalCardPreview({
               —que no es un arrastre y por tanto no compite con él— es lo que
               entra a colocar la foto.
             */
-            className={`absolute left-0 top-0 h-[50%] w-full ${
+            className={`absolute left-0 top-0 h-[64%] w-full ${
               isFraming
                 ? 'z-20 cursor-move touch-none select-none'
                 : 'pointer-events-none'}`}
@@ -464,7 +464,7 @@ export default function DigitalCardPreview({
           */}
           {isFraming && (
             <span
-              className="pointer-events-none absolute left-0 top-0 z-30 h-[50%] w-full
+              className="pointer-events-none absolute left-0 top-0 z-30 h-[64%] w-full
                          ring-2 ring-inset ring-indigo-400/70"
               aria-hidden="true"
             />
@@ -638,7 +638,7 @@ export default function DigitalCardPreview({
               composición en dos y pesaba más que la foto.
 
               Lo que evita que tape la cara no es una caja, es el sitio: la foto
-              ocupa la mitad superior y esto se apoya en el borde inferior, así que
+              ocupa la franja de arriba y esto se apoya en el borde inferior, así que
               queda sobre el fondo ambiental y no sobre el retrato.
             */}
             <div className="animate-fade-in-up">
