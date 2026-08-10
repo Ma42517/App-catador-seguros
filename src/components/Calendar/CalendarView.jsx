@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { CalendarDays, Bell, Calendar as CalendarIcon } from 'lucide-react';
 import { useEvents, todayKey } from '../../context/EventContext';
 import TaskOptionsSheet from '../Activities/TaskOptionsSheet';
+import { getEventStatus, eventStatusStyles } from '../Activities/eventStatus';
+import useNow from '../../lib/useNow';
 
 const PRIORITY_STYLES = {
   baja: { label: 'Baja', chip: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400' },
@@ -45,6 +47,13 @@ function formatDay(dateKey) {
 export default function CalendarView() {
   const { events } = useEvents();
   const grouped = useMemo(() => groupByDate(events), [events]);
+
+  /*
+    Un solo reloj para toda la agenda. Si cada fila llevara el suyo, una lista
+    de cincuenta eventos montaría cincuenta temporizadores para leer la misma
+    hora.
+  */
+  const now = useNow();
 
   /*
     Un solo panel para toda la lista, no uno por fila: con una agenda de decenas
@@ -94,22 +103,29 @@ export default function CalendarView() {
                 {items.map((event) => {
                   const priority = PRIORITY_STYLES[event.priority] ?? PRIORITY_STYLES.importante;
                   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
+                  const status = getEventStatus(event.time, {
+                    date: event.date,
+                    completed: event.completed,
+                    now,
+                  });
+                  const tone = eventStatusStyles(status);
+
                   return (
                     <li key={event.id}>
                       <button
                         type="button"
                         onClick={() => setSelected(event)}
                         className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border
-                                   border-zinc-200 bg-white p-4 text-left shadow-sm
+                                   bg-white p-4 text-left shadow-sm
                                    transition-all active:scale-95 focus-visible:outline-none
                                    focus-visible:ring-2 focus-visible:ring-indigo-500
-                                   dark:border-white/10 dark:bg-zinc-800/40 dark:backdrop-blur-sm
+                                   dark:bg-zinc-800/40 dark:backdrop-blur-sm ${tone.container}
                                    ${event.completed ? 'opacity-50' : ''}`}
                       >
                         <span
-                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border
-                                     border-zinc-200 bg-zinc-50 text-zinc-500
-                                     dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400"
+                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border
+                                      border-zinc-200 bg-zinc-50
+                                      dark:border-zinc-700 dark:bg-zinc-900 ${tone.icon}`}
                           aria-hidden="true"
                         >
                           <Icon size={16} />
@@ -123,10 +139,20 @@ export default function CalendarView() {
                           >
                             {event.title}
                           </p>
-                          <p className="mt-0.5 text-xs text-zinc-500">
-                            {event.time || 'Sin hora'}
-                            {' · '}
-                            {event.type === 'recordatorio' ? 'Recordatorio' : 'Actividad'}
+                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
+                            {/* El punto va pegado a la hora, que es el dato vencido. */}
+                            {tone.showDot && (
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full bg-rose-500
+                                           dark:bg-rose-400"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span className={tone.time}>{event.time || 'Sin hora'}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>
+                              {event.type === 'recordatorio' ? 'Recordatorio' : 'Actividad'}
+                            </span>
                           </p>
                         </div>
 
@@ -136,6 +162,9 @@ export default function CalendarView() {
                         >
                           {priority.label}
                         </span>
+
+                        {/* El estado se nombra, no sólo se pinta. */}
+                        {tone.label && <span className="sr-only">{tone.label}</span>}
                       </button>
                     </li>
                   );
