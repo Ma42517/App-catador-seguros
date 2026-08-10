@@ -59,6 +59,7 @@ export default function DigitalCardScreen({ isOpen, onClose, onEdit }) {
       whatsapp: data?.whatsapp || '',
       avatarUrl: data?.avatarUrl || identity.avatarUrl || '',
       photoFocus: data?.photoFocus || '',
+      videoUrl: data?.videoUrl || '',
     });
   }, [identity]);
 

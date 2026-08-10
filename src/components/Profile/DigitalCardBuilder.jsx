@@ -24,7 +24,7 @@ const EMPTY_CARD = {
   id: '',
   fullName: '', title: '', company: '',
   specialties: [], bio: '', phone: '', email: '', whatsapp: '', avatarUrl: '',
-  photoFocus: '',
+  photoFocus: '', videoUrl: '',
 };
 
 /**
