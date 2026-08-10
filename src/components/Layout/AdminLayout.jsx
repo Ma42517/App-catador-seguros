@@ -27,7 +27,7 @@ export default function AdminLayout({
   onNavigate, onLogout, children, canUsePreview = false, isAdminUser = false,
   isDark, onToggleTheme, username,
 }) {
-  const { addEvent, addNote, loadDemoWeek, clearAgenda } = useEvents();
+  const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday } = useEvents();
 
   // El panel se abre por dos vías: ser el usuario administrador de la app, o
   // haber desbloqueado el modo promotor con el código y su contraseña. Son
@@ -91,6 +91,7 @@ export default function AdminLayout({
         onAgenda={() => goTo('agenda')}
         onAdd={() => setQuickAddOpen(true)}
         onMore={openMore}
+        agendaCount={activeToday.length}
       />
 
       <QuickAddMenu

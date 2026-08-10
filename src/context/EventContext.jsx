@@ -132,13 +132,32 @@ export function EventProvider({ username, children }) {
       .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''));
   }, [events]);
 
+  /**
+   * Todo lo de hoy que sigue pendiente, ordenado por hora.
+   *
+   * Es la cuenta que alimenta el aviso de la pestaña Agenda, y por eso sólo
+   * mira el día de hoy y descarta lo completado: un aviso tiene que
+   * corresponder a algo que la persona todavía puede hacer. Incluir días
+   * pasados o tareas ya cerradas volvería el número permanente, y un número
+   * que nunca baja deja de leerse como un aviso.
+   *
+   * A diferencia de `highPriorityToday`, aquí no se filtra por prioridad: el
+   * aviso cuenta la carga real del día, no sólo lo urgente.
+   */
+  const activeToday = useMemo(() => {
+    const key = todayKey();
+    return events
+      .filter((e) => e.date === key && !e.completed)
+      .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''));
+  }, [events]);
+
   const value = useMemo(() => ({
-    events, notes, highPriorityToday,
+    events, notes, highPriorityToday, activeToday,
     addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent,
     addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   }), [
-    events, notes, highPriorityToday,
+    events, notes, highPriorityToday, activeToday,
     addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent,
     addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,

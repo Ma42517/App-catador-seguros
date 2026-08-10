@@ -16,8 +16,15 @@ const LABEL = 'text-[10px] font-medium leading-none';
  * - pb-6 respeta el Safe Area del iPhone (home indicator).
  * - Cada botón usa flex-1 para distribuirse uniformemente.
  */
-export default function BottomTabBar({ onToday, onProductivity, onAgenda, onAdd, onMore }) {
+export default function BottomTabBar({
+  onToday, onProductivity, onAgenda, onAdd, onMore, agendaCount = 0,
+}) {
   const today = new Date().getDate();
+
+  // Más de nueve pendientes en un día ya no se leen como una cuenta, sino como
+  // "muchos": el número exacto deja de aportar y ensancharía la pastilla.
+  const hasAgendaAlert = agendaCount > 0;
+  const agendaBadge = agendaCount > 9 ? '9+' : String(agendaCount);
 
   return (
     <nav
@@ -70,9 +77,42 @@ export default function BottomTabBar({ onToday, onProductivity, onAgenda, onAdd,
             </button>
           </div>
 
-          {/* Agenda */}
-          <button type="button" onClick={onAgenda} className={TAB}>
-            <CalendarDays size={22} strokeWidth={1.8} aria-hidden="true" />
+          {/* Agenda — con el aviso de lo que queda pendiente hoy */}
+          <button
+            type="button"
+            onClick={onAgenda}
+            className={TAB}
+            aria-label={hasAgendaAlert
+              ? `Agenda, ${agendaCount} ${agendaCount === 1 ? 'actividad pendiente' : 'actividades pendientes'} hoy`
+              : 'Agenda'}
+          >
+            {/*
+              El aviso se ancla al icono, no al botón: el botón ocupa todo el
+              alto de la barra y la pastilla acabaría flotando lejos del
+              calendario, sin quedar claro a qué se refiere.
+            */}
+            <span className="relative" aria-hidden="true">
+              <CalendarDays size={22} strokeWidth={1.8} />
+
+              {hasAgendaAlert && (
+                /*
+                  Aviso en el índigo de la interfaz, no en rojo: no es una
+                  alerta ni un error, es la carga del día. El `ring` toma el
+                  color de fondo de la barra para que la pastilla se lea
+                  recortada sobre ella y no pegada encima del icono.
+                */
+                <span
+                  className="absolute -right-2 -top-1.5 grid h-[17px] min-w-[17px]
+                             place-items-center rounded-full bg-indigo-500 px-1
+                             text-[9px] font-bold leading-none text-white
+                             shadow-sm shadow-indigo-500/40 ring-2 ring-white
+                             dark:bg-indigo-400 dark:text-zinc-950 dark:ring-zinc-950"
+                >
+                  {agendaBadge}
+                </span>
+              )}
+            </span>
+
             <span className={LABEL}>Agenda</span>
           </button>
 
