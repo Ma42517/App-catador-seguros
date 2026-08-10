@@ -1,6 +1,7 @@
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus,
 } from 'lucide-react';
+import { tapFeedback } from '../../lib/haptics';
 
 /** Icono de WhatsApp: lucide no lo trae, así que va como trazo propio. */
 function WhatsAppMark({ size = 18 }) {
@@ -15,9 +16,13 @@ function WhatsAppMark({ size = 18 }) {
 /**
  * Botón circular blanco de contacto.
  *
- * Se hunde al pulsarlo y se ilumina al pasar por encima: son los dos gestos que
- * hacen que un botón se sienta físico. Deshabilitado si no hay dato que usar,
- * porque enlazar a un `tel:` vacío le daría un error a quien lo toque.
+ * Se hunde al pulsarlo y responde con un golpe corto de vibración: son los
+ * gestos que hacen que un botón se sienta físico. El golpe va aquí, en el
+ * `onClick`, y no al cargar la tarjeta, porque es el único momento en que el
+ * navegador permite vibrar —ya hubo un toque de la persona.
+ *
+ * Deshabilitado si no hay dato que usar, porque enlazar a un `tel:` vacío le
+ * daría un error a quien lo toque.
  */
 function SocialButton({ label, href, children }) {
   const enabled = Boolean(href);
@@ -29,7 +34,13 @@ function SocialButton({ label, href, children }) {
       aria-disabled={!enabled}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(event) => { if (!enabled) event.preventDefault(); }}
+      onClick={(event) => {
+        if (!enabled) {
+          event.preventDefault();
+          return;
+        }
+        tapFeedback();
+      }}
       className={`grid h-11 w-11 place-items-center rounded-full transition-transform
         will-change-transform
         ${enabled
@@ -43,21 +54,18 @@ function SocialButton({ label, href, children }) {
 }
 
 /**
- * Vista previa de la tarjeta digital, estilo "Full Image Background".
+ * Vista previa de la tarjeta digital, en diseño "Split Layout".
  *
- * Es lo que verá el prospecto, así que se dibuja con los datos tal como están:
- * los campos vacíos muestran un texto de relleno en gris para que se note qué
+ * El celular es negro y la foto ocupa sólo el 60% superior, anclada arriba
+ * (`object-top`) para que la cara quede en el encuadre. Sobre la foto va un
+ * degradado que termina en negro puro: así la imagen no corta en seco contra
+ * el fondo, se disuelve en él. Ese difuminado es lo que une las dos mitades.
+ *
+ * El contenido vive en la mitad inferior, alineado a la izquierda y empujado
+ * hacia abajo, con espacio reservado para la barra de acción del celular.
+ *
+ * Los campos vacíos muestran un texto de relleno en gris para que se note qué
  * falta, en lugar de dejar huecos que hagan parecer que la tarjeta está rota.
- *
- * Las tres capas van en este orden y ninguna es opcional: la foto ocupa todo el
- * fondo (recortada de antemano en la proporción del marco por el recortador de
- * `DigitalCardBuilder`), el degradado negro la cubre de abajo hacia arriba, y
- * el contenido va encima. Sin el degradado, un retrato con fondo claro deja el
- * nombre ilegible.
- *
- * El contenido entra en cascada. Los retrasos van como `animation-delay` y no
- * con las clases `delay-*` de Tailwind: ésas escriben `transition-delay`, que no
- * afecta a una animación de keyframes y dejaría todo entrando a la vez.
  */
 export default function DigitalCardPreview({ card, variant = 'frame', onAddContact }) {
   const {
@@ -77,53 +85,55 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
 
   return (
     <div
-      className={isFill
-        ? 'relative h-full w-full overflow-hidden'
-        : `relative mx-auto h-[650px] w-[320px] overflow-hidden rounded-[2.5rem]
-           border-4 border-zinc-900 shadow-2xl`}
+      className={`relative overflow-hidden bg-black ${isFill
+        ? 'h-full w-full'
+        : `mx-auto h-[650px] w-[320px] rounded-[2.5rem] border-4 border-zinc-900 shadow-2xl`}`}
     >
       {/*
-        Capa 1: la foto, a sangre, ocupando todo el fondo del marco.
-        Ya viene recortada en la proporción del marco (9:16) desde que se subió,
-        así que aquí sólo se estira a cubrir sin recortar de nuevo por su cuenta.
+        Mitad superior: la foto. Sólo el 60% del alto, así que la imagen no
+        necesita estirarse para cubrir toda la pantalla y deja de ampliarse de
+        más. El degradado va dentro del mismo contenedor, encima de la imagen.
       */}
-      <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+      <div className="absolute left-0 top-0 h-[60%] w-full" aria-hidden="true">
         {avatarUrl ? (
           <img
             src={avatarUrl}
             alt=""
             referrerPolicy="no-referrer"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="h-full w-full object-cover object-top"
           />
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950">
-            {/*
-              Marca de agua de la inicial mientras no hay foto. Va en el tercio
-              superior y no centrada: al centro caía justo sobre el nombre y la
-              empresa, y se leía como un defecto de dibujo.
-            */}
+            {/* Marca de agua de la inicial mientras no hay foto. */}
             <span
-              className="absolute inset-x-0 top-24 text-center text-[7rem] font-black
+              className="absolute inset-x-0 top-20 text-center text-[7rem] font-black
                          leading-none text-white/[0.07]"
             >
               {(fullName || '?').trim().charAt(0).toUpperCase()}
             </span>
           </div>
         )}
+
+        {/*
+          El difuminado que une la foto con el fondo negro. Dos tramos
+          transparentes antes del negro: el corte queda en el último tercio de
+          la foto, no a la mitad, para no oscurecer la cara.
+        */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black" />
       </div>
 
-      {/* Capa 2: degradado que hace legible el texto */}
+      {/*
+        Mitad inferior: el contenido, empujado al fondo y alineado a la
+        izquierda. `pb-20` reserva el alto de la barra de acción del celular.
+      */}
       <div
-        className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"
-        aria-hidden="true"
-      />
-
-      {/* Capa 3: contenido */}
-      <div className={`relative z-10 flex h-full flex-col justify-end text-white ${isFill ? 'p-6' : 'p-5'}`}>
-        {/* Estado de disponibilidad, encima del nombre */}
+        className={`relative z-10 flex h-full flex-col justify-end text-left text-white
+                    ${isFill ? 'p-6 pb-24' : 'p-5 pb-20'}`}
+      >
+        {/* Pulso de disponibilidad, encima del nombre */}
         <div
           className="animate-fade-in-up mb-2.5 flex w-max items-center gap-2 rounded-full
-                     bg-black/40 px-3 py-1 backdrop-blur-sm"
+                     bg-white/10 px-3 py-1 backdrop-blur-sm"
         >
           <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" aria-hidden="true" />
           <span className="text-[10px] uppercase tracking-wider text-zinc-200">
@@ -159,7 +169,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
             {specialties.map((item) => (
               <li
                 key={item}
-                className="rounded-full bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm"
+                className="rounded-full bg-white/15 px-2 py-1 text-xs font-medium backdrop-blur-sm"
               >
                 {item}
               </li>
@@ -167,7 +177,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
           </ul>
         )}
 
-        {/* Contacto: botones sociales circulares blancos */}
+        {/* Fila de botones circulares de contacto */}
         <div
           className="animate-fade-in-up mt-4 flex gap-2.5"
           style={{ animationDelay: '200ms' }}
@@ -189,10 +199,10 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
           </SocialButton>
         </div>
 
-        {/* Sobre mí: tarjeta translúcida. `mb-16` deja libre el alto de la barra inferior. */}
+        {/* Tarjeta "About Me", translúcida sobre el negro */}
         <div
-          className="animate-fade-in-up relative mb-16 mt-4 overflow-hidden rounded-2xl
-                     bg-white/10 p-4 backdrop-blur-md"
+          className="animate-fade-in-up relative mt-4 overflow-hidden rounded-2xl border
+                     border-white/10 bg-white/[0.07] p-4 backdrop-blur-md"
           style={{ animationDelay: '300ms' }}
         >
           {/*
@@ -226,7 +236,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
       {/* Barra de acción del celular */}
       <div
         className={`absolute bottom-0 left-0 z-20 flex w-full items-center justify-between
-                    bg-black/90 px-4 py-3 backdrop-blur-md
+                    border-t border-white/10 bg-black/90 px-4 py-3 backdrop-blur-md
                     ${isFill ? 'pb-safe' : 'rounded-b-[2rem]'}`}
       >
         <span className="flex items-center gap-3 text-white/80" aria-hidden="true">
@@ -242,7 +252,7 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
         {onAddContact ? (
           <button
             type="button"
-            onClick={onAddContact}
+            onClick={() => { tapFeedback(); onAddContact(); }}
             className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
                        font-semibold text-black transition-transform will-change-transform
                        active:scale-90 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]"
