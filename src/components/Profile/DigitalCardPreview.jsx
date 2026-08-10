@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, RotateCcw, ChevronLeft,
   Camera, Plus, Minus,
@@ -117,9 +117,6 @@ export default function DigitalCardPreview({
     confirmación porque no hay nada que confirmar, lo que se ve ya es el
     resultado.
   */
-  /** Hay foto y estamos editando: se puede entrar a acomodarla. */
-  const canFrame = editable && Boolean(avatarUrl);
-
   /*
     Modo acomodar, activo o no.
 
@@ -129,6 +126,28 @@ export default function DigitalCardPreview({
     con ningún arrastre, es lo que cede el gesto a la foto.
   */
   const [isFraming, setFraming] = useState(false);
+
+  /*
+    El modo se enciende solo al subir una foto nueva, que es el único momento en
+    que hace falta: la imagen acaba de llegar centrada por el sistema y es ahí
+    donde se decide cómo queda. No hay botón para entrar porque no hay que
+    recordar entrar —se entra por sí mismo, se acomoda y se sale con "Listo"—.
+
+    Se compara contra la dirección anterior y no se activa en el primer render:
+    abrir el editor con una foto ya colocada no debe secuestrar el gesto de
+    desplazar, que es lo que rompía el scroll sobre la tarjeta.
+  */
+  const knownPhoto = useRef(null);
+
+  useEffect(() => {
+    if (!editable) return;
+
+    const previous = knownPhoto.current;
+    knownPhoto.current = avatarUrl;
+
+    // `previous` nulo es la carga inicial; sin foto no hay nada que acomodar.
+    if (previous !== null && avatarUrl && avatarUrl !== previous) setFraming(true);
+  }, [avatarUrl, editable]);
 
   const framing = usePhotoFraming({
     focus: photoFocus,
@@ -320,7 +339,6 @@ export default function DigitalCardPreview({
           <div
             ref={framing.frameRef}
             {...(isFraming ? framing.handlers : {})}
-            onClick={canFrame && !isFraming ? () => setFraming(true) : undefined}
             aria-hidden={!editable}
             /*
               `touch-none` sólo mientras se está acomodando, y ahí está la clave.
@@ -336,11 +354,9 @@ export default function DigitalCardPreview({
               entra a colocar la foto.
             */
             className={`absolute left-0 top-0 h-[60%] w-full ${
-              !canFrame
-                ? 'pointer-events-none'
-                : isFraming
-                  ? 'z-20 cursor-move touch-none select-none'
-                  : 'z-20 cursor-pointer'}`}
+              isFraming
+                ? 'z-20 cursor-move touch-none select-none'
+                : 'pointer-events-none'}`}
           >
             {avatarUrl ? (
               <img
@@ -476,19 +492,6 @@ export default function DigitalCardPreview({
             persona tocaría la foto, el scroll dejaría de funcionar ahí y no habría
             nada que explicara por qué.
           */}
-          {canFrame && !isFraming && (
-            <button
-              type="button"
-              onClick={() => setFraming(true)}
-              className="absolute left-1/2 top-[45%] z-30 -translate-x-1/2 whitespace-nowrap
-                         rounded-full bg-black/55 px-3 py-1.5 text-[11px] font-semibold
-                         text-white ring-1 ring-white/25 backdrop-blur-md transition-colors
-                         hover:bg-black/75"
-            >
-              Toca para acomodar tu foto
-            </button>
-          )}
-
           {isFraming && (
             <>
               {/* Marca el área activa sin taparla: sólo su contorno. */}
@@ -599,9 +602,23 @@ export default function DigitalCardPreview({
               vacío deja pasar los toques y el gesto de desplazar la página, que
               es lo que antes moría contra esta capa.
             */
-            className="pointer-events-none relative z-40 mt-auto flex max-h-[58%] w-full
-                       flex-col justify-end overflow-y-auto overscroll-contain
-                       [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            /*
+              Sin `overscroll-contain`, y ésta era la causa del scroll trabado.
+
+              Esa propiedad hace justo lo contrario de lo que parece: **prohíbe**
+              que el gesto se propague al elemento de detrás. Al llegar esta zona a
+              su tope —o incluso sin nada que desplazar dentro— el movimiento moría
+              aquí y la página no se movía. De ahí que sólo se pudiera desplazar
+              tocando fuera de la tarjeta.
+
+              En edición tampoco lleva `overflow-y-auto`: el contenido cabe en la
+              zona reservada, así que un contenedor desplazable sólo servía para
+              competir con la página por el mismo gesto.
+            */
+            className={`pointer-events-none relative z-40 mt-auto flex max-h-[58%] w-full
+                        flex-col justify-end ${editable
+                          ? ''
+                          : 'overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}
           >
             {/*
               Este bloque mide sólo lo que ocupa su texto. Sin `min-h-full`: con
