@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import {
-  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus,
+  Phone, Mail, MessageSquare, QrCode, Share2, UserPlus, Play, RefreshCw,
 } from 'lucide-react';
 import { tapFeedback } from '../../lib/haptics';
+import { toEmbedUrl } from '../../data/videoEmbed';
 import QrPassModal from './QrPassModal';
+import VideoStoryModal from './VideoStoryModal';
+import ClientPortalBack from './ClientPortalBack';
 
 /**
  * Icono de WhatsApp: lucide no lo trae, así que va como trazo propio.
@@ -77,33 +80,107 @@ function SocialButton({ label, href, glow = false, children }) {
 }
 
 /**
- * Vista previa de la tarjeta digital, con fondo "Ambient Blur".
+ * Avatar con anillo giratorio, al estilo de las historias de Instagram.
  *
- * La mitad inferior ya no es negra: bajo el contenido vive la misma foto
- * repetida, desenfocada al extremo, de modo que la tarjeta se tiñe con los
- * colores de la ropa y del fondo del retrato. Es el recurso que usan las apps
- * de mensajería para que una imagen no termine en un corte seco.
+ * Sólo aparece si hay un video que abrir. Un anillo animado es una promesa de
+ * que algo pasa al tocarlo: puesto sin video, sería un adorno que enseña a
+ * ignorar los adornos.
  *
- * Las capas van en este orden y ninguna sobra:
+ * El gradiente gira en su propia capa, por debajo de la foto: si girara el
+ * contenedor entero, el retrato daría vueltas con él.
+ */
+function StoryRingAvatar({ avatarUrl, fullName, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={() => { tapFeedback(); onOpen(); }}
+      aria-label="Ver video de presentación"
+      className="group mb-3 w-max cursor-pointer transition-transform will-change-transform
+                 hover:scale-105 focus-visible:outline-none focus-visible:ring-2
+                 focus-visible:ring-white/70 focus-visible:ring-offset-2
+                 focus-visible:ring-offset-transparent rounded-full"
+    >
+      <span className="relative grid place-items-center rounded-full p-1">
+        {/* Anillo: gira despacio y en continuo, detrás de la foto */}
+        <span
+          className="animate-spin-slow absolute inset-0 rounded-full bg-gradient-to-tr
+                     from-blue-500 via-indigo-500 to-purple-500"
+          aria-hidden="true"
+        />
+
+        {/*
+          El borde oscuro es el que separa la foto del anillo. Sin esa franja,
+          el gradiente toca el retrato y el efecto se lee como un halo de color
+          mal recortado en lugar de un anillo.
+        */}
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="relative h-16 w-16 rounded-full border-2 border-zinc-950 object-cover
+                       object-top"
+          />
+        ) : (
+          <span
+            className="relative grid h-16 w-16 place-items-center rounded-full border-2
+                       border-zinc-950 bg-zinc-800 text-xl font-black text-white/70"
+            aria-hidden="true"
+          >
+            {(fullName || '?').trim().charAt(0).toUpperCase()}
+          </span>
+        )}
+
+        {/* Señal de reproducción: dice qué hay detrás del anillo. */}
+        <span
+          className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center
+                     rounded-full border-2 border-zinc-950 bg-white text-zinc-900
+                     transition-transform group-hover:scale-110"
+          aria-hidden="true"
+        >
+          <Play size={11} strokeWidth={3} className="translate-x-[1px]" fill="currentColor" />
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Tarjeta digital de dos caras.
  *
- *   0. Ambiental — la foto desenfocada, más un velo que baja su contraste.
- *   1. Retrato   — la foto nítida en el 60% superior, desvanecida hacia abajo.
- *   2. Legibilidad — velo vertical que asegura el contraste del texto.
- *   3. Contenido — nombre, datos y accesos de contacto.
+ * El frente está pensado para convencer a un desconocido; el reverso, para
+ * resolverle un trámite a quien ya es cliente. Son dos públicos con necesidades
+ * opuestas, así que en lugar de alargar una sola cara con botones que sólo le
+ * sirven a la mitad de quien la ve, la tarjeta se voltea.
  *
- * El retrato se desvanece con una máscara en lugar de taparse con un degradado
- * negro: pintar negro encima devolvería justo el bloque sólido que se quería
- * quitar, y la unión volvería a notarse. Con la máscara, la foto nítida se
- * disuelve y lo que aparece por debajo es el color ambiental.
+ * El giro es una rotación 3D real: el contenedor exterior aporta la
+ * perspectiva, el interior gira, y cada cara oculta su reverso. Por eso el
+ * marco —borde, redondeo y recorte— vive en cada cara y no en el contenedor:
+ * `overflow-hidden` en el elemento que gira aplana el espacio 3D y el efecto se
+ * pierde.
+ *
+ * El frente conserva el diseño Split con fondo Ambient Blur: la foto ocupa el
+ * 60% superior y, por debajo del contenido, la misma foto desenfocada al
+ * extremo tiñe la tarjeta con los colores del retrato.
  */
 export default function DigitalCardPreview({ card, variant = 'frame', onAddContact }) {
   const {
-    fullName, title, company, license, specialties = [], bio, phone, email, whatsapp, avatarUrl,
+    fullName, title, company, license, specialties = [], bio, phone, email, whatsapp,
+    avatarUrl, presentationVideoUrl,
   } = card;
 
   const digits = (value) => String(value ?? '').replace(/[^\d+]/g, '');
 
   const [isQrOpen, setQrOpen] = useState(false);
+  const [isVideoOpen, setVideoOpen] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  /*
+    El enlace se traduce a su dirección para incrustar y, si no se reconoce como
+    YouTube o Vimeo, queda en `null`: entonces no hay anillo ni video. Es la
+    misma comprobación que impide incrustar una dirección arbitraria.
+  */
+  const embedUrl = toEmbedUrl(presentationVideoUrl);
 
   /*
     Dos presentaciones de la misma tarjeta:
@@ -113,6 +190,14 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
                  hace la tarjeta más pequeña justo cuando se la enseña a alguien.
   */
   const isFill = variant === 'fill';
+
+  const sizeClasses = isFill ? 'h-full w-full' : 'mx-auto h-[650px] w-[320px]';
+
+  // El marco se repite en las dos caras: si viviera en el contenedor que gira,
+  // el recorte aplanaría la escena 3D y el giro dejaría de verse.
+  const faceFrame = isFill
+    ? ''
+    : 'rounded-[2.5rem] border-4 border-zinc-900 shadow-2xl';
 
   /*
     Máscara que desvanece el retrato hacia abajo. Se repite con el prefijo
@@ -124,269 +209,335 @@ export default function DigitalCardPreview({ card, variant = 'frame', onAddConta
     '[mask-image:linear-gradient(to_bottom,#000_45%,transparent_100%)] '
     + '[-webkit-mask-image:linear-gradient(to_bottom,#000_45%,transparent_100%)]';
 
+  /*
+    La cara que está de espaldas se apaga para el ratón y para el lector de
+    pantalla. `backface-visibility` sólo la esconde a la vista: sin esto, los
+    botones del reverso seguirían siendo pulsables a través del frente, y un
+    lector leería las dos caras como si estuvieran juntas.
+  */
+  const hiddenFace = 'pointer-events-none';
+
   return (
-    /*
-      `bg-zinc-950` no es el fondo que se ve, es la red de seguridad: si la foto
-      no carga, sin él la tarjeta quedaría transparente y se vería la página por
-      debajo. El color de verdad lo pone la capa ambiental.
-    */
-    <div
-      className={`relative overflow-hidden bg-zinc-950 ${isFill
-        ? 'h-full w-full'
-        : 'mx-auto h-[650px] w-[320px] rounded-[2.5rem] border-4 border-zinc-900 shadow-2xl'}`}
-    >
-      {/* Capa 0 — Ambiental: la foto convertida en luz de color */}
-      {avatarUrl && (
-        <div className="absolute inset-0" aria-hidden="true">
-          {/*
-            `scale-110` es obligatorio, no decorativo: un desenfoque de este
-            tamaño arrastra los píxeles del borde hacia dentro y deja un halo
-            claro en el perímetro, que sólo queda fuera del marco si la imagen
-            sobresale.
-          */}
-          <img
-            src={avatarUrl}
-            alt=""
-            referrerPolicy="no-referrer"
-            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-3xl"
-          />
-          {/* Baja el contraste del color para que el texto blanco no compita. */}
-          <div className="absolute inset-0 bg-black/50" />
-        </div>
-      )}
-
-      {/* Capa 1 — Retrato: nítido, en el 60% superior */}
-      <div className="absolute left-0 top-0 h-[60%] w-full" aria-hidden="true">
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt=""
-            referrerPolicy="no-referrer"
-            className={`h-full w-full object-cover object-top ${portraitFade}`}
-          />
-        ) : (
-          <div
-            className={`h-full w-full bg-gradient-to-br from-zinc-700 via-zinc-800
-                        to-zinc-950 ${portraitFade}`}
-          >
-            {/* Marca de agua de la inicial mientras no hay foto. */}
-            <span
-              className="absolute inset-x-0 top-20 text-center text-[7rem] font-black
-                         leading-none text-white/[0.07]"
-            >
-              {(fullName || '?').trim().charAt(0).toUpperCase()}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/*
-        Capa 2 — Legibilidad. Va sobre toda la tarjeta y no sólo sobre la foto:
-        el nombre cae en la frontera de las dos zonas, y un velo que terminara
-        al 60% dejaría la primera línea sin respaldo. Son transparencias, así
-        que el color ambiental sigue leyéndose por debajo.
-      */}
+    <div className={`relative [perspective:1000px] ${sizeClasses}`}>
       <div
-        className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent"
-        aria-hidden="true"
-      />
-
-      {/* Capa 3 — Contenido */}
-      <div
-        className={`relative z-10 flex h-full flex-col justify-end text-left text-white
-                    ${isFill ? 'p-6 pb-24' : 'p-5 pb-20'}`}
+        className={`relative h-full w-full transition-transform duration-700
+                    [transform-style:preserve-3d]
+                    ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
       >
-        {/* Pulso de disponibilidad, encima del nombre */}
+        {/* ───────── Cara frontal: prospectos ───────── */}
         <div
-          className="animate-fade-in-up mb-2.5 flex w-max items-center gap-2 rounded-full
-                     border border-white/15 bg-white/10 px-3 py-1 backdrop-blur-md"
+          aria-hidden={isFlipped}
+          className={`absolute inset-0 h-full w-full overflow-hidden bg-zinc-950
+                      [backface-visibility:hidden] [-webkit-backface-visibility:hidden]
+                      ${faceFrame} ${isFlipped ? hiddenFace : ''}`}
         >
-          <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" aria-hidden="true" />
-          <span className="text-[10px] uppercase tracking-wider text-zinc-100">
-            Disponible para asesoría
-          </span>
-        </div>
-
-        <div className="animate-fade-in-up">
-          <h2 className="text-3xl font-bold uppercase leading-none tracking-tight drop-shadow-lg">
-            {fullName || <span className="text-white/40">Tu nombre</span>}
-          </h2>
-
-          <p className="mt-1.5 text-sm text-zinc-200 drop-shadow">
-            {title || <span className="text-white/35">Tu título profesional</span>}
-          </p>
-
-          {company && (
-            <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              {company}
-            </p>
+          {/* Capa 0 — Ambiental: la foto convertida en luz de color */}
+          {avatarUrl && (
+            <div className="absolute inset-0" aria-hidden="true">
+              {/*
+                `scale-110` es obligatorio, no decorativo: un desenfoque de este
+                tamaño arrastra los píxeles del borde hacia dentro y deja un halo
+                claro en el perímetro, que sólo queda fuera del marco si la
+                imagen sobresale.
+              */}
+              <img
+                src={avatarUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60
+                           blur-3xl"
+              />
+              {/* Baja el contraste del color para que el texto blanco no compita. */}
+              <div className="absolute inset-0 bg-black/50" />
+            </div>
           )}
 
-          {license && (
-            <p className="mt-1.5 text-[11px] text-zinc-300">Cédula: {license}</p>
-          )}
-        </div>
-
-        {specialties.length > 0 && (
-          <ul
-            className="animate-fade-in-up mt-2.5 flex flex-wrap gap-1.5"
-            style={{ animationDelay: '100ms' }}
-          >
-            {specialties.map((item) => (
-              <li
-                key={item}
-                className="rounded-full border border-white/15 bg-white/15 px-2 py-1 text-xs
-                           font-medium backdrop-blur-md"
+          {/* Capa 1 — Retrato: nítido, en el 60% superior */}
+          <div className="absolute left-0 top-0 h-[60%] w-full" aria-hidden="true">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                className={`h-full w-full object-cover object-top ${portraitFade}`}
+              />
+            ) : (
+              <div
+                className={`h-full w-full bg-gradient-to-br from-zinc-700 via-zinc-800
+                            to-zinc-950 ${portraitFade}`}
               >
-                {item}
-              </li>
-            ))}
-          </ul>
-        )}
+                {/* Marca de agua de la inicial mientras no hay foto. */}
+                <span
+                  className="absolute inset-x-0 top-20 text-center text-[7rem] font-black
+                             leading-none text-white/[0.07]"
+                >
+                  {(fullName || '?').trim().charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+          </div>
 
-        {/*
-          Fila de contacto. Cada icono lleva su propio movimiento y su propio
-          ritmo: con la misma animación en los cuatro, la fila se leería como un
-          solo bloque parpadeando en vez de cuatro accesos con vida propia.
-        */}
-        <div
-          className="animate-fade-in-up mt-4 flex gap-2.5"
-          style={{ animationDelay: '200ms' }}
-        >
-          <SocialButton label="Llamar" href={phone ? `tel:${digits(phone)}` : ''}>
-            {/* Repique corto cada tres segundos, como un teléfono sonando bajito. */}
-            <Phone size={18} className={phone ? 'animate-ring' : ''} />
-          </SocialButton>
-
-          <SocialButton label="Enviar correo" href={email ? `mailto:${email}` : ''}>
-            <Mail size={18} className={email ? 'animate-float' : ''} />
-          </SocialButton>
-
-          {/* Mensaje: el destello va en el contorno del círculo, no en el icono. */}
-          <SocialButton
-            label="Enviar mensaje"
-            href={phone ? `sms:${digits(phone)}` : ''}
-            glow
-          >
-            <MessageSquare size={18} />
-          </SocialButton>
-
-          <SocialButton
-            label="Abrir WhatsApp"
-            href={whatsapp ? `https://wa.me/${digits(whatsapp).replace(/^\+/, '')}` : ''}
-          >
-            <WhatsAppMark size={19} className={whatsapp ? 'animate-soft-pulse' : ''} />
-          </SocialButton>
-        </div>
-
-        {/*
-          "About Me" en cristal puro: el desenfoque de fondo deja pasar los
-          colores abstractos de la capa ambiental, y el borde claro es lo que
-          define el canto del cristal —sin él, sobre un fondo de color el bloque
-          pierde su silueta y parece una mancha.
-        */}
-        <div
-          className="animate-fade-in-up relative mt-4 overflow-hidden rounded-2xl border
-                     border-white/20 bg-white/10 p-4 backdrop-blur-md"
-          style={{ animationDelay: '300ms' }}
-        >
           {/*
-            Reflejo que recorre el cristal. Va como capa aparte y no como fondo
-            del bloque: encima del texto lo atenuaría, y el degradado tiene que
-            pasar por debajo para que parezca luz sobre la superficie.
+            Capa 2 — Legibilidad. Va sobre toda la tarjeta y no sólo sobre la
+            foto: el nombre cae en la frontera de las dos zonas, y un velo que
+            terminara al 60% dejaría la primera línea sin respaldo. Son
+            transparencias, así que el color ambiental sigue leyéndose debajo.
           */}
-          <span
-            className="animate-shimmer pointer-events-none absolute inset-0
-                       bg-gradient-to-r from-transparent via-white/10 to-transparent
-                       bg-[length:200%_100%]"
+          <div
+            className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25
+                       to-transparent"
             aria-hidden="true"
           />
 
-          <div className="relative">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-200">
-              About Me
-            </p>
-            <p className="mt-1.5 text-xs leading-relaxed text-zinc-100">
-              {bio || (
-                <span className="text-white/40">
-                  Escribe unas líneas sobre a quién ayudas y cómo. Es lo que hace que
-                  un prospecto te escriba.
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/*
-        Barra de acción del celular. Pasa de negro casi opaco a cristal: dejarla
-        sólida cortaría en seco la luz de color justo en el borde inferior, que
-        es donde el efecto ambiental se ve mejor.
-      */}
-      <div
-        className={`absolute bottom-0 left-0 z-20 flex w-full items-center justify-between
-                    border-t border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md
-                    ${isFill ? 'pb-safe' : 'rounded-b-[2rem]'}`}
-      >
-        <span className="flex items-center gap-1">
-          {/*
-            El QR pasa de adorno a botón: es la forma más rápida de entregar el
-            contacto en persona, sin dictar un número ni pedirle al prospecto
-            que escriba nada.
-          */}
+          {/* Paso al reverso, discreto y siempre alcanzable */}
           <button
             type="button"
-            onClick={() => { tapFeedback(); setQrOpen(true); }}
-            aria-label="Mostrar mi código QR a pantalla completa"
-            className="grid h-9 w-9 place-items-center rounded-full text-white/80
-                       transition-colors hover:bg-white/10 hover:text-white
-                       active:scale-90 focus-visible:outline-none
+            onClick={() => { tapFeedback(); setIsFlipped(true); }}
+            className="absolute right-4 top-4 z-30 flex items-center gap-1.5 rounded-full
+                       border border-white/20 bg-white/10 py-1.5 pl-2.5 pr-3 text-[11px]
+                       font-semibold text-white backdrop-blur-md transition-colors
+                       hover:bg-white/20 active:scale-95 focus-visible:outline-none
                        focus-visible:ring-2 focus-visible:ring-white/60"
           >
-            <QrCode size={20} />
+            <RefreshCw size={12} strokeWidth={2.4} aria-hidden="true" />
+            Soy Cliente
           </button>
 
-          <span
-            className="grid h-9 w-9 place-items-center text-white/80"
-            aria-hidden="true"
+          {/* Capa 3 — Contenido */}
+          <div
+            className={`relative z-10 flex h-full flex-col justify-end text-left text-white
+                        ${isFill ? 'p-6 pb-24' : 'p-5 pb-20'}`}
           >
-            <Share2 size={19} />
-          </span>
-        </span>
+            {/* Anillo de historia: sólo si hay video que mostrar */}
+            {embedUrl && (
+              <div className="animate-fade-in-up">
+                <StoryRingAvatar
+                  avatarUrl={avatarUrl}
+                  fullName={fullName}
+                  onOpen={() => setVideoOpen(true)}
+                />
+              </div>
+            )}
 
-        {/*
-          Sin `onAddContact` la pieza es sólo un adorno de la vista previa: en el
-          editor no debe capturar prospectos, y un botón que no hace nada
-          confundiría más que un rótulo.
-        */}
-        {onAddContact ? (
-          <button
-            type="button"
-            onClick={() => { tapFeedback(); onAddContact(); }}
-            className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
-                       font-semibold text-black transition-transform will-change-transform
-                       active:scale-90 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]"
+            {/* Pulso de disponibilidad, encima del nombre */}
+            <div
+              className="animate-fade-in-up mb-2.5 flex w-max items-center gap-2 rounded-full
+                         border border-white/15 bg-white/10 px-3 py-1 backdrop-blur-md"
+            >
+              <span
+                className="h-2 w-2 animate-pulse rounded-full bg-green-500"
+                aria-hidden="true"
+              />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-100">
+                Disponible para asesoría
+              </span>
+            </div>
+
+            <div className="animate-fade-in-up">
+              <h2 className="text-3xl font-bold uppercase leading-none tracking-tight
+                             drop-shadow-lg"
+              >
+                {fullName || <span className="text-white/40">Tu nombre</span>}
+              </h2>
+
+              <p className="mt-1.5 text-sm text-zinc-200 drop-shadow">
+                {title || <span className="text-white/35">Tu título profesional</span>}
+              </p>
+
+              {company && (
+                <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider
+                              text-zinc-300"
+                >
+                  {company}
+                </p>
+              )}
+
+              {license && (
+                <p className="mt-1.5 text-[11px] text-zinc-300">Cédula: {license}</p>
+              )}
+            </div>
+
+            {specialties.length > 0 && (
+              <ul
+                className="animate-fade-in-up mt-2.5 flex flex-wrap gap-1.5"
+                style={{ animationDelay: '100ms' }}
+              >
+                {specialties.map((item) => (
+                  <li
+                    key={item}
+                    className="rounded-full border border-white/15 bg-white/15 px-2 py-1
+                               text-xs font-medium backdrop-blur-md"
+                  >
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/*
+              Fila de contacto. Cada icono lleva su propio movimiento y su propio
+              ritmo: con la misma animación en los cuatro, la fila se leería como
+              un solo bloque parpadeando en vez de cuatro accesos con vida propia.
+            */}
+            <div
+              className="animate-fade-in-up mt-4 flex gap-2.5"
+              style={{ animationDelay: '200ms' }}
+            >
+              <SocialButton label="Llamar" href={phone ? `tel:${digits(phone)}` : ''}>
+                {/* Repique corto cada tres segundos, como un teléfono sonando bajito. */}
+                <Phone size={18} className={phone ? 'animate-ring' : ''} />
+              </SocialButton>
+
+              <SocialButton label="Enviar correo" href={email ? `mailto:${email}` : ''}>
+                <Mail size={18} className={email ? 'animate-float' : ''} />
+              </SocialButton>
+
+              {/* Mensaje: el destello va en el contorno del círculo, no en el icono. */}
+              <SocialButton
+                label="Enviar mensaje"
+                href={phone ? `sms:${digits(phone)}` : ''}
+                glow
+              >
+                <MessageSquare size={18} />
+              </SocialButton>
+
+              <SocialButton
+                label="Abrir WhatsApp"
+                href={whatsapp ? `https://wa.me/${digits(whatsapp).replace(/^\+/, '')}` : ''}
+              >
+                <WhatsAppMark size={19} className={whatsapp ? 'animate-soft-pulse' : ''} />
+              </SocialButton>
+            </div>
+
+            {/*
+              "About Me" en cristal: el desenfoque de fondo deja pasar los
+              colores abstractos de la capa ambiental, y el borde claro es lo que
+              define el canto del cristal —sin él, sobre un fondo de color el
+              bloque pierde su silueta y parece una mancha.
+            */}
+            <div
+              className="animate-fade-in-up relative mt-4 overflow-hidden rounded-2xl border
+                         border-white/20 bg-white/10 p-4 backdrop-blur-md"
+              style={{ animationDelay: '300ms' }}
+            >
+              {/*
+                Reflejo que recorre el cristal. Va como capa aparte y no como
+                fondo del bloque: encima del texto lo atenuaría, y el degradado
+                tiene que pasar por debajo para que parezca luz sobre la
+                superficie.
+              */}
+              <span
+                className="animate-shimmer pointer-events-none absolute inset-0
+                           bg-gradient-to-r from-transparent via-white/10 to-transparent
+                           bg-[length:200%_100%]"
+                aria-hidden="true"
+              />
+
+              <div className="relative">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-200">
+                  About Me
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-100">
+                  {bio || (
+                    <span className="text-white/40">
+                      Escribe unas líneas sobre a quién ayudas y cómo. Es lo que hace que
+                      un prospecto te escriba.
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/*
+            Barra de acción del celular. Pasa de negro casi opaco a cristal:
+            dejarla sólida cortaría en seco la luz de color justo en el borde
+            inferior, que es donde el efecto ambiental se ve mejor.
+          */}
+          <div
+            className={`absolute bottom-0 left-0 z-20 flex w-full items-center justify-between
+                        border-t border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md
+                        ${isFill ? 'pb-safe' : 'rounded-b-[2rem]'}`}
           >
-            <UserPlus size={14} />
-            Add to Contact
-          </button>
-        ) : (
-          <span
-            className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
-                       font-semibold text-black"
-          >
-            <UserPlus size={14} />
-            Add to Contact
-          </span>
-        )}
+            <span className="flex items-center gap-1">
+              {/*
+                El QR pasa de adorno a botón: es la forma más rápida de entregar
+                el contacto en persona, sin dictar un número ni pedirle al
+                prospecto que escriba nada.
+              */}
+              <button
+                type="button"
+                onClick={() => { tapFeedback(); setQrOpen(true); }}
+                aria-label="Mostrar mi código QR a pantalla completa"
+                className="grid h-9 w-9 place-items-center rounded-full text-white/80
+                           transition-colors hover:bg-white/10 hover:text-white
+                           active:scale-90 focus-visible:outline-none
+                           focus-visible:ring-2 focus-visible:ring-white/60"
+              >
+                <QrCode size={20} />
+              </button>
+
+              <span
+                className="grid h-9 w-9 place-items-center text-white/80"
+                aria-hidden="true"
+              >
+                <Share2 size={19} />
+              </span>
+            </span>
+
+            {/*
+              Sin `onAddContact` la pieza es sólo un adorno de la vista previa:
+              en el editor no debe capturar prospectos, y un botón que no hace
+              nada confundiría más que un rótulo.
+            */}
+            {onAddContact ? (
+              <button
+                type="button"
+                onClick={() => { tapFeedback(); onAddContact(); }}
+                className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
+                           font-semibold text-black transition-transform will-change-transform
+                           active:scale-90 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]"
+              >
+                <UserPlus size={14} />
+                Add to Contact
+              </button>
+            ) : (
+              <span
+                className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs
+                           font-semibold text-black"
+              >
+                <UserPlus size={14} />
+                Add to Contact
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ───────── Cara trasera: clientes activos ───────── */}
+        <div
+          aria-hidden={!isFlipped}
+          className={`absolute inset-0 h-full w-full overflow-hidden
+                      [backface-visibility:hidden] [-webkit-backface-visibility:hidden]
+                      [transform:rotateY(180deg)]
+                      ${faceFrame} ${isFlipped ? '' : hiddenFace}`}
+        >
+          <ClientPortalBack card={card} onBack={() => setIsFlipped(false)} />
+        </div>
       </div>
 
       {/*
-        Va al final y como hermano de las capas, no dentro del contenido: al ser
-        `absolute inset-0` cubre la tarjeta entera, incluida la barra inferior
-        que lo abre.
+        Los dos paneles viven fuera del elemento que gira. Dentro heredarían la
+        rotación de la cara y se verían en espejo, y al voltear la tarjeta se
+        irían con ella.
       */}
       <QrPassModal card={card} isOpen={isQrOpen} onClose={() => setQrOpen(false)} />
+
+      <VideoStoryModal
+        embedUrl={embedUrl}
+        isOpen={isVideoOpen}
+        onClose={() => setVideoOpen(false)}
+        title={fullName ? `Presentación de ${fullName}` : 'Video de presentación'}
+      />
     </div>
   );
 }
