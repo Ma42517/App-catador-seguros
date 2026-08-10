@@ -9,13 +9,37 @@ function prefersReducedMotion() {
     && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
+/*
+  Chrome en Android bloquea `navigator.vibrate` hasta que la persona haya
+  dado al menos un toque en la página: es una protección contra sitios que
+  vibran el teléfono sin permiso. Si la sesión ya estaba guardada, la app pasa
+  de la pantalla de introducción directo a "Hoy" sin que haya mediado ningún
+  toque todavía, y ese primer intento de vibrar se descarta en silencio (sin
+  error, simplemente no pasa nada).
+
+  Por eso se registra un oyente a nivel de módulo —una sola vez, al cargar el
+  archivo— que marca el primer toque real en cualquier parte del documento.
+  Vibrar sólo se intenta después de esa marca.
+*/
+let hasUserInteracted = false;
+
+if (typeof window !== 'undefined') {
+  const markInteracted = () => { hasUserInteracted = true; };
+  const opts = { once: true, capture: true, passive: true };
+  window.addEventListener('pointerdown', markInteracted, opts);
+  window.addEventListener('touchstart', markInteracted, opts);
+  window.addEventListener('keydown', markInteracted, opts);
+}
+
 /**
- * Vibración seleccionar: si el navegador o el dispositivo no la soportan
- * (la mayoría de escritorio, Safari de iOS), `navigator.vibrate` ni siquiera
- * existe. Comprobarlo antes evita un error en cada palabra.
+ * Vibración segura: si el navegador o el dispositivo no la soportan (la
+ * mayoría de escritorio, Safari de iOS) `navigator.vibrate` ni siquiera
+ * existe, y si todavía no hubo un primer toque en la página, Android la
+ * bloquea aunque exista. Comprobar ambas cosas evita un error o un intento
+ * que de todas formas no iba a sentirse.
  */
 function triggerVibration(pattern) {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+  if (hasUserInteracted && typeof navigator !== 'undefined' && navigator.vibrate) {
     navigator.vibrate(pattern);
   }
 }
