@@ -5,6 +5,7 @@ import {
 import {
   fetchSentAlerts, fetchAlertResponses, ALERT_RESPONSE, describeError,
 } from '../../data/alertsRepo';
+import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 
 /** Fecha del evento en palabras, sin desfase de zona horaria. */
 function eventLabel(date, time) {
@@ -62,6 +63,17 @@ export default function AlertTracker({ promotorId, team }) {
   const [responses, setResponses] = useState({});
   const [isLoadingResponses, setLoadingResponses] = useState(false);
 
+  /*
+    El fallo al leer las respuestas se guarda y se muestra.
+
+    Aquí estaba el bug de "todos siguen sin responder": el error de la consulta se
+    descartaba, así que una lectura que la base rechaza —falta la política de
+    SELECT sobre `alert_responses` para el promotor— devolvía un mapa vacío y la
+    pantalla lo interpretaba como "nadie ha contestado". Idéntico a la verdad y
+    completamente distinto en la causa.
+  */
+  const [responsesError, setResponsesError] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     const { alerts: found, error: loadError, missingStructure } = await fetchSentAlerts(promotorId);
@@ -86,15 +98,63 @@ export default function AlertTracker({ promotorId, team }) {
 
   useEffect(() => { load(); }, [load]);
 
+  /** Relee las respuestas de una alerta. Se usa al abrirla y al llegar una nueva. */
+  const loadResponses = useCallback(async (alertId, { quiet = false } = {}) => {
+    if (!quiet) setLoadingResponses(true);
+    const { responses: found, error: readError } = await fetchAlertResponses(alertId);
+    if (!quiet) setLoadingResponses(false);
+
+    if (readError) {
+      setResponsesError(describeError(readError));
+      return;
+    }
+    setResponsesError('');
+    setResponses(found);
+  }, []);
+
   const toggle = async (alertId) => {
     if (openId === alertId) { setOpenId(null); return; }
 
     setOpenId(alertId);
-    setLoadingResponses(true);
-    const { responses: found } = await fetchAlertResponses(alertId);
-    setResponses(found);
-    setLoadingResponses(false);
+    setResponses({});
+    setResponsesError('');
+    await loadResponses(alertId);
   };
+
+  /*
+    Tiempo real sobre la alerta abierta.
+
+    Sin esto, el promotor que deja el panel abierto durante una junta ve la lista
+    congelada en el momento en que la abrió, y las confirmaciones que llegan
+    mientras mira no aparecen: tendría que cerrar y abrir para enterarse.
+
+    Se relee la lista completa en lugar de añadir la fila del evento. Es una
+    consulta corta y evita el caso incómodo de recibir dos avisos del mismo asesor
+    -un cambio de respuesta- y tener que decidir cuál gana en memoria: la base ya
+    lo decidió.
+
+    Se suscribe sólo a la alerta abierta y se cancela al cerrarla. Un canal por cada
+    alerta enviada dejaría veinte suscripciones vivas para mirar una.
+  */
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase || !openId) return undefined;
+
+    const channel = supabase
+      .channel(`alert-responses-${openId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'alert_responses',
+          filter: `alert_id=eq.${openId}`,
+        },
+        () => { loadResponses(openId, { quiet: true }); },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [openId, loadResponses]);
 
   if (isLoading) {
     return (
@@ -171,7 +231,32 @@ export default function AlertTracker({ promotorId, team }) {
 
               {isOpen && (
                 <div className="animate-rise border-t border-white/10 p-3">
-                  {isLoadingResponses ? (
+                  {responsesError ? (
+                    /*
+                      Se nombra la causa en lugar de dejar a todos en "sin
+                      responder": con el mensaje anterior, el promotor concluía que
+                      su equipo no contesta y el equipo juraba haber contestado.
+                    */
+                    <div role="alert" className="rounded-lg border border-rose-500/30
+                                                 bg-rose-500/10 p-3"
+                    >
+                      <p className="text-[11px] font-semibold text-rose-300">
+                        No se pudieron leer las respuestas
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">
+                        {responsesError}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => loadResponses(openId)}
+                        className="mt-2 rounded-lg border border-rose-500/40 px-2.5 py-1
+                                   text-[11px] font-semibold text-rose-300 transition-colors
+                                   hover:bg-rose-500/10"
+                      >
+                        Reintentar
+                      </button>
+                    </div>
+                  ) : isLoadingResponses ? (
                     <p className="flex items-center gap-2 py-2 text-[11px] text-zinc-500">
                       <Loader2 size={12} className="animate-spin" aria-hidden="true" />
                       Cargando respuestas…

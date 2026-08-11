@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BellRing, Check, X, Loader2, CalendarClock } from 'lucide-react';
+import { BellRing, Check, X, Loader2 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import { useEvents } from '../../context/EventContext';
 import {
   fetchPendingAlerts, respondToAlert, ALERT_RESPONSE,
 } from '../../data/alertsRepo';
 
-/** Fecha y hora del evento, en palabras. */
+/** Fecha y hora del evento, en una línea corta. */
 function eventLabel(date, time) {
   if (!date) return '';
 
@@ -18,24 +18,23 @@ function eventLabel(date, time) {
   const [year, month, day] = date.split('-').map(Number);
   const when = new Date(year, (month ?? 1) - 1, day ?? 1);
 
-  const formatted = when.toLocaleDateString('es-MX', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  });
-
+  const formatted = when.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
   return time ? `${formatted} · ${time.slice(0, 5)}` : formatted;
 }
 
 /**
- * Notificaciones de alta prioridad en la pantalla de inicio.
+ * Avisos de la promotoría que esperan confirmación, en la pantalla de inicio.
+ *
+ * Van **debajo** del saludo y no encima, como primer elemento de lo que hay que
+ * atender hoy. Encima del saludo interrumpían la entrada a la app cada vez que se
+ * abría; aquí siguen siendo lo primero de la lista sin desplazar la bienvenida.
+ *
+ * Y con la forma de un evento de agenda a propósito: es lo que va a ser en cuanto
+ * se confirme. Una tarjeta grande y distinta le daba el aspecto de anuncio, y un
+ * anuncio se aprende a ignorar.
  *
  * No se van hasta que el asesor contesta, y ahí está su valor: un aviso que se
- * puede ignorar deslizando no sirve para confirmar asistencia a una junta. La
- * contrapartida es que estorba, así que sólo aparecen las que de verdad esperan
- * respuesta y desaparecen en el mismo toque.
- *
- * Al decir "sí", el evento entra en su agenda local. Esa agenda vive en su propio
- * teléfono —no hay tabla de citas en la base—, así que el apunte se hace donde de
- * verdad lo va a consultar y no en un registro que nadie lee.
+ * puede descartar no sirve para confirmar asistencia a una junta.
  */
 export default function PriorityAlerts() {
   const { identity, promotorId } = useSession();
@@ -59,18 +58,18 @@ export default function PriorityAlerts() {
     if (error) {
       setBusyId(null);
       /*
-        Si la respuesta no se pudo guardar, la alerta se queda. Quitarla de la
-        pantalla daría por contestado algo que el promotor nunca va a ver, y el
-        asesor creería haber confirmado su asistencia.
+        Si la respuesta no se pudo guardar, el aviso se queda. Quitarlo daría por
+        contestado algo que el promotor nunca va a ver, y el asesor creería haber
+        confirmado su asistencia.
       */
       return;
     }
 
     if (response === ALERT_RESPONSE.YES && alert.eventDate) {
       /*
-        Prioridad máxima: lo pidió su promotor y tiene fecha. Un apunte con
-        prioridad baja se pierde entre las tareas del día, que es justo lo que esta
-        alerta vino a evitar.
+        Prioridad máxima: lo pidió su promotor y tiene fecha. Un apunte de prioridad
+        baja se pierde entre las tareas del día, que es justo lo que este aviso vino
+        a evitar.
       */
       addEvent({
         type: 'recordatorio',
@@ -89,101 +88,81 @@ export default function PriorityAlerts() {
   if (alerts.length === 0) return null;
 
   return (
-    <section className="mx-auto mb-2 max-w-2xl px-4 pt-4" aria-label="Avisos de tu promotoría">
-      <div className="flex flex-col gap-3">
-        {alerts.map((alert) => {
-          const busy = busyId === alert.id;
-          const when = eventLabel(alert.eventDate, alert.eventTime);
+    <section className="mt-6 flex flex-col gap-2" aria-label="Avisos de tu promotoría">
+      {alerts.map((alert) => {
+        const busy = busyId === alert.id;
+        const when = eventLabel(alert.eventDate, alert.eventTime);
 
-          return (
-            <article
-              key={alert.id}
-              /*
-                Borde índigo y fondo apenas teñido. Llamativo sin gritar: esto
-                aparece encima del saludo cada vez que se abre la app, así que un
-                rojo de emergencia acabaría leyéndose como un error del sistema.
-              */
-              className="animate-rise rounded-2xl border border-indigo-500/40
-                         bg-indigo-500/[0.07] p-4"
-            >
+        return (
+          <article
+            key={alert.id}
+            /*
+              Tarjeta delgada, del mismo lenguaje que la agenda: fondo oscuro, borde
+              sutil, esquinas redondeadas. Lo único que la distingue es el filo
+              índigo de la izquierda, que basta para que se lea como algo que viene
+              de fuera sin convertirla en un cartel.
+            */
+            className="animate-rise flex items-center gap-3 rounded-xl border border-zinc-200
+                       border-l-[3px] border-l-indigo-500 bg-white p-3
+                       dark:border-zinc-800 dark:border-l-indigo-500 dark:bg-zinc-900"
+          >
+            <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase
-                            tracking-widest text-indigo-400"
+                            tracking-wider text-indigo-500 dark:text-indigo-400"
               >
-                <BellRing size={12} aria-hidden="true" />
-                Aviso de tu promotoría
+                <BellRing size={10} aria-hidden="true" />
+                Confirma tu asistencia
               </p>
 
-              <h2 className="mt-1.5 text-base font-bold leading-snug text-white">
+              <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900 dark:text-white">
                 {alert.title}
-              </h2>
-
-              {alert.content && (
-                <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">{alert.content}</p>
-              )}
+              </p>
 
               {when && (
-                <p className="mt-2.5 flex items-center gap-1.5 text-xs font-semibold
-                              text-indigo-200"
-                >
-                  <CalendarClock size={13} aria-hidden="true" />
-                  <span className="capitalize">{when}</span>
-                </p>
+                <p className="mt-0.5 text-[11px] capitalize text-zinc-500">{when}</p>
               )}
+            </div>
 
-              {alert.authorName && (
-                <p className="mt-1 text-[11px] text-zinc-500">{alert.authorName}</p>
-              )}
+            {/*
+              Botones pequeños y a la derecha, apilados en pantallas estrechas. Se
+              distinguen por el color y no por el tamaño: un "Sí" más grande daría
+              confirmaciones por inercia, y un promotor con asistentes que no llegan
+              pierde más que uno que sabe cuántos faltan.
+            */}
+            <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => answer(alert, ALERT_RESPONSE.YES)}
+                disabled={busy}
+                className="flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15
+                           px-3 py-1 text-xs font-semibold text-emerald-600 transition-colors
+                           hover:bg-emerald-500/25 active:scale-95 disabled:cursor-wait
+                           disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2
+                           focus-visible:ring-emerald-400 dark:text-emerald-300"
+              >
+                {busy
+                  ? <Loader2 size={11} className="animate-spin" aria-hidden="true" />
+                  : <Check size={12} strokeWidth={3} aria-hidden="true" />}
+                Sí asistiré
+              </button>
 
-              {/*
-                Dos botones del mismo tamaño. "Sí" lleva el color y "No" queda en
-                contorno, pero ninguno es más fácil de pulsar que el otro: inclinar
-                la balanza daría confirmaciones falsas, y un promotor que organiza
-                una junta con asistentes que no van pierde más que uno que sabe
-                cuántos faltan.
-              */}
-              <div className="mt-4 flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => answer(alert, ALERT_RESPONSE.YES)}
-                  disabled={busy}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl
-                             bg-emerald-500 px-3 py-2.5 text-xs font-bold text-zinc-950
-                             shadow-lg shadow-emerald-500/20 transition-colors
-                             hover:bg-emerald-400 active:scale-[0.98] disabled:cursor-wait
-                             disabled:opacity-60 focus-visible:outline-none
-                             focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  {busy
-                    ? <Loader2 size={13} className="animate-spin" aria-hidden="true" />
-                    : <Check size={14} strokeWidth={3} aria-hidden="true" />}
-                  Sí, asistiré
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => answer(alert, ALERT_RESPONSE.NO)}
-                  disabled={busy}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl
-                             border border-rose-500/40 px-3 py-2.5 text-xs font-bold
-                             text-rose-300 transition-colors hover:bg-rose-500/10
-                             active:scale-[0.98] disabled:cursor-wait disabled:opacity-60
-                             focus-visible:outline-none focus-visible:ring-2
-                             focus-visible:ring-rose-400"
-                >
-                  <X size={14} strokeWidth={3} aria-hidden="true" />
-                  No podré
-                </button>
-              </div>
-
-              {alert.eventDate && (
-                <p className="mt-2 text-center text-[10px] leading-relaxed text-zinc-500">
-                  Al confirmar se agrega a tu agenda.
-                </p>
-              )}
-            </article>
-          );
-        })}
-      </div>
+              <button
+                type="button"
+                onClick={() => answer(alert, ALERT_RESPONSE.NO)}
+                disabled={busy}
+                className="flex items-center justify-center gap-1 rounded-lg px-3 py-1 text-xs
+                           font-semibold text-zinc-500 transition-colors hover:bg-rose-500/10
+                           hover:text-rose-500 active:scale-95 disabled:cursor-wait
+                           disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2
+                           focus-visible:ring-rose-400"
+              >
+                <X size={12} strokeWidth={3} aria-hidden="true" />
+                No podré
+              </button>
+            </div>
+          </article>
+        );
+      })}
     </section>
   );
 }
