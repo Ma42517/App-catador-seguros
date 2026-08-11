@@ -26,6 +26,7 @@ export const PROMOTORIA_STATUS = {
   PENDING: 'pending',
   APPROVED: 'approved',
   REJECTED: 'rejected',
+  BLOCKED: 'blocked',
 };
 
 /*
@@ -78,24 +79,38 @@ function toAdvisor(row) {
 export async function listMyAdvisors(promotorId) {
   if (!isSupabaseConfigured || !supabase) {
     return {
-      pending: [], approved: [], error: { message: 'Supabase no está configurado.' },
+      pending: [], approved: [], blocked: [],
+      error: { message: 'Supabase no está configurado.' },
       missingMigration: false,
     };
   }
   if (!promotorId) {
-    return { pending: [], approved: [], error: null, missingMigration: false };
+    return { pending: [], approved: [], blocked: [], error: null, missingMigration: false };
   }
 
+  /*
+    No se filtra por rol, y ahí estaba el fallo que dejaba las solicitudes
+    invisibles.
+
+    Quien se registra queda con rol `pending` hasta que alguien lo aprueba, así
+    que al usar el código de una promotoría su ficha todavía no dice `advisor`.
+    Con el filtro puesto, la solicitud no aparecía en ninguna parte: ni en el panel
+    del promotor —porque el rol no calzaba— ni en ningún otro sitio donde el
+    promotor pudiera verla.
+
+    Basta con `promotor_id`: si esa ficha apunta a este promotor, es asunto suyo
+    sea cual sea su rol. Y es lo correcto además de lo práctico, porque la
+    aprobación del promotor es justo lo que convierte a un pendiente en asesor.
+  */
   const { data, error } = await supabase
     .from(TABLE)
     .select(COLUMNS)
-    .eq('role', PROFILE_ROLES.ADVISOR)
     .eq('promotor_id', promotorId)
     .order('created_at', { ascending: false });
 
   if (error) {
     return {
-      pending: [], approved: [], error,
+      pending: [], approved: [], blocked: [], error,
       missingMigration: isMissingMigration(error),
     };
   }
@@ -104,6 +119,7 @@ export async function listMyAdvisors(promotorId) {
   return {
     pending: rows.filter((r) => r.status === PROMOTORIA_STATUS.PENDING),
     approved: rows.filter((r) => r.status === PROMOTORIA_STATUS.APPROVED),
+    blocked: rows.filter((r) => r.status === PROMOTORIA_STATUS.BLOCKED),
     error: null,
     missingMigration: false,
   };
@@ -144,9 +160,42 @@ async function writeStatus(advisorId, patch) {
   return { data: toAdvisor(data), error: null };
 }
 
-/** Acepta al asesor en el equipo. */
-export function approveAdvisor(advisorId) {
-  return writeStatus(advisorId, { promotoria_status: PROMOTORIA_STATUS.APPROVED });
+/**
+ * Acepta al asesor en el equipo.
+ *
+ * Si su rol todavía es `pending`, la misma acción lo asciende a `advisor`. Es lo
+ * que hace que la aprobación del promotor sirva de algo: sin esto, alguien
+ * aceptado en el equipo seguiría sin poder entrar a la app, esperando además la
+ * aprobación del administrador general —dos filas de espera para un solo trámite,
+ * y ninguna de las dos visible para la otra—.
+ *
+ * El promotor puede cambiar ese rol porque el disparador de la base se lo permite
+ * (`protect_profile_role` sólo detiene a quien no administra ni promueve), y el
+ * ascenso va de `pending` a `advisor` y nada más: no hay forma de nombrar
+ * promotores desde aquí.
+ */
+export function approveAdvisor(advisorId, currentRole) {
+  const patch = { promotoria_status: PROMOTORIA_STATUS.APPROVED };
+  if (currentRole === PROFILE_ROLES.PENDING) patch.role = PROFILE_ROLES.ADVISOR;
+  return writeStatus(advisorId, patch);
+}
+
+/**
+ * Bloquea a alguien: queda fuera del equipo y no puede volver a solicitar.
+ *
+ * Se diferencia de rechazar en que conserva el `promotor_id`. Ésa es la pieza que
+ * hace el bloqueo efectivo: al liberar la ficha, la persona podría volver a
+ * escribir el código al minuto siguiente y la solicitud reaparecería una y otra
+ * vez. Manteniendo el vínculo con estado `blocked`, la función de unirse
+ * encuentra que ya pertenece —bloqueada— y no la deja repetir.
+ */
+export function blockAdvisor(advisorId) {
+  return writeStatus(advisorId, { promotoria_status: PROMOTORIA_STATUS.BLOCKED });
+}
+
+/** Levanta el bloqueo y devuelve la ficha a la cola de solicitudes. */
+export function unblockAdvisor(advisorId) {
+  return writeStatus(advisorId, { promotoria_status: PROMOTORIA_STATUS.PENDING });
 }
 
 /**
@@ -225,6 +274,12 @@ export async function joinPromotoriaByCode(code) {
     }
     if (/ES_TU_PROPIO_CODIGO/.test(raw)) {
       return { data: null, error: { message: 'Ése es tu propio código.' } };
+    }
+    if (/BLOQUEADO/.test(raw)) {
+      return {
+        data: null,
+        error: { message: 'Esa promotoría bloqueó tu acceso. Habla directamente con el promotor.' },
+      };
     }
     if (/function .*join_promotoria.* does not exist|PGRST202/i.test(raw) || error.code === 'PGRST202') {
       return {
