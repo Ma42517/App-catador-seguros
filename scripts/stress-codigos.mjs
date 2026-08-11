@@ -114,4 +114,13 @@ function distribute(count, nameFor) {
 }
 
 console.log(`\n${fails === 0 ? 'TODAS PASAN' : `${fails} FALLAN`}`);
-process.exit(fails ? 1 : 0);
+
+/*
+  Se lanza en lugar de llamar a `process.exit`.
+
+  El resultado es el mismo -Node termina con codigo distinto de cero, que es lo
+  que necesita un guion de pruebas- pero `process` es un global de Node que el
+  linter de este proyecto no conoce, porque esta configurado para codigo de
+  navegador. Un `eslint-disable` habria callado el aviso sin resolverlo.
+*/
+if (fails > 0) throw new Error(`${fails} prueba(s) fallaron.`);
