@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Share2, Loader2, PenSquare, Trash2, Lock, FileText, Download, Inbox,
+  Share2, Loader2, PenSquare, Trash2, Lock, FileText, Download, Inbox, AlertTriangle,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
@@ -11,10 +11,8 @@ import { stampWatermark } from '../../data/watermark';
 import { useAccess } from '../../context/AccessContext';
 import { useSession } from '../../context/SessionContext';
 import PromotoriaWaitingRoom from '../Promotoria/PromotoriaWaitingRoom';
-import { PROFILE_ROLES } from '../../data/profilesRepo';
 import JoinPromotoria from '../Promotoria/JoinPromotoria';
 import PromotoriaBadge from '../Promotoria/PromotoriaBadge';
-import FeaturedRow from './FeaturedRow';
 import { fetchMyPromotoria } from '../../data/promotoriaRepo';
 import { categoryOf, relativeTime } from '../../data/announcements';
 import { attachmentKind, attachmentName, documentLabel } from '../../data/attachments';
@@ -260,7 +258,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     todavía no lo había aceptado.
   */
   const {
-    isAwaitingPromotoria, needsPromotoria, role, canManage,
+    isAwaitingPromotoria, needsPromotoria, canManage,
     promotorId, promotoriaStatus,
   } = useSession();
 
@@ -309,21 +307,24 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     que no pertenezca a una promotoría y no sea promotor: un promotor no se une a
     la suya propia.
   */
-  const canJoinPromotoria = needsPromotoria && role !== PROFILE_ROLES.PROMOTER;
+  /*
+    Quién ve el formulario de "únete con un código".
+
+    Se excluye a **todo el que administra**, no sólo al rol `promoter`. Antes se
+    comparaba contra ese rol exacto y por eso a un administrador —que es quien
+    monta la promotoría— el muro le pedía un código de invitación para entrar a su
+    propio tablón. No tiene a quién pedírselo: es él quien los reparte.
+
+    `canManage` cubre promotor y administrador, que son los dos que gestionan y por
+    tanto no se unen a nada.
+  */
+  const canJoinPromotoria = needsPromotoria && !canManage;
   const [sharingId, setSharingId] = useState(null);
   const [toast, setToast] = useState('');
   const [isPublishOpen, setPublishOpen] = useState(false);
   const [feed, setFeed] = useState([]);
-  /*
-    Los comunicados en su forma original, además de los ya maquetados.
-
-    Los destacados necesitan la categoría y la URL del archivo tal como vienen de
-    la base; `toCardModel` las transforma para la tarjeta grande —etiqueta con
-    emoji, tiempo relativo— y deshacer eso para la fila de cuadros sería traducir
-    dos veces el mismo dato.
-  */
-  const [rawFeed, setRawFeed] = useState([]);
   const [isLoadingFeed, setLoadingFeed] = useState(false);
+  const [feedError, setFeedError] = useState('');
 
   /*
     Nombre de la promotoría a la que pertenece quien mira. Se pide a la base
@@ -338,10 +339,20 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     const { data, error } = await fetchAnnouncements();
     setLoadingFeed(false);
     if (error) {
+      /*
+        El fallo se guarda además de avisarse con el aviso flotante.
+
+        Ése desaparece a los pocos segundos, así que un asesor que no llegara a
+        leerlo veía un muro vacío y concluía que su promotoría no había publicado
+        nada —cuando lo que ocurre es que la base le niega la lectura—. Es
+        exactamente el caso del privilegio que falta para el rol con sesión
+        iniciada: el promotor publica, la fila existe, y al asesor no le llega.
+      */
+      setFeedError(describeError(error));
       setToast(`No se pudieron cargar los comunicados. ${describeError(error)}`);
       return;
     }
-    setRawFeed(data);
+    setFeedError('');
     setFeed(data.map(toCardModel));
   }, []);
 
@@ -463,22 +474,37 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
           )}
 
           {/*
-            Destacados: los ocho más recientes. Ocho y no todos porque la fila se
-            arrastra con el pulgar, y pasadas ocho piezas es más rápido bajar por
-            la lista completa que seguir empujando.
+            Un muro que no se pudo leer no es un muro vacío, y decirlo importa: con
+            el mensaje de "todavía no ha publicado nada", el asesor culpa a su
+            promotor y el promotor jura que sí publicó. Aquí se nombra la causa.
           */}
-          {!isLoadingFeed && rawFeed.length > 1 && (
-            <FeaturedRow
-              items={rawFeed.slice(0, 8)}
-              onSelect={(id) => {
-                document.getElementById(`ann-${id}`)?.scrollIntoView({
-                  behavior: 'smooth', block: 'center',
-                });
-              }}
-            />
+          {!isLoadingFeed && feedError && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4"
+            >
+              <p className="flex items-center gap-2 text-sm font-bold text-rose-600
+                            dark:text-rose-300"
+              >
+                <AlertTriangle size={15} aria-hidden="true" />
+                No se pudieron cargar los comunicados
+              </p>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+                {feedError}
+              </p>
+              <button
+                type="button"
+                onClick={loadFeed}
+                className="mt-3 rounded-lg border border-rose-500/40 px-3 py-1.5 text-[11px]
+                           font-semibold text-rose-600 transition-colors hover:bg-rose-500/10
+                           dark:text-rose-300"
+              >
+                Reintentar
+              </button>
+            </div>
           )}
 
-          {!isLoadingFeed && feed.length === 0 && (
+          {!isLoadingFeed && !feedError && feed.length === 0 && (
             <div className="rounded-2xl border border-dashed border-zinc-300 px-6 py-12
                             text-center dark:border-zinc-700"
             >
@@ -502,20 +528,14 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
           )}
 
           {feed.map((announcement) => (
-            /*
-              El `id` en el DOM es lo que permite a los destacados traer aquí la
-              vista. Se pone en una envoltura y no en la tarjeta para no obligar a
-              `AnnouncementCard` a aceptar un `id` que sólo sirve para esto.
-            */
-            <div key={announcement.id} id={`ann-${announcement.id}`} className="scroll-mt-4">
             <AnnouncementCard
+              key={announcement.id}
               announcement={announcement}
               isSharing={sharingId === announcement.id}
               onShare={(share) => handleShare(announcement.id, share)}
               canDelete={canPublish}
               onDelete={() => handleDelete(announcement.id)}
             />
-            </div>
           ))}
 
           <PublishSheet
