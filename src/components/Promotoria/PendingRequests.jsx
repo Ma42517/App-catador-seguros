@@ -1,4 +1,4 @@
-import { Check, X, Loader2, Clock } from 'lucide-react';
+import { Check, X, Loader2, Clock, Ban } from 'lucide-react';
 
 /** Fecha de la solicitud, corta y en español. */
 function requestedOn(createdAt) {
@@ -20,7 +20,9 @@ function requestedOn(createdAt) {
  * decisión se toma con el nombre y el correo. Con el formato de tarjeta, aprobar
  * a cinco personas obligaba a desplazar cinco veces.
  */
-export default function PendingRequests({ requests, busyId, onApprove, onReject }) {
+export default function PendingRequests({
+  requests, busyId, onApprove, onReject, onBlock,
+}) {
   return (
     <section className="mb-6">
       <h2 className="mb-2.5 flex items-center gap-2 text-[11px] font-bold uppercase
@@ -61,17 +63,29 @@ export default function PendingRequests({ requests, busyId, onApprove, onReject 
               )}
 
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold leading-tight text-white">
+                {/*
+                  El nombre completo tal como lo escribió al registrarse, y en
+                  primer lugar: es el dato con el que el promotor reconoce a la
+                  persona. El correo va debajo para desempatar homónimos.
+                */}
+                <p className="truncate text-sm font-bold leading-tight text-white">
                   {advisor.fullName || 'Sin nombre'}
                 </p>
-                <p className="truncate text-[11px] text-zinc-500">{advisor.email}</p>
-                {advisor.createdAt && (
-                  <p className="mt-0.5 text-[10px] text-zinc-600">
-                    Solicitó el
-                    {' '}
-                    {requestedOn(advisor.createdAt)}
-                  </p>
-                )}
+                <p className="truncate text-[11px] text-zinc-400">{advisor.email}</p>
+                <p className="mt-0.5 text-[10px] text-zinc-600">
+                  {advisor.createdAt ? `Solicitó el ${requestedOn(advisor.createdAt)}` : ''}
+                  {/*
+                    Se avisa cuando la cuenta todavía no está aprobada en la app:
+                    al aceptarla, esta misma acción la convierte en asesor, y el
+                    promotor debe saber que su visto bueno es el que la deja entrar.
+                  */}
+                  {advisor.role === 'pending' && (
+                    <span className="text-amber-500/80">
+                      {advisor.createdAt ? ' · ' : ''}
+                      Cuenta nueva: al aprobar entra como Asesor
+                    </span>
+                  )}
+                </p>
               </div>
 
               {/*
@@ -102,6 +116,7 @@ export default function PendingRequests({ requests, busyId, onApprove, onReject 
                   type="button"
                   onClick={() => onReject(advisor)}
                   disabled={busy}
+                  title="Rechazar: queda libre y podría volver a solicitar"
                   aria-label={`Rechazar a ${advisor.fullName || advisor.email}`}
                   className="grid h-9 w-9 place-items-center rounded-lg border border-rose-500/40
                              text-rose-400 transition-colors hover:bg-rose-500/10
@@ -110,6 +125,28 @@ export default function PendingRequests({ requests, busyId, onApprove, onReject 
                              focus-visible:ring-rose-400"
                 >
                   <X size={16} strokeWidth={3} aria-hidden="true" />
+                </button>
+
+                {/*
+                  Bloquear es distinto de rechazar y por eso son dos botones.
+                  Rechazar libera la ficha y esa persona puede volver a escribir el
+                  código al minuto siguiente; bloquear conserva el vínculo para que
+                  la solicitud no reaparezca. Sin los dos, quien insiste obliga a
+                  rechazarlo una y otra vez.
+                */}
+                <button
+                  type="button"
+                  onClick={() => onBlock(advisor)}
+                  disabled={busy}
+                  title="Bloquear: no podrá volver a solicitar entrar"
+                  aria-label={`Bloquear a ${advisor.fullName || advisor.email}`}
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-zinc-700
+                             text-zinc-500 transition-colors hover:border-zinc-500
+                             hover:text-zinc-300 active:scale-95 disabled:cursor-wait
+                             disabled:opacity-60 focus-visible:outline-none
+                             focus-visible:ring-2 focus-visible:ring-zinc-400"
+                >
+                  <Ban size={15} strokeWidth={2.5} aria-hidden="true" />
                 </button>
               </div>
             </li>

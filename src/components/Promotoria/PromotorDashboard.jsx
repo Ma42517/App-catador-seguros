@@ -4,7 +4,8 @@ import {
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import {
-  listMyAdvisors, approveAdvisor, rejectAdvisor, describeError,
+  listMyAdvisors, approveAdvisor, rejectAdvisor, blockAdvisor, unblockAdvisor,
+  describeError,
 } from '../../data/promotoriaRepo';
 import InviteCodeCard from './InviteCodeCard';
 import TeamStats from './TeamStats';
@@ -36,6 +37,7 @@ export default function PromotorDashboard() {
 
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
+  const [blocked, setBlocked] = useState([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [needsMigration, setNeedsMigration] = useState(false);
@@ -66,13 +68,14 @@ export default function PromotorDashboard() {
     setError('');
     setPending(result.pending);
     setApproved(result.approved);
+    setBlocked(result.blocked ?? []);
   }, [promotorId]);
 
   useEffect(() => { load(); }, [load]);
 
   const respond = async (advisor, action) => {
     setBusyId(advisor.id);
-    const { error: writeError } = await action(advisor.id);
+    const { error: writeError } = await action(advisor);
     setBusyId(null);
 
     if (writeError) {
@@ -86,7 +89,7 @@ export default function PromotorDashboard() {
     load();
   };
 
-  const isEmpty = pending.length === 0 && approved.length === 0;
+  const isEmpty = pending.length === 0 && approved.length === 0 && blocked.length === 0;
 
   return (
     <div className="animate-rise py-6">
@@ -200,8 +203,14 @@ export default function PromotorDashboard() {
             <PendingRequests
               requests={pending}
               busyId={busyId}
-              onApprove={(advisor) => respond(advisor, approveAdvisor)}
-              onReject={(advisor) => respond(advisor, rejectAdvisor)}
+              /*
+                Se le pasa el rol actual para que aprobar pueda ascender a quien
+                todavía está en `pending`: es lo que convierte el visto bueno del
+                promotor en acceso real a la app.
+              */
+              onApprove={(advisor) => respond(advisor, (a) => approveAdvisor(a.id, a.role))}
+              onReject={(advisor) => respond(advisor, (a) => rejectAdvisor(a.id))}
+              onBlock={(advisor) => respond(advisor, (a) => blockAdvisor(a.id))}
             />
           )}
 
@@ -221,6 +230,48 @@ export default function PromotorDashboard() {
                   <AdvisorCard key={advisor.id} advisor={advisor} />
                 ))}
               </div>
+            </section>
+          )}
+
+          {/*
+            Bloqueados, al final y plegados en una lista sobria: no son el equipo
+            ni una tarea pendiente, pero tienen que estar a la vista para poder
+            deshacer el bloqueo. Escondidos, un bloqueo por error sería definitivo.
+          */}
+          {blocked.length > 0 && (
+            <section className="mt-6">
+              <h2 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-zinc-600">
+                Bloqueados
+              </h2>
+
+              <ul className="flex flex-col gap-2">
+                {blocked.map((advisor) => (
+                  <li
+                    key={advisor.id}
+                    className="flex items-center gap-3 rounded-xl border border-white/5
+                               bg-zinc-900/40 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-zinc-400">
+                        {advisor.fullName || 'Sin nombre'}
+                      </p>
+                      <p className="truncate text-[11px] text-zinc-600">{advisor.email}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => respond(advisor, (a) => unblockAdvisor(a.id))}
+                      disabled={busyId === advisor.id}
+                      className="shrink-0 rounded-lg border border-zinc-700 px-2.5 py-1.5
+                                 text-[11px] font-semibold text-zinc-400 transition-colors
+                                 hover:border-emerald-500/40 hover:text-emerald-300
+                                 disabled:cursor-wait"
+                    >
+                      Desbloquear
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 
@@ -245,9 +296,9 @@ export default function PromotorDashboard() {
                 Todavía no tienes asesores en tu promotoría.
               </p>
               <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-500">
-                Cuando un asesor te elija como su promotor, su solicitud aparecerá
-                aquí para que la apruebes. Falta construir esa pantalla: por ahora
-                se asigna desde el editor SQL de Supabase.
+                Comparte tu código de arriba. Cuando alguien lo escriba en
+                Productividad → Workplace, su solicitud aparecerá aquí con su
+                nombre completo para que la apruebes, la rechaces o la bloquees.
               </p>
             </div>
           )}
