@@ -255,6 +255,18 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     todavía no lo había aceptado.
   */
   const { isAwaitingPromotoria, needsPromotoria, role } = useSession();
+
+  /*
+    Quién ve el formulario de "únete con un código".
+
+    Antes se exigía `role === 'advisor'` exacto, y ahí estaba el problema: desde
+    otro teléfono, con una cuenta que no era asesor —un administrador probando, o
+    alguien recién aprobado— no aparecía este formulario y caía en el heredado,
+    que responde "código no válido" sin consultar la base. Ahora lo ve cualquiera
+    que no pertenezca a una promotoría y no sea promotor: un promotor no se une a
+    la suya propia.
+  */
+  const canJoinPromotoria = needsPromotoria && role !== PROFILE_ROLES.PROMOTER;
   const [sharingId, setSharingId] = useState(null);
   const [toast, setToast] = useState('');
   const [isPublishOpen, setPublishOpen] = useState(false);
@@ -339,7 +351,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
         un asesor recién llegado vería el formulario del código legado y no sabría
         que existe el suyo.
       */}
-      {needsPromotoria && role === PROFILE_ROLES.ADVISOR ? (
+      {canJoinPromotoria ? (
         <JoinPromotoria />
       ) : isAwaitingPromotoria ? (
         <PromotoriaWaitingRoom title="El muro de comunicados" />

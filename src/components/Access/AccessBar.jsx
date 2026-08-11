@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { KeyRound, Lock, Check, ShieldCheck, Unlink, BadgeCheck } from 'lucide-react';
 import { useAccess } from '../../context/AccessContext';
+import { useSession } from '../../context/SessionContext';
+import { joinPromotoriaByCode, describeError } from '../../data/promotoriaRepo';
+import { normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCode';
 
 const BUTTON =
   'shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white '
@@ -31,10 +34,18 @@ export default function AccessBar({ onNotify }) {
   */
   const [showForm, setShowForm] = useState(false);
 
+  /*
+    La barra necesita la sesión para dos cosas: releer la identidad cuando el
+    código de una promotoría real entra —así el muro pasa solo a la sala de
+    espera— y saber si quien escribe es el propio promotor.
+  */
+  const { refreshIdentity, promotorId } = useSession();
+
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [needsPassword, setNeedsPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isJoining, setJoining] = useState(false);
 
   // El campo de contraseña aparece al reconocer un código de promotor, sin
   // esperar a que se envíe el formulario.
@@ -44,12 +55,50 @@ export default function AccessBar({ onNotify }) {
     setNeedsPassword(validateAccessCode(value).requiresPassword);
   };
 
-  const handleSubmit = (e) => {
+  /**
+   * Intenta el código contra la base de datos.
+   *
+   * Es lo que faltaba: esta barra sólo conocía los códigos escritos a mano dentro
+   * del navegador (`PROMO-ADMIN` y compañía), así que un código real de
+   * promotoría —creado por un promotor y guardado en Supabase— se rechazaba con
+   * "código no válido" sin haberse consultado nunca. Quien lo recibía no tenía
+   * forma de saber que el formulario ni lo había intentado.
+   *
+   * Va como respaldo y no como primera vía para no romper los códigos heredados,
+   * que siguen dando el modo promotor local.
+   */
+  const tryPromotoriaCode = async () => {
+    const normalized = normalizeCode(code);
+
+    if (!isValidCode(normalized)) {
+      // El motivo concreto en vez de "no válido": ¿faltan dígitos? ¿sobran
+      // letras? Sin decirlo, se paga en intentos delante de quien espera.
+      setError(explainCode(code));
+      return;
+    }
+
+    setJoining(true);
+    const { data, error: joinError } = await joinPromotoriaByCode(normalized);
+    setJoining(false);
+
+    if (joinError) {
+      setError(describeError(joinError));
+      return;
+    }
+
+    setError('');
+    setCode('');
+    onNotify?.(`Solicitud enviada a ${data?.promotoria || 'la promotoría'}`);
+    // Relee la identidad: es lo que hace aparecer la sala de espera sin recargar.
+    await refreshIdentity?.();
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const result = validateAccessCode(code);
 
     if (!result.valid) {
-      setError('Código no válido, verifica con tu promotor.');
+      await tryPromotoriaCode();
       return;
     }
 
@@ -188,7 +237,9 @@ export default function AccessBar({ onNotify }) {
                      placeholder:text-zinc-400 dark:text-white dark:placeholder:text-zinc-400"
         />
 
-        <button type="submit" className={BUTTON}>Vincular</button>
+        <button type="submit" className={BUTTON} disabled={isJoining}>
+          {isJoining ? 'Enviando…' : 'Vincular'}
+        </button>
       </div>
 
       {/* Segundo paso: sólo para códigos con permisos de publicación */}
@@ -220,6 +271,19 @@ export default function AccessBar({ onNotify }) {
       {error && (
         <p role="alert" className="mt-2 px-1 text-[11px] font-medium text-rose-500">
           {error}
+        </p>
+      )}
+
+      {/*
+        El formato a la vista. Sin esto, quien recibe el código por WhatsApp no
+        sabe si lo que tiene entre manos sirve aquí, y el campo se veía igual para
+        los códigos heredados que para los de promotoría.
+      */}
+      {!error && !promotorId && (
+        <p className="mt-2 px-1 text-[11px] leading-relaxed text-zinc-500">
+          Pide a tu promotor su código de invitación. Tiene esta forma:
+          {' '}
+          <span className="font-mono text-zinc-400">PROMO-866-01</span>
         </p>
       )}
     </form>
