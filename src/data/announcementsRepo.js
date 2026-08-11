@@ -120,6 +120,19 @@ function fromRow(row) {
     content: row.content ?? '',
     fileUrl: row.image_url ?? '',
     createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+
+    /*
+      Quién lo escribió. El nombre se guarda junto al comunicado en lugar de
+      buscarse en `profiles` al leer, y no es por ahorrar una consulta: RLS no deja
+      al asesor leer fichas ajenas, así que un `join` devolvería vacío justo para
+      quien tiene que ver el nombre.
+
+      Que quede congelado es correcto aquí: "publicado por" es un hecho de cuando
+      se publicó. Si esa persona cambia su nombre después, el comunicado sigue
+      diciendo quién lo firmó ese día.
+    */
+    authorId: row.author_id ?? null,
+    authorName: row.author_name ?? '',
   };
 }
 
@@ -135,7 +148,9 @@ function fromRow(row) {
  */
 function isMissingOwner(error) {
   if (!error) return false;
-  return error.code === '42703' || String(error.message ?? '').includes('promotor_id');
+  if (error.code === '42703') return true;
+  const text = String(error.message ?? '');
+  return ['promotor_id', 'author_id', 'author_name'].some((c) => text.includes(c));
 }
 
 /**
@@ -181,7 +196,7 @@ export async function fetchAnnouncements(promotorId = '') {
 }
 
 export async function publishAnnouncement({
-  title, category, content, fileUrl, promotorId = '',
+  title, category, content, fileUrl, promotorId = '', authorId = '', authorName = '',
 }) {
   if (!usingSupabase) {
     const created = addLocalAnnouncement({ title, category, content, fileUrl });
@@ -202,6 +217,15 @@ export async function publishAnnouncement({
   */
   if (promotorId) row.promotor_id = promotorId;
 
+  /*
+    El autor va aparte del dueño del muro, y esa separación es la que permite que
+    varios promotores publiquen en la misma promotoría: `promotor_id` dice en qué
+    muro aparece y `author_id` quién lo firmó. Confundirlos obligaría a elegir
+    entre repartir bien los muros o saber quién escribió.
+  */
+  if (authorId) row.author_id = authorId;
+  if (authorName) row.author_name = authorName;
+
   let { data, error } = await supabase.from(TABLE).insert([row]).select();
 
   /*
@@ -210,7 +234,9 @@ export async function publishAnnouncement({
     intercambios: se guarda, y al correr el guion se le asigna dueño.
   */
   if (error && isMissingOwner(error)) {
-    const { promotor_id: _drop, ...fallback } = row;
+    const {
+      promotor_id: _owner, author_id: _authorId, author_name: _authorName, ...fallback
+    } = row;
     ({ data, error } = await supabase.from(TABLE).insert([fallback]).select());
   }
 
