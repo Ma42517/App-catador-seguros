@@ -151,10 +151,32 @@ export async function fetchAlertResponses(alertId) {
     return { responses: {}, error: null };
   }
 
-  const { data, error } = await supabase
-    .from(RESPONSES)
-    .select('asesor_id, response')
-    .eq('alert_id', alertId);
+  /*
+    Se pregunta primero a la función `alert_responses_for`, no a la tabla.
+
+    Aquí estaba el bug de "todos siguen sin responder". Una lectura directa de
+    `alert_responses` pasa por RLS, y RLS no rechaza: filtra. Si al promotor le
+    falta la política de SELECT, la consulta termina sin error y con cero filas,
+    exactamente igual que si su equipo no hubiera contestado. Los dos casos se veían
+    idénticos en pantalla y no había forma de distinguirlos desde la app.
+
+    La función corre como su dueña, comprueba ella misma que quien pregunta es de
+    la promotoría de la alerta y, si no lo es, lanza NO_AUTORIZADO. Devuelve las
+    filas o dice por qué no; lo que no hace es callar.
+  */
+  const viaFunction = await supabase.rpc('alert_responses_for', { p_alert_id: alertId });
+
+  // PGRST202 y 42883: la función todavía no existe en la base.
+  const functionMissing = viaFunction.error
+    && (viaFunction.error.code === 'PGRST202' || viaFunction.error.code === '42883');
+
+  const { data, error } = functionMissing
+    /*
+      Sin la función, se lee la tabla como antes. Es la lectura ambigua que causó
+      el problema, pero deja la pantalla en pie mientras el SQL no se haya corrido.
+    */
+    ? await supabase.from(RESPONSES).select('asesor_id, response').eq('alert_id', alertId)
+    : viaFunction;
 
   if (error) return { responses: {}, error };
 
@@ -164,6 +186,12 @@ export async function fetchAlertResponses(alertId) {
       return map;
     }, {}),
     error: null,
+    /*
+      Se avisa a quién lee que la respuesta viene de la vía ambigua, para que la
+      pantalla pueda advertir que un "nadie contestó" quizá signifique "no puedo
+      verlo".
+    */
+    unverified: Boolean(functionMissing),
   };
 }
 

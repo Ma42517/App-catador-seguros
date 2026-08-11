@@ -74,6 +74,12 @@ export default function AlertTracker({ promotorId, team }) {
   */
   const [responsesError, setResponsesError] = useState('');
 
+  /*
+    Cierto cuando las respuestas se leyeron de la tabla y no de la función, es
+    decir, cuando el conteo pasó por RLS y pudo venir recortado sin avisar.
+  */
+  const [isUnverified, setUnverified] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { alerts: found, error: loadError, missingStructure } = await fetchSentAlerts(promotorId);
@@ -101,7 +107,9 @@ export default function AlertTracker({ promotorId, team }) {
   /** Relee las respuestas de una alerta. Se usa al abrirla y al llegar una nueva. */
   const loadResponses = useCallback(async (alertId, { quiet = false } = {}) => {
     if (!quiet) setLoadingResponses(true);
-    const { responses: found, error: readError } = await fetchAlertResponses(alertId);
+    const {
+      responses: found, error: readError, unverified,
+    } = await fetchAlertResponses(alertId);
     if (!quiet) setLoadingResponses(false);
 
     if (readError) {
@@ -110,6 +118,7 @@ export default function AlertTracker({ promotorId, team }) {
     }
     setResponsesError('');
     setResponses(found);
+    setUnverified(Boolean(unverified));
   }, []);
 
   const toggle = async (alertId) => {
@@ -268,6 +277,23 @@ export default function AlertTracker({ promotorId, team }) {
                     </p>
                   ) : (
                     <div className="grid gap-4 sm:grid-cols-3">
+                      {/*
+                        Un "nadie ha contestado" que viene de la lectura ambigua se
+                        marca como tal. Es la única combinación sospechosa: cero
+                        respuestas y todo el equipo pendiente es lo que se ve cuando
+                        la base esconde las filas en lugar de negarlas.
+                      */}
+                      {isUnverified && yes.length === 0 && no.length === 0 && (
+                        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5
+                                      text-[11px] leading-relaxed text-amber-200 sm:col-span-3"
+                        >
+                          Si alguien ya confirmó y aquí sigue pendiente, falta correr
+                          el SQL de <code>alert_responses_for</code> en Supabase: sin
+                          esa función la base puede ocultar las respuestas sin dar
+                          error.
+                        </p>
+                      )}
+
                       <ResponseGroup
                         label="Sí asistirán"
                         people={yes}
