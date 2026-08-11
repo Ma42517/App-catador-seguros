@@ -176,6 +176,30 @@
     una clase por pieza. La caída va a 110vh: así sale de la pantalla por
     abajo en vez de desvanecerse a media altura.
   */
+  /*
+    Resplandor rojo de los avisos que esperan respuesta.
+
+    Late despacio y por debajo del rojo pleno: el aviso tiene que reclamar el ojo
+    cada vez que se pasa por la pantalla de inicio, pero va a seguir ahí durante
+    días hasta que se contesta, y una alarma a todo volumen durante días se vuelve
+    parte del decorado. El halo pulsa entre apenas visible y evidente, así que
+    llama sin gritar.
+
+    Se mueve la sombra y no la opacidad de la tarjeta, para que el texto se lea
+    igual en cualquier punto del ciclo.
+  */
+  @keyframes df-alert-glow {
+    0%, 100% {
+      box-shadow: 0 0 0 1px rgb(244 63 94 / 0.2), 0 0 12px -3px rgb(244 63 94 / 0.25);
+    }
+    50% {
+      box-shadow: 0 0 0 1px rgb(244 63 94 / 0.4), 0 0 22px -1px rgb(244 63 94 / 0.45);
+    }
+  }
+  .animate-alert-glow {
+    animation: df-alert-glow 2.8s ease-in-out infinite;
+  }
+
   @keyframes goal-confetti {
     0% {
       transform: translate3d(0, -10vh, 0) rotate(0deg);
@@ -230,6 +254,17 @@
     /* Halo de atención del botón de servicios. */
     .animate-attention-halo {
       animation: none;
+    }
+
+    /*
+      El resplandor del aviso se detiene, pero no desaparece: queda fijo en un
+      punto medio. Anularlo por completo dejaría la tarjeta igual que un evento
+      cualquiera de la agenda, y lo que distingue al aviso es justamente que
+      espera una respuesta.
+    */
+    .animate-alert-glow {
+      animation: none;
+      box-shadow: 0 0 0 1px rgb(244 63 94 / 0.35), 0 0 16px -3px rgb(244 63 94 / 0.3);
     }
 
     /*

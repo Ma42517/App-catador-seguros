@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Users, TrendingUp, Loader2, RefreshCw, AlertTriangle, Database, UserCog,
 } from 'lucide-react';
@@ -54,6 +54,32 @@ export default function PromotorDashboard() {
   const [approved, setApproved] = useState([]);
   const [blocked, setBlocked] = useState([]);
   const [assistants, setAssistants] = useState([]);
+
+  /*
+    Quiénes reciben los avisos, para el seguimiento de respuestas.
+
+    No son sólo los asesores. El aviso llega también al titular y a sus asistentes,
+    y si contestan sin estar en esta lista su respuesta no cae en ninguna columna:
+    ni en "sí", ni en "no", ni en "sin responder". Desaparecería, que es la clase de
+    silencio que ya costó dos intentos arreglar en esta pantalla.
+
+    El titular se nombra distinto según quién mira: cuando es él, con su nombre;
+    cuando es su asistente, por el cargo, porque su ficha no está en estas listas y
+    poner un id crudo no le dice nada a nadie.
+  */
+  const recipients = useMemo(() => {
+    const titular = {
+      id: isAssistant ? (identity?.promotorId ?? '') : (identity?.key ?? ''),
+      fullName: isAssistant ? 'Titular de la promotoría' : (identity?.name ?? ''),
+    };
+
+    const seen = new Set();
+    return [titular, ...assistants, ...approved].filter((person) => {
+      if (!person.id || seen.has(person.id)) return false;
+      seen.add(person.id);
+      return true;
+    });
+  }, [approved, assistants, isAssistant, identity?.promotorId, identity?.key, identity?.name]);
   const [isAssistantsOpen, setAssistantsOpen] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -344,7 +370,7 @@ export default function PromotorDashboard() {
                 se consulta justo cuando se está pensando en el siguiente aviso, y
                 una pestaña más habría dejado seis en la fila.
               */}
-              <AlertTracker promotorId={promotorId} team={approved} />
+              <AlertTracker promotorId={promotorId} team={recipients} />
             </>
           )}
 

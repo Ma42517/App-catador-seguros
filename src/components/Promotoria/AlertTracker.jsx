@@ -273,7 +273,7 @@ export default function AlertTracker({ promotorId, team }) {
                   ) : team.length === 0 ? (
                     <p className="flex items-center gap-1.5 py-2 text-[11px] text-zinc-500">
                       <Users size={12} aria-hidden="true" />
-                      Todavía no tienes asesores aprobados a quienes avisar.
+                      Todavía no hay nadie en tu promotoría a quien avisar.
                     </p>
                   ) : (
                     <div className="grid gap-4 sm:grid-cols-3">
