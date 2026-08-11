@@ -16,6 +16,16 @@
 /** Golpe corto de confirmación, para botones de navegación y enlaces. */
 export const TAP_MS = 15;
 
+/**
+ * Golpe del ajuste acelerado del reloj de enfoque.
+ *
+ * Más marcado que el normal, y ahí está su función: cuando el botón pasa de sumar
+ * treinta segundos a sumar un minuto, el dedo lo nota sin necesidad de leer la
+ * etiqueta. Es la misma información por otro canal, útil justamente porque quien
+ * acelera está tocando rápido y no mirando.
+ */
+export const FAST_TAP_MS = 28;
+
 /** Patrón de cierre, para acciones que completan algo (pulso-pausa-pulso). */
 export const SUCCESS_PATTERN = [30, 40, 60];
 

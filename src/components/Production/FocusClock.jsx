@@ -1,12 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Minus } from 'lucide-react';
 import { formatClock } from '../../data/timeBlocks';
-import { tapFeedback } from '../../lib/haptics';
+import { tapFeedback, FAST_TAP_MS } from '../../lib/haptics';
 
-/** Cuánto se mueve el reloj con cada toque. */
+/** Cuánto se mueve el reloj con un toque tranquilo. */
 export const STEP_SEC = 30;
 
-/** Cuánto dura el "+30" antes de volver a ser un signo. */
+/** Cuánto se mueve cuando la persona ya lleva prisa. */
+const FAST_STEP_SEC = 60;
+
+/** A partir de qué toque seguido se acelera. */
+const FAST_AFTER_TAPS = 4;
+
+/** Silencio que devuelve el botón a su paso normal. */
+const CALM_MS = 3000;
+
+/** Cuánto dura el "+30s" antes de volver a ser un signo. */
 const FLASH_MS = 500;
 
 /**
@@ -17,37 +26,84 @@ const FLASH_MS = 500;
  * pierde de vista con facilidad, más aún tocando dos veces seguidas. El brinco
  * ocurre donde está el dedo, no en el reloj, que es donde la persona está mirando.
  */
-function AdjustButton({ delta, disabled, onAdjust }) {
+function AdjustButton({ sign, disabled, onAdjust }) {
   /*
     `id` acompaña al texto para poder reiniciar la animación. Sin él, dos toques
     seguidos reutilizan el mismo elemento y el segundo brinco no ocurre: el
     navegador considera que esa animación ya se reprodujo.
   */
   const [flash, setFlash] = useState(null);
-  const timer = useRef(null);
 
-  // Un temporizador vivo tras desmontar dejaría un `setState` sobre un
-  // componente que ya no existe.
-  useEffect(() => () => clearTimeout(timer.current), []);
+  /**
+   * Toques seguidos dados a *este* botón.
+   *
+   * Es un ref y no un estado por dos razones. La primera es correctitud: dos toques
+   * en el mismo ciclo de render leerían el mismo valor y los dos calcularían 30
+   * segundos, con lo que la aceleración se atascaría justo cuando más rápido se
+   * está tocando. La segunda es que este número no se dibuja —lo que se ve es la
+   * etiqueta del brinco—, así que guardarlo en estado sólo añadiría un render por
+   * toque.
+   *
+   * Cada botón lleva su propia cuenta, y eso hace que cambiar de dirección empiece
+   * de nuevo en 30 segundos. Es deliberado: quien acelera hacia arriba y luego baja
+   * es alguien que se pasó y está corrigiendo, y a una corrección hay que darle el
+   * paso fino, no el de un minuto.
+   */
+  const taps = useRef(0);
+
+  const calmTimer = useRef(null);
+  const flashTimer = useRef(null);
+
+  // Un temporizador vivo tras desmontar dejaría un `setState` sobre un componente
+  // que ya no existe.
+  useEffect(() => () => {
+    clearTimeout(calmTimer.current);
+    clearTimeout(flashTimer.current);
+  }, []);
 
   const press = () => {
-    onAdjust(delta);
-    tapFeedback();
+    taps.current += 1;
+    const step = taps.current >= FAST_AFTER_TAPS ? FAST_STEP_SEC : STEP_SEC;
 
-    setFlash({ id: Date.now() });
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setFlash(null), FLASH_MS);
+    onAdjust(sign * step);
+
+    /*
+      La vibración también acelera. Es la misma información que la etiqueta, pero
+      llega por el dedo: se nota que el botón cambió de marcha sin tener que mirar,
+      que es justo lo que pasa cuando alguien lo está tocando rápido.
+    */
+    tapFeedback(step === FAST_STEP_SEC ? FAST_TAP_MS : undefined);
+
+    setFlash({ id: Date.now(), step });
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), FLASH_MS);
+
+    // Tres segundos sin tocar y el botón vuelve a su paso corto.
+    clearTimeout(calmTimer.current);
+    calmTimer.current = setTimeout(() => { taps.current = 0; }, CALM_MS);
   };
 
-  const label = `${delta > 0 ? '+' : '-'}${Math.abs(delta)}`;
-  const Icon = delta > 0 ? Plus : Minus;
+  const symbol = sign > 0 ? '+' : '-';
+  const Icon = sign > 0 ? Plus : Minus;
+
+  /*
+    "30s" y "1m", no "30" y "60": en un reloj que muestra minutos y segundos, un
+    "+60" suelto se lee como sesenta minutos con la misma facilidad que como
+    sesenta segundos.
+  */
+  const label = flash?.step === FAST_STEP_SEC ? `${symbol}1m` : `${symbol}30s`;
 
   return (
     <button
       type="button"
       onClick={press}
       disabled={disabled}
-      aria-label={`${delta > 0 ? 'Sumar' : 'Quitar'} ${Math.abs(delta)} segundos`}
+      /*
+        La etiqueta habla del toque tranquilo y no del acelerado: es lo que hace el
+        botón cuando alguien lo encuentra por primera vez, y anunciar "sumar 30 ó 60
+        segundos según la prisa" no ayuda a nadie a decidir si tocarlo.
+      */
+      aria-label={`${sign > 0 ? 'Sumar' : 'Quitar'} ${STEP_SEC} segundos`}
       className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-white/60
                  transition-colors hover:text-white active:text-white
                  disabled:pointer-events-none disabled:text-white/15"
@@ -83,7 +139,7 @@ function AdjustButton({ delta, disabled, onAdjust }) {
 export default function FocusClock({ seconds, onAdjust, canSubtract = true, isDone = false }) {
   return (
     <div className="flex items-center justify-center gap-1 sm:gap-3">
-      <AdjustButton delta={STEP_SEC} onAdjust={onAdjust} />
+      <AdjustButton sign={1} onAdjust={onAdjust} />
 
       {/*
         `font-mono` y `tabular-nums` por lo mismo: que todos los dígitos midan
@@ -101,7 +157,7 @@ export default function FocusClock({ seconds, onAdjust, canSubtract = true, isDo
         {formatClock(seconds)}
       </p>
 
-      <AdjustButton delta={-STEP_SEC} onAdjust={onAdjust} disabled={!canSubtract} />
+      <AdjustButton sign={-1} onAdjust={onAdjust} disabled={!canSubtract} />
     </div>
   );
 }
