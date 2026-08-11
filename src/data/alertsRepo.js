@@ -164,7 +164,16 @@ export async function fetchAlertResponses(alertId) {
     la promotoría de la alerta y, si no lo es, lanza NO_AUTORIZADO. Devuelve las
     filas o dice por qué no; lo que no hace es callar.
   */
-  const viaFunction = await supabase.rpc('alert_responses_for', { p_alert_id: alertId });
+  /*
+    El id viaja como texto y la función lo compara como texto. Es a propósito: si
+    `announcements.id` fuera `uuid` y la función se hubiera declarado `bigint`, o al
+    revés, PostgREST no encontraría la firma y devolvería PGRST202, o sea "la función
+    no existe". Y eso cae en el respaldo de abajo, que es la lectura silenciosa: el
+    bug volvería intacto y por un motivo invisible desde la app.
+  */
+  const viaFunction = await supabase.rpc('alert_responses_for', {
+    p_alert_id: String(alertId),
+  });
 
   // PGRST202 y 42883: la función todavía no existe en la base.
   const functionMissing = viaFunction.error
