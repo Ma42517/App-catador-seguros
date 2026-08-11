@@ -299,6 +299,22 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const isLinkedToPromotoria = Boolean(promotorId)
     && promotoriaStatus === 'approved';
 
+  /*
+    ── Quién tiene derecho al muro ──
+
+    Una sola variable para las dos decisiones: pedir los comunicados y pintarlos.
+    Estaban separadas y por eso el muro del asesor salía vacío **sin ningún error**:
+    arreglé la condición que decide qué se dibuja, pero la que decide si se pide
+    seguía mirando sólo `isLinked` —el código heredado guardado en este navegador—.
+    Un asesor aprobado en la base no tiene ese código, así que la petición nunca
+    se hacía: sin petición no hay error, y sin datos aparece el mensaje de "todavía
+    no ha publicado nada". La base tenía los tres comunicados todo el tiempo.
+
+    Con la misma variable en los dos sitios ya no pueden discrepar. Los tres
+    caminos: aprobado por su promotor, código heredado, o administrar la promotoría.
+  */
+  const canSeeWall = isLinkedToPromotoria || isLinked || canManage;
+
   useEffect(() => {
     if (!isOpen || !isLinkedToPromotoria) return;
 
@@ -379,8 +395,8 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   }, [wallOwnerId]);
 
   useEffect(() => {
-    if (isOpen && isLinked) loadFeed();
-  }, [isOpen, isLinked, loadFeed]);
+    if (isOpen && canSeeWall) loadFeed();
+  }, [isOpen, canSeeWall, loadFeed]);
 
   const clearToast = useCallback(() => setToast(''), []);
 
@@ -489,7 +505,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
         `canManage` entra en la cuenta por el mismo motivo del formulario: quien
         administra la promotoría no se pide permiso a sí mismo.
       */}
-      {!(isLinkedToPromotoria || isLinked || canManage) ? (
+      {!canSeeWall ? (
         <LockedWall />
       ) : (
         <>
@@ -572,7 +588,15 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
               announcement={announcement}
               isSharing={sharingId === announcement.id}
               onShare={(share) => handleShare(announcement.id, share)}
-              canDelete={canPublish}
+              /*
+                Borrar lo decide `canManage` y no `canPublish`.
+
+                Al quitarle al promotor el botón de publicar del muro se le quitó
+                también el de borrar, porque colgaban de la misma bandera. Y son
+                cosas distintas: publica desde su panel, pero borra desde donde
+                están los comunicados, que es aquí. El asesor no ve estos botones.
+              */
+              canDelete={canManage}
               onDelete={() => handleDelete(announcement.id)}
             />
           ))}
