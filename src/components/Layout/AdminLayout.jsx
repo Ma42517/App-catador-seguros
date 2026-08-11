@@ -26,7 +26,7 @@ import { highestPriorityOf } from '../Activities/priorities';
  */
 export default function AdminLayout({
   onNavigate, onLogout, children, canUsePreview = false, isAdminUser = false,
-  isDark, onToggleTheme, username,
+  username,
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday } = useEvents();
 
@@ -167,8 +167,6 @@ export default function AdminLayout({
         canUsePreview={canUsePreview}
         isAdminUser={canOpenAdmin}
         pendingCount={pendingCount}
-        isDark={isDark}
-        onToggleTheme={onToggleTheme}
       />
     </div>
   );

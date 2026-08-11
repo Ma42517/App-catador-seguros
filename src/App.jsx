@@ -21,7 +21,6 @@ import { GoalsProvider } from './context/GoalsContext';
 import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
 import PublicCardView from './pages/PublicCardView';
 import { publicCardIdFromPath } from './lib/publicRoute';
-import { readTheme, applyTheme, THEMES } from './theme';
 import { Button } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
@@ -196,15 +195,12 @@ function stepFromHash() {
   texto que la persona puede cambiar.
 */
 function Shell({ onLogout, isPreview, canManage, isAdmin, storageKey, displayName }) {
-  const [theme, setTheme] = useState(readTheme);
-  const isDark = theme === THEMES.DARK;
-
-  // Sincroniza la clase del <html> con el tema elegido.
-  useEffect(() => { applyTheme(theme); }, [theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === THEMES.DARK ? THEMES.LIGHT : THEMES.DARK));
-  }, []);
+  /*
+    No hay estado de tema. La app es oscura de forma permanente y la clase `dark`
+    vive en el <html> de index.html, así que no hay nada que sincronizar en
+    tiempo de ejecución: un interruptor de tema obligaba a mantener cada color en
+    dos versiones, y la clara casi nadie la veía.
+  */
 
   // La app abre en "Hoy": el Diagnóstico 360 se alcanza desde "Ver más".
   const [section, setSection] = useState('home');
@@ -237,8 +233,6 @@ function Shell({ onLogout, isPreview, canManage, isAdmin, storageKey, displayNam
       onLogout={onLogout}
       canUsePreview={canUsePreview}
       isAdminUser={canManage}
-      isDark={isDark}
-      onToggleTheme={toggleTheme}
       username={storageKey}
     >
       {activeSection === 'preview' ? (
