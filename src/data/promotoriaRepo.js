@@ -307,6 +307,23 @@ export async function joinPromotoriaByCode(code) {
         error: { message: 'Esa promotoría bloqueó tu acceso. Habla directamente con el promotor.' },
       };
     }
+    /*
+      42702 es ambigüedad de columna, y sólo puede venir de una versión vieja de
+      la función: la primera declaraba su salida como `promotor_id`, igual que la
+      columna de la tabla, y dentro del cuerpo Postgres no sabía a cuál se
+      refería. Se distingue del resto porque no se arregla reintentando ni
+      cambiando el código, sino volviendo a crear la función.
+    */
+    if (error.code === '42702' || /is ambiguous/i.test(raw)) {
+      return {
+        data: null,
+        error: {
+          message: 'La función join_promotoria de la base está en una versión con un '
+            + 'error. Vuelve a crearla con el guion actualizado de .env.example.',
+          code: 'AMBIGUOUS_COLUMN',
+        },
+      };
+    }
     if (/function .*join_promotoria.* does not exist|PGRST202/i.test(raw) || error.code === 'PGRST202') {
       return {
         data: null,
