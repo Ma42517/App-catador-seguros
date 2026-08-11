@@ -15,9 +15,12 @@ export default function TodayView({ name }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
 
-  const greeting = saludo
-    ? `Hola, ${saludo}. ¿Cerramos un negocio hoy?`
-    : 'Hola. ¿Cerramos un negocio hoy?';
+  /*
+    Arriba sólo la fecha y el nombre. La pregunta del día ("¿cerramos un negocio
+    hoy?") ya la hace el texto del centro, y repetirla aquí sonaba a eco: se leía
+    dos veces la misma invitación antes de llegar a la agenda.
+  */
+  const greeting = saludo ? `Hola, ${saludo}.` : 'Hola.';
 
   return (
     <AISequence
