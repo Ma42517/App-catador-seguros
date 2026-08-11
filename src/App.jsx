@@ -15,10 +15,12 @@ import DevicePreview from './components/Layout/DevicePreview';
 import TodayView from './components/Home/TodayView';
 import CalendarView from './components/Calendar/CalendarView';
 import ProductivityDashboard from './components/Productivity/ProductivityDashboard';
+import PromotorDashboard from './components/Promotoria/PromotorDashboard';
 import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
 import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
+import { PROFILE_ROLES } from './data/profilesRepo';
 import PublicCardView from './pages/PublicCardView';
 import { publicCardIdFromPath } from './lib/publicRoute';
 import { Button } from './components/ui';
@@ -194,7 +196,9 @@ function stepFromHash() {
   nombre es el de su perfil. Usar el nombre como clave ataría los datos a un
   texto que la persona puede cambiar.
 */
-function Shell({ onLogout, isPreview, isAdmin, storageKey, displayName }) {
+function Shell({
+  onLogout, isPreview, isAdmin, isPromoterUser, storageKey, displayName,
+}) {
   /*
     No hay estado de tema. La app es oscura de forma permanente y la clase `dark`
     vive en el <html> de index.html, así que no hay nada que sincronizar en
@@ -209,8 +213,33 @@ function Shell({ onLogout, isPreview, isAdmin, storageKey, displayName }) {
   // La vista previa multi-dispositivo es una herramienta interna de desarrollo:
   // sólo el administrador la ve, y nunca se anida dentro de su propio iframe.
   const canUsePreview = isAdmin && !isPreview;
+
+  /*
+    ── El candado de Gestión de Promotoría ──
+
+    Esta app no tiene enrutador: no hay `<Route path="/promotoria">` que proteger,
+    la navegación es este estado `section`. Así que el guardián se pone donde de
+    verdade se decide qué se monta, y aquí es más fuerte que una redirección:
+
+     - Se evalúa en **cada render**, no una sola vez al entrar. Si a alguien le
+       retiran el rol mientras tiene la vista abierta, la pierde en el momento; un
+       `redirect` sólo actúa al llegar y lo dejaría dentro hasta que recargara.
+     - No hay dirección que forzar. Poner `section` a mano desde las herramientas
+       del navegador tampoco sirve: el valor se degrada a `home` antes de
+       renderizar.
+
+    Y aunque este candado se saltara, no habría nada que ver: la vista todavía no
+    lee datos, y cuando los lea será RLS en Supabase quien decida qué devuelve. La
+    comprobación de la interfaz existe para no ofrecer puertas que no abren, no
+    para proteger.
+  */
+  const canUsePromotoria = isPromoterUser;
+
   // Si la sección guardada ya no está permitida, se degrada al inicio.
-  const activeSection = section === 'preview' && !canUsePreview ? 'home' : section;
+  const guardedSection = section === 'preview' && !canUsePreview ? 'home' : section;
+  const activeSection = guardedSection === 'promotoria' && !canUsePromotoria
+    ? 'home'
+    : guardedSection;
 
   // Permite navegar con los botones de atrás/adelante del navegador.
   useEffect(() => {
@@ -238,6 +267,13 @@ function Shell({ onLogout, isPreview, isAdmin, storageKey, displayName }) {
         exclusivo del administrador.
       */
       isAdminUser={isAdmin}
+      /*
+        El menú necesita saberlo para dibujar —o no— el acceso. Es la misma
+        llave que usa el guardián de arriba: una sola fuente para las dos
+        decisiones, así no pueden discrepar.
+      */
+      isPromoterUser={isPromoterUser}
+      onOpenPromotoria={() => setSection('promotoria')}
       username={storageKey}
     >
       {activeSection === 'preview' ? (
@@ -246,6 +282,8 @@ function Shell({ onLogout, isPreview, isAdmin, storageKey, displayName }) {
         <TodayView name={displayName} />
       ) : activeSection === 'productivity' ? (
         <ProductivityDashboard username={storageKey} />
+      ) : activeSection === 'promotoria' ? (
+        <PromotorDashboard />
       ) : activeSection === 'agenda' ? (
         <CalendarView />
       ) : (
@@ -298,7 +336,9 @@ function Shell({ onLogout, isPreview, isAdmin, storageKey, displayName }) {
  * persona que todavía no tiene permiso de entrar.
  */
 function Gate({ isPreview }) {
-  const { status, identity, isApproved, canManage, isAdmin, signOut } = useSession();
+  const {
+    status, identity, isApproved, canManage, isAdmin, role, signOut,
+  } = useSession();
 
   // Dentro del iframe de vista previa no se repite el splash: molesta al
   // estar cambiando de dispositivo constantemente.
@@ -353,6 +393,13 @@ function Gate({ isPreview }) {
                 onLogout={signOut}
                 isPreview={isPreview}
                 isAdmin={isAdmin}
+                /*
+                  El rol se compara con la constante del repositorio y no con el
+                  texto 'promotor': la base guarda 'promoter', en inglés como el
+                  resto de los roles, y escribirlo a mano en español dejaría el
+                  candado siempre cerrado sin que salte ningún error.
+                */
+                isPromoterUser={role === PROFILE_ROLES.PROMOTER}
                 storageKey={identity.key}
                 displayName={identity.name}
               />
