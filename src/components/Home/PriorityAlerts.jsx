@@ -37,16 +37,35 @@ function eventLabel(date, time) {
  * puede descartar no sirve para confirmar asistencia a una junta.
  */
 export default function PriorityAlerts() {
-  const { identity, promotorId } = useSession();
+  const { identity, promotorId, isPromoterOwner } = useSession();
   const { addEvent } = useEvents();
 
   const [alerts, setAlerts] = useState([]);
   const [busyId, setBusyId] = useState(null);
 
+  /*
+    De qué muro se leen los avisos.
+
+    El asesor y el asistente lo tienen en su ficha (`promotor_id` apunta al
+    titular). El titular no: su ficha no apunta a nadie porque la promotoría es
+    suya, así que su muro es su propio id. Es el mismo `coalesce(promotor_id, id)`
+    que usa la base en `my_wall()`, resuelto aquí.
+
+    Sin esta línea el titular no recibía nada: la consulta salía con un
+    `promotor_id` vacío y se cortaba antes de preguntar. Publicaba una junta y en su
+    propia pantalla de inicio no aparecía, lo que hacía dudar de si el aviso había
+    salido siquiera. Ahora la reciben los tres, que es lo que se pidió: al titular y
+    a sus asistentes también les toca ir a la junta.
+
+    El asesor sin promotoría se queda fuera a propósito: cae en el `else` y no se
+    consulta nada, en lugar de preguntar por su propio id y esperar cero filas.
+  */
+  const wallId = promotorId || (isPromoterOwner ? identity?.key : '');
+
   const load = useCallback(async () => {
-    const { alerts: found } = await fetchPendingAlerts(promotorId, identity?.key);
+    const { alerts: found } = await fetchPendingAlerts(wallId, identity?.key);
     setAlerts(found);
-  }, [promotorId, identity?.key]);
+  }, [wallId, identity?.key]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -97,21 +116,35 @@ export default function PriorityAlerts() {
           <article
             key={alert.id}
             /*
-              Tarjeta delgada, del mismo lenguaje que la agenda: fondo oscuro, borde
-              sutil, esquinas redondeadas. Lo único que la distingue es el filo
-              índigo de la izquierda, que basta para que se lea como algo que viene
-              de fuera sin convertirla en un cartel.
+              Tarjeta delgada, del mismo lenguaje que la agenda: fondo oscuro,
+              esquinas redondeadas, nada de cartel.
+
+              Lo que la distingue ahora es el resplandor rojo, y sólo eso. Antes
+              llevaba además un filo índigo a la izquierda: dos señales para decir
+              lo mismo, y el filo cortaba la tarjeta en dos justo donde empieza a
+              leerse. El halo rodea la tarjeta completa, así que la marca sin
+              partirla.
+
+              El borde propio se va con él: el resplandor ya dibuja su contorno con
+              el primer valor de la sombra, y sumarle un borde gris dejaba una línea
+              apagada por dentro del brillo.
             */
-            className="animate-rise flex items-center gap-3 rounded-xl border border-zinc-200
-                       border-l-[3px] border-l-indigo-500 bg-white p-3
-                       dark:border-zinc-800 dark:border-l-indigo-500 dark:bg-zinc-900"
+            className="animate-rise animate-alert-glow flex items-center gap-3 rounded-xl
+                       bg-white p-3 dark:bg-zinc-900"
           >
             <div className="min-w-0 flex-1">
+              {/*
+                "Aviso" y no "Confirma tu asistencia": por aquí van a pasar juntas,
+                cambios de sede, documentos que entregar y recordatorios de pago.
+                Un rótulo que habla de asistencia contradice al aviso en cuanto el
+                promotor manda cualquier otra cosa, y el asesor deja de creerle al
+                rótulo.
+              */}
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase
-                            tracking-wider text-indigo-500 dark:text-indigo-400"
+                            tracking-wider text-rose-500 dark:text-rose-400"
               >
                 <BellRing size={10} aria-hidden="true" />
-                Confirma tu asistencia
+                Aviso
               </p>
 
               <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900 dark:text-white">
@@ -124,16 +157,28 @@ export default function PriorityAlerts() {
             </div>
 
             {/*
-              Botones pequeños y a la derecha, apilados en pantallas estrechas. Se
-              distinguen por el color y no por el tamaño: un "Sí" más grande daría
+              "Sí" y "No", nada más. Decían "Sí asistiré" y "No podré", que sólo
+              tienen sentido si el aviso es una invitación; con un cambio de sede o
+              un pago pendiente la respuesta no es sobre asistir a nada. La palomita
+              y la tacha ya dicen de qué lado está cada botón, y en dos letras caben
+              lado a lado sin robarle línea al título.
+
+              Se distinguen por el color y no por el tamaño: un "Sí" más grande daría
               confirmaciones por inercia, y un promotor con asistentes que no llegan
               pierde más que uno que sabe cuántos faltan.
             */}
-            <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+            <div className="flex shrink-0 gap-1.5">
               <button
                 type="button"
                 onClick={() => answer(alert, ALERT_RESPONSE.YES)}
                 disabled={busy}
+                /*
+                  Dos letras alcanzan en pantalla porque el título está al lado, pero
+                  un lector de pantalla anuncia los botones sueltos: con tres avisos
+                  en la lista se oirían tres "Sí" idénticos. El título va en la
+                  etiqueta para que cada uno diga a qué contesta.
+                */
+                aria-label={`Sí: ${alert.title}`}
                 className="flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15
                            px-3 py-1 text-xs font-semibold text-emerald-600 transition-colors
                            hover:bg-emerald-500/25 active:scale-95 disabled:cursor-wait
@@ -143,13 +188,14 @@ export default function PriorityAlerts() {
                 {busy
                   ? <Loader2 size={11} className="animate-spin" aria-hidden="true" />
                   : <Check size={12} strokeWidth={3} aria-hidden="true" />}
-                Sí asistiré
+                Sí
               </button>
 
               <button
                 type="button"
                 onClick={() => answer(alert, ALERT_RESPONSE.NO)}
                 disabled={busy}
+                aria-label={`No: ${alert.title}`}
                 className="flex items-center justify-center gap-1 rounded-lg px-3 py-1 text-xs
                            font-semibold text-zinc-500 transition-colors hover:bg-rose-500/10
                            hover:text-rose-500 active:scale-95 disabled:cursor-wait
@@ -157,7 +203,7 @@ export default function PriorityAlerts() {
                            focus-visible:ring-rose-400"
               >
                 <X size={12} strokeWidth={3} aria-hidden="true" />
-                No podré
+                No
               </button>
             </div>
           </article>
