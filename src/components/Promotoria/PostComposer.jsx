@@ -81,7 +81,15 @@ export default function PostComposer({ onPublished }) {
         El comunicado queda sellado con el id del promotor que lo escribe. Es lo
         que hace que sus asesores lo vean y los de otra promotoría no.
       */
-      promotorId: identity?.key ?? '',
+      /*
+        El muro donde aparece. Si este promotor se unió a otra promotoría con un
+        código, publica en la de ella; si es el titular, en la suya.
+      */
+      promotorId: identity?.promotorId || identity?.key || '',
+
+      // Y la firma, que es lo que distingue a un promotor de otro en el mismo muro.
+      authorId: identity?.key ?? '',
+      authorName: identity?.name ?? '',
     });
 
     setSaving(false);

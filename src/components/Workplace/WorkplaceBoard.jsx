@@ -88,6 +88,7 @@ function toCardModel(item) {
     tagTone: category.tone,
     title: item.title,
     time: relativeTime(item.createdAt),
+    author: item.authorName || '',
     description: item.content || undefined,
     flyer: isImage ? item.fileUrl : undefined,
     document: kind === 'document' ? item.fileUrl : undefined,
@@ -174,7 +175,9 @@ function LockedWall() {
 
 /** Tarjeta de anuncio. */
 function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelete }) {
-  const { tag, tagTone, title, time, flyer, document: documentUrl, description, share } = announcement;
+  const {
+    tag, tagTone, title, time, flyer, document: documentUrl, description, share, author,
+  } = announcement;
 
   return (
     <article
@@ -203,7 +206,23 @@ function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelet
         {title}
       </h2>
 
-      <p className="mt-0.5 text-xs text-zinc-500">{time}</p>
+      {/*
+        Autor y hora en la misma línea. El nombre va primero porque con varios
+        promotores publicando en el mismo muro, "de quién es esto" pesa más que
+        "cuándo se puso": el asesor decide a quién preguntarle.
+
+        Sin autor —los comunicados anteriores a esta columna— se muestra sólo la
+        hora, sin inventar un nombre ni dejar un "por —" que no dice nada.
+      */}
+      <p className="mt-0.5 text-xs text-zinc-500">
+        {author && (
+          <>
+            <span className="font-semibold text-zinc-600 dark:text-zinc-400">{author}</span>
+            <span aria-hidden="true"> · </span>
+          </>
+        )}
+        {time}
+      </p>
 
       {description && (
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -370,7 +389,18 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     filtrando o con varias promotorías en la misma tabla el resultado no era el
     esperado. Ahora la consulta lleva el dueño.
   */
-  const wallOwnerId = isPromoterRole ? identity?.key : promotorId;
+  /*
+    De quién es el muro que hay que leer y donde hay que publicar.
+
+    `promotorId` primero, y esto es lo que permite varios promotores en una misma
+    promotoría: un promotor que se unió con el código de otro comparte su muro, así
+    que lee y escribe ahí. Sólo quien no pertenece a nadie —el titular— es dueño de
+    su propio muro.
+
+    Antes se miraba el rol primero, así que un promotor invitado habría abierto un
+    muro aparte y su equipo no habría visto nada de lo que él publicara.
+  */
+  const wallOwnerId = promotorId || (isPromoterRole ? identity?.key : '');
 
   const loadFeed = useCallback(async () => {
     setLoadingFeed(true);
@@ -405,7 +435,12 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
    * conviene que siga abierta con lo ya escrito.
    */
   const handlePublish = useCallback(async (draft) => {
-    const { error } = await publishAnnouncement({ ...draft, promotorId: wallOwnerId ?? '' });
+    const { error } = await publishAnnouncement({
+      ...draft,
+      promotorId: wallOwnerId ?? '',
+      authorId: identity?.key ?? '',
+      authorName: identity?.name ?? '',
+    });
     if (error) {
       setToast(`No se pudo publicar. ${describeError(error)}`);
       return { ok: false };
@@ -413,7 +448,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     setToast('Comunicado publicado al equipo');
     loadFeed();
     return { ok: true };
-  }, [loadFeed, wallOwnerId]);
+  }, [loadFeed, wallOwnerId, identity?.key, identity?.name]);
 
   const handleDelete = useCallback(async (id) => {
     const { error } = await deleteAnnouncement(id);
