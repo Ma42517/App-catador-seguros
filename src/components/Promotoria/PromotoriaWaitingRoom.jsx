@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Lock, Loader2, RefreshCw } from 'lucide-react';
+import { Lock, Loader2, RefreshCw, Unlink } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
+import { leavePromotoria, describeError } from '../../data/promotoriaRepo';
 
 /**
  * Sala de espera: lo que ve el asesor cuya solicitud está sin responder.
@@ -16,8 +17,10 @@ import { useSession } from '../../context/SessionContext';
  * la app a ciegas, probando cada pocos minutos.
  */
 export default function PromotoriaWaitingRoom({ title = 'Contenido de la promotoría' }) {
-  const { refreshIdentity } = useSession();
+  const { identity, refreshIdentity } = useSession();
   const [isChecking, setChecking] = useState(false);
+  const [isLeaving, setLeaving] = useState(false);
+  const [error, setError] = useState('');
 
   const check = async () => {
     setChecking(true);
@@ -28,6 +31,25 @@ export default function PromotoriaWaitingRoom({ title = 'Contenido de la promoto
       y este componente desaparece solo. Y si no, se queda donde estaba, que es la
       respuesta.
     */
+  };
+
+  /*
+    Cancelar la solicitud tiene que existir. Entrar exige que otro te acepte, pero
+    salir no debería exigirle nada a nadie: sin esta salida, quien manda el código
+    equivocado se queda esperando para siempre una respuesta que ya no quiere, y su
+    única alternativa sería pedirle al promotor ajeno que lo rechace.
+  */
+  const leave = async () => {
+    setLeaving(true);
+    setError('');
+    const { error: leaveError } = await leavePromotoria(identity?.key);
+    setLeaving(false);
+
+    if (leaveError) {
+      setError(describeError(leaveError));
+      return;
+    }
+    await refreshIdentity?.();
   };
 
   return (
@@ -71,6 +93,34 @@ export default function PromotoriaWaitingRoom({ title = 'Contenido de la promoto
             : <RefreshCw size={13} aria-hidden="true" />}
           {isChecking ? 'Revisando…' : 'Ya me aprobaron, revisar'}
         </button>
+
+        {/*
+          Discreto y en texto, no como botón: es la salida, no la acción esperada.
+          Quien espera una aprobación no debería tener dos botones del mismo peso
+          compitiendo, uno para seguir esperando y otro para rendirse.
+        */}
+        <button
+          type="button"
+          onClick={leave}
+          disabled={isLeaving}
+          className="mx-auto mt-3 flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px]
+                     font-semibold text-zinc-500 underline decoration-zinc-700
+                     underline-offset-4 transition-colors hover:text-rose-400
+                     hover:decoration-rose-400/60 disabled:cursor-wait
+                     focus-visible:outline-none focus-visible:ring-2
+                     focus-visible:ring-rose-400"
+        >
+          {isLeaving
+            ? <Loader2 size={11} className="animate-spin" aria-hidden="true" />
+            : <Unlink size={11} aria-hidden="true" />}
+          {isLeaving ? 'Cancelando…' : 'Cancelar mi solicitud'}
+        </button>
+
+        {error && (
+          <p role="alert" className="mt-3 text-[11px] leading-relaxed text-rose-400">
+            {error}
+          </p>
+        )}
       </div>
     </div>
   );

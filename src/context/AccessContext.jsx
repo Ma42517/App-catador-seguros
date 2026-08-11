@@ -156,6 +156,19 @@ export function AccessProvider({ username, forcedPromoter = false, children }) {
     promoteria: access.promoteria,
     isPromoter: forcedPromoter || access.role === ACCESS_ROLES.PROMOTER,
     isLinked: forcedPromoter || isValidRole(access.role),
+
+    /*
+      ¿El vínculo viene de un código guardado, o del rol de la cuenta?
+
+      Hay que distinguirlo para poder desvincularse. `isLinked` mezcla las dos
+      fuentes, así que para un promotor o un administrador valía `true` siempre:
+      `unlinkAccess` borraba el código pero la pantalla seguía mostrándose
+      vinculada, y el botón parecía no hacer nada. No había forma de salir.
+
+      Esta bandera ignora el rol a propósito: dice si hay un código que se pueda
+      soltar, que es justo lo que la barra necesita saber para ofrecerlo.
+    */
+    isLinkedByCode: isValidRole(access.role),
     validateAccessCode,
     linkAccess,
     verifyPromoterPassword,
