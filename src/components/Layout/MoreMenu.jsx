@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react';
 import {
-  Gauge, Settings, LogOut, ChevronRight, X, MonitorSmartphone, Sun, Moon,
-  StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard,
+  Gauge, Settings, LogOut, ChevronRight, ChevronDown, X, MonitorSmartphone,
+  StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard, ShieldCheck,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 
 /**
  * Fila estándar del menú.
  * - `hint`: marca lo que aún no está disponible (deshabilita la fila).
- * - `action`: estado actual de un control, como el tema activo.
  * - `badge`: cantidad que reclama atención. Se pinta en ámbar y no en gris
  *   porque su función es que se note sin tener que leer la fila.
+ *
+ * Ya no hay variantes claras: la app es oscura de forma permanente, así que las
+ * clases `dark:` duplicadas se retiraron. Mantenerlas obligaba a escribir cada
+ * color dos veces y a que cualquier ajuste tuviera que hacerse en dos sitios,
+ * con la mitad de las combinaciones sin que nadie las viera nunca.
  */
-function MenuRow({ icon: Icon, label, hint, action, badge, tone = 'default', onClick }) {
+function MenuRow({
+  icon: Icon, label, hint, badge, tone = 'default', nested = false, onClick,
+}) {
   const isDanger = tone === 'danger';
   const disabled = Boolean(hint);
 
@@ -21,39 +27,43 @@ function MenuRow({ icon: Icon, label, hint, action, badge, tone = 'default', onC
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors
+      className={`flex w-full items-center gap-3 rounded-xl py-3 text-left transition-colors
         disabled:cursor-not-allowed disabled:opacity-50
+        ${nested ? 'px-2.5' : 'px-3'}
         ${isDanger
-          ? 'text-rose-600 hover:bg-rose-500/10 dark:text-rose-400'
-          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/5'}`}
+          ? 'text-rose-400 hover:bg-rose-500/10'
+          : 'text-zinc-200 hover:bg-white/5'}`}
     >
       <span
-        className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border
+        className={`grid shrink-0 place-items-center rounded-xl border
+          ${nested ? 'h-8 w-8' : 'h-9 w-9'}
           ${isDanger
-            ? 'border-rose-500/30 bg-rose-500/10 text-rose-500 dark:text-rose-400'
-            : 'border-zinc-200 bg-zinc-100 text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400'}`}
+            ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+            : 'border-white/10 bg-white/5 text-zinc-400'}`}
         aria-hidden="true"
       >
-        <Icon size={17} />
+        <Icon size={nested ? 15 : 17} />
       </span>
 
-      <span className="min-w-0 flex-1 text-sm font-semibold">{label}</span>
+      <span className={`min-w-0 flex-1 font-semibold ${nested ? 'text-[13px]' : 'text-sm'}`}>
+        {label}
+      </span>
 
       {badge ? (
         <span
           className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold
-                     text-amber-600 dark:text-amber-400"
+                     text-amber-400"
         >
           {badge}
           <span className="sr-only"> pendientes</span>
         </span>
       ) : null}
 
-      {hint || action ? (
-        <span className="shrink-0 rounded-full border border-zinc-200 px-2 py-0.5 text-[10px]
-                         font-semibold uppercase tracking-wide text-zinc-400
-                         dark:border-white/10 dark:text-zinc-500">
-          {hint || action}
+      {hint ? (
+        <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px]
+                         font-semibold uppercase tracking-wide text-zinc-500"
+        >
+          {hint}
         </span>
       ) : (
         <ChevronRight size={16} className="shrink-0 opacity-40" aria-hidden="true" />
@@ -89,33 +99,47 @@ function CardAvatar({ url }) {
           el navegador manda la cabecera de referencia.
         */
         referrerPolicy="no-referrer"
-        className="h-12 w-12 shrink-0 rounded-full border border-white/20 object-cover"
+        className="h-11 w-11 shrink-0 rounded-full border border-white/20 object-cover"
       />
     );
   }
 
   return (
     <span
-      className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10
+      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10
                  ring-1 ring-white/15"
       aria-hidden="true"
     >
-      <IdCard size={24} />
+      <IdCard size={22} />
     </span>
   );
 }
 
 /**
  * Panel secundario (bottom sheet) abierto desde "Ver más".
- * Aloja el acceso destacado al Diagnóstico 360 y las opciones de cuenta.
+ *
+ * ── Permisos ──────────────────────────────────────────────────────────────
+ *
+ * `isAdminUser` es la única llave: con ella se dibuja el acordeón de
+ * administración y sin ella no existe en el marcado. Hoy llega desde
+ * `AdminLayout`, que la calcula como "es el administrador de la app **o**
+ * desbloqueó el modo promotor con su código" —dos permisos distintos que llevan
+ * al mismo lugar—, y su origen último es el rol del perfil en Supabase
+ * (`profiles.role`, vía `SessionContext`).
+ *
+ * Para engancharlo a otra fuente basta con cambiar quién pasa esa prop: no hay
+ * ninguna comprobación de rol repartida por dentro de este componente. Y se
+ * omite el marcado en lugar de esconderlo con CSS a propósito: una fila oculta
+ * con `hidden` sigue estando en el DOM y se puede alcanzar con el teclado o
+ * quitándole la clase desde el inspector.
  */
 export default function MoreMenu({
   open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile,
   onOpenAdmin, onOpenApprovals, onOpenCard, onLogout, onLoadDemo, onClearAgenda,
   canUsePreview = false, isAdminUser = false, pendingCount = 0,
-  isDark = true, onToggleTheme,
 }) {
   const { identity } = useSession();
+  const [isAdminOpen, setAdminOpen] = useState(false);
 
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -130,6 +154,11 @@ export default function MoreMenu({
     };
   }, [open, onClose]);
 
+  // El acordeón vuelve cerrado en cada apertura: dejarlo abierto haría que el
+  // menú de un administrador arrancara con nueve filas y el propósito del
+  // acordeón —que la lista quepa— se perdería.
+  useEffect(() => { if (!open) setAdminOpen(false); }, [open]);
+
   if (!open) return null;
 
   return (
@@ -142,85 +171,197 @@ export default function MoreMenu({
         className="absolute inset-0 h-full w-full cursor-default bg-zinc-950/50 backdrop-blur-sm"
       />
 
-      {/* Hoja inferior */}
+      {/*
+        Hoja inferior.
+
+        `flex` en columna con alto máximo es lo que arregla el desbordamiento: la
+        cabecera es un hermano que no se encoge y la lista es la que se desplaza.
+        Con la cabecera dentro del área desplazable —aunque fuera `sticky`— el
+        contenido le pasa por debajo y en iOS parpadea al rebotar el scroll.
+
+        El alto va en `dvh` y no en `vh`: en un móvil, `100vh` cuenta la altura de
+        la ventana **sin** descontar la barra de direcciones del navegador, así que
+        las últimas filas —"Vaciar agenda" y "Cerrar sesión"— quedaban debajo de
+        ella, imposibles de alcanzar. `dvh` mide el espacio que de verdad se ve.
+      */}
       <div
-        className="animate-rise absolute inset-x-0 bottom-0 mx-auto w-full max-w-lg rounded-t-3xl
-                   border-t border-zinc-200/60 bg-white/90 px-4 pt-3 backdrop-blur-xl pb-safe
-                   dark:border-white/10 dark:bg-zinc-950/90"
+        className="animate-rise absolute inset-x-0 bottom-0 mx-auto flex max-h-[88dvh] w-full
+                   max-w-lg flex-col rounded-t-3xl border-t border-white/10 bg-zinc-950/95
+                   backdrop-blur-xl"
       >
-        {/* Asa de arrastre + cerrar */}
-        <div className="mb-3 flex items-center">
-          <span
-            className="mx-auto h-1.5 w-10 rounded-full bg-zinc-300 dark:bg-white/15"
-            aria-hidden="true"
-          />
+        {/*
+          ── Cabecera fija ──
+
+          Fondo sólido y `z-50`: es lo que garantiza que ninguna fila se
+          transparente por detrás al desplazarse. Contiene sólo el cierre y la
+          tarjeta, que son las dos cosas que deben estar siempre alcanzables.
+        */}
+        <header className="relative z-50 shrink-0 rounded-t-3xl bg-zinc-950 px-4 pb-3 pt-3">
+          <div className="mb-3 flex items-center">
+            <span
+              className="mx-auto h-1.5 w-10 rounded-full bg-white/15"
+              aria-hidden="true"
+            />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="absolute right-4 top-3 grid h-9 w-9 place-items-center rounded-full
+                         text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-200
+                         focus-visible:outline-none focus-visible:ring-2
+                         focus-visible:ring-white/40"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/*
+            Pieza destacada: la tarjeta digital.
+            Es lo que el asesor abre delante de un prospecto, así que ocupa el
+            primer lugar y viaja en la cabecera: nunca se va de la vista por más
+            que se baje la lista.
+          */}
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="absolute right-4 top-3 grid h-8 w-8 place-items-center rounded-full
-                       text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600
-                       dark:hover:bg-white/5 dark:hover:text-zinc-200"
+            onClick={onOpenCard}
+            className="flex w-full items-center gap-4 rounded-2xl bg-gradient-to-br
+                       from-zinc-800 via-zinc-900 to-black p-3.5 text-left text-white
+                       shadow-lg shadow-zinc-950/40 ring-1 ring-white/10
+                       transition-transform hover:scale-[1.01]"
           >
-            <X size={16} />
+            <CardAvatar url={identity?.avatarUrl} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold leading-tight">
+                Mi Tarjeta Digital
+              </span>
+              <span className="mt-0.5 block text-[11px] text-zinc-400">
+                Tu presentación profesional, lista para mostrar
+              </span>
+            </span>
+            <ChevronRight size={18} className="shrink-0 opacity-70" aria-hidden="true" />
           </button>
-        </div>
+
+          {/* Corte visual entre lo fijo y lo que se desplaza. */}
+          <div className="mt-3 h-px bg-white/10" aria-hidden="true" />
+        </header>
 
         {/*
-          Pieza destacada: la tarjeta digital.
-          Es lo que el asesor abre delante de un prospecto, así que ocupa el
-          primer lugar del panel. El Diagnóstico 360 baja a la lista de opciones:
-          sigue completo, pero es una herramienta de trabajo interno y no algo
-          que se enseñe en una mesa.
-        */}
-        <button
-          type="button"
-          onClick={onOpenCard}
-          className="mb-4 flex w-full items-center gap-4 rounded-2xl bg-gradient-to-br
-                     from-zinc-800 via-zinc-900 to-black p-4 text-left text-white shadow-lg
-                     shadow-zinc-950/40 ring-1 ring-white/10
-                     transition-transform hover:scale-[1.01]"
-        >
-          <CardAvatar url={identity?.avatarUrl} />
-          <span className="min-w-0 flex-1">
-            <span className="block text-base font-bold leading-tight">Mi Tarjeta Digital</span>
-            <span className="mt-0.5 block text-xs text-zinc-400">
-              Tu presentación profesional, lista para mostrar
-            </span>
-          </span>
-          <ChevronRight size={18} className="shrink-0 opacity-70" aria-hidden="true" />
-        </button>
+          ── Lista desplazable ──
 
-        <div className="space-y-1 pb-2">
+          `flex-1` le da todo el alto que sobra y `overflow-y-auto` hace el resto.
+          Sin `overscroll-contain` aquí no haría falta pensar en el fondo, pero
+          esta hoja **sí** lo lleva: cubre la pantalla completa por abajo y, al
+          llegar al final de la lista, seguir arrastrando movería la página de
+          detrás —que está congelada— y el gesto se sentiría roto.
+        */}
+        <div className="flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-2 pb-safe">
+          {/* ── Para todos ── */}
           <MenuRow icon={Gauge} label="Diagnóstico 360" onClick={onOpenDiagnostico} />
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
-          {/* Aprobar usuarios va antes del panel técnico: es la tarea que el
-              administrador repite, y el distintivo avisa sin abrir nada. */}
-          {isAdminUser && (
-            <MenuRow
-              icon={UserCheck}
-              label="Aprobar Usuarios"
-              badge={pendingCount > 0 ? pendingCount : undefined}
-              onClick={onOpenApprovals}
-            />
-          )}
-          {isAdminUser && (
-            <MenuRow icon={Database} label="Panel de Administración" onClick={onOpenAdmin} />
-          )}
           <MenuRow icon={StickyNote} label="Mis Notas" onClick={onOpenNotes} />
           <MenuRow icon={Settings} label="Configuración" hint="Pronto" />
-          <MenuRow
-            icon={isDark ? Sun : Moon}
-            label={isDark ? 'Tema claro' : 'Tema oscuro'}
-            action={isDark ? 'Oscuro' : 'Claro'}
-            onClick={onToggleTheme}
-          />
-          {canUsePreview && (
-            <MenuRow icon={MonitorSmartphone} label="Vista previa" onClick={onOpenPreview} />
-          )}
-          <MenuRow icon={Wand2} label="Cargar semana demo" onClick={onLoadDemo} />
           <MenuRow icon={Eraser} label="Vaciar agenda" onClick={onClearAgenda} />
-          <MenuRow icon={LogOut} label="Cerrar Sesión" tone="danger" onClick={onLogout} />
+
+          {/*
+            ── Sólo administradores ──
+
+            Acordeón y no pantalla aparte: las tres opciones de dentro se usan de
+            paso —aprobar a alguien, cargar la semana de ejemplo— y llevarlas a
+            otra pantalla añadiría un viaje de ida y vuelta a cada una. Plegadas,
+            el menú del administrador tiene el mismo largo que el de cualquiera.
+          */}
+          {isAdminUser && (
+            <div className="!mt-3 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+              <button
+                type="button"
+                onClick={() => setAdminOpen((v) => !v)}
+                aria-expanded={isAdminOpen}
+                className="flex w-full items-center gap-3 px-3 py-3 text-left
+                           transition-colors hover:bg-white/5"
+              >
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border
+                             border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+                  aria-hidden="true"
+                >
+                  <ShieldCheck size={17} />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-zinc-100">
+                    Panel de Administración
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-zinc-500">
+                    Sólo tú ves esta sección
+                  </span>
+                </span>
+
+                {/*
+                  El distintivo de pendientes viaja al encabezado cuando está
+                  plegado: si sólo viviera dentro, un administrador no sabría que
+                  tiene gente esperando sin abrir el acordeón, y la aprobación es
+                  justo lo que no debe quedarse esperando.
+                */}
+                {!isAdminOpen && pendingCount > 0 && (
+                  <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5
+                                   text-[11px] font-bold text-amber-400"
+                  >
+                    {pendingCount}
+                    <span className="sr-only"> usuarios por aprobar</span>
+                  </span>
+                )}
+
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 text-zinc-500 transition-transform duration-200
+                              ${isAdminOpen ? 'rotate-180' : ''}`}
+                  aria-hidden="true"
+                />
+              </button>
+
+              {isAdminOpen && (
+                <div className="animate-rise space-y-0.5 border-t border-white/10 px-1.5 py-1.5">
+                  <MenuRow
+                    nested
+                    icon={UserCheck}
+                    label="Aprobar Usuarios"
+                    badge={pendingCount > 0 ? pendingCount : undefined}
+                    onClick={onOpenApprovals}
+                  />
+                  {/*
+                    La consola técnica sigue aquí dentro. No estaba en tu lista,
+                    pero era la única puerta al panel de diagnósticos: quitarla
+                    del menú la habría dejado inalcanzable sin que se notara.
+                  */}
+                  <MenuRow
+                    nested
+                    icon={Database}
+                    label="Consola y diagnósticos"
+                    onClick={onOpenAdmin}
+                  />
+                  {canUsePreview && (
+                    <MenuRow
+                      nested
+                      icon={MonitorSmartphone}
+                      label="Vista previa"
+                      onClick={onOpenPreview}
+                    />
+                  )}
+                  <MenuRow
+                    nested
+                    icon={Wand2}
+                    label="Cargar semana demo"
+                    onClick={onLoadDemo}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Salir va al final y separado: es la única acción sin retorno. */}
+          <div className="!mt-3 border-t border-white/5 pt-2">
+            <MenuRow icon={LogOut} label="Cerrar Sesión" tone="danger" onClick={onLogout} />
+          </div>
         </div>
       </div>
     </div>
