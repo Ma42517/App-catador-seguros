@@ -449,8 +449,18 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
         El muro es contenido de la promotoría: sin vínculo no se muestra nada,
         ni siquiera los comunicados de ejemplo. Así el código de invitación es
         lo único en pantalla y queda claro qué hace falta para entrar.
+
+        Y el vínculo puede venir por tres caminos, no por uno. Aquí estaba el
+        fallo: se miraba sólo `isLinked`, que es el código heredado guardado en
+        este navegador, así que un asesor aprobado por su promotor en la base veía
+        la cabecera diciendo "Perteneces a" y justo debajo el candado pidiéndole un
+        código de invitación. Dos candados distintos para la misma puerta, y el de
+        abajo no sabía nada del de arriba.
+
+        `canManage` entra en la cuenta por el mismo motivo del formulario: quien
+        administra la promotoría no se pide permiso a sí mismo.
       */}
-      {!isLinked ? (
+      {!(isLinkedToPromotoria || isLinked || canManage) ? (
         <LockedWall />
       ) : (
         <>
