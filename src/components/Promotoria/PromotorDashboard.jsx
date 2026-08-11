@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Users, TrendingUp, Loader2, RefreshCw, AlertTriangle, Database,
+  Users, TrendingUp, Loader2, RefreshCw, AlertTriangle, Database, LayoutDashboard,
+  ExternalLink,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import {
   listMyAdvisors, approveAdvisor, rejectAdvisor, blockAdvisor, unblockAdvisor,
   describeError,
 } from '../../data/promotoriaRepo';
+import WorkplaceBoard from '../Workplace/WorkplaceBoard';
 import InviteCodeCard from './InviteCodeCard';
-import TeamStats from './TeamStats';
+import TeamTabs from './TeamTabs';
+import AlertPublisher from './AlertPublisher';
+import ActivityTable from './ActivityTable';
 import PendingRequests from './PendingRequests';
 import AdvisorCard from './AdvisorCard';
 
@@ -42,6 +46,20 @@ export default function PromotorDashboard() {
   const [error, setError] = useState('');
   const [needsMigration, setNeedsMigration] = useState(false);
   const [busyId, setBusyId] = useState(null);
+
+  /*
+    Pestaña activa. Arranca en 'asesores' porque es lo que un promotor viene a
+    ver; las solicitudes se avisan con el distintivo ámbar de su tarjeta, así que
+    abrir ahí no esconde nada urgente.
+  */
+  const [activeTab, setActiveTab] = useState('asesores');
+
+  /*
+    El Workplace se monta desde aquí en lugar de mandar al promotor a
+    Productividad a buscarlo. Es una pantalla completa con su propio `isOpen`, así
+    que abrirla desde esta pestaña no interfiere con la copia que vive en el hub.
+  */
+  const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -196,42 +214,110 @@ export default function PromotorDashboard() {
             onSaved={(next) => { setCode(next); refreshIdentity?.(); }}
           />
 
-          <TeamStats total={approved.length} pendingCount={pending.length} />
+          <TeamTabs
+            activeTab={activeTab}
+            onChange={setActiveTab}
+            total={approved.length}
+            pendingCount={pending.length}
+          />
 
-          {/* Sólo si hay algo que resolver. */}
-          {pending.length > 0 && (
-            <PendingRequests
-              requests={pending}
-              busyId={busyId}
-              /*
-                Se le pasa el rol actual para que aprobar pueda ascender a quien
-                todavía está en `pending`: es lo que convierte el visto bueno del
-                promotor en acceso real a la app.
-              */
-              onApprove={(advisor) => respond(advisor, (a) => approveAdvisor(a.id, a.role))}
-              onReject={(advisor) => respond(advisor, (a) => rejectAdvisor(a.id))}
-              onBlock={(advisor) => respond(advisor, (a) => blockAdvisor(a.id))}
-            />
+          {/* ── Asesores ── */}
+          {activeTab === 'asesores' && (
+            approved.length > 0 ? (
+              <section>
+                {/*
+                  Una columna en teléfono, dos en tableta y tres en escritorio. Es
+                  la única disposición que deja la tarjeta legible en 360 píxeles
+                  sin desperdiciar la mitad de la pantalla en un monitor.
+                */}
+                <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {approved.map((advisor) => (
+                    <AdvisorCard key={advisor.id} advisor={advisor} />
+                  ))}
+                </div>
+              </section>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40
+                              px-6 py-10 text-center"
+              >
+                <p className="text-sm font-semibold text-zinc-300">
+                  Todavía no tienes asesores aprobados
+                </p>
+                <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
+                  {pending.length > 0
+                    ? 'Tienes solicitudes esperando: revísalas en "Por Aprobar".'
+                    : 'Comparte tu código de arriba para que puedan solicitar entrar.'}
+                </p>
+              </div>
+            )
           )}
 
-          {approved.length > 0 && (
-            <section>
-              <h2 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-zinc-500">
-                Tu equipo
-              </h2>
-
-              {/*
-                Una columna en teléfono, dos en tableta y tres en escritorio. Es
-                la única disposición que deja la tarjeta legible en 360 píxeles
-                sin desperdiciar la mitad de la pantalla en un monitor.
-              */}
-              <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {approved.map((advisor) => (
-                  <AdvisorCard key={advisor.id} advisor={advisor} />
-                ))}
+          {/* ── Por Aprobar ── */}
+          {activeTab === 'aprobar' && (
+            pending.length > 0 ? (
+              <PendingRequests
+                requests={pending}
+                busyId={busyId}
+                /*
+                  Se le pasa el rol actual para que aprobar pueda ascender a quien
+                  todavía está en `pending`: es lo que convierte el visto bueno del
+                  promotor en acceso real a la app.
+                */
+                onApprove={(advisor) => respond(advisor, (a) => approveAdvisor(a.id, a.role))}
+                onReject={(advisor) => respond(advisor, (a) => rejectAdvisor(a.id))}
+                onBlock={(advisor) => respond(advisor, (a) => blockAdvisor(a.id))}
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40
+                              px-6 py-10 text-center"
+              >
+                <p className="text-sm font-semibold text-zinc-300">Sin solicitudes pendientes</p>
+                <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
+                  Cuando alguien use tu código aparecerá aquí con su nombre completo
+                  para aprobarlo, rechazarlo o bloquearlo.
+                </p>
               </div>
+            )
+          )}
+
+          {/* ── Acceso Workspace ── */}
+          {activeTab === 'workspace' && (
+            <section className="rounded-2xl border border-white/10 bg-[#1a1a1a] p-6 text-center">
+              <span
+                className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border
+                           border-sky-500/30 bg-sky-500/10 text-sky-300"
+                aria-hidden="true"
+              >
+                <LayoutDashboard size={22} strokeWidth={1.9} />
+              </span>
+
+              <p className="text-sm font-bold text-white">El muro de tu promotoría</p>
+              <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-400">
+                Es el tablón que ven tus asesores aprobados. Desde ahí publicas
+                comunicados con imagen o documento adjunto, y ellos los comparten
+                con su marca de agua.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setWorkplaceOpen(true)}
+                className="mx-auto mt-4 flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5
+                           text-xs font-bold text-white shadow-lg shadow-sky-600/25
+                           transition-colors hover:bg-sky-500 active:scale-95
+                           focus-visible:outline-none focus-visible:ring-2
+                           focus-visible:ring-sky-400"
+              >
+                <ExternalLink size={13} aria-hidden="true" />
+                Abrir Workplace
+              </button>
             </section>
           )}
+
+          {/* ── Publicar Alerta ── */}
+          {activeTab === 'alerta' && <AlertPublisher />}
+
+          {/* ── Actividad General ── */}
+          {activeTab === 'actividad' && <ActivityTable advisors={approved} />}
 
           {/*
             Bloqueados, al final y plegados en una lista sobria: no son el equipo
@@ -280,7 +366,7 @@ export default function PromotorDashboard() {
             tiene forma de adivinar que hace falta escribir su identificador en la
             ficha del asesor: no hay ninguna pantalla que lo haga todavía.
           */}
-          {isEmpty && (
+          {isEmpty && activeTab === 'asesores' && (
             <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40
                             px-6 py-12 text-center"
             >
@@ -304,6 +390,16 @@ export default function PromotorDashboard() {
           )}
         </>
       )}
+
+      {/*
+        Vive fuera del contenido de las pestañas: es una pantalla completa, y
+        montada dentro se desmontaría al cambiar de pestaña por debajo.
+      */}
+      <WorkplaceBoard
+        isOpen={isWorkplaceOpen}
+        onClose={() => setWorkplaceOpen(false)}
+        username={promotorId}
+      />
     </div>
   );
 }

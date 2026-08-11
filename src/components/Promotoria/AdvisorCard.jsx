@@ -1,4 +1,6 @@
 import { ChevronRight } from 'lucide-react';
+import { isOnline } from '../../data/presence';
+import { relativeTime } from '../../data/announcements';
 
 /** Iniciales para cuando no hay foto: mejor que un icono genérico repetido. */
 function Avatar({ url, name }) {
@@ -61,11 +63,27 @@ function joinedLabel(createdAt) {
  * "Activo" basado en actividad real todavía no se puede calcular.
  */
 export default function AdvisorCard({ advisor, onOpenDetail }) {
+  /*
+    Actividad, no resultados: llamadas, citas y cierres son los tres pasos del
+    mismo embudo, así que puestos juntos dicen dónde se atora cada asesor —muchas
+    llamadas y pocas citas es un problema distinto de muchas citas y pocos
+    cierres—. "Pólizas del mes" y "tasa de cierre" contaban lo mismo dos veces y
+    no decían nada del proceso.
+
+    Siguen en gris con un guion porque no existen en ninguna tabla: las llamadas y
+    las citas viven en el `localStorage` del teléfono de cada asesor, y de cierres
+    no hay registro. Un número inventado aquí decidiría a quién llamar.
+  */
   const metrics = [
-    { key: 'citas', label: 'Citas hoy', value: '—' },
-    { key: 'polizas', label: 'Pólizas mes', value: '—' },
-    { key: 'cierre', label: 'Tasa cierre', value: '—' },
+    { key: 'llamadas', label: 'Llamadas', value: '—' },
+    { key: 'citas', label: 'Citas', value: '—' },
+    { key: 'cierres', label: 'Cierres', value: '—' },
   ];
+
+  const online = isOnline(advisor.lastSeen);
+  const presenceLabel = online === true
+    ? 'En línea'
+    : online === false ? relativeTime(advisor.lastSeen) : 'Sin actividad';
 
   return (
     <article className="flex flex-col rounded-xl border border-white/10 bg-[#1a1a1a] p-4">
@@ -82,16 +100,30 @@ export default function AdvisorCard({ advisor, onOpenDetail }) {
           </p>
         </div>
 
+        {/*
+          El estado sale de `last_seen`, no de que la ficha esté aprobada.
+
+          Tres casos y no dos, porque "sin dato" no es "desconectado": la columna
+          puede no existir todavía, o esa persona no ha abierto la app desde que
+          existe. Decir "desconectado" ahí afirmaría algo que no se sabe, y el
+          promotor llamaría a alguien creyendo que lleva días ausente.
+        */}
         <span
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/30
-                     bg-emerald-500/10 px-2 py-0.5"
+          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5
+            ${online === true
+            ? 'border-emerald-500/30 bg-emerald-500/10'
+            : 'border-white/10 bg-white/5'}`}
         >
           <span
-            className="h-1.5 w-1.5 rounded-full bg-emerald-400"
+            className={`h-1.5 w-1.5 rounded-full ${online === true
+              ? 'animate-pulse bg-emerald-400'
+              : 'bg-zinc-500'}`}
             aria-hidden="true"
           />
-          <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-300">
-            Activo
+          <span className={`whitespace-nowrap text-[10px] font-bold uppercase tracking-wide
+            ${online === true ? 'text-emerald-300' : 'text-zinc-500'}`}
+          >
+            {presenceLabel}
           </span>
         </span>
       </header>
