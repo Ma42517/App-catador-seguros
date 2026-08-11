@@ -1,17 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Users, TrendingUp, Loader2, RefreshCw, AlertTriangle, Database, LayoutDashboard,
-  ExternalLink,
+  Users, TrendingUp, Loader2, RefreshCw, AlertTriangle, Database,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import {
   listMyAdvisors, approveAdvisor, rejectAdvisor, blockAdvisor, unblockAdvisor,
   describeError,
 } from '../../data/promotoriaRepo';
-import WorkplaceBoard from '../Workplace/WorkplaceBoard';
 import InviteCodeCard from './InviteCodeCard';
 import TeamTabs from './TeamTabs';
 import AlertPublisher from './AlertPublisher';
+import PostComposer from './PostComposer';
 import ActivityTable from './ActivityTable';
 import PendingRequests from './PendingRequests';
 import AdvisorCard from './AdvisorCard';
@@ -54,12 +53,6 @@ export default function PromotorDashboard() {
   */
   const [activeTab, setActiveTab] = useState('asesores');
 
-  /*
-    El Workplace se monta desde aquí en lugar de mandar al promotor a
-    Productividad a buscarlo. Es una pantalla completa con su propio `isOpen`, así
-    que abrirla desde esta pestaña no interfiere con la copia que vive en el hub.
-  */
-  const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -280,37 +273,9 @@ export default function PromotorDashboard() {
             )
           )}
 
-          {/* ── Acceso Workspace ── */}
+          {/* ── Publicar en el muro ── */}
           {activeTab === 'workspace' && (
-            <section className="rounded-2xl border border-white/10 bg-[#1a1a1a] p-6 text-center">
-              <span
-                className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border
-                           border-sky-500/30 bg-sky-500/10 text-sky-300"
-                aria-hidden="true"
-              >
-                <LayoutDashboard size={22} strokeWidth={1.9} />
-              </span>
-
-              <p className="text-sm font-bold text-white">El muro de tu promotoría</p>
-              <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-400">
-                Es el tablón que ven tus asesores aprobados. Desde ahí publicas
-                comunicados con imagen o documento adjunto, y ellos los comparten
-                con su marca de agua.
-              </p>
-
-              <button
-                type="button"
-                onClick={() => setWorkplaceOpen(true)}
-                className="mx-auto mt-4 flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5
-                           text-xs font-bold text-white shadow-lg shadow-sky-600/25
-                           transition-colors hover:bg-sky-500 active:scale-95
-                           focus-visible:outline-none focus-visible:ring-2
-                           focus-visible:ring-sky-400"
-              >
-                <ExternalLink size={13} aria-hidden="true" />
-                Abrir Workplace
-              </button>
-            </section>
+            <PostComposer />
           )}
 
           {/* ── Publicar Alerta ── */}
@@ -391,15 +356,6 @@ export default function PromotorDashboard() {
         </>
       )}
 
-      {/*
-        Vive fuera del contenido de las pestañas: es una pantalla completa, y
-        montada dentro se desmontaría al cambiar de pestaña por debajo.
-      */}
-      <WorkplaceBoard
-        isOpen={isWorkplaceOpen}
-        onClose={() => setWorkplaceOpen(false)}
-        username={promotorId}
-      />
     </div>
   );
 }

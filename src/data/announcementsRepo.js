@@ -127,21 +127,62 @@ function fromRow(row) {
  * Devuelve `{ data, error, source }`. El error se entrega en vez de lanzarse
  * para que la interfaz decida qué mostrar.
  */
-export async function fetchAnnouncements() {
+/**
+ * ¿El error dice que falta la columna del dueño?
+ *
+ * Postgres lo reporta como `42703`. Se comprueba el código y no el texto, que
+ * cambia con el idioma del servidor.
+ */
+function isMissingOwner(error) {
+  if (!error) return false;
+  return error.code === '42703' || String(error.message ?? '').includes('promotor_id');
+}
+
+/**
+ * Los comunicados que le corresponden a quien mira.
+ *
+ * `promotorId` es el dueño del muro: el propio promotor cuando publica y consulta
+ * lo suyo, o el promotor al que pertenece el asesor. Sin ese filtro, la tabla es
+ * un tablón único para toda la app: en cuanto hay dos promotorías, cada asesor lee
+ * los comunicados de la otra —campañas, bases, cifras— y nadie se da cuenta porque
+ * la pantalla se ve normal.
+ *
+ * Se aceptan también las filas sin dueño (`promotor_id is null`). Son las que se
+ * publicaron antes de que existiera la columna, y descartarlas haría desaparecer
+ * de golpe todo lo que ya estaba escrito. Al asignarles dueño con el guion de
+ * `.env.example`, dejan de aparecer donde no deben.
+ */
+export async function fetchAnnouncements(promotorId = '') {
   if (!usingSupabase) {
     return { data: readLocalAnnouncements(), error: null, source: 'local' };
   }
 
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('*')
-    .order('created_at', { ascending: false });
+  const ask = (filtered) => {
+    let query = supabase.from(TABLE).select('*');
+    if (filtered && promotorId) {
+      query = query.or(`promotor_id.eq.${promotorId},promotor_id.is.null`);
+    }
+    return query.order('created_at', { ascending: false });
+  };
+
+  let { data, error } = await ask(true);
+
+  /*
+    Sin la columna todavía, se pide sin filtrar en lugar de dejar el muro en un
+    error. Es el mismo criterio que con las demás migraciones pendientes: el
+    contenido importa más que el reparto, y el reparto llega al correr el guion.
+  */
+  if (error && isMissingOwner(error)) {
+    ({ data, error } = await ask(false));
+  }
 
   if (error) return { data: [], error, source: 'supabase' };
   return { data: (data ?? []).map(fromRow), error: null, source: 'supabase' };
 }
 
-export async function publishAnnouncement({ title, category, content, fileUrl }) {
+export async function publishAnnouncement({
+  title, category, content, fileUrl, promotorId = '',
+}) {
   if (!usingSupabase) {
     const created = addLocalAnnouncement({ title, category, content, fileUrl });
     return {
@@ -152,10 +193,26 @@ export async function publishAnnouncement({ title, category, content, fileUrl })
   }
 
   // Se mandan los nombres de columna tal cual existen en la tabla.
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert([{ title, category, content, image_url: fileUrl || null }])
-    .select();
+  const row = { title, category, content, image_url: fileUrl || null };
+
+  /*
+    El dueño se sella al publicar. Es lo que permite repartir el muro después: sin
+    esta marca, un comunicado no pertenece a nadie y no hay forma de saber a qué
+    equipo iba dirigido.
+  */
+  if (promotorId) row.promotor_id = promotorId;
+
+  let { data, error } = await supabase.from(TABLE).insert([row]).select();
+
+  /*
+    Si la columna no existe todavía, se publica sin ella. Perder el comunicado que
+    alguien acaba de escribir por una migración pendiente sería el peor de los
+    intercambios: se guarda, y al correr el guion se le asigna dueño.
+  */
+  if (error && isMissingOwner(error)) {
+    const { promotor_id: _drop, ...fallback } = row;
+    ({ data, error } = await supabase.from(TABLE).insert([fallback]).select());
+  }
 
   if (error) return { data: null, error, source: 'supabase' };
   return { data: data?.[0] ? fromRow(data[0]) : null, error: null, source: 'supabase' };

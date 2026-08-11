@@ -1,5 +1,5 @@
 import {
-  Users, UserCheck, LayoutDashboard, Megaphone, Activity,
+  Users, UserCheck, PenSquare, Megaphone, Activity,
 } from 'lucide-react';
 
 /**
@@ -17,7 +17,7 @@ import {
 const TEAM_TABS = [
   { key: 'asesores', label: 'Asesores', Icon: Users, counts: true },
   { key: 'aprobar', label: 'Por Aprobar', Icon: UserCheck, counts: true },
-  { key: 'workspace', label: 'Acceso Workspace', Icon: LayoutDashboard },
+  { key: 'workspace', label: 'Publicar en el Muro', Icon: PenSquare },
   { key: 'alerta', label: 'Publicar Alerta', Icon: Megaphone },
   { key: 'actividad', label: 'Actividad General', Icon: Activity },
 ];

@@ -13,6 +13,7 @@ import { useSession } from '../../context/SessionContext';
 import PromotoriaWaitingRoom from '../Promotoria/PromotoriaWaitingRoom';
 import JoinPromotoria from '../Promotoria/JoinPromotoria';
 import PromotoriaBadge from '../Promotoria/PromotoriaBadge';
+import { PROFILE_ROLES } from '../../data/profilesRepo';
 import { fetchMyPromotoria } from '../../data/promotoriaRepo';
 import { categoryOf, relativeTime } from '../../data/announcements';
 import { attachmentKind, attachmentName, documentLabel } from '../../data/attachments';
@@ -258,7 +259,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     todavía no lo había aceptado.
   */
   const {
-    isAwaitingPromotoria, needsPromotoria, canManage,
+    isAwaitingPromotoria, needsPromotoria, canManage, role, identity,
     promotorId, promotoriaStatus,
   } = useSession();
 
@@ -277,7 +278,18 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     Lo que de verdad lo cierra es la política de la base que sólo deja escribir a
     promotores y administradores, y va documentada en .env.example.
   */
-  const canPublish = canManage;
+  /*
+    El muro es de LECTURA para el promotor.
+
+    Escribe desde su panel —Mi Promotoría › Publicar— y entra aquí sólo a
+    comprobar cómo les queda a sus asesores. Un botón de publicar en la pantalla
+    de lectura duplicaba la puerta y hacía dudar de cuál era la buena.
+
+    El administrador conserva el botón: no tiene panel de promotoría propio, así
+    que quitárselo lo dejaba sin ninguna forma de publicar.
+  */
+  const isPromoterRole = role === PROFILE_ROLES.PROMOTER;
+  const canPublish = canManage && !isPromoterRole;
 
   /*
     Vinculado de verdad: tiene promotor **y** ya fue aprobado. Con sólo el
@@ -334,9 +346,19 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const [promotoriaName, setPromotoriaName] = useState('');
 
   /** Consulta la base cada vez que se abre el tablero con acceso concedido. */
+  /*
+    De quién es el muro que hay que leer.
+
+    Para el asesor, su promotor; para el promotor, él mismo. Aquí estaba el error
+    de la pantalla vacía: se pedían los comunicados sin decir de quién, y con RLS
+    filtrando o con varias promotorías en la misma tabla el resultado no era el
+    esperado. Ahora la consulta lleva el dueño.
+  */
+  const wallOwnerId = isPromoterRole ? identity?.key : promotorId;
+
   const loadFeed = useCallback(async () => {
     setLoadingFeed(true);
-    const { data, error } = await fetchAnnouncements();
+    const { data, error } = await fetchAnnouncements(wallOwnerId ?? '');
     setLoadingFeed(false);
     if (error) {
       /*
@@ -354,7 +376,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     }
     setFeedError('');
     setFeed(data.map(toCardModel));
-  }, []);
+  }, [wallOwnerId]);
 
   useEffect(() => {
     if (isOpen && isLinked) loadFeed();
@@ -367,7 +389,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
    * conviene que siga abierta con lo ya escrito.
    */
   const handlePublish = useCallback(async (draft) => {
-    const { error } = await publishAnnouncement(draft);
+    const { error } = await publishAnnouncement({ ...draft, promotorId: wallOwnerId ?? '' });
     if (error) {
       setToast(`No se pudo publicar. ${describeError(error)}`);
       return { ok: false };
@@ -375,7 +397,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     setToast('Comunicado publicado al equipo');
     loadFeed();
     return { ok: true };
-  }, [loadFeed]);
+  }, [loadFeed, wallOwnerId]);
 
   const handleDelete = useCallback(async (id) => {
     const { error } = await deleteAnnouncement(id);
@@ -441,6 +463,13 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
           name={promotoriaName}
           onLeft={() => setToast('Te desvinculaste de la promotoría')}
         />
+      ) : canManage ? (
+        /*
+          Quien administra la promotoría no se vincula a sí mismo, así que no ve
+          ninguna barra: ni la insignia —no pertenece a nadie— ni el formulario del
+          código, que era lo que le pedía permiso para entrar a su propio muro.
+        */
+        null
       ) : (
         <AccessBar onNotify={setToast} />
       )}
