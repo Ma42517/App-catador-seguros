@@ -6,6 +6,7 @@ import { useSession } from '../../context/SessionContext';
 import {
   listMyAdvisors, approveAdvisor, rejectAdvisor, describeError,
 } from '../../data/promotoriaRepo';
+import InviteCodeCard from './InviteCodeCard';
 import TeamStats from './TeamStats';
 import PendingRequests from './PendingRequests';
 import AdvisorCard from './AdvisorCard';
@@ -23,8 +24,15 @@ import AdvisorCard from './AdvisorCard';
  * (`AdminLayout`), así que aquí no se repiten.
  */
 export default function PromotorDashboard() {
-  const { identity } = useSession();
+  const { identity, refreshIdentity } = useSession();
   const promotorId = identity?.key ?? '';
+
+  /*
+    El código se guarda en el estado además de leerse de la identidad: al generarlo
+    se ve al instante, sin esperar a que la sesión se relea. Y se arranca con el
+    valor de la identidad para que al volver a entrar ya esté ahí.
+  */
+  const [code, setCode] = useState(identity?.promotoriaCode ?? '');
 
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
@@ -178,6 +186,13 @@ export default function PromotorDashboard() {
 
       {!isLoading && !needsMigration && (
         <>
+          <InviteCodeCard
+            code={code}
+            promoterId={promotorId}
+            promotoriaName={identity?.company || identity?.name || 'Promotoria'}
+            onSaved={(next) => { setCode(next); refreshIdentity?.(); }}
+          />
+
           <TeamStats total={approved.length} pendingCount={pending.length} />
 
           {/* Sólo si hay algo que resolver. */}

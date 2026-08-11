@@ -163,3 +163,82 @@ export function rejectAdvisor(advisorId) {
 }
 
 export { describeError };
+
+
+
+// ── Código de invitación ─────────────────────────────────────────────────────
+
+/**
+ * Guarda el código del promotor en su propia ficha.
+ *
+ * Devuelve `taken: true` cuando el código ya es de otra promotoría. Postgres lo
+ * reporta como `23505` (violación de unicidad) y quien llama vuelve a intentar
+ * con otro: el código lleva dígitos al azar, así que un choque se resuelve
+ * generando de nuevo, no molestando a la persona.
+ */
+export async function saveMyCode(promoterId, code) {
+  if (!isSupabaseConfigured || !supabase) {
+    return { error: { message: 'Supabase no está configurado.' }, taken: false };
+  }
+
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ promotoria_code: code })
+    .eq('id', promoterId);
+
+  if (error) {
+    const isDuplicate = error.code === '23505'
+      || /duplicate key|already exists/i.test(String(error.message ?? ''));
+    return { error, taken: isDuplicate, missingMigration: isMissingMigration(error) };
+  }
+  return { error: null, taken: false };
+}
+
+/**
+ * Cambia de promotoría usando un código.
+ *
+ * Va por una función de la base (`join_promotoria`) y no por un `select` seguido
+ * de un `update`, y la razón es de seguridad y no de estilo: para buscar al
+ * promotor por su código, el asesor necesitaría permiso de lectura sobre fichas
+ * ajenas, y con ese permiso podría listar los correos de toda la promotoría desde
+ * la consola del navegador. La función corre con los privilegios de la base,
+ * recibe sólo el código y devuelve sólo el nombre: no hay forma de usarla para
+ * enumerar a nadie.
+ *
+ * Deja al asesor en `pending`. El código dice a qué puerta se llama, no la abre.
+ */
+export async function joinPromotoriaByCode(code) {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: { message: 'Supabase no está configurado.' } };
+  }
+
+  const { data, error } = await supabase.rpc('join_promotoria', { p_code: code });
+
+  if (error) {
+    const raw = String(error.message ?? '');
+
+    if (/CODIGO_NO_EXISTE/.test(raw)) {
+      return {
+        data: null,
+        error: { message: 'Ese código no corresponde a ninguna promotoría. Revísalo con tu promotor.' },
+      };
+    }
+    if (/ES_TU_PROPIO_CODIGO/.test(raw)) {
+      return { data: null, error: { message: 'Ése es tu propio código.' } };
+    }
+    if (/function .*join_promotoria.* does not exist|PGRST202/i.test(raw) || error.code === 'PGRST202') {
+      return {
+        data: null,
+        error: {
+          message: 'Falta preparar la base: la función join_promotoria no existe todavía.',
+          code: 'NO_FUNCTION',
+        },
+      };
+    }
+    return { data: null, error };
+  }
+
+  // La función devuelve una tabla de una fila; Supabase la entrega como arreglo.
+  const row = Array.isArray(data) ? data[0] : data;
+  return { data: { promotoria: row?.promotoria ?? '' }, error: null };
+}
