@@ -385,3 +385,50 @@ export async function joinPromotoriaByCode(code) {
 export async function leavePromotoria(advisorId) {
   return writeStatus(advisorId, { promotor_id: null, promotoria_status: null });
 }
+
+
+/**
+ * A qué promotoría pertenece quien está mirando, y con qué nombre.
+ *
+ * Va por una función de la base por la misma razón que unirse: el asesor no puede
+ * leer la ficha de su promotor —RLS sólo le deja ver la suya y las de su propio
+ * equipo si es promotor—, así que sin esto no hay forma de mostrarle el nombre de
+ * la promotoría a la que acaba de entrar. La función devuelve el nombre y nada
+ * más: no sirve para averiguar quién más está dentro.
+ *
+ * Se lee en vivo en lugar de guardar una copia en la ficha del asesor. Copiado,
+ * el nombre se queda viejo el día que la promotoría se renombra, y aparecería
+ * distinto en el teléfono de cada quien según cuándo entró.
+ */
+export async function fetchMyPromotoria() {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: { message: 'Supabase no está configurado.' } };
+  }
+
+  const { data, error } = await supabase.rpc('my_promotoria');
+
+  if (error) {
+    /*
+      Sin la función, no es un fallo que haya que gritar: la pantalla enseña
+      "Tu promotoría" en lugar del nombre y todo lo demás sigue funcionando. Se
+      marca con un código para que quien llama pueda decidir callarlo.
+    */
+    const raw = String(error.message ?? '');
+    if (/does not exist|PGRST202/i.test(raw) || error.code === 'PGRST202') {
+      return { data: null, error: { message: raw, code: 'NO_FUNCTION' } };
+    }
+    return { data: null, error };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return { data: null, error: null };
+
+  return {
+    data: {
+      promotorId: row.promotor ?? null,
+      promotoria: row.promotoria ?? '',
+      status: row.estado ?? null,
+    },
+    error: null,
+  };
+}

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Share2, Loader2, PenSquare, Trash2, Lock, FileText, Download } from 'lucide-react';
+import {
+  Share2, Loader2, PenSquare, Trash2, Lock, FileText, Download, Inbox,
+} from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
 import AccessBar from '../Access/AccessBar';
@@ -11,6 +13,9 @@ import { useSession } from '../../context/SessionContext';
 import PromotoriaWaitingRoom from '../Promotoria/PromotoriaWaitingRoom';
 import { PROFILE_ROLES } from '../../data/profilesRepo';
 import JoinPromotoria from '../Promotoria/JoinPromotoria';
+import PromotoriaBadge from '../Promotoria/PromotoriaBadge';
+import FeaturedRow from './FeaturedRow';
+import { fetchMyPromotoria } from '../../data/promotoriaRepo';
 import { categoryOf, relativeTime } from '../../data/announcements';
 import { attachmentKind, attachmentName, documentLabel } from '../../data/attachments';
 import {
@@ -256,6 +261,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   */
   const {
     isAwaitingPromotoria, needsPromotoria, role, canManage,
+    promotorId, promotoriaStatus,
   } = useSession();
 
   /*
@@ -276,6 +282,24 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const canPublish = canManage;
 
   /*
+    Vinculado de verdad: tiene promotor **y** ya fue aprobado. Con sólo el
+    `promotor_id` bastaría para una solicitud en curso, y ahí no corresponde
+    enseñar el muro ni el nombre como si ya perteneciera.
+  */
+  const isLinkedToPromotoria = Boolean(promotorId)
+    && promotoriaStatus === 'approved';
+
+  useEffect(() => {
+    if (!isOpen || !isLinkedToPromotoria) return;
+
+    let alive = true;
+    fetchMyPromotoria().then(({ data }) => {
+      if (alive && data?.promotoria) setPromotoriaName(data.promotoria);
+    });
+    return () => { alive = false; };
+  }, [isOpen, isLinkedToPromotoria]);
+
+  /*
     Quién ve el formulario de "únete con un código".
 
     Antes se exigía `role === 'advisor'` exacto, y ahí estaba el problema: desde
@@ -290,7 +314,23 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const [toast, setToast] = useState('');
   const [isPublishOpen, setPublishOpen] = useState(false);
   const [feed, setFeed] = useState([]);
+  /*
+    Los comunicados en su forma original, además de los ya maquetados.
+
+    Los destacados necesitan la categoría y la URL del archivo tal como vienen de
+    la base; `toCardModel` las transforma para la tarjeta grande —etiqueta con
+    emoji, tiempo relativo— y deshacer eso para la fila de cuadros sería traducir
+    dos veces el mismo dato.
+  */
+  const [rawFeed, setRawFeed] = useState([]);
   const [isLoadingFeed, setLoadingFeed] = useState(false);
+
+  /*
+    Nombre de la promotoría a la que pertenece quien mira. Se pide a la base
+    porque RLS no le deja leer la ficha de su promotor; si la función no existe
+    todavía, se queda vacío y la cabecera enseña "Tu promotoría".
+  */
+  const [promotoriaName, setPromotoriaName] = useState('');
 
   /** Consulta la base cada vez que se abre el tablero con acceso concedido. */
   const loadFeed = useCallback(async () => {
@@ -301,6 +341,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
       setToast(`No se pudieron cargar los comunicados. ${describeError(error)}`);
       return;
     }
+    setRawFeed(data);
     setFeed(data.map(toCardModel));
   }, []);
 
@@ -376,7 +417,22 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
         <PromotoriaWaitingRoom title="El muro de comunicados" />
       ) : (
         <>
-      <AccessBar onNotify={setToast} />
+      {/*
+        Vinculado: el nombre de la promotoría y la salida. El formulario del código
+        desaparece porque ya no tiene nada que pedir, y dejarlo obligaba a
+        preguntarse si había que escribir algo otra vez.
+
+        Sin vínculo por la vía nueva se conserva la barra heredada: sigue siendo la
+        puerta del modo promotor y de los códigos antiguos.
+      */}
+      {isLinkedToPromotoria ? (
+        <PromotoriaBadge
+          name={promotoriaName}
+          onLeft={() => setToast('Te desvinculaste de la promotoría')}
+        />
+      ) : (
+        <AccessBar onNotify={setToast} />
+      )}
 
       {/*
         El muro es contenido de la promotoría: sin vínculo no se muestra nada,
@@ -406,22 +462,60 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
             <p className="py-8 text-center text-xs text-zinc-500">Cargando comunicados...</p>
           )}
 
+          {/*
+            Destacados: los ocho más recientes. Ocho y no todos porque la fila se
+            arrastra con el pulgar, y pasadas ocho piezas es más rápido bajar por
+            la lista completa que seguir empujando.
+          */}
+          {!isLoadingFeed && rawFeed.length > 1 && (
+            <FeaturedRow
+              items={rawFeed.slice(0, 8)}
+              onSelect={(id) => {
+                document.getElementById(`ann-${id}`)?.scrollIntoView({
+                  behavior: 'smooth', block: 'center',
+                });
+              }}
+            />
+          )}
+
           {!isLoadingFeed && feed.length === 0 && (
-            <p className="rounded-xl border border-dashed border-zinc-300 py-10 text-center
-                          text-xs text-zinc-500 dark:border-zinc-700">
-              Tu promotoría todavía no ha publicado comunicados.
-            </p>
+            <div className="rounded-2xl border border-dashed border-zinc-300 px-6 py-12
+                            text-center dark:border-zinc-700"
+            >
+              <span
+                className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full
+                           bg-indigo-500/[0.07] text-indigo-400 ring-1 ring-inset
+                           ring-indigo-500/20"
+                aria-hidden="true"
+              >
+                <Inbox size={26} strokeWidth={1.7} />
+              </span>
+
+              <p className="text-sm font-semibold leading-relaxed text-zinc-600
+                            dark:text-zinc-300"
+              >
+                {canPublish
+                  ? 'Tu muro está vacío. Publica el primer comunicado y tu equipo lo verá aquí.'
+                  : 'Esto está muy vacío. Tu promotoría todavía no ha publicado comunicados.'}
+              </p>
+            </div>
           )}
 
           {feed.map((announcement) => (
+            /*
+              El `id` en el DOM es lo que permite a los destacados traer aquí la
+              vista. Se pone en una envoltura y no en la tarjeta para no obligar a
+              `AnnouncementCard` a aceptar un `id` que sólo sirve para esto.
+            */
+            <div key={announcement.id} id={`ann-${announcement.id}`} className="scroll-mt-4">
             <AnnouncementCard
-              key={announcement.id}
               announcement={announcement}
               isSharing={sharingId === announcement.id}
               onShare={(share) => handleShare(announcement.id, share)}
               canDelete={canPublish}
               onDelete={() => handleDelete(announcement.id)}
             />
+            </div>
           ))}
 
           <PublishSheet
