@@ -15,6 +15,7 @@ import JoinPromotoria from '../Promotoria/JoinPromotoria';
 import PromotoriaBadge from '../Promotoria/PromotoriaBadge';
 import { PROFILE_ROLES } from '../../data/profilesRepo';
 import { fetchMyPromotoria } from '../../data/promotoriaRepo';
+import { fetchAuthorAvatars } from '../../data/publicCardRepo';
 import { categoryOf, relativeTime } from '../../data/announcements';
 import { attachmentKind, attachmentName, documentLabel } from '../../data/attachments';
 import {
@@ -89,6 +90,7 @@ function toCardModel(item) {
     title: item.title,
     time: relativeTime(item.createdAt),
     author: item.authorName || '',
+    authorId: item.authorId || '',
     description: item.content || undefined,
     flyer: isImage ? item.fileUrl : undefined,
     document: kind === 'document' ? item.fileUrl : undefined,
@@ -174,7 +176,47 @@ function LockedWall() {
 }
 
 /** Tarjeta de anuncio. */
-function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelete }) {
+/** Foto del autor, o su inicial si no tiene o si no cargó. */
+function AuthorFace({ url, name }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => { setFailed(false); }, [url]);
+
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt=""
+        onError={() => setFailed(true)}
+        /*
+          Sin esta política, las fotos alojadas por Google responden 403 cuando el
+          navegador manda la cabecera de referencia.
+        */
+        referrerPolicy="no-referrer"
+        className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-black/10
+                   dark:ring-white/15"
+      />
+    );
+  }
+
+  /*
+    La inicial en lugar de un icono genérico: con varios promotores publicando, un
+    muñequito repetido en cada comunicado no distingue a nadie, y la letra sí.
+  */
+  return (
+    <span
+      className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-zinc-200
+                 text-[9px] font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+      aria-hidden="true"
+    >
+      {(name || '?').trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+function AnnouncementCard({
+  announcement, onShare, isSharing, canDelete, onDelete, authorAvatar,
+}) {
   const {
     tag, tagTone, title, time, flyer, document: documentUrl, description, share, author,
   } = announcement;
@@ -214,15 +256,25 @@ function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelet
         Sin autor —los comunicados anteriores a esta columna— se muestra sólo la
         hora, sin inventar un nombre ni dejar un "por —" que no dice nada.
       */}
-      <p className="mt-0.5 text-xs text-zinc-500">
-        {author && (
+      {/*
+        Cara, nombre y hora en una fila. Es un `div` con `flex` y no un párrafo:
+        una imagen dentro de texto se alinea por la base de la letra y quedaba
+        descuadrada respecto al nombre.
+      */}
+      <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500">
+        {author ? (
           <>
-            <span className="font-semibold text-zinc-600 dark:text-zinc-400">{author}</span>
-            <span aria-hidden="true"> · </span>
+            <AuthorFace url={authorAvatar} name={author} />
+            <span className="truncate font-semibold text-zinc-600 dark:text-zinc-400">
+              {author}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span className="shrink-0">{time}</span>
           </>
+        ) : (
+          <span>{time}</span>
         )}
-        {time}
-      </p>
+      </div>
 
       {description && (
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -372,6 +424,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const [feed, setFeed] = useState([]);
   const [isLoadingFeed, setLoadingFeed] = useState(false);
   const [feedError, setFeedError] = useState('');
+  const [authorAvatars, setAuthorAvatars] = useState({});
 
   /*
     Nombre de la promotoría a la que pertenece quien mira. Se pide a la base
@@ -422,6 +475,14 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     }
     setFeedError('');
     setFeed(data.map(toCardModel));
+
+    /*
+      Las fotos van en una segunda consulta y no bloquean la primera: el muro se
+      pinta ya, con las iniciales, y las caras aparecen al llegar. Esperarlas para
+      mostrar el texto haría el muro más lento por un adorno.
+    */
+    const avatars = await fetchAuthorAvatars(data.map((item) => item.authorId));
+    setAuthorAvatars(avatars);
   }, [wallOwnerId]);
 
   useEffect(() => {
@@ -621,6 +682,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
             <AnnouncementCard
               key={announcement.id}
               announcement={announcement}
+              authorAvatar={authorAvatars[announcement.authorId] || ''}
               isSharing={sharingId === announcement.id}
               onShare={(share) => handleShare(announcement.id, share)}
               /*
