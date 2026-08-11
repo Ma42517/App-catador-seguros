@@ -179,28 +179,15 @@ export function streakDays(history) {
   return streak;
 }
 
-// ── Valor de referencia del tiempo enfocado ───────────────────────────────
+/*
+  Aquí vivía la traducción de minutos de enfoque a pesos, que sólo se usaba en el
+  modal de festejo: "45 minutos ≈ $1,500 de tu tiempo". Se fue con el modal.
 
-/**
- * Referencia para traducir minutos de enfoque a pesos.
- *
- * OJO: es un valor ilustrativo, no una estadística del sector. Se declara aquí,
- * en un solo lugar y con nombre explícito, para que quede claro que es un
- * supuesto ajustable y no un dato medido. La interfaz lo presenta como
- * estimación de referencia por la misma razón: un asesor no debería repetirle a
- * un cliente que "45 minutos valen $1,500" como si fuera un hecho.
- */
-export const REFERENCE_VALUE_PER_HOUR_MXN = 2000;
-
-/** Pesos de referencia para un bloque, redondeados a centenas. */
-export function referenceValue(minutes) {
-  const raw = (Number(minutes) || 0) * (REFERENCE_VALUE_PER_HOUR_MXN / 60);
-  return Math.round(raw / 100) * 100;
-}
-
-export function formatMoney(amount) {
-  return `$${Math.round(amount).toLocaleString('es-MX')} MXN`;
-}
+  Era un valor ilustrativo y estaba marcado como tal, pero además no encaja en el
+  cierre nuevo: la pantalla de bloque completado es negra y tiene tres líneas, y un
+  peso inventado al lado de un logro real lo abarata. Si se quiere recuperar, el
+  supuesto era $2,000 por hora.
+*/
 
 /** Minutos en horas y minutos, que es como se cuenta una jornada. */
 export function formatDuration(minutes) {

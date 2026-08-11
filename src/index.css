@@ -200,6 +200,63 @@
     animation: df-alert-glow 2.8s ease-in-out infinite;
   }
 
+  /*
+    Respiración del signo "+" que abre los bloques de enfoque.
+
+    El signo es casi negro sobre negro: lo que se ve es su resplandor. De ahí que
+    la animación mueva la sombra y no el color —un "+" gris claro se leería como
+    un botón cualquiera, y la idea es que parezca hundido en la pantalla y
+    respirando—. La escala apenas llega al 3%: más lo convierte en un latido
+    ansioso, y esto invita, no urge.
+  */
+  @keyframes df-plus-breathe {
+    0%, 100% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.22))
+              drop-shadow(0 0 20px rgb(255 255 255 / 0.08));
+    }
+    50% {
+      transform: scale(1.03);
+      filter: drop-shadow(0 0 14px rgb(255 255 255 / 0.5))
+              drop-shadow(0 0 44px rgb(255 255 255 / 0.2));
+    }
+  }
+  .animate-plus-breathe {
+    animation: df-plus-breathe 3.2s ease-in-out infinite;
+  }
+
+  /*
+    La línea que se dibuja bajo la pregunta, como la de una firma.
+
+    Se anima `scaleX` y no `width`: el ancho obliga al navegador a recalcular la
+    disposición en cada fotograma, y en un teléfono modesto la línea avanza a
+    tirones. La transformación va en la tarjeta gráfica y sale limpia.
+  */
+  @keyframes df-draw-line {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  .animate-draw-line {
+    transform-origin: left center;
+    animation: df-draw-line 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /*
+    Brinco de "+30" / "-30" al ajustar el reloj.
+
+    Sube, se pasa de tamaño y vuelve. Es la única confirmación de que el toque
+    contó: el reloj cambia de 24:30 a 25:00 y ese salto de un dígito es fácil de
+    no ver, sobre todo si se toca dos veces seguidas.
+  */
+  @keyframes df-bump {
+    0% { transform: translateY(4px) scale(0.8); opacity: 0; }
+    45% { transform: translateY(-8px) scale(1.18); opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  .animate-bump {
+    animation: df-bump 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   @keyframes goal-confetti {
     0% {
       transform: translate3d(0, -10vh, 0) rotate(0deg);
@@ -254,6 +311,23 @@
     /* Halo de atención del botón de servicios. */
     .animate-attention-halo {
       animation: none;
+    }
+
+    /* Brinco del ajuste de tiempo y trazo de la línea de la pregunta. */
+    .animate-bump,
+    .animate-draw-line {
+      animation: none;
+    }
+
+    /*
+      El "+" de los bloques deja de respirar, pero conserva su resplandor. Sin él
+      sería un signo casi negro sobre fondo negro, o sea nada: es lo único que
+      indica dónde tocar para empezar.
+    */
+    .animate-plus-breathe {
+      animation: none;
+      filter: drop-shadow(0 0 12px rgb(255 255 255 / 0.4))
+              drop-shadow(0 0 32px rgb(255 255 255 / 0.15));
     }
 
     /*

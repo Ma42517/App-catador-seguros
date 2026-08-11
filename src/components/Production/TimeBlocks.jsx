@@ -1,44 +1,53 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import {
-  Play, Pause, X, RotateCcw, Flame, Target,
-} from 'lucide-react';
+import { Play, Pause, X } from 'lucide-react';
 import FocusFlow from './FocusFlow';
-import TodayFocus from './TodayFocus';
-import SessionCompleteModal from './SessionCompleteModal';
+import FocusClock, { STEP_SEC } from './FocusClock';
+import TypedLine from './TypedLine';
 import {
-  readSession, writeSession, remainingSeconds, formatClock,
-  readHistory, recordCompletion, statsFor, todayKey,
+  readSession, writeSession, remainingSeconds, formatClock, formatDuration,
+  readHistory, recordCompletion, statsFor, MAX_MINUTES,
 } from '../../data/timeBlocks';
 import { primeAudio, playChime } from '../../data/chime';
 import {
   tapFeedback, MILESTONE_PATTERN, SESSION_END_PATTERN, MILESTONE_STEP_SEC,
 } from '../../lib/haptics';
 
-/** Cuántas tareas de hoy se ofrecen para repetir en el paso 1. */
-const RECENT_LIMIT = 3;
+/** Con lo que arranca el reloj antes de que nadie lo toque. */
+const DEFAULT_SEC = 25 * 60;
+
+/** Tope, en segundos. Más de tres horas ya no es un bloque de enfoque. */
+const MAX_SEC = MAX_MINUTES * 60;
 
 /**
- * Bloques de tiempo: temporizador de enfoque, preguntado en tres pasos.
+ * Bloques de tiempo, en tres actos sobre negro.
  *
- * La sesión se guarda con el instante de término, no con los segundos que
- * quedan. Así el bloque sigue corriendo aunque el asesor se vaya a la Agenda
- * (la sección se desmonta al navegar) o mande la app al fondo, donde el
- * navegador estrangula los intervalos.
+ *   1. Un "+" que respira. Se toca y empieza.
+ *   2. "¿En qué te gustaría enfocarte hoy?", con su línea de firma.
+ *   3. "¿Cuánto tiempo?" y el reloj. Al arrancar, la pantalla se queda sólo con el
+ *      reloj y su botón: durante el bloque no hay ninguna decisión que tomar, así
+ *      que cualquier otra cosa en pantalla compite con el trabajo.
  *
- * Ese mismo dato decide qué se ve: si hay sesión, el reloj; si no, la
- * conversación de `FocusFlow`. El paso en el que va la persona no se guarda en un
- * estado aparte a propósito. Un `step` en memoria y una sesión en el
- * almacenamiento pueden contradecirse —recargar la página mostraría el paso 1
- * mientras el bloque de 45 minutos sigue corriendo— y de las dos, la que dice la
- * verdad es la sesión.
+ * El acto no se guarda en un número. Lo dice el estado: si hay sesión, el reloj; si
+ * hay tarea sin sesión, la pregunta del tiempo; si no hay nada, el "+". Un `act` en
+ * memoria y una sesión en el almacenamiento pueden contradecirse —recargar
+ * mostraría el acto 1 mientras el bloque de 45 minutos sigue corriendo— y de las
+ * dos, la que dice la verdad es la sesión.
+ *
+ * La sesión guarda el instante en que termina, no los segundos que quedan. Así el
+ * bloque sobrevive a salir a la Agenda (esta pantalla se desmonta al navegar) y a
+ * mandar la app al fondo, donde el navegador estrangula los intervalos.
  */
-export default function TimeBlocks({ username, name }) {
+export default function TimeBlocks({ username }) {
   const [session, setSession] = useState(() => readSession(username));
   const [history, setHistory] = useState(() => readHistory(username));
 
-  // Lo que muestra el modal se congela al cerrar el bloque: si dependiera del
-  // estado vivo, cargar otro bloque cambiaria el texto del festejo.
-  const [completed, setCompleted] = useState(null);
+  /*
+    La tarea ya escrita, todavía sin reloj. Es lo que distingue el acto 3 antes de
+    arrancar: hay enfoque elegido pero no sesión.
+  */
+  const [pendingTask, setPendingTask] = useState(null);
+  const [setupSec, setSetupSec] = useState(DEFAULT_SEC);
+  const [isClockIn, setClockIn] = useState(false);
 
   // Fuerza el redibujo cada segundo mientras corre; el valor no se usa, el
   // restante se calcula del reloj. Un contador en el estado se desincronizaría.
@@ -47,35 +56,25 @@ export default function TimeBlocks({ username, name }) {
   /**
    * Candado en memoria contra el doble registro dentro del mismo render.
    *
-   * Hace falta además de `session.recorded` porque `setSession` no es
-   * inmediato: si el efecto se evalúa dos veces antes de que el estado se
-   * actualice (StrictMode hace exactamente eso), ambas pasadas verían
-   * `recorded` en falso y el bloque se contaría dos veces.
+   * Hace falta además de `session.recorded` porque `setSession` no es inmediato:
+   * si el efecto se evalúa dos veces antes de que el estado se actualice
+   * (StrictMode hace exactamente eso), ambas pasadas verían `recorded` en falso y
+   * el bloque se contaría dos veces.
    */
   const notifiedFor = useRef(null);
 
   /**
    * Último tramo de cinco minutos que ya avisó, y el restante de la vuelta
-   * anterior.
-   *
-   * Los dos son refs y no estado a propósito: sólo sirven para decidir si toca
-   * vibrar, y guardarlos en estado provocaría un render extra por segundo sin
-   * cambiar nada de lo que se ve.
-   *
-   * El candado es imprescindible. El restante no vive en el estado, se calcula
-   * del reloj en cada render, así que un render de más —y en StrictMode hay uno
-   * de más garantizado— volvería a ver el mismo segundo y dispararía una ráfaga
-   * de vibraciones sobre el mismo tramo.
+   * anterior. Son refs y no estado: sólo deciden si toca vibrar, y en estado
+   * provocarían un render por segundo sin cambiar nada de lo que se ve.
    */
   const lastMilestone = useRef(null);
   const prevRemaining = useRef(null);
 
   /**
-   * Olvida el rastro de vibraciones para que el bloque empiece de cero.
-   *
-   * Sin esto, una segunda vuelta del mismo bloque no volvería a avisar en sus
-   * tramos: el candado seguiría marcando como ya avisado el último múltiplo de
-   * la vuelta anterior.
+   * Olvida el rastro de vibraciones para que el bloque empiece de cero. Sin esto,
+   * una segunda vuelta no volvería a avisar en sus tramos: el candado seguiría
+   * marcando como ya avisado el último múltiplo de la vuelta anterior.
    */
   const resetHaptics = useCallback(() => {
     lastMilestone.current = null;
@@ -84,34 +83,12 @@ export default function TimeBlocks({ username, name }) {
 
   const today = useMemo(() => statsFor(history), [history]);
 
-  /*
-    Las tareas de hoy, sin repetir y de la más reciente a la más vieja.
-
-    Se ofrecen para volver a empezarlas con un toque. Sustituyen a los bloques
-    fijos que traía la app, y con ventaja: eran dos nombres que alguien supuso
-    ("Hacer Llamadas", "Seguimientos"), y esto es lo que esta persona sí hizo hoy.
-  */
-  const recent = useMemo(() => {
-    const entries = history[todayKey()] ?? [];
-    const labels = [];
-
-    // De atrás hacia adelante: lo último que se trabajó es lo primero que se ofrece.
-    for (let index = entries.length - 1; index >= 0; index -= 1) {
-      const label = entries[index]?.label;
-      if (label && !labels.includes(label)) labels.push(label);
-      if (labels.length === RECENT_LIMIT) break;
-    }
-    return labels;
-  }, [history]);
-
   /**
    * Recarga el estado sólo cuando *cambia* de persona, no en cada montaje.
    *
    * Sin este candado el efecto se convierte en un reinicio que pisa lo que el
-   * cierre del bloque acaba de dejar: borraba el modal de celebración antes de
-   * que se viera y reabría el registro, contando el mismo bloque dos veces.
-   * Los valores iniciales de `useState` ya leen el almacenamiento, así que en el
-   * primer montaje aquí no hay nada que hacer.
+   * cierre del bloque acaba de dejar. Los valores iniciales de `useState` ya leen
+   * el almacenamiento, así que en el primer montaje aquí no hay nada que hacer.
    */
   const loadedFor = useRef(username);
 
@@ -121,7 +98,7 @@ export default function TimeBlocks({ username, name }) {
 
     setSession(readSession(username));
     setHistory(readHistory(username));
-    setCompleted(null);
+    setPendingTask(null);
     notifiedFor.current = null;
     resetHaptics();
   }, [username, resetHaptics]);
@@ -145,13 +122,10 @@ export default function TimeBlocks({ username, name }) {
   /*
     Aviso al cruzar cada tramo de cinco minutos.
 
-    Se compara contra el restante de la vuelta anterior en lugar de exigir que
-    el segundo caiga exacto en un múltiplo de 300: con la pestaña de fondo el
-    navegador estrangula el intervalo y el restante puede saltar de 902 a 898,
-    sin pisar nunca el 900. Mirando el salto, el tramo se detecta igual.
-
-    El múltiplo que quedó atrás en el salto es lo que se guarda en el candado,
-    así que cada tramo avisa una sola vez aunque el efecto se evalúe de más.
+    Se compara contra el restante de la vuelta anterior en lugar de exigir que el
+    segundo caiga exacto en un múltiplo de 300: con la pestaña de fondo el navegador
+    estrangula el intervalo y el restante puede saltar de 902 a 898, sin pisar nunca
+    el 900. Mirando el salto, el tramo se detecta igual.
   */
   useEffect(() => {
     const previous = prevRemaining.current;
@@ -159,14 +133,13 @@ export default function TimeBlocks({ username, name }) {
 
     if (!isRunning || previous === null || remaining >= previous) return;
 
-    // Múltiplo de cinco minutos más alto que el salto dejó atrás.
     const crossed = Math.floor(previous / MILESTONE_STEP_SEC) * MILESTONE_STEP_SEC;
 
     /*
-      `crossed > 0` deja el cero fuera: ése es el final del bloque y tiene su
-      propio patrón. `crossed < totalSec` evita vibrar al arrancar, cuando el
-      restante todavía es la duración completa —que en un bloque de 25 o 50
-      minutos también es múltiplo de cinco.
+      `crossed > 0` deja el cero fuera: ése es el final del bloque y tiene su propio
+      patrón. `crossed < totalSec` evita vibrar al arrancar, cuando el restante
+      todavía es la duración completa —que en un bloque de 25 minutos también es
+      múltiplo de cinco.
     */
     if (crossed <= 0 || crossed >= session.totalSec) return;
     if (remaining > crossed || lastMilestone.current === crossed) return;
@@ -175,12 +148,12 @@ export default function TimeBlocks({ username, name }) {
     tapFeedback(MILESTONE_PATTERN);
   }, [isRunning, remaining, session]);
 
-  // Cierre del bloque: se detiene, suena y avisa. Una sola vez por sesión.
+  // Cierre del bloque: se detiene, suena y se anota. Una sola vez por sesión.
   useEffect(() => {
     if (!session || !isRunning || remaining > 0) return;
 
-    // `recorded` viaja con la sesión persistida, así que sobrevive al
-    // desmontaje y a recargar la página; el ref cubre el mismo render.
+    // `recorded` viaja con la sesión persistida, así que sobrevive al desmontaje y
+    // a recargar la página; el ref cubre el mismo render.
     if (session.recorded || notifiedFor.current === session.startedAt) return;
 
     notifiedFor.current = session.startedAt;
@@ -189,214 +162,233 @@ export default function TimeBlocks({ username, name }) {
     ));
 
     const minutes = Math.round(session.totalSec / 60);
-    const updated = recordCompletion(username, { label: session.label, minutes });
-    setHistory(updated);
+    setHistory(recordCompletion(username, { label: session.label, minutes }));
 
     playChime();
 
     /*
-      El cierre va acompañado de vibración porque el sonido no siempre llega:
-      el teléfono puede estar en silencio, que es como suele quedarse durante
-      un bloque de enfoque. Este efecto ya está protegido por `recorded` y por
-      `notifiedFor`, así que el patrón se dispara una sola vez por sesión.
+      El cierre también vibra porque el sonido no siempre llega: el teléfono puede
+      estar en silencio, que es como suele quedarse durante un bloque de enfoque.
     */
     tapFeedback(SESSION_END_PATTERN);
-
-    setCompleted({ label: session.label, minutes, stats: statsFor(updated) });
   }, [session, isRunning, remaining, username]);
 
-  /** Paso 3: queda el bloque cargado y en pausa, esperando el "Iniciar". */
-  const openTimer = ({ task, minutes }) => {
+  /** Acto 3: la tarea está elegida; toca el reloj. */
+  const askForTime = (task) => {
+    setPendingTask(task);
+    setSetupSec(DEFAULT_SEC);
+    setClockIn(false);
+  };
+
+  /** Arranca el bloque. De aquí en adelante manda la sesión guardada. */
+  const begin = () => {
+    // El audio se abre aquí, con el gesto: al terminar el bloque ya no habrá
+    // ninguno e iOS no dejaría sonar la campana.
+    primeAudio();
+    tapFeedback();
+
     notifiedFor.current = null;
     resetHaptics();
+
     setSession({
-      label: task,
-      totalSec: minutes * 60,
-      remainingSec: minutes * 60,
-      endsAt: null,
-      status: 'paused',
+      label: pendingTask,
+      totalSec: setupSec,
+      remainingSec: setupSec,
+      endsAt: Date.now() + setupSec * 1000,
+      status: 'running',
       startedAt: Date.now(),
       recorded: false,
     });
-  };
-
-  const start = () => {
-    // El audio se abre aquí, con el gesto: al terminar el bloque ya no habrá
-    // ninguno y iOS no dejaría sonar la campana.
-    primeAudio();
-
-    setSession((prev) => {
-      if (!prev) return prev;
-      const seconds = prev.status === 'done' ? prev.totalSec : (prev.remainingSec ?? prev.totalSec);
-      if (prev.status === 'done') {
-        notifiedFor.current = null;
-        resetHaptics();
-      }
-      return {
-        ...prev,
-        status: 'running',
-        endsAt: Date.now() + seconds * 1000,
-        remainingSec: seconds,
-        startedAt: prev.status === 'done' ? Date.now() : prev.startedAt,
-        recorded: prev.status === 'done' ? false : prev.recorded,
-      };
-    });
+    setPendingTask(null);
   };
 
   const pause = () => {
+    tapFeedback();
+    setSession((prev) => (prev
+      ? { ...prev, status: 'paused', remainingSec: remainingSeconds(prev), endsAt: null }
+      : prev));
+  };
+
+  const resume = () => {
+    tapFeedback();
     setSession((prev) => {
       if (!prev) return prev;
+      const seconds = prev.remainingSec ?? prev.totalSec;
+      return { ...prev, status: 'running', endsAt: Date.now() + seconds * 1000 };
+    });
+  };
+
+  /** Suelta el bloque sin anotarlo y devuelve la pantalla al acto 1. */
+  const cancel = () => {
+    tapFeedback();
+    notifiedFor.current = null;
+    resetHaptics();
+    setSession(null);
+    setPendingTask(null);
+  };
+
+  /**
+   * Mueve el reloj en pasos de medio minuto.
+   *
+   * Ajusta el total además del restante: los minutos que se anotan al terminar
+   * salen del total, así que sin esto un bloque de 25 que se alargó a 40 quedaría
+   * registrado como 25. El trabajo hecho se cuenta completo.
+   *
+   * El suelo son 30 segundos y no cero a propósito. Restar hasta el final
+   * dispararía el cierre del bloque —campana, vibración y registro— sin que nadie
+   * haya trabajado ese tiempo, que es anotar trabajo que no ocurrió.
+   */
+  const adjust = (delta) => {
+    if (!session) {
+      setSetupSec((current) => Math.max(STEP_SEC, Math.min(MAX_SEC, current + delta)));
+      return;
+    }
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      const current = remainingSeconds(prev);
+      const next = Math.max(STEP_SEC, Math.min(MAX_SEC, current + delta));
+      if (next === current) return prev;
+
       return {
         ...prev,
-        status: 'paused',
-        remainingSec: remainingSeconds(prev),
-        endsAt: null,
+        totalSec: Math.max(next, prev.totalSec + (next - current)),
+        remainingSec: next,
+        endsAt: prev.status === 'running' ? Date.now() + next * 1000 : null,
       };
     });
   };
 
-  /** Vuelve el bloque a su duración completa, sin cerrarlo. */
-  const reset = () => {
-    notifiedFor.current = null;
-    resetHaptics();
-    setSession((prev) => (prev
-      ? {
-        ...prev,
-        status: 'paused',
-        remainingSec: prev.totalSec,
-        endsAt: null,
-        startedAt: Date.now(),
-        recorded: false,
-      }
-      : prev));
-  };
+  // ── Acto 3: bloque terminado ────────────────────────────────────────────
+  if (session && isDone) {
+    return (
+      <div className="animate-rise flex flex-1 flex-col items-center justify-center">
+        <p className="font-mono text-[3.75rem] font-bold leading-none tabular-nums
+                      text-emerald-400 sm:text-7xl"
+        >
+          {formatClock(0)}
+        </p>
 
-  /** Suelta el bloque y devuelve la conversación al paso 1. */
-  const close = () => {
-    notifiedFor.current = null;
-    resetHaptics();
-    setSession(null);
-  };
+        <p className="mt-6 text-lg font-light text-white">¡Bloque completado!</p>
+        <p className="mt-1 text-sm text-white/40">{session.label}</p>
 
-  return (
-    <section aria-label="Bloques de tiempo">
-      {session ? (
-        /* ── Paso 3: el reloj ────────────────────────────────────────────── */
-        <div className="animate-rise flex flex-col items-center pt-4">
-          {/*
-            La tarea, arriba y en pequeño. Es lo único que queda del contexto:
-            durante el bloque no hay ninguna decisión que tomar, así que cualquier
-            otra cosa en pantalla sólo compite con el trabajo.
+        <p className="mt-10 text-xs font-semibold uppercase tracking-widest text-white/30">
+          Hoy · {today.blocks} {today.blocks === 1 ? 'bloque' : 'bloques'}
+          {' · '}{formatDuration(today.minutes)}
+        </p>
 
-            Con icono y no con emoji: los emojis dependen de que el sistema traiga
-            la fuente y en algunos Android caen al cuadrito de glifo faltante.
-          */}
-          <p className="flex max-w-[85%] items-center gap-1.5 text-xs font-semibold
-                        text-zinc-500 dark:text-zinc-400"
-          >
-            <Target size={12} className="shrink-0 text-indigo-500" aria-hidden="true" />
-            <span className="truncate">Enfoque: {session.label}</span>
-          </p>
+        <button
+          type="button"
+          onClick={cancel}
+          className="mt-10 rounded-full border border-white/20 px-8 py-3 text-sm font-semibold
+                     text-white transition-colors hover:bg-white/10 active:scale-95"
+        >
+          Nuevo bloque
+        </button>
+      </div>
+    );
+  }
 
-          {/*
-            `font-mono` y `tabular-nums` por la misma razón: que los dígitos midan
-            todos igual. Con una tipografía proporcional el reloj se mueve solo cada
-            vez que un 1 sustituye a un 8, y un número que tiembla en el centro de la
-            pantalla se mira más que el trabajo.
-          */}
-          <p
-            role="timer"
-            aria-live="off"
-            className={`mt-6 font-mono text-6xl font-bold tabular-nums tracking-tight
-                        transition-colors sm:text-7xl ${isDone
-              ? 'text-emerald-500'
-              : 'text-zinc-900 dark:text-white'}`}
-          >
-            {formatClock(remaining)}
-          </p>
+  // ── Acto 3: el reloj, corriendo o en pausa ──────────────────────────────
+  if (session) {
+    return (
+      <div className="animate-rise flex flex-1 flex-col items-center justify-center">
+        <FocusClock seconds={remaining} onAdjust={adjust} canSubtract={remaining > STEP_SEC} />
 
-          <p className="mt-2 h-4 text-xs font-semibold text-zinc-400">
-            {isDone ? '¡Bloque completado!' : `${Math.round(session.totalSec / 60)} min de enfoque`}
-          </p>
-
+        {isRunning ? (
           <button
             type="button"
-            onClick={isRunning ? pause : start}
-            className={`mt-8 flex w-full max-w-sm items-center justify-center gap-2 rounded-xl
-                        py-4 text-base font-semibold transition-all active:scale-[0.98]
-                        ${isRunning
-              ? 'border border-zinc-300 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800'
-              : 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500'}`}
+            onClick={pause}
+            className="mt-14 flex items-center gap-2 rounded-full border border-white/20 px-10
+                       py-3.5 text-sm font-bold uppercase tracking-widest text-white
+                       transition-colors hover:bg-white/10 active:scale-95"
           >
-            {isRunning ? <Pause size={16} /> : <Play size={16} />}
-            {isRunning
-              ? 'Pausar'
-              : (isDone ? 'Otra vuelta' : (remaining < session.totalSec ? 'Continuar' : 'Iniciar'))}
+            <Pause size={14} />
+            Pausa
           </button>
-
-          {/*
-            Las dos salidas van en texto pequeño y no en botones grandes: se usan una
-            vez cada varias sesiones, y al lado de "Pausar" invitarían a tocarlas por
-            error justo cuando el bloque va a la mitad.
-          */}
-          <div className="mt-4 flex items-center gap-5">
+        ) : (
+          /*
+            En pausa aparecen las dos salidas y sólo entonces. Mientras el bloque
+            corre, una "X" al lado de "Pausa" es un botón de destruir a un dedo de
+            distancia del que se usa cada rato.
+          */
+          <div className="mt-14 flex flex-col items-center gap-6">
             <button
               type="button"
-              onClick={reset}
-              className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500
-                         transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
+              onClick={resume}
+              className="flex items-center gap-2 rounded-full bg-white px-10 py-3.5 text-sm
+                         font-bold uppercase tracking-widest text-black transition-transform
+                         hover:bg-white/90 active:scale-95"
             >
-              <RotateCcw size={12} />
-              Reiniciar
+              <Play size={14} />
+              Reanudar
             </button>
 
             <button
               type="button"
-              onClick={close}
-              className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500
-                         transition-colors hover:text-rose-500"
+              onClick={cancel}
+              aria-label="Cancelar el bloque"
+              className="grid h-12 w-12 place-items-center rounded-full border border-white/15
+                         text-white/40 transition-colors hover:border-rose-500/60
+                         hover:text-rose-400 active:scale-95"
             >
-              <X size={12} />
-              Nuevo enfoque
+              <X size={20} />
             </button>
           </div>
-        </div>
-      ) : (
-        /* ── Pasos 1 y 2: la conversación ────────────────────────────────── */
-        <>
-          {/*
-            La medalla del día vive aquí y no dentro del reloj: se ve justo cuando
-            hay que decidir si vale la pena empezar otro bloque, no mientras uno
-            corre.
-          */}
-          <div className="flex items-center justify-end">
-            <span
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-bold
-                          transition-colors duration-500 ${today.blocks > 0
-                ? 'bg-orange-500/15 text-orange-600 dark:text-orange-300'
-                : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500'}`}
-              title={`${today.blocks} bloques completados hoy`}
+        )}
+      </div>
+    );
+  }
+
+  // ── Acto 3: cuánto tiempo ───────────────────────────────────────────────
+  if (pendingTask !== null) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <TypedLine
+          text="¿Cuánto tiempo?"
+          onDone={() => setClockIn(true)}
+          className="text-2xl font-light text-white"
+        />
+
+        {/*
+          El reloj entra cuando la pregunta acabó de escribirse. Montarlo antes
+          dejaría la respuesta en pantalla mientras todavía se está preguntando.
+        */}
+        {isClockIn && (
+          <div className="animate-rise mt-12 flex flex-col items-center">
+            <FocusClock
+              seconds={setupSec}
+              onAdjust={adjust}
+              canSubtract={setupSec > STEP_SEC}
+            />
+
+            <p className="mt-4 max-w-[16rem] truncate text-sm text-white/30">
+              {pendingTask}
+            </p>
+
+            <button
+              type="button"
+              onClick={begin}
+              className="mt-12 flex items-center gap-2 rounded-full bg-white px-12 py-4 text-sm
+                         font-bold uppercase tracking-widest text-black transition-transform
+                         hover:bg-white/90 active:scale-95"
             >
-              <Flame size={14} aria-hidden="true" />
-              {today.blocks}
-              <span className="sr-only">bloques completados hoy</span>
-            </span>
+              <Play size={14} />
+              Iniciar
+            </button>
           </div>
+        )}
+      </div>
+    );
+  }
 
-          <FocusFlow name={name} recent={recent} onStart={openTimer} />
-
-          <TodayFocus blocks={today.blocks} minutes={today.minutes} />
-        </>
-      )}
-
-      <SessionCompleteModal
-        isOpen={completed !== null}
-        label={completed?.label ?? ''}
-        minutes={completed?.minutes ?? 0}
-        todayBlocks={completed?.stats.blocks ?? 0}
-        todayMinutes={completed?.stats.minutes ?? 0}
-        onClose={() => setCompleted(null)}
-      />
-    </section>
+  // ── Actos 1 y 2 ─────────────────────────────────────────────────────────
+  return (
+    <FocusFlow
+      onReady={askForTime}
+      todayLabel={today.blocks === 0
+        ? 'Sin bloques todavía'
+        : `${today.blocks} ${today.blocks === 1 ? 'bloque' : 'bloques'} · ${formatDuration(today.minutes)}`}
+    />
   );
 }

@@ -20,13 +20,7 @@ import { readHistory, statsFor, formatDuration } from '../../data/timeBlocks';
  * La sección se mantiene clara en los dos temas, igual que antes se mantenía
  * oscura: es una decisión de la pieza, no del tema de la app.
  */
-/*
-  `username` y `name` no son lo mismo y aquí se necesitan los dos: el primero es la
-  llave con la que se guardan los bloques en el almacenamiento, el segundo es cómo
-  se llama la persona. Los bloques de enfoque saludan por su nombre, así que la
-  llave no sirve para eso.
-*/
-export default function ProductivityDashboard({ username, name }) {
+export default function ProductivityDashboard({ username }) {
   const [isProspectaOpen, setProspectaOpen] = useState(false);
   const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
   const [isGoalsOpen, setGoalsOpen] = useState(false);
@@ -133,7 +127,6 @@ export default function ProductivityDashboard({ username, name }) {
         isOpen={isBlocksOpen}
         onClose={() => { setBlocksOpen(false); refreshToday(); }}
         username={username}
-        name={name}
       />
     </div>
   );
