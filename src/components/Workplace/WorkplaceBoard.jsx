@@ -7,6 +7,8 @@ import PublishSheet from './PublishSheet';
 import { readAdvisorProfile } from '../../data/advisorProfile';
 import { stampWatermark } from '../../data/watermark';
 import { useAccess } from '../../context/AccessContext';
+import { useSession } from '../../context/SessionContext';
+import PromotoriaWaitingRoom from '../Promotoria/PromotoriaWaitingRoom';
 import { categoryOf, relativeTime } from '../../data/announcements';
 import { attachmentKind, attachmentName, documentLabel } from '../../data/attachments';
 import {
@@ -241,6 +243,16 @@ function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelet
 /** Tablero de anuncios de la promotoría. */
 export default function WorkplaceBoard({ isOpen, onClose, username }) {
   const { isLinked, isPromoter } = useAccess();
+
+  /*
+    Quien tiene una solicitud sin responder no ve el muro.
+
+    Es el contenido compartido del equipo, así que la autorización del promotor es
+    justo lo que da derecho a leerlo. Se comprueba antes del código de invitación:
+    sin esto, un asesor con el código entraba al muro de una promotoría que
+    todavía no lo había aceptado.
+  */
+  const { isAwaitingPromotoria } = useSession();
   const [sharingId, setSharingId] = useState(null);
   const [toast, setToast] = useState('');
   const [isPublishOpen, setPublishOpen] = useState(false);
@@ -319,6 +331,10 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
 
   return (
     <FullScreenView isOpen={isOpen} onClose={onClose} title="Workplace">
+      {isAwaitingPromotoria ? (
+        <PromotoriaWaitingRoom title="El muro de comunicados" />
+      ) : (
+        <>
       <AccessBar onNotify={setToast} />
 
       {/*
@@ -372,6 +388,9 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
             onClose={() => setPublishOpen(false)}
             onPublish={handlePublish}
           />
+        </>
+      )}
+
         </>
       )}
 

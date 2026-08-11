@@ -89,6 +89,15 @@ function identityFromProfile(profile) {
     email: profile.email,
     avatarUrl: profile.avatarUrl,
     role: profile.role,
+
+    /*
+      Pertenencia a una promotoría. Viaja en la identidad porque la sala de
+      espera se dibuja en pantallas que no consultan la base: sin esto tendrían
+      que pedir el perfil cada una por su cuenta, y el bloqueo aparecería con un
+      parpadeo después de haber mostrado el contenido.
+    */
+    promotorId: profile.promotorId ?? null,
+    promotoriaStatus: profile.promotoriaStatus ?? null,
   };
 }
 
@@ -325,6 +334,14 @@ export function SessionProvider({ children }) {
       // internas de desarrollo.
       isAdmin: isAdminRole(role),
       role,
+
+      /*
+        `null` cuando no pertenece a ninguna promotoría —o cuando la migración
+        todavía no corrió—, y en los dos casos significa lo mismo para la app: no
+        hay nada que esperar, así que nada se bloquea. Sólo `'pending'` bloquea.
+      */
+      promotoriaStatus: identity?.promotoriaStatus ?? null,
+      isAwaitingPromotoria: (identity?.promotoriaStatus ?? null) === 'pending',
       googleEnabled: isSupabaseConfigured,
       signInWithGoogle,
       signInWithPassword,
