@@ -120,11 +120,21 @@ export async function listMyAdvisors(promotorId) {
     sea cual sea su rol. Y es lo correcto además de lo práctico, porque la
     aprobación del promotor es justo lo que convierte a un pendiente en asesor.
   */
+  /*
+    Tope explícito de 500.
+
+    Supabase corta las respuestas en mil filas por su cuenta y sin avisar, así que
+    una promotoría grande vería su equipo truncado sin ninguna señal de que faltan
+    personas. Pidiéndolo aquí, el número es una decisión nuestra y no un límite
+    escondido del servidor; si algún día una promotoría lo alcanza, hará falta
+    paginar y conviene que se note en este archivo.
+  */
   const ask = (columns) => supabase
     .from(TABLE)
     .select(columns)
     .eq('promotor_id', promotorId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(500);
 
   let { data, error } = await ask(COLUMNS);
 
@@ -256,9 +266,26 @@ export async function saveMyCode(promoterId, code) {
     return { error: { message: 'Supabase no está configurado.' }, taken: false };
   }
 
+  /*
+    Nunca se guarda una cadena vacía.
+
+    El índice único ignora los nulos, pero **no** las cadenas vacías: dos
+    promotorías con `''` chocarían entre sí, y el segundo vería "ese código ya lo
+    usa otra promotoría" sin haber escrito ningún código. Se convierte a nulo, que
+    es lo que significa "todavía no tengo".
+  */
+  const clean = String(code ?? '').trim();
+  if (!clean) {
+    const { error } = await supabase
+      .from(TABLE)
+      .update({ promotoria_code: null })
+      .eq('id', promoterId);
+    return { error, taken: false };
+  }
+
   const { error } = await supabase
     .from(TABLE)
-    .update({ promotoria_code: code })
+    .update({ promotoria_code: clean })
     .eq('id', promoterId);
 
   if (error) {
