@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyRound, Lock, Check, ShieldCheck } from 'lucide-react';
+import { KeyRound, Lock, Check, ShieldCheck, Unlink, BadgeCheck } from 'lucide-react';
 import { useAccess } from '../../context/AccessContext';
 
 const BUTTON =
@@ -19,9 +19,17 @@ const BUTTON =
  */
 export default function AccessBar({ onNotify }) {
   const {
-    isLinked, isPromoter, promoteria, accessCode,
+    isLinked, isLinkedByCode, isPromoter, promoteria, accessCode,
     validateAccessCode, linkAccess, verifyPromoterPassword, unlinkAccess,
   } = useAccess();
+
+  /*
+    Quien tiene acceso por su rol puede pedir el formulario a mano. No se le
+    muestra por omisión porque un código no le añade nada —ya entra—, pero
+    esconderlo del todo le quitaría la única forma de vincularse a otra
+    promotoría para revisarla.
+  */
+  const [showForm, setShowForm] = useState(false);
 
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -64,8 +72,59 @@ export default function AccessBar({ onNotify }) {
     onNotify?.('¡Promotoría vinculada con éxito!');
   };
 
-  /** Estado vinculado: una sola línea con opción de cambiar de código. */
-  if (isLinked) {
+  const release = () => {
+    unlinkAccess();
+    setCode('');
+    setPassword('');
+    setNeedsPassword(false);
+    setError('');
+    setShowForm(false);
+    onNotify?.('Código desvinculado');
+  };
+
+  /*
+    Acceso por el rol de la cuenta, sin código de por medio.
+
+    Se dice con esas palabras y sin botón de desvincular: no hay nada que soltar,
+    y ofrecerlo era exactamente el fallo —se pulsaba y no ocurría nada visible—.
+  */
+  if (isLinked && !isLinkedByCode && !showForm) {
+    return (
+      <div
+        className="mb-6 flex items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-100
+                   px-4 py-3 dark:border-zinc-700/80 dark:bg-zinc-900"
+      >
+        <BadgeCheck
+          size={17}
+          className="shrink-0 text-indigo-500 dark:text-indigo-400"
+          aria-hidden="true"
+        />
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
+            Acceso por tu rol de cuenta
+          </p>
+          <p className="text-[11px] text-zinc-500">
+            No necesitas código: tu rol ya te deja
+            {isPromoter ? ' publicar en el muro' : ' leer el muro'}
+            .
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold text-zinc-500
+                     underline-offset-2 transition-colors hover:text-indigo-500 hover:underline"
+        >
+          Usar un código
+        </button>
+      </div>
+    );
+  }
+
+  /** Estado vinculado por código: una línea con la opción de soltarlo. */
+  if (isLinkedByCode) {
     return (
       <div
         className="mb-6 flex items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-100
@@ -88,19 +147,22 @@ export default function AccessBar({ onNotify }) {
           </p>
         </div>
 
+        {/*
+          Dice "Desvincular" y no "Cambiar código": lo que hace es soltar el
+          vínculo, y con el rótulo anterior nadie encontraba cómo salir —se leía
+          como un paso previo a escribir otro código, no como la salida—.
+        */}
         <button
           type="button"
-          onClick={() => {
-            unlinkAccess();
-            setCode('');
-            setPassword('');
-            setNeedsPassword(false);
-            setError('');
-          }}
-          className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold text-zinc-500
-                     underline-offset-2 transition-colors hover:text-indigo-500 hover:underline"
+          onClick={release}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300
+                     px-2.5 py-1.5 text-[11px] font-semibold text-zinc-500 transition-colors
+                     hover:border-rose-400/50 hover:text-rose-500 dark:border-zinc-700
+                     focus-visible:outline-none focus-visible:ring-2
+                     focus-visible:ring-rose-400"
         >
-          Cambiar código
+          <Unlink size={11} aria-hidden="true" />
+          Desvincular
         </button>
       </div>
     );

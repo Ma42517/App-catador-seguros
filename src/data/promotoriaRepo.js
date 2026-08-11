@@ -242,3 +242,21 @@ export async function joinPromotoriaByCode(code) {
   const row = Array.isArray(data) ? data[0] : data;
   return { data: { promotoria: row?.promotoria ?? '' }, error: null };
 }
+
+
+
+/**
+ * Sale de la promotoría: cancela la solicitud o abandona el equipo.
+ *
+ * El asesor limpia sus propias dos columnas, cosa que la política "editar mi
+ * perfil" ya le permite. No hace falta una función especial ni el permiso del
+ * promotor: entrar exige que otro te acepte, pero salir no debería exigirle nada
+ * a nadie —una solicitud enviada por error, o a la promotoría equivocada, dejaría
+ * a esa persona atrapada esperando una respuesta que no quiere—.
+ *
+ * El disparador de la base sigue impidiendo lo único peligroso: ponerse
+ * `approved` por su cuenta. Limpiar no está restringido.
+ */
+export async function leavePromotoria(advisorId) {
+  return writeStatus(advisorId, { promotor_id: null, promotoria_status: null });
+}
