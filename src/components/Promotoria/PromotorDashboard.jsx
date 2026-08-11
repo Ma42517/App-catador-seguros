@@ -12,6 +12,7 @@ import TeamTabs from './TeamTabs';
 import AlertPublisher from './AlertPublisher';
 import PostComposer from './PostComposer';
 import AssistantsModal from './AssistantsModal';
+import AlertTracker from './AlertTracker';
 import ActivityTable from './ActivityTable';
 import PendingRequests from './PendingRequests';
 import AdvisorCard from './AdvisorCard';
@@ -335,7 +336,16 @@ export default function PromotorDashboard() {
 
           {/* ── Publicar en el muro ── */}
           {activeTab === 'workspace' && (
-            <PostComposer />
+            <>
+              <PostComposer onPublished={load} />
+
+              {/*
+                El seguimiento vive debajo del formulario y no en una pestaña propia:
+                se consulta justo cuando se está pensando en el siguiente aviso, y
+                una pestaña más habría dejado seis en la fila.
+              */}
+              <AlertTracker promotorId={promotorId} team={approved} />
+            </>
           )}
 
           {/* ── Publicar Alerta ── */}

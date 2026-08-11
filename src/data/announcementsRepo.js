@@ -133,6 +133,18 @@ function fromRow(row) {
     */
     authorId: row.author_id ?? null,
     authorName: row.author_name ?? '',
+
+    /*
+      Dónde va el comunicado. `workspace` es el muro y `hoy` la notificación que
+      aparece en la pantalla de inicio del asesor hasta que contesta.
+
+      Las filas viejas no traen nada, y ausencia se lee como muro: es donde
+      estaban antes de que existiera la alternativa, y darles por destino "hoy"
+      resucitaría comunicados de meses atrás en la pantalla de inicio de todos.
+    */
+    targetSection: row.target_section || 'workspace',
+    eventDate: row.event_date ?? '',
+    eventTime: row.event_time ?? '',
   };
 }
 
@@ -150,7 +162,8 @@ function isMissingOwner(error) {
   if (!error) return false;
   if (error.code === '42703') return true;
   const text = String(error.message ?? '');
-  return ['promotor_id', 'author_id', 'author_name'].some((c) => text.includes(c));
+  return ['promotor_id', 'author_id', 'author_name',
+    'target_section', 'event_date', 'event_time'].some((c) => text.includes(c));
 }
 
 /**
@@ -176,6 +189,14 @@ export async function fetchAnnouncements(promotorId = '') {
     let query = supabase.from(TABLE).select('*');
     if (filtered && promotorId) {
       query = query.or(`promotor_id.eq.${promotorId},promotor_id.is.null`);
+      /*
+        Las notificaciones de inicio no se repiten en el muro. Se eligió una cosa o
+        la otra al publicar, y verlas en los dos sitios haría dudar de si son dos
+        avisos distintos —y de si hay que contestar dos veces—.
+
+        `is.null` entra porque las filas anteriores a esta columna son de muro.
+      */
+      query = query.or('target_section.is.null,target_section.eq.workspace');
     }
     return query.order('created_at', { ascending: false });
   };
@@ -197,6 +218,7 @@ export async function fetchAnnouncements(promotorId = '') {
 
 export async function publishAnnouncement({
   title, category, content, fileUrl, promotorId = '', authorId = '', authorName = '',
+  targetSection = 'workspace', eventDate = '', eventTime = '',
 }) {
   if (!usingSupabase) {
     const created = addLocalAnnouncement({ title, category, content, fileUrl });
@@ -226,6 +248,18 @@ export async function publishAnnouncement({
   if (authorId) row.author_id = authorId;
   if (authorName) row.author_name = authorName;
 
+  row.target_section = targetSection;
+
+  /*
+    La fecha y la hora sólo viajan si la notificación las lleva. Mandar cadenas
+    vacías a columnas `date` y `time` es un error de tipo en Postgres, no un valor
+    nulo: `''` no es una fecha.
+  */
+  if (targetSection === 'hoy') {
+    if (eventDate) row.event_date = eventDate;
+    if (eventTime) row.event_time = eventTime;
+  }
+
   let { data, error } = await supabase.from(TABLE).insert([row]).select();
 
   /*
@@ -235,7 +269,8 @@ export async function publishAnnouncement({
   */
   if (error && isMissingOwner(error)) {
     const {
-      promotor_id: _owner, author_id: _authorId, author_name: _authorName, ...fallback
+      promotor_id: _owner, author_id: _authorId, author_name: _authorName,
+      target_section: _target, event_date: _date, event_time: _time, ...fallback
     } = row;
     ({ data, error } = await supabase.from(TABLE).insert([fallback]).select());
   }
