@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Send, Loader2, Check, Megaphone } from 'lucide-react';
+import {
+  Send, Loader2, Check, Megaphone, LayoutDashboard, BellRing,
+} from 'lucide-react';
 import AttachmentInput from '../ui/AttachmentInput';
 import { CATEGORY_LIST } from '../../data/announcements';
 import {
@@ -30,6 +32,15 @@ const LABEL = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider t
 export default function PostComposer({ onPublished }) {
   const { identity } = useSession();
 
+  /*
+    Dónde va el comunicado. Arranca en el muro porque es lo habitual: la
+    notificación que interrumpe la pantalla de inicio se elige a propósito, no por
+    omisión.
+  */
+  const [target, setTarget] = useState('workspace');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+
   const [category, setCategory] = useState(CATEGORY_LIST[0].key);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -40,6 +51,9 @@ export default function PostComposer({ onPublished }) {
   const [isDone, setDone] = useState(false);
 
   const reset = () => {
+    setTarget('workspace');
+    setEventDate('');
+    setEventTime('');
     setCategory(CATEGORY_LIST[0].key);
     setTitle('');
     setContent('');
@@ -53,6 +67,16 @@ export default function PostComposer({ onPublished }) {
 
     if (!title.trim()) {
       setError('El comunicado necesita un título.');
+      return;
+    }
+
+    /*
+      La fecha y la hora son obligatorias en una notificación porque la respuesta
+      es una confirmación de asistencia: sin cuándo, "sí asistiré" no significa
+      nada y no hay nada que apuntar en la agenda del asesor.
+    */
+    if (target === 'hoy' && (!eventDate || !eventTime)) {
+      setError('Una notificación prioritaria necesita fecha y hora del evento.');
       return;
     }
 
@@ -90,6 +114,10 @@ export default function PostComposer({ onPublished }) {
       // Y la firma, que es lo que distingue a un promotor de otro en el mismo muro.
       authorId: identity?.key ?? '',
       authorName: identity?.name ?? '',
+
+      targetSection: target,
+      eventDate: target === 'hoy' ? eventDate : '',
+      eventTime: target === 'hoy' ? eventTime : '',
     });
 
     setSaving(false);
@@ -116,10 +144,15 @@ export default function PostComposer({ onPublished }) {
           <Check size={22} strokeWidth={2.2} />
         </span>
 
-        <p className="text-sm font-bold text-white">Comunicado publicado</p>
+        <p className="text-sm font-bold text-white">
+          {target === 'hoy' ? 'Notificación enviada' : 'Comunicado publicado'}
+        </p>
         <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-400">
-          Ya aparece en el muro de tus asesores aprobados. Puedes verlo como lo ven
-          ellos desde Productividad → Workplace.
+          {target === 'hoy'
+            ? 'Aparece en la pantalla de inicio de tus asesores y no se irá hasta que '
+              + 'cada uno confirme. Puedes ver quién ha respondido en la pestaña Publicar.'
+            : 'Ya aparece en el muro de tus asesores aprobados. Puedes verlo como lo ven '
+              + 'ellos desde Productividad → Workplace.'}
         </p>
 
         <button
@@ -146,7 +179,90 @@ export default function PostComposer({ onPublished }) {
         Lo verán en su muro todos tus asesores aprobados, y sólo ellos.
       </p>
 
+      {/*
+        Selector de destino. Dos tarjetas y no un desplegable: la diferencia entre
+        dejar algo en el muro e interrumpir la pantalla de inicio de todo el equipo
+        es grande, y en un desplegable se elige sin leerla.
+      */}
       <div className="mb-4 mt-4">
+        <span className={LABEL}>¿Dónde publicar?</span>
+        <div role="radiogroup" aria-label="Dónde publicar" className="grid gap-2 sm:grid-cols-2">
+          {[
+            {
+              key: 'workspace',
+              label: 'Muro General',
+              hint: 'Lo verán al entrar al Workplace.',
+              Icon: LayoutDashboard,
+            },
+            {
+              key: 'hoy',
+              label: 'Notificación Prioritaria',
+              hint: 'Aparece en su inicio hasta que confirme.',
+              Icon: BellRing,
+            },
+          ].map((option) => {
+            const active = target === option.key;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => { setTarget(option.key); setError(''); }}
+                className={`rounded-xl border p-3 text-left transition-all active:scale-[0.98]
+                  ${active
+                    ? 'border-indigo-500 bg-indigo-500/10'
+                    : 'border-zinc-700 hover:border-zinc-600'}`}
+              >
+                <option.Icon
+                  size={15}
+                  className={active ? 'text-indigo-300' : 'text-zinc-500'}
+                  aria-hidden="true"
+                />
+                <span className={`mt-1.5 block text-xs font-bold
+                  ${active ? 'text-white' : 'text-zinc-300'}`}
+                >
+                  {option.label}
+                </span>
+                <span className="mt-0.5 block text-[10px] leading-snug text-zinc-500">
+                  {option.hint}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Fecha y hora, sólo cuando hay algo que confirmar. */}
+      {target === 'hoy' && (
+        <div className="animate-rise mb-4 grid grid-cols-2 gap-3 rounded-xl border
+                        border-indigo-500/25 bg-indigo-500/[0.05] p-3"
+        >
+          <div>
+            <label className={LABEL} htmlFor="event-date">Fecha del evento</label>
+            <input
+              id="event-date"
+              type="date"
+              value={eventDate}
+              onChange={(e) => { setEventDate(e.target.value); setError(''); }}
+              className={INPUT}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor="event-time">Hora del evento</label>
+            <input
+              id="event-time"
+              type="time"
+              value={eventTime}
+              onChange={(e) => { setEventTime(e.target.value); setError(''); }}
+              className={INPUT}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="mb-4">
         <span className={LABEL}>Etiqueta</span>
         <div role="radiogroup" aria-label="Etiqueta del comunicado" className="flex flex-wrap gap-2">
           {CATEGORY_LIST.map((option) => {

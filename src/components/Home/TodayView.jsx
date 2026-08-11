@@ -1,5 +1,6 @@
 import AISequence from './AISequence';
 import WelcomeGreeting from './WelcomeGreeting';
+import PriorityAlerts from './PriorityAlerts';
 
 const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
 
@@ -23,14 +24,24 @@ export default function TodayView({ name }) {
     <AISequence
       name={name}
       header={(
-        <div className="mx-auto max-w-2xl px-4 pt-8">
+        <>
+          {/*
+            Los avisos de la promotoría van antes del saludo: si esperan respuesta,
+            son lo único de esta pantalla que no puede posponerse. Cuando no hay
+            ninguno el componente no dibuja nada, así que la vista queda igual que
+            antes.
+          */}
+          <PriorityAlerts />
+
+          <div className="mx-auto max-w-2xl px-4 pt-8">
           <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
             {fecha}
           </p>
           <div className="mt-1">
             <WelcomeGreeting text={greeting} accentWords={saludo.split(' ')} />
           </div>
-        </div>
+          </div>
+        </>
       )}
     />
   );
