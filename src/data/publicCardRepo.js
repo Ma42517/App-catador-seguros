@@ -126,3 +126,42 @@ export async function fetchPublicCard(advisorId) {
 
   return { card: toCard(data), error: null };
 }
+
+
+/**
+ * Fotos de perfil de varias personas a la vez, por su id.
+ *
+ * Sale de `public_cards` y no de `profiles` porque es la única puerta que un
+ * asesor tiene a las fichas ajenas: RLS le deja ver la suya y nada más, mientras
+ * la vista expone a propósito sólo lo publicable —nombre y foto, nunca el correo
+ * ni el rol—.
+ *
+ * Se pide en una sola consulta con `in` en lugar de una por autor. Con un muro de
+ * veinte comunicados de cuatro promotores distintos, la diferencia es cuatro
+ * peticiones o veinte.
+ *
+ * La foto se lee al mostrar y no se guarda junto al comunicado, al contrario que
+ * el nombre. No es una incoherencia: el nombre firma —es un hecho del día en que
+ * se publicó— y la foto es identidad presente. Si alguien cambia la de su tarjeta,
+ * lo razonable es que cambie en todo lo que publicó, no que sus comunicados viejos
+ * sigan mostrando una foto que ya no usa.
+ *
+ * Un fallo aquí no se propaga: se devuelve un mapa vacío y las tarjetas muestran
+ * la inicial. Perder el muro por una foto sería un mal intercambio.
+ */
+export async function fetchAuthorAvatars(ids = []) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!isSupabaseConfigured || !supabase || unique.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('public_cards')
+    .select('id, avatar_url')
+    .in('id', unique);
+
+  if (error || !data) return {};
+
+  return data.reduce((map, row) => {
+    if (row.avatar_url) map[row.id] = row.avatar_url;
+    return map;
+  }, {});
+}
