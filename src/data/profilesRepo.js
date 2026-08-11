@@ -110,6 +110,15 @@ function fromRow(row) {
     whatsapp: row.whatsapp ?? '',
     photoFocus: row.photo_focus ?? '',
     videoUrl: row.video_url ?? '',
+
+    /*
+      Pertenencia a una promotoría. Se leen con respaldo a `null` porque las
+      columnas pueden no existir todavía: `null` significa "no pertenece a
+      ninguna", que es exactamente lo que ocurre antes de la migración, así que la
+      app se comporta igual con y sin ella.
+    */
+    promotorId: row.promotor_id ?? null,
+    promotoriaStatus: row.promotoria_status ?? null,
   };
 }
 

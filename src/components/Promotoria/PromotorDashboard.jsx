@@ -1,69 +1,243 @@
-import { Users, TrendingUp } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Users, TrendingUp, Loader2, RefreshCw, AlertTriangle, Database,
+} from 'lucide-react';
+import { useSession } from '../../context/SessionContext';
+import {
+  listMyAdvisors, approveAdvisor, rejectAdvisor, describeError,
+} from '../../data/promotoriaRepo';
+import TeamStats from './TeamStats';
+import PendingRequests from './PendingRequests';
+import AdvisorCard from './AdvisorCard';
 
 /**
- * Gestión de Promotoría: el cascarón.
+ * Gestión de Promotoría: el equipo del promotor.
  *
  * Vive aparte del hub de Productividad a propósito, aunque las dos hablen de
- * rendimiento. Productividad mide **lo propio**: las metas, los bloques de
- * tiempo y las rachas de quien está mirando. Esto mide **a otros**, y esa
- * diferencia cambia todo lo que va dentro —una cifra baja aquí es una
- * conversación con una persona, no una tarea que hacer—. Mezclarlas obligaría a
- * que cada tarjeta explicara de quién habla.
- *
- * No recibe props ni consulta la base todavía: es la estructura donde entrará la
- * lista de asesores. Mantenerlo sin datos hace que esta fase se pueda desplegar
- * sin esperar a que exista la relación promotor–asesor en Supabase, que es la
- * pieza que falta y la que hay que diseñar con cuidado.
+ * rendimiento. Productividad mide **lo propio**: las metas, los bloques de tiempo
+ * y las rachas de quien está mirando. Esto mide **a otros**, y esa diferencia
+ * cambia lo que va dentro: una cifra baja aquí es una conversación con una
+ * persona, no una tarea que hacer.
  *
  * El ancho, el centrado y el hueco de la barra inferior los pone la carcasa
- * (`AdminLayout`), así que aquí no se repiten: duplicarlos daría un doble
- * margen en escritorio.
+ * (`AdminLayout`), así que aquí no se repiten.
  */
 export default function PromotorDashboard() {
+  const { identity } = useSession();
+  const promotorId = identity?.key ?? '';
+
+  const [pending, setPending] = useState([]);
+  const [approved, setApproved] = useState([]);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [needsMigration, setNeedsMigration] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const result = await listMyAdvisors(promotorId);
+    setLoading(false);
+
+    /*
+      La migración pendiente se trata como un caso propio y no como "no se pudo
+      cargar". Es el único fallo de esta pantalla que se arregla corriendo un
+      guion, y confundirlo con un error genérico manda a revisar la conexión o
+      los permisos, que son justo lo que no está mal.
+    */
+    if (result.missingMigration) {
+      setNeedsMigration(true);
+      setError('');
+      return;
+    }
+
+    setNeedsMigration(false);
+    if (result.error) {
+      setError(describeError(result.error));
+      return;
+    }
+    setError('');
+    setPending(result.pending);
+    setApproved(result.approved);
+  }, [promotorId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const respond = async (advisor, action) => {
+    setBusyId(advisor.id);
+    const { error: writeError } = await action(advisor.id);
+    setBusyId(null);
+
+    if (writeError) {
+      setError(describeError(writeError));
+      return;
+    }
+    setError('');
+    // Se relee en lugar de mover la fila en memoria: si la política de RLS
+    // rechazó el cambio a medias, la lista mostraría un estado que la base no
+    // tiene.
+    load();
+  };
+
+  const isEmpty = pending.length === 0 && approved.length === 0;
+
   return (
     <div className="animate-rise py-6">
       <header className="mb-6">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
-          Mi Promotoría
-        </p>
-        <h1 className="mt-1 flex items-center gap-2.5 text-2xl font-bold leading-tight
-                       tracking-tight text-white"
-        >
-          <Users size={24} strokeWidth={1.9} className="shrink-0 text-indigo-400" aria-hidden="true" />
-          Gestión de Equipo y Rendimiento
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
+              Mi Promotoría
+            </p>
+            <h1 className="mt-1 flex items-center gap-2.5 text-2xl font-bold leading-tight
+                           tracking-tight text-white"
+            >
+              <Users
+                size={24}
+                strokeWidth={1.9}
+                className="shrink-0 text-indigo-400"
+                aria-hidden="true"
+              />
+              Gestión de Equipo y Rendimiento
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            onClick={load}
+            disabled={isLoading}
+            className="mt-1 flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[11px]
+                       font-semibold uppercase tracking-wider text-zinc-500 transition-colors
+                       hover:text-indigo-400 disabled:cursor-wait"
+          >
+            {isLoading
+              ? <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+              : <RefreshCw size={12} aria-hidden="true" />}
+            {isLoading ? 'Cargando' : 'Actualizar'}
+          </button>
+        </div>
+
         <p className="mt-2 text-xs leading-relaxed text-zinc-400">
-          Desde aquí darás seguimiento a tus asesores: quién está activo, quién
-          necesita apoyo y cómo va el equipo contra su meta.
+          Aquí das seguimiento a tus asesores: quién está activo, quién necesita
+          apoyo y quién espera tu autorización para entrar.
         </p>
       </header>
 
       {/*
-        Marcador de posición con borde discontinuo, que es la convención del
-        proyecto para lo que todavía no existe (`EmptyState`). Sólido parecería
-        una tarjeta cargando y alguien se quedaría esperando.
+        La migración faltante se explica con el guion a la vista. Es lo que
+        distingue un aviso útil de uno que sólo dice que algo falló: quien lo lee
+        puede resolverlo sin salir a buscar en otro sitio.
       */}
-      <div
-        className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 px-6 py-12
-                   text-center"
-      >
-        <span
-          className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border
-                     border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
-          aria-hidden="true"
-        >
-          <TrendingUp size={22} strokeWidth={1.9} />
-        </span>
+      {needsMigration && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-amber-300">
+            <Database size={15} aria-hidden="true" />
+            Falta preparar la base
+          </p>
+          <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+            La tabla
+            {' '}
+            <span className="font-mono text-zinc-300">profiles</span>
+            {' '}
+            todavía no tiene las columnas
+            {' '}
+            <span className="font-mono text-zinc-300">promotor_id</span>
+            {' '}
+            y
+            {' '}
+            <span className="font-mono text-zinc-300">promotoria_status</span>
+            . Corre este guion en el editor SQL de Supabase y vuelve a esta pantalla.
+          </p>
+          <pre className="mt-3 overflow-x-auto rounded-lg border border-white/10 bg-black/60 p-3
+                          text-[10px] leading-relaxed text-zinc-400"
+          >
+            {`alter table public.profiles
+  add column if not exists promotor_id uuid
+    references public.profiles(id) on delete set null,
+  add column if not exists promotoria_status text;`}
+          </pre>
+        </div>
+      )}
 
-        <p className="text-sm font-semibold text-zinc-200">
-          Aquí se mostrará la lista de asesores activos y sus métricas de
-          productividad.
+      {error && !needsMigration && (
+        <p
+          role="alert"
+          className="mb-4 flex items-start gap-2 rounded-xl border border-rose-500/30
+                     bg-rose-500/10 p-3 text-[11px] leading-relaxed text-rose-300"
+        >
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+          {error}
         </p>
-        <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-500">
-          Todavía no existe la relación entre promotor y asesor en la base, así que
-          no hay a quién listar. Es lo siguiente que hay que construir.
+      )}
+
+      {isLoading && !needsMigration && (
+        <p className="flex items-center justify-center gap-2 py-12 text-xs text-zinc-500">
+          <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+          Cargando tu equipo…
         </p>
-      </div>
+      )}
+
+      {!isLoading && !needsMigration && (
+        <>
+          <TeamStats total={approved.length} pendingCount={pending.length} />
+
+          {/* Sólo si hay algo que resolver. */}
+          {pending.length > 0 && (
+            <PendingRequests
+              requests={pending}
+              busyId={busyId}
+              onApprove={(advisor) => respond(advisor, approveAdvisor)}
+              onReject={(advisor) => respond(advisor, rejectAdvisor)}
+            />
+          )}
+
+          {approved.length > 0 && (
+            <section>
+              <h2 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-zinc-500">
+                Tu equipo
+              </h2>
+
+              {/*
+                Una columna en teléfono, dos en tableta y tres en escritorio. Es
+                la única disposición que deja la tarjeta legible en 360 píxeles
+                sin desperdiciar la mitad de la pantalla en un monitor.
+              */}
+              <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {approved.map((advisor) => (
+                  <AdvisorCard key={advisor.id} advisor={advisor} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/*
+            Vacío. Se explica cómo se llena, porque un promotor recién nombrado no
+            tiene forma de adivinar que hace falta escribir su identificador en la
+            ficha del asesor: no hay ninguna pantalla que lo haga todavía.
+          */}
+          {isEmpty && (
+            <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40
+                            px-6 py-12 text-center"
+            >
+              <span
+                className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border
+                           border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+                aria-hidden="true"
+              >
+                <TrendingUp size={22} strokeWidth={1.9} />
+              </span>
+
+              <p className="text-sm font-semibold text-zinc-200">
+                Todavía no tienes asesores en tu promotoría.
+              </p>
+              <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-500">
+                Cuando un asesor te elija como su promotor, su solicitud aparecerá
+                aquí para que la apruebes. Falta construir esa pantalla: por ahora
+                se asigna desde el editor SQL de Supabase.
+              </p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
