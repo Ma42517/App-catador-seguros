@@ -244,7 +244,7 @@ function AnnouncementCard({ announcement, onShare, isSharing, canDelete, onDelet
 
 /** Tablero de anuncios de la promotoría. */
 export default function WorkplaceBoard({ isOpen, onClose, username }) {
-  const { isLinked, isPromoter } = useAccess();
+  const { isLinked } = useAccess();
 
   /*
     Quien tiene una solicitud sin responder no ve el muro.
@@ -254,7 +254,26 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     sin esto, un asesor con el código entraba al muro de una promotoría que
     todavía no lo había aceptado.
   */
-  const { isAwaitingPromotoria, needsPromotoria, role } = useSession();
+  const {
+    isAwaitingPromotoria, needsPromotoria, role, canManage,
+  } = useSession();
+
+  /*
+    Quién puede publicar y borrar en el muro.
+
+    Sale del rol de la cuenta en Supabase —promotor o administrador— y **no** de
+    `isPromoter` del código de acceso, que era lo que se usaba antes. La
+    diferencia no es teórica: ese código y su contraseña están escritos dentro del
+    paquete que descarga cualquier visitante, así que un asesor que los leyera se
+    concedía el modo promotor en su propio navegador y le aparecía el botón de
+    publicar. El permiso tiene que venir de quién es la persona, no de un secreto
+    que viaja en el código.
+
+    Ojo con lo que esto no arregla: esconder el botón no impide llamar a la API.
+    Lo que de verdad lo cierra es la política de la base que sólo deja escribir a
+    promotores y administradores, y va documentada en .env.example.
+  */
+  const canPublish = canManage;
 
   /*
     Quién ve el formulario de "únete con un código".
@@ -369,7 +388,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
       ) : (
         <>
           {/* Publicar sólo existe para el promotor: el asesor únicamente lee */}
-          {isPromoter && (
+          {canPublish && (
             <button
               type="button"
               onClick={() => setPublishOpen(true)}
@@ -400,7 +419,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
               announcement={announcement}
               isSharing={sharingId === announcement.id}
               onShare={(share) => handleShare(announcement.id, share)}
-              canDelete={isPromoter}
+              canDelete={canPublish}
               onDelete={() => handleDelete(announcement.id)}
             />
           ))}
