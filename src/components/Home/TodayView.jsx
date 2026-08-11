@@ -1,6 +1,5 @@
 import AISequence from './AISequence';
 import WelcomeGreeting from './WelcomeGreeting';
-import PriorityAlerts from './PriorityAlerts';
 
 const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
 
@@ -31,14 +30,6 @@ export default function TodayView({ name }) {
           <div className="mt-1">
             <WelcomeGreeting text={greeting} accentWords={saludo.split(' ')} />
           </div>
-
-          {/*
-            Los avisos van aquí, después del saludo, como primer elemento de lo que
-            hay que atender hoy. Encima interrumpían la entrada a la app cada vez que
-            se abría. Cuando no hay ninguno el componente no dibuja nada, así que la
-            vista queda igual que antes.
-          */}
-          <PriorityAlerts />
         </div>
       )}
     />

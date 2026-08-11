@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useEvents } from '../../context/EventContext';
 import ActionableCard from '../Activities/ActionableCard';
+import PriorityAlerts from './PriorityAlerts';
 
 /** Ritmo de escritura, en ms por letra. */
 const TYPE_MS = 30;
@@ -81,6 +82,23 @@ export default function AISequence({ name, header, children }) {
           {typed}
           {isTyping && <span className="animate-pulse text-amber-400">|</span>}
         </p>
+
+        {/*
+          Los avisos que esperan confirmación van justo aquí: después del texto que
+          acaba de decir "empecemos por aquí" y antes de la agenda del día. Ese
+          "aquí" señala al primer elemento de la lista, y esto es lo primero.
+
+          Encima del saludo interrumpían la entrada a la app; en el encabezado
+          quedaban separados de la lista que encabezan. El diseño de la tarjeta no
+          cambia, sólo su lugar en el orden de lectura.
+
+          El ancho lo pone este envoltorio y no el componente: el contenedor centra
+          a sus hijos, así que sin `w-full` la tarjeta se encogería al tamaño de su
+          texto y dejaría de alinearse con los eventos de abajo.
+        */}
+        <div className={`w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
+          <PriorityAlerts />
+        </div>
 
         {/* Eventos de máxima prioridad para hoy, accionables al tocarlos */}
         {highPriorityToday.length > 0 && (
