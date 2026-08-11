@@ -12,27 +12,11 @@
  *    temporizadores de las pestañas ocultas, así que un bloque de 45 minutos
  *    terminaría varios minutos tarde.
  */
-const BLOCKS_KEY = 'df360:timeBlocks:v1';
 const SESSION_KEY = 'df360:timeBlockSession:v1';
 const HISTORY_KEY = 'df360:timeBlockHistory:v1';
 
-/**
- * Bloques que trae la app. `icon` es el nombre del icono de lucide, no un
- * emoji: los emojis dependen de que el sistema tenga la fuente y en algunos
- * dispositivos caen al cuadrito de glifo faltante.
- */
-export const DEFAULT_BLOCKS = [
-  { id: 'llamadas', label: 'Hacer Llamadas', minutes: 45, icon: 'Phone', builtIn: true },
-  { id: 'seguimientos', label: 'Seguimientos', minutes: 30, icon: 'ClipboardList', builtIn: true },
-];
-
 /** Tope de duración. Más allá de tres horas ya no es un bloque de enfoque. */
 export const MAX_MINUTES = 180;
-
-function newId() {
-  return globalThis.crypto?.randomUUID?.()
-    ?? `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
 
 function readMap(key) {
   try {
@@ -52,34 +36,16 @@ function writeMap(key, value) {
   }
 }
 
-// ── Bloques personalizados, por usuario ───────────────────────────────────
+/*
+  Aquí vivían los bloques fijos de la app y el alta de bloques propios: una lista
+  guardada por usuario, con id, icono y la marca de "este lo trae la app".
 
-export function readCustomBlocks(username) {
-  if (!username) return [];
-  const list = readMap(BLOCKS_KEY)[username];
-  return Array.isArray(list) ? list : [];
-}
-
-export function writeCustomBlocks(username, blocks) {
-  if (!username) return;
-  writeMap(BLOCKS_KEY, { ...readMap(BLOCKS_KEY), [username]: blocks });
-}
-
-/** Crea un bloque propio. Devuelve `null` si el nombre o los minutos no sirven. */
-export function makeBlock({ label, minutes }) {
-  const cleanLabel = String(label ?? '').trim();
-  const cleanMinutes = Math.round(Number(minutes));
-  if (!cleanLabel) return null;
-  if (!Number.isFinite(cleanMinutes) || cleanMinutes < 1 || cleanMinutes > MAX_MINUTES) return null;
-
-  return {
-    id: newId(),
-    label: cleanLabel,
-    minutes: cleanMinutes,
-    icon: 'Timer',
-    builtIn: false,
-  };
-}
+  Se fueron con la pantalla que los mostraba. El enfoque ya no se elige de una
+  rejilla, se escribe: la tarea y los minutos se preguntan una vez y viajan en la
+  sesión. Guardar además un catálogo de bloques significaba mantener sincronizadas
+  dos ideas de "en qué estoy trabajando", y la que la persona acaba de teclear
+  siempre le gana a la que guardó hace un mes.
+*/
 
 // ── Sesión en curso ───────────────────────────────────────────────────────
 
@@ -125,13 +91,6 @@ export function formatClock(totalSeconds) {
   const minutes = Math.floor(safe / 60);
   const seconds = safe % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-/** Fracción ya transcurrida, de 0 a 1, para el anillo de progreso. */
-export function elapsedFraction(session) {
-  if (!session || !session.totalSec) return 0;
-  const remaining = remainingSeconds(session);
-  return Math.min(1, Math.max(0, 1 - remaining / session.totalSec));
 }
 
 /** El mismo texto que se lee en voz alta y en el aviso al terminar. */

@@ -281,7 +281,7 @@ function Shell({
       ) : activeSection === 'home' ? (
         <TodayView name={displayName} />
       ) : activeSection === 'productivity' ? (
-        <ProductivityDashboard username={storageKey} />
+        <ProductivityDashboard username={storageKey} name={displayName} />
       ) : activeSection === 'promotoria' ? (
         <PromotorDashboard />
       ) : activeSection === 'agenda' ? (

@@ -12,7 +12,7 @@ import TimeBlocks from './TimeBlocks';
  * instante en que termina, no los segundos restantes, así que al volver muestra
  * el tiempo correcto aunque el componente se haya desmontado.
  */
-export default function TimeBlocksScreen({ isOpen, onClose, username }) {
+export default function TimeBlocksScreen({ isOpen, onClose, username, name }) {
   return (
     <FullScreenView
       isOpen={isOpen}
@@ -20,7 +20,7 @@ export default function TimeBlocksScreen({ isOpen, onClose, username }) {
       title="Bloques de Tiempo"
       label="Bloques de tiempo"
     >
-      <TimeBlocks username={username} />
+      <TimeBlocks username={username} name={name} />
     </FullScreenView>
   );
 }
