@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { KeyRound, Copy, Check, Loader2, RefreshCw, Share2 } from 'lucide-react';
+import {
+  KeyRound, Copy, Check, Loader2, RefreshCw, Share2, Pencil, X,
+} from 'lucide-react';
 import { saveMyCode, describeError } from '../../data/promotoriaRepo';
-import { generateCode } from '../../data/promotoriaCode';
+import { generateCode, normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCode';
 
 /**
  * El código de invitación del promotor: se muestra, se copia y se comparte.
@@ -19,6 +21,15 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
   const [isBusy, setBusy] = useState(false);
   const [isCopied, setCopied] = useState(false);
   const [error, setError] = useState('');
+
+  /*
+    Modo edición. El código se elige a mano además de generarse porque una
+    promotoría quiere el suyo reconocible —PROMO-866-01 en vez de un azar— y
+    porque se dicta por teléfono: uno elegido se recuerda, uno aleatorio se
+    consulta cada vez.
+  */
+  const [isEditing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(code || '');
 
   /*
     Al generar se reintenta con un código nuevo si el elegido ya existe. Cinco
@@ -51,6 +62,33 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
     setError('No se pudo generar un código libre. Inténtalo de nuevo.');
   };
 
+  /** Guarda el código escrito a mano. */
+  const saveDraft = async () => {
+    const normalized = normalizeCode(draft);
+
+    if (!isValidCode(normalized)) {
+      setError(explainCode(draft));
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    const { error: saveError, taken } = await saveMyCode(promoterId, normalized);
+    setBusy(false);
+
+    if (taken) {
+      setError('Ese código ya lo usa otra promotoría. Elige otro.');
+      return;
+    }
+    if (saveError) {
+      setError(describeError(saveError));
+      return;
+    }
+
+    setEditing(false);
+    onSaved?.(normalized);
+  };
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code);
@@ -80,7 +118,64 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
         Código de tu promotoría
       </p>
 
-      {code ? (
+      {isEditing ? (
+        <>
+          <label
+            className="mt-2.5 mb-1.5 block text-[11px] font-medium uppercase tracking-wide
+                       text-zinc-400"
+            htmlFor="promotoria-own-code"
+          >
+            Escribe tu código
+          </label>
+
+          <input
+            id="promotoria-own-code"
+            value={draft}
+            onChange={(e) => { setDraft(normalizeCode(e.target.value)); setError(''); }}
+            placeholder="PROMO-866-01"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck="false"
+            maxLength={15}
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5
+                       text-center font-mono text-xl tracking-[0.12em] text-zinc-100
+                       placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none
+                       focus:ring-2 focus:ring-indigo-500"
+          />
+
+          <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
+            De 2 a 8 letras, tres dígitos y dos dígitos. Cambiarlo invalida el
+            anterior para quien ya lo tenga apuntado.
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={saveDraft}
+              disabled={isBusy}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2
+                         text-[11px] font-bold text-white transition-colors
+                         hover:bg-indigo-500 active:scale-95 disabled:cursor-wait
+                         disabled:opacity-60"
+            >
+              {isBusy
+                ? <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+                : <Check size={12} aria-hidden="true" />}
+              Guardar código
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setEditing(false); setDraft(code || ''); setError(''); }}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px]
+                         font-semibold text-zinc-500 transition-colors hover:text-zinc-300"
+            >
+              <X size={12} aria-hidden="true" />
+              Cancelar
+            </button>
+          </div>
+        </>
+      ) : code ? (
         <>
           {/*
             Monoespaciada y con letras separadas: el código se dicta por teléfono
@@ -132,9 +227,21 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
             */}
             <button
               type="button"
+              onClick={() => { setDraft(code); setEditing(true); setError(''); }}
+              className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-[11px]
+                         font-semibold text-zinc-100 transition-colors hover:bg-white/15
+                         active:scale-95 focus-visible:outline-none focus-visible:ring-2
+                         focus-visible:ring-indigo-400"
+            >
+              <Pencil size={12} aria-hidden="true" />
+              Editar
+            </button>
+
+            <button
+              type="button"
               onClick={generate}
               disabled={isBusy}
-              title="Genera un código nuevo. El anterior deja de funcionar."
+              title="Genera un código nuevo al azar. El anterior deja de funcionar."
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px]
                          font-semibold text-zinc-500 transition-colors hover:text-amber-400
                          disabled:cursor-wait"
@@ -168,6 +275,16 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
               ? <Loader2 size={13} className="animate-spin" aria-hidden="true" />
               : <KeyRound size={13} aria-hidden="true" />}
             Generar mi código
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setDraft(''); setEditing(true); setError(''); }}
+            className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500
+                       underline underline-offset-4 transition-colors hover:text-indigo-300"
+          >
+            <Pencil size={11} aria-hidden="true" />
+            O escribir uno yo mismo
           </button>
         </>
       )}
