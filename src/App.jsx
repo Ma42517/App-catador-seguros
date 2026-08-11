@@ -194,7 +194,7 @@ function stepFromHash() {
   nombre es el de su perfil. Usar el nombre como clave ataría los datos a un
   texto que la persona puede cambiar.
 */
-function Shell({ onLogout, isPreview, canManage, isAdmin, storageKey, displayName }) {
+function Shell({ onLogout, isPreview, isAdmin, storageKey, displayName }) {
   /*
     No hay estado de tema. La app es oscura de forma permanente y la clase `dark`
     vive en el <html> de index.html, así que no hay nada que sincronizar en
@@ -232,7 +232,12 @@ function Shell({ onLogout, isPreview, canManage, isAdmin, storageKey, displayNam
       onNavigate={setSection}
       onLogout={onLogout}
       canUsePreview={canUsePreview}
-      isAdminUser={canManage}
+      /*
+        `isAdmin` y no `canManage`: el segundo incluye a los promotores, y el
+        panel de administración —aprobar usuarios, mover roles, borrar fichas— es
+        exclusivo del administrador.
+      */
+      isAdminUser={isAdmin}
       username={storageKey}
     >
       {activeSection === 'preview' ? (
@@ -347,7 +352,6 @@ function Gate({ isPreview }) {
               <Shell
                 onLogout={signOut}
                 isPreview={isPreview}
-                canManage={canManage}
                 isAdmin={isAdmin}
                 storageKey={identity.key}
                 displayName={identity.name}
