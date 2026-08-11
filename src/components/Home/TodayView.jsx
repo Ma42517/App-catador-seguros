@@ -24,7 +24,6 @@ export default function TodayView({ name }) {
 
   return (
     <AISequence
-      name={name}
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
           <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">

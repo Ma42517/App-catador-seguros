@@ -12,17 +12,23 @@ function prefersReducedMotion() {
     && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
-/** El mensaje cambia según lo que haya en la agenda de hoy. */
-function buildMessage(saludo, pendientes) {
-  const nombre = saludo ? `, ${saludo}` : '';
+/**
+ * El mensaje cambia según lo que haya en la agenda de hoy.
+ *
+ * Sin saludo ni nombre: de eso ya se encarga el encabezado, tres líneas más
+ * arriba. Aquí se saludaba por segunda vez a alguien que acababa de leer su
+ * nombre, y el texto tardaba en llegar a lo único que importa, que es cuántos
+ * pendientes tiene.
+ */
+function buildMessage(pendientes) {
   if (pendientes > 0) {
     // Se cuida el singular: "1 evento pendiente", no "1 eventos pendientes".
     const cuenta = pendientes === 1
       ? '1 evento pendiente'
       : `${pendientes} eventos pendientes`;
-    return `Hola${nombre}. Tienes ${cuenta} para hoy. Empecemos por aquí...`;
+    return `Tienes ${cuenta} para hoy. Empecemos por aquí...`;
   }
-  return `Gran semana${nombre}. La agenda está libre. `
+  return 'La agenda está libre. '
     + '¿Cerramos algún negocio pendiente hoy? Empieza por aquí...';
 }
 
@@ -33,11 +39,10 @@ function buildMessage(saludo, pendientes) {
  *  2. Revelación: al caer la última letra, entran las tarjetas prioritarias
  *     y el contenido (`children`) con un fundido lento.
  */
-export default function AISequence({ name, header, children }) {
+export default function AISequence({ header, children }) {
   const { highPriorityToday } = useEvents();
 
-  const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
-  const text = buildMessage(saludo, highPriorityToday.length);
+  const text = buildMessage(highPriorityToday.length);
 
   const [typed, setTyped] = useState('');
   const isTyping = typed.length < text.length;
