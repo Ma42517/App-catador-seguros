@@ -97,13 +97,15 @@ function toAdvisor(row) {
 export async function listMyAdvisors(promotorId) {
   if (!isSupabaseConfigured || !supabase) {
     return {
-      pending: [], approved: [], blocked: [],
+      pending: [], approved: [], blocked: [], assistants: [],
       error: { message: 'Supabase no está configurado.' },
       missingMigration: false,
     };
   }
   if (!promotorId) {
-    return { pending: [], approved: [], blocked: [], error: null, missingMigration: false };
+    return {
+      pending: [], approved: [], blocked: [], assistants: [], error: null, missingMigration: false,
+    };
   }
 
   /*
@@ -146,16 +148,26 @@ export async function listMyAdvisors(promotorId) {
 
   if (error) {
     return {
-      pending: [], approved: [], blocked: [], error,
+      pending: [], approved: [], blocked: [], assistants: [], error,
       missingMigration: isMissingMigration(error),
     };
   }
 
   const rows = (data ?? []).map(toAdvisor);
+
+  /*
+    Los asistentes se apartan del equipo. Comparten el `promotor_id` con los
+    asesores porque trabajan para el mismo titular, pero no son parte del equipo
+    que se mide: un asistente en la cuadrícula de asesores aparecería con sus
+    llamadas y cierres en blanco para siempre, porque no vende.
+  */
+  const isAssistant = (r) => r.role === PROFILE_ROLES.ASSISTANT;
+
   return {
-    pending: rows.filter((r) => r.status === PROMOTORIA_STATUS.PENDING),
-    approved: rows.filter((r) => r.status === PROMOTORIA_STATUS.APPROVED),
-    blocked: rows.filter((r) => r.status === PROMOTORIA_STATUS.BLOCKED),
+    pending: rows.filter((r) => r.status === PROMOTORIA_STATUS.PENDING && !isAssistant(r)),
+    approved: rows.filter((r) => r.status === PROMOTORIA_STATUS.APPROVED && !isAssistant(r)),
+    blocked: rows.filter((r) => r.status === PROMOTORIA_STATUS.BLOCKED && !isAssistant(r)),
+    assistants: rows.filter(isAssistant),
     error: null,
     missingMigration: false,
   };
@@ -431,4 +443,81 @@ export async function fetchMyPromotoria() {
     },
     error: null,
   };
+}
+
+
+// ── Asistentes de promotoría ─────────────────────────────────────────────────
+
+/**
+ * Asciende a un usuario registrado a asistente del titular.
+ *
+ * Va por una función de la base y no por un `update` porque hay dos cosas que el
+ * cliente no puede hacer: buscar una ficha por correo —RLS no le deja ver fichas
+ * ajenas, y menos aún consultarlas por correo, que permitiría averiguar quién está
+ * registrado— y escribir en una fila que todavía no le pertenece, porque la
+ * política del promotor sólo alcanza a quien ya tiene su `promotor_id`.
+ *
+ * La función comprueba dentro que quien llama es el titular. Esa comprobación no
+ * puede vivir en la interfaz: cualquiera puede invocar la función desde la consola
+ * del navegador.
+ */
+export async function promoteToAssistant(email) {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: { message: 'Supabase no está configurado.' } };
+  }
+
+  const { data, error } = await supabase.rpc('promote_to_assistant', {
+    p_email: String(email ?? '').trim(),
+  });
+
+  if (error) {
+    const raw = String(error.message ?? '');
+
+    if (/NO_AUTORIZADO/.test(raw)) {
+      return {
+        data: null,
+        error: { message: 'Sólo el titular de la promotoría puede nombrar asistentes.' },
+      };
+    }
+    if (/NO_EXISTE/.test(raw)) {
+      return {
+        data: null,
+        error: {
+          message: 'No hay ninguna cuenta con ese correo. La persona tiene que '
+            + 'registrarse primero en la app.',
+        },
+      };
+    }
+    if (/ES_TU_CUENTA/.test(raw)) {
+      return { data: null, error: { message: 'Ése es tu propio correo.' } };
+    }
+    if (/does not exist|PGRST202/i.test(raw) || error.code === 'PGRST202') {
+      return {
+        data: null,
+        error: {
+          message: 'Falta preparar la base: la función promote_to_assistant no existe '
+            + 'todavía. Corre el guion de .env.example.',
+          code: 'NO_FUNCTION',
+        },
+      };
+    }
+    return { data: null, error };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return { data: { id: row?.assistant ?? null, name: row?.nombre ?? '' }, error: null };
+}
+
+/**
+ * Devuelve a un asistente a su puesto de asesor.
+ *
+ * Se le quita el rol pero **no** el vínculo: sigue perteneciendo a la promotoría,
+ * ahora como asesor. Desvincularlo de paso lo echaría del equipo sin que nadie lo
+ * pidiera, y volver a entrar le exigiría el código y una nueva aprobación.
+ *
+ * Esto sí va por un `update` directo: la ficha ya tiene el `promotor_id` de quien
+ * llama, así que la política del titular la alcanza.
+ */
+export function revokeAssistant(assistantId) {
+  return writeStatus(assistantId, { role: PROFILE_ROLES.ADVISOR });
 }

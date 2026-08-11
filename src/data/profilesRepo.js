@@ -14,20 +14,67 @@ const TABLE = 'profiles';
 export const PROFILE_ROLES = {
   PENDING: 'pending',
   ADVISOR: 'advisor',
+  /*
+    El asistente de promotoría: opera el día a día del equipo —aprueba, publica,
+    vigila la actividad— pero no toca la configuración maestra. No es un promotor
+    con menos permisos ni un asesor con más: es un puesto distinto, y por eso tiene
+    su propio rol en lugar de una bandera encima de otro.
+  */
+  ASSISTANT: 'assistant',
   PROMOTER: 'promoter',
   ADMIN: 'admin',
 };
 
 /** Roles que ya pasaron la revisión del promotor. */
-const APPROVED = [PROFILE_ROLES.ADVISOR, PROFILE_ROLES.PROMOTER, PROFILE_ROLES.ADMIN];
+const APPROVED = [
+  PROFILE_ROLES.ADVISOR, PROFILE_ROLES.ASSISTANT,
+  PROFILE_ROLES.PROMOTER, PROFILE_ROLES.ADMIN,
+];
 
 export function isApprovedRole(role) {
   return APPROVED.includes(role);
 }
 
-/** Quién puede publicar en el muro y abrir el panel de administración. */
+/**
+ * Quién gestiona contenido de la promotoría: publica en el muro y lo retira.
+ *
+ * El asistente entra aquí porque publicar y moderar el muro es justo su trabajo.
+ * Lo que no hereda por estar en esta lista son los permisos maestros: el código de
+ * invitación y el nombramiento de asistentes se comprueban aparte, con
+ * `isPromoterOwner`.
+ */
 export function canManage(role) {
-  return role === PROFILE_ROLES.PROMOTER || role === PROFILE_ROLES.ADMIN;
+  return role === PROFILE_ROLES.PROMOTER
+    || role === PROFILE_ROLES.ASSISTANT
+    || role === PROFILE_ROLES.ADMIN;
+}
+
+/**
+ * Quién puede abrir el panel de la promotoría y operarlo.
+ *
+ * El titular y su asistente. El administrador de la app queda fuera a propósito:
+ * no tiene equipo propio, y darle esta pantalla le mostraría un panel vacío que
+ * parecería roto.
+ */
+export function canRunPromotoria(role) {
+  return role === PROFILE_ROLES.PROMOTER || role === PROFILE_ROLES.ASSISTANT;
+}
+
+/**
+ * Sólo el titular de la promotoría.
+ *
+ * Es la llave de lo que no se delega: el código de invitación —que decide quién
+ * puede pedir entrar— y el nombramiento de asistentes —que decide quién manda—.
+ * Un asistente que pudiera nombrar asistentes multiplicaría el acceso sin que el
+ * titular se enterara.
+ */
+export function isPromoterOwner(role) {
+  return role === PROFILE_ROLES.PROMOTER;
+}
+
+/** ¿Es un asistente? Para decidir qué se le muestra en su lugar. */
+export function isAssistantRole(role) {
+  return role === PROFILE_ROLES.ASSISTANT;
 }
 
 export function isAdminRole(role) {
@@ -85,6 +132,7 @@ export function roleLabel(role) {
   switch (role) {
     case PROFILE_ROLES.PENDING: return 'En revisión';
     case PROFILE_ROLES.ADVISOR: return 'Asesor';
+    case PROFILE_ROLES.ASSISTANT: return 'Asistente';
     case PROFILE_ROLES.PROMOTER: return 'Promotor';
     case PROFILE_ROLES.ADMIN: return 'Administrador';
     default: return 'Sin rol';
