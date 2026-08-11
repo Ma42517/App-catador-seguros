@@ -37,7 +37,7 @@ export default function TeamTabs({ activeTab, onChange, total, pendingCount }) {
         tarjeta y no a media pieza, que es la diferencia entre un carrusel y una
         fila que se desborda.
       */
-      className="mb-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1
+      className="mb-6 flex snap-x overscroll-x-contain gap-3 overflow-x-auto pb-1
                  [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
                  sm:grid sm:grid-cols-3 sm:snap-none sm:overflow-visible
                  lg:grid-cols-5"
