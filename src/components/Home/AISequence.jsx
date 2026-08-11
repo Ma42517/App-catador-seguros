@@ -1,16 +1,7 @@
-import { useState, useEffect } from 'react';
 import { useEvents } from '../../context/EventContext';
 import ActionableCard from '../Activities/ActionableCard';
 import PriorityAlerts from './PriorityAlerts';
-
-/** Ritmo de escritura, en ms por letra. */
-const TYPE_MS = 30;
-
-/** Si el usuario pidió menos movimiento, el texto aparece completo de una vez. */
-function prefersReducedMotion() {
-  return typeof window !== 'undefined'
-    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-}
+import useTypewriter from '../../lib/useTypewriter';
 
 /**
  * El mensaje cambia según lo que haya en la agenda de hoy.
@@ -44,23 +35,12 @@ export default function AISequence({ header, children }) {
 
   const text = buildMessage(highPriorityToday.length);
 
-  const [typed, setTyped] = useState('');
-  const isTyping = typed.length < text.length;
-
-  useEffect(() => {
-    if (prefersReducedMotion()) {
-      setTyped(text);
-      return undefined;
-    }
-    setTyped('');
-    let index = 0;
-    const id = setInterval(() => {
-      index += 1;
-      setTyped(text.slice(0, index));
-      if (index >= text.length) clearInterval(id);
-    }, TYPE_MS);
-    return () => clearInterval(id);
-  }, [text]);
+  /*
+    La máquina de escribir vive en `lib/useTypewriter`: la comparten esta pantalla y
+    el flujo de enfoque, y dos copias del mismo intervalo se habrían desviado en
+    cuanto alguien tocara el ritmo o la regla de "reducir movimiento" en una sola.
+  */
+  const { typed, isTyping } = useTypewriter(text);
 
   // El encabezado y el contenido comparten el mismo fundido de la revelación.
   const revealClass = `transition-opacity duration-1000 ${isTyping ? 'opacity-0' : 'opacity-100'}`;

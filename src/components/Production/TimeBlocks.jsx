@@ -1,83 +1,39 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  Phone, ClipboardList, Timer, Plus, Play, Pause, Square, X, Hourglass, Flame,
+  Play, Pause, X, RotateCcw, Flame, Target,
 } from 'lucide-react';
-import Toast from '../Layout/Toast';
-import TimerRing from './TimerRing';
-import BlockFormSheet from './BlockFormSheet';
+import FocusFlow from './FocusFlow';
 import TodayFocus from './TodayFocus';
 import SessionCompleteModal from './SessionCompleteModal';
 import {
-  DEFAULT_BLOCKS, readCustomBlocks, writeCustomBlocks, makeBlock,
-  readSession, writeSession, remainingSeconds, formatClock, elapsedFraction,
-  readHistory, recordCompletion, statsFor,
+  readSession, writeSession, remainingSeconds, formatClock,
+  readHistory, recordCompletion, statsFor, todayKey,
 } from '../../data/timeBlocks';
 import { primeAudio, playChime } from '../../data/chime';
 import {
   tapFeedback, MILESTONE_PATTERN, SESSION_END_PATTERN, MILESTONE_STEP_SEC,
 } from '../../lib/haptics';
 
-/** Iconos disponibles para los bloques, por nombre. */
-const ICONS = { Phone, ClipboardList, Timer };
-
-/** Chip de selección de bloque. */
-function BlockChip({ block, isActive, onSelect, onRemove }) {
-  const Icon = ICONS[block.icon] ?? Timer;
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={onSelect}
-        className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-left
-                    transition-all active:scale-[0.97] ${isActive
-          ? 'border-indigo-500 bg-indigo-500/10'
-          : 'border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900'}`}
-      >
-        <Icon
-          size={15}
-          className={`shrink-0 ${isActive ? 'text-indigo-500' : 'text-zinc-400'}`}
-          aria-hidden="true"
-        />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-zinc-900 dark:text-white">
-            {block.label}
-          </span>
-          <span className="block text-xs font-medium text-zinc-500">{block.minutes} min</span>
-        </span>
-      </button>
-
-      {/* Los bloques propios se pueden retirar; los de la app no. */}
-      {!block.builtIn && (
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Quitar bloque ${block.label}`}
-          className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full
-                     border border-zinc-200 bg-white text-zinc-400 shadow-sm transition-colors
-                     hover:bg-rose-500 hover:text-white
-                     dark:border-zinc-700 dark:bg-zinc-800"
-        >
-          <X size={10} />
-        </button>
-      )}
-    </div>
-  );
-}
+/** Cuántas tareas de hoy se ofrecen para repetir en el paso 1. */
+const RECENT_LIMIT = 3;
 
 /**
- * Bloques de tiempo: temporizador de enfoque con bloques predefinidos.
+ * Bloques de tiempo: temporizador de enfoque, preguntado en tres pasos.
  *
  * La sesión se guarda con el instante de término, no con los segundos que
  * quedan. Así el bloque sigue corriendo aunque el asesor se vaya a la Agenda
  * (la sección se desmonta al navegar) o mande la app al fondo, donde el
  * navegador estrangula los intervalos.
+ *
+ * Ese mismo dato decide qué se ve: si hay sesión, el reloj; si no, la
+ * conversación de `FocusFlow`. El paso en el que va la persona no se guarda en un
+ * estado aparte a propósito. Un `step` en memoria y una sesión en el
+ * almacenamiento pueden contradecirse —recargar la página mostraría el paso 1
+ * mientras el bloque de 45 minutos sigue corriendo— y de las dos, la que dice la
+ * verdad es la sesión.
  */
-export default function TimeBlocks({ username }) {
-  const [custom, setCustom] = useState(() => readCustomBlocks(username));
+export default function TimeBlocks({ username, name }) {
   const [session, setSession] = useState(() => readSession(username));
-  const [formOpen, setFormOpen] = useState(false);
-  const [toast, setToast] = useState('');
   const [history, setHistory] = useState(() => readHistory(username));
 
   // Lo que muestra el modal se congela al cerrar el bloque: si dependiera del
@@ -126,11 +82,28 @@ export default function TimeBlocks({ username }) {
     prevRemaining.current = null;
   }, []);
 
-  const blocks = useMemo(() => [...DEFAULT_BLOCKS, ...custom], [custom]);
-
   const today = useMemo(() => statsFor(history), [history]);
 
-  // Al cambiar de usuario se cargan sus bloques y su sesión.
+  /*
+    Las tareas de hoy, sin repetir y de la más reciente a la más vieja.
+
+    Se ofrecen para volver a empezarlas con un toque. Sustituyen a los bloques
+    fijos que traía la app, y con ventaja: eran dos nombres que alguien supuso
+    ("Hacer Llamadas", "Seguimientos"), y esto es lo que esta persona sí hizo hoy.
+  */
+  const recent = useMemo(() => {
+    const entries = history[todayKey()] ?? [];
+    const labels = [];
+
+    // De atrás hacia adelante: lo último que se trabajó es lo primero que se ofrece.
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const label = entries[index]?.label;
+      if (label && !labels.includes(label)) labels.push(label);
+      if (labels.length === RECENT_LIMIT) break;
+    }
+    return labels;
+  }, [history]);
+
   /**
    * Recarga el estado sólo cuando *cambia* de persona, no en cada montaje.
    *
@@ -146,17 +119,12 @@ export default function TimeBlocks({ username }) {
     if (loadedFor.current === username) return;
     loadedFor.current = username;
 
-    setCustom(readCustomBlocks(username));
     setSession(readSession(username));
     setHistory(readHistory(username));
     setCompleted(null);
     notifiedFor.current = null;
     resetHaptics();
   }, [username, resetHaptics]);
-
-  useEffect(() => {
-    writeCustomBlocks(username, custom);
-  }, [username, custom]);
 
   useEffect(() => {
     writeSession(username, session);
@@ -237,18 +205,14 @@ export default function TimeBlocks({ username }) {
     setCompleted({ label: session.label, minutes, stats: statsFor(updated) });
   }, [session, isRunning, remaining, username]);
 
-  const clearToast = useCallback(() => setToast(''), []);
-
-  /** Selecciona un bloque y lo deja listo, sin arrancar. */
-  const selectBlock = (block) => {
+  /** Paso 3: queda el bloque cargado y en pausa, esperando el "Iniciar". */
+  const openTimer = ({ task, minutes }) => {
     notifiedFor.current = null;
     resetHaptics();
     setSession({
-      blockId: block.id,
-      label: block.label,
-      icon: block.icon,
-      totalSec: block.minutes * 60,
-      remainingSec: block.minutes * 60,
+      label: task,
+      totalSec: minutes * 60,
+      remainingSec: minutes * 60,
       endsAt: null,
       status: 'paused',
       startedAt: Date.now(),
@@ -296,152 +260,134 @@ export default function TimeBlocks({ username }) {
     notifiedFor.current = null;
     resetHaptics();
     setSession((prev) => (prev
-      ? { ...prev, status: 'paused', remainingSec: prev.totalSec, endsAt: null, startedAt: Date.now(), recorded: false }
+      ? {
+        ...prev,
+        status: 'paused',
+        remainingSec: prev.totalSec,
+        endsAt: null,
+        startedAt: Date.now(),
+        recorded: false,
+      }
       : prev));
   };
 
+  /** Suelta el bloque y devuelve la conversación al paso 1. */
   const close = () => {
     notifiedFor.current = null;
     resetHaptics();
     setSession(null);
   };
 
-  const addBlock = (draft) => {
-    const block = makeBlock(draft);
-    if (!block) {
-      setToast('No se pudo crear el bloque.');
-      return;
-    }
-    setCustom((prev) => [...prev, block]);
-    setToast(`Bloque creado: ${block.label} · ${block.minutes} min`);
-  };
-
-  const removeBlock = (id) => {
-    setCustom((prev) => prev.filter((block) => block.id !== id));
-    // Si se quita el bloque que está cargado, el temporizador se retira con él.
-    setSession((prev) => (prev?.blockId === id ? null : prev));
-  };
-
   return (
     <section aria-label="Bloques de tiempo">
-      {/* El título lo pone la cabecera de la pantalla; aquí sólo la medalla. */}
-      <div className="mb-4 flex items-center gap-2">
-        <Hourglass size={16} className="text-indigo-500" aria-hidden="true" />
-        <h2 className="text-sm font-bold text-zinc-900 dark:text-white">Enfoque de hoy</h2>
+      {session ? (
+        /* ── Paso 3: el reloj ────────────────────────────────────────────── */
+        <div className="animate-rise flex flex-col items-center pt-4">
+          {/*
+            La tarea, arriba y en pequeño. Es lo único que queda del contexto:
+            durante el bloque no hay ninguna decisión que tomar, así que cualquier
+            otra cosa en pantalla sólo compite con el trabajo.
 
-        {/*
-          Medalla de enfoque del día. Vive en la cabecera, no dentro del reloj:
-          así se ve incluso sin ningún bloque cargado, que es cuando decide si
-          vale la pena empezar otro.
-        */}
-        <span
-          className={`ml-auto flex items-center gap-1.5 rounded-full px-2.5 py-1
-                      text-sm font-bold transition-colors duration-500 ${today.blocks > 0
-            ? 'bg-orange-500/15 text-orange-600 dark:text-orange-300'
-            : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500'}`}
-          title={`${today.blocks} bloques completados hoy`}
-        >
-          <Flame size={14} aria-hidden="true" />
-          {today.blocks}
-          <span className="sr-only">bloques completados hoy</span>
-        </span>
-      </div>
+            Con icono y no con emoji: los emojis dependen de que el sistema traiga
+            la fuente y en algunos Android caen al cuadrito de glifo faltante.
+          */}
+          <p className="flex max-w-[85%] items-center gap-1.5 text-xs font-semibold
+                        text-zinc-500 dark:text-zinc-400"
+          >
+            <Target size={12} className="shrink-0 text-indigo-500" aria-hidden="true" />
+            <span className="truncate">Enfoque: {session.label}</span>
+          </p>
 
-      {/* Reloj: sólo cuando hay un bloque cargado, para no ocupar espacio en vano */}
-      {session && (
-        <div className="mb-4">
-          <TimerRing
-            clock={formatClock(remaining)}
-            fraction={elapsedFraction(session)}
-            label={session.label}
-            isDone={isDone}
-            isRunning={isRunning}
-          />
+          {/*
+            `font-mono` y `tabular-nums` por la misma razón: que los dígitos midan
+            todos igual. Con una tipografía proporcional el reloj se mueve solo cada
+            vez que un 1 sustituye a un 8, y un número que tiembla en el centro de la
+            pantalla se mira más que el trabajo.
+          */}
+          <p
+            role="timer"
+            aria-live="off"
+            className={`mt-6 font-mono text-6xl font-bold tabular-nums tracking-tight
+                        transition-colors sm:text-7xl ${isDone
+              ? 'text-emerald-500'
+              : 'text-zinc-900 dark:text-white'}`}
+          >
+            {formatClock(remaining)}
+          </p>
 
-          <div className="mt-4 flex gap-2">
-            {isRunning ? (
-              <button
-                type="button"
-                onClick={pause}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border
-                           border-zinc-300 py-3.5 text-base font-semibold text-zinc-700
-                           transition-colors hover:bg-zinc-100 active:scale-[0.98]
-                           dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              >
-                <Pause size={15} />
-                Pausar
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={start}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600
-                           py-3.5 text-base font-semibold text-white shadow-lg shadow-indigo-600/30
-                           transition-all hover:bg-indigo-500 active:scale-[0.98]"
-              >
-                <Play size={15} />
-                {isDone ? 'Otra vuelta' : (remaining < session.totalSec ? 'Continuar' : 'Iniciar')}
-              </button>
-            )}
+          <p className="mt-2 h-4 text-xs font-semibold text-zinc-400">
+            {isDone ? '¡Bloque completado!' : `${Math.round(session.totalSec / 60)} min de enfoque`}
+          </p>
 
+          <button
+            type="button"
+            onClick={isRunning ? pause : start}
+            className={`mt-8 flex w-full max-w-sm items-center justify-center gap-2 rounded-xl
+                        py-4 text-base font-semibold transition-all active:scale-[0.98]
+                        ${isRunning
+              ? 'border border-zinc-300 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800'
+              : 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500'}`}
+          >
+            {isRunning ? <Pause size={16} /> : <Play size={16} />}
+            {isRunning
+              ? 'Pausar'
+              : (isDone ? 'Otra vuelta' : (remaining < session.totalSec ? 'Continuar' : 'Iniciar'))}
+          </button>
+
+          {/*
+            Las dos salidas van en texto pequeño y no en botones grandes: se usan una
+            vez cada varias sesiones, y al lado de "Pausar" invitarían a tocarlas por
+            error justo cuando el bloque va a la mitad.
+          */}
+          <div className="mt-4 flex items-center gap-5">
             <button
               type="button"
               onClick={reset}
-              aria-label="Reiniciar el bloque"
-              className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border
-                         border-zinc-300 text-zinc-500 transition-colors hover:bg-zinc-100
-                         active:scale-95 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500
+                         transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
             >
-              <Square size={14} />
+              <RotateCcw size={12} />
+              Reiniciar
             </button>
 
             <button
               type="button"
               onClick={close}
-              aria-label="Cerrar el temporizador"
-              className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border
-                         border-zinc-300 text-zinc-500 transition-colors
-                         hover:bg-rose-500/10 hover:text-rose-500 active:scale-95
-                         dark:border-zinc-700"
+              className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500
+                         transition-colors hover:text-rose-500"
             >
-              <X size={15} />
+              <X size={12} />
+              Nuevo enfoque
             </button>
           </div>
         </div>
+      ) : (
+        /* ── Pasos 1 y 2: la conversación ────────────────────────────────── */
+        <>
+          {/*
+            La medalla del día vive aquí y no dentro del reloj: se ve justo cuando
+            hay que decidir si vale la pena empezar otro bloque, no mientras uno
+            corre.
+          */}
+          <div className="flex items-center justify-end">
+            <span
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-bold
+                          transition-colors duration-500 ${today.blocks > 0
+                ? 'bg-orange-500/15 text-orange-600 dark:text-orange-300'
+                : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500'}`}
+              title={`${today.blocks} bloques completados hoy`}
+            >
+              <Flame size={14} aria-hidden="true" />
+              {today.blocks}
+              <span className="sr-only">bloques completados hoy</span>
+            </span>
+          </div>
+
+          <FocusFlow name={name} recent={recent} onStart={openTimer} />
+
+          <TodayFocus blocks={today.blocks} minutes={today.minutes} />
+        </>
       )}
-
-      {/* Selección de bloque */}
-      <div className="grid grid-cols-2 gap-2">
-        {blocks.map((block) => (
-          <BlockChip
-            key={block.id}
-            block={block}
-            isActive={session?.blockId === block.id}
-            onSelect={() => selectBlock(block)}
-            onRemove={() => removeBlock(block.id)}
-          />
-        ))}
-
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed
-                     border-zinc-300 px-3 py-2.5 text-sm font-semibold text-zinc-500
-                     transition-colors hover:border-indigo-500 hover:text-indigo-500
-                     active:scale-[0.97] dark:border-zinc-700"
-        >
-          <Plus size={14} />
-          Nuevo Bloque
-        </button>
-      </div>
-
-      <TodayFocus blocks={today.blocks} minutes={today.minutes} />
-
-      <BlockFormSheet
-        isOpen={formOpen}
-        onClose={() => setFormOpen(false)}
-        onSubmit={addBlock}
-      />
 
       <SessionCompleteModal
         isOpen={completed !== null}
@@ -451,8 +397,6 @@ export default function TimeBlocks({ username }) {
         todayMinutes={completed?.stats.minutes ?? 0}
         onClose={() => setCompleted(null)}
       />
-
-      <Toast message={toast} onDone={clearToast} />
     </section>
   );
 }
