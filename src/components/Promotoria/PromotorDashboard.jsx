@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Users, TrendingUp, Loader2, RefreshCw, AlertTriangle, Database,
+  Users, TrendingUp, Loader2, RefreshCw, AlertTriangle, Database, UserCog,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import {
@@ -11,6 +11,7 @@ import InviteCodeCard from './InviteCodeCard';
 import TeamTabs from './TeamTabs';
 import AlertPublisher from './AlertPublisher';
 import PostComposer from './PostComposer';
+import AssistantsModal from './AssistantsModal';
 import ActivityTable from './ActivityTable';
 import PendingRequests from './PendingRequests';
 import AdvisorCard from './AdvisorCard';
@@ -28,8 +29,18 @@ import AdvisorCard from './AdvisorCard';
  * (`AdminLayout`), así que aquí no se repiten.
  */
 export default function PromotorDashboard() {
-  const { identity, refreshIdentity } = useSession();
-  const promotorId = identity?.key ?? '';
+  const { identity, refreshIdentity, isPromoterOwner, isAssistant } = useSession();
+
+  /*
+    De quién es la promotoría que se está operando.
+
+    Para el titular, él mismo. Para su asistente, el titular al que está vinculado.
+    Sin esta distinción, el asistente habría consultado su propio id y visto un
+    equipo vacío: las fichas de los asesores apuntan al titular, no a él.
+  */
+  const promotorId = isAssistant
+    ? (identity?.promotorId ?? '')
+    : (identity?.key ?? '');
 
   /*
     El código se guarda en el estado además de leerse de la identidad: al generarlo
@@ -41,6 +52,8 @@ export default function PromotorDashboard() {
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
   const [blocked, setBlocked] = useState([]);
+  const [assistants, setAssistants] = useState([]);
+  const [isAssistantsOpen, setAssistantsOpen] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [needsMigration, setNeedsMigration] = useState(false);
@@ -80,6 +93,7 @@ export default function PromotorDashboard() {
     setPending(result.pending);
     setApproved(result.approved);
     setBlocked(result.blocked ?? []);
+    setAssistants(result.assistants ?? []);
   }, [promotorId]);
 
   useEffect(() => { load(); }, [load]);
@@ -105,7 +119,7 @@ export default function PromotorDashboard() {
   return (
     <div className="animate-rise py-6">
       <header className="mb-6">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
               Mi Promotoría
@@ -122,6 +136,28 @@ export default function PromotorDashboard() {
               Gestión de Equipo y Rendimiento
             </h1>
           </div>
+
+          {/*
+            Gestionar asistentes vive aquí arriba y no en una pestaña: se usa una vez
+            cada varios meses, y una pestaña permanente para eso le robaría sitio a lo
+            que se usa a diario. Sólo lo ve el titular.
+          */}
+          {isPromoterOwner && (
+            <button
+              type="button"
+              onClick={() => setAssistantsOpen(true)}
+              title="Gestionar asistentes"
+              aria-label="Gestionar asistentes"
+              className="mt-1 flex shrink-0 items-center gap-1.5 rounded-lg border
+                         border-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-400
+                         transition-colors hover:border-indigo-500/40 hover:text-indigo-300
+                         focus-visible:outline-none focus-visible:ring-2
+                         focus-visible:ring-indigo-500"
+            >
+              <UserCog size={13} aria-hidden="true" />
+              {assistants.length > 0 ? `Asistentes · ${assistants.length}` : 'Asistentes'}
+            </button>
+          )}
 
           <button
             type="button"
@@ -200,12 +236,36 @@ export default function PromotorDashboard() {
 
       {!isLoading && !needsMigration && (
         <>
-          <InviteCodeCard
-            code={code}
-            promoterId={promotorId}
-            promotoriaName={identity?.company || identity?.name || 'Promotoria'}
-            onSaved={(next) => { setCode(next); refreshIdentity?.(); }}
-          />
+          {/*
+            El código de invitación es la llave de la promotoría: decide quién puede
+            pedir entrar. Se omite del marcado para el asistente, no se esconde con
+            CSS —una tarjeta oculta sigue en el DOM y su texto se lee desde el
+            inspector—, y con ella se van sus botones de copiar, compartir y editar.
+          */}
+          {isPromoterOwner && (
+            <InviteCodeCard
+              code={code}
+              promoterId={promotorId}
+              promotoriaName={identity?.company || identity?.name || 'Promotoria'}
+              onSaved={(next) => { setCode(next); refreshIdentity?.(); }}
+            />
+          )}
+
+          {/*
+            En su lugar, el asistente recibe su propio encabezado. No es un relleno
+            para tapar el hueco: le dice qué puede hacer en esta pantalla, que es
+            distinto de lo que puede el titular, y evita que busque un código que
+            nunca va a encontrar.
+          */}
+          {isAssistant && (
+            <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+              <h2 className="text-xl font-bold text-white">Panel Operativo de Promotoría</h2>
+              <p className="mt-2 text-sm text-zinc-400">
+                Desde aquí puedes gestionar las aprobaciones, publicar en el muro y
+                monitorear la actividad del equipo.
+              </p>
+            </div>
+          )}
 
           <TeamTabs
             activeTab={activeTab}
@@ -347,15 +407,31 @@ export default function PromotorDashboard() {
                 Todavía no tienes asesores en tu promotoría.
               </p>
               <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-500">
-                Comparte tu código de arriba. Cuando alguien lo escriba en
-                Productividad → Workplace, su solicitud aparecerá aquí con su
-                nombre completo para que la apruebes, la rechaces o la bloquees.
+                {isPromoterOwner
+                  ? 'Comparte tu código de arriba. Cuando alguien lo escriba en '
+                    + 'Productividad → Workplace, su solicitud aparecerá aquí con su '
+                    + 'nombre completo para que la apruebes, la rechaces o la bloquees.'
+                  : 'Cuando alguien use el código de la promotoría, su solicitud '
+                    + 'aparecerá aquí con su nombre completo para que la apruebes, la '
+                    + 'rechaces o la bloquees.'}
               </p>
             </div>
           )}
         </>
       )}
 
+      {/*
+        Fuera del contenido de las pestañas: es una capa que cubre la pantalla, y
+        montada dentro se desmontaría al cambiar de pestaña por debajo.
+      */}
+      {isPromoterOwner && (
+        <AssistantsModal
+          isOpen={isAssistantsOpen}
+          onClose={() => setAssistantsOpen(false)}
+          assistants={assistants}
+          onChanged={load}
+        />
+      )}
     </div>
   );
 }

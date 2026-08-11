@@ -20,7 +20,7 @@ import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
 import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
-import { PROFILE_ROLES } from './data/profilesRepo';
+import { canRunPromotoria } from './data/profilesRepo';
 import PublicCardView from './pages/PublicCardView';
 import { publicCardIdFromPath } from './lib/publicRoute';
 import { Button } from './components/ui';
@@ -399,7 +399,12 @@ function Gate({ isPreview }) {
                   resto de los roles, y escribirlo a mano en español dejaría el
                   candado siempre cerrado sin que salte ningún error.
                 */
-                isPromoterUser={role === PROFILE_ROLES.PROMOTER}
+                /*
+                  El titular y su asistente. Antes se comparaba con el rol
+                  `promoter` exacto, así que un asistente no habría visto la
+                  sección que existe para que él la opere.
+                */
+                isPromoterUser={canRunPromotoria(role)}
                 storageKey={identity.key}
                 displayName={identity.name}
               />

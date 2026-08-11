@@ -359,7 +359,17 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     El administrador conserva el botón: no tiene panel de promotoría propio, así
     que quitárselo lo dejaba sin ninguna forma de publicar.
   */
-  const isPromoterRole = role === PROFILE_ROLES.PROMOTER;
+  /*
+    Quien opera la promotoría publica desde su panel, no desde el muro. El muro es
+    donde entra a comprobar cómo les queda a sus asesores, y un botón de publicar
+    ahí duplicaría la puerta.
+
+    Vale igual para el asistente que para el titular: los dos tienen la pestaña
+    "Publicar en el Muro" en el panel. Sólo el administrador de la app conserva el
+    botón aquí, porque no tiene panel de promotoría.
+  */
+  const isPromoterRole = role === PROFILE_ROLES.PROMOTER
+    || role === PROFILE_ROLES.ASSISTANT;
   const canPublish = canManage && !isPromoterRole;
 
   /*

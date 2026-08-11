@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   fetchOrCreateProfile, fetchProfile, describeError,
   PROFILE_ROLES, isApprovedRole, canManage, isAdminRole,
+  canRunPromotoria, isPromoterOwner, isAssistantRole,
 } from '../data/profilesRepo';
 import { touchLastSeen } from '../data/presence';
 
@@ -365,6 +366,16 @@ export function SessionProvider({ children }) {
       isApproved: isApprovedRole(role),
       isPending: Boolean(identity) && role === PROFILE_ROLES.PENDING,
       canManage: canManage(role),
+
+      /*
+        Tres llaves distintas y no una escala de más a menos permisos: operar la
+        promotoría, ser su titular, y ser el asistente. Con una sola escala habría
+        que preguntarse en cada pantalla "¿cuánto permiso hace falta aquí?", y es
+        justo la pregunta que se contesta mal.
+      */
+      canRunPromotoria: canRunPromotoria(role),
+      isPromoterOwner: isPromoterOwner(role),
+      isAssistant: isAssistantRole(role),
       // El administrador reparte los roles elevados y ve las herramientas
       // internas de desarrollo.
       isAdmin: isAdminRole(role),
