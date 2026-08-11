@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Play } from 'lucide-react';
 import TypedLine from './TypedLine';
+import { DAILY_TARGET_MINUTES, formatDuration } from '../../data/timeBlocks';
 
 /** Lo que tarda el "+" en irse antes de que entre la pregunta. */
 const EXIT_MS = 320;
@@ -28,7 +29,57 @@ const HINT = 'Ej. Llamadas de seguimiento...';
  * La pregunta va directa, sin "Hola, [Nombre]": la bienvenida ya ocurrió al entrar
  * a la app, y repetirla aquí retrasa la única frase que importa.
  */
-export default function FocusFlow({ todayLabel, onReady }) {
+/**
+ * Meta del día, sin caja.
+ *
+ * Es la misma información que traía la tarjeta gris del diseño anterior —bloques
+ * cerrados, minutos enfocados, objetivo— pero suelta sobre el negro: sin borde, sin
+ * fondo y sin relleno. Ese recuadro era, sobre fondo negro, lo único que se veía en
+ * la pantalla, y le robaba la atención al gesto de empezar.
+ *
+ * Lo que queda es una línea de dos píxeles y dos rótulos diminutos. A las seis de la
+ * tarde, ver la línea a la mitad es la prueba de que el día valió, y para eso no
+ * hace falta una tarjeta.
+ */
+function DailyGoal({ minutes }) {
+  const percent = Math.min(100, (minutes / DAILY_TARGET_MINUTES) * 100);
+
+  return (
+    <div className="w-full max-w-xs">
+      <div className="flex items-baseline justify-between text-[10px] font-semibold
+                      uppercase tracking-widest text-white/25"
+      >
+        <span>Historial de hoy</span>
+        <span className="tabular-nums text-white/40">{formatDuration(minutes)}</span>
+      </div>
+
+      <div
+        className="mt-2.5 h-[2px] w-full overflow-hidden rounded-full bg-white/10"
+        role="progressbar"
+        aria-valuenow={Math.round(percent)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Enfoque del día: ${minutes} de ${DAILY_TARGET_MINUTES} minutos`}
+      >
+        {/*
+          Blanco y no un degradado de color: en esta pantalla el único acento es la
+          luz. Un naranja aquí competiría con el resplandor del botón, que es lo que
+          debe atraer el dedo.
+        */}
+        <div
+          className="h-full rounded-full bg-white/70 transition-[width] duration-700 ease-out"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+
+      <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/25">
+        Meta del día: {formatDuration(DAILY_TARGET_MINUTES)}
+      </p>
+    </div>
+  );
+}
+
+export default function FocusFlow({ blocks, minutes, onReady }) {
   /*
     'idle'    el "+" respirando
     'leaving' el "+" yéndose (existe sólo para poder animar su salida)
@@ -85,35 +136,44 @@ export default function FocusFlow({ todayLabel, onReady }) {
                       ${leaving ? 'scale-90 opacity-0' : 'scale-100 opacity-100'}`}
         >
           {/*
-            El signo es casi negro sobre negro: lo que se ve es su resplandor. Un "+"
-            blanco sería un botón; éste parece hundido en la pantalla, y al respirar
-            invita a tocarlo sin pedirlo por escrito.
+            Un triángulo de reproducción en lugar del "+" que había antes. Dice lo
+            mismo con menos: "+" es "añade algo" —un bloque, un registro, una
+            ficha— y esto no añade nada, arranca. Además es el gesto que cualquiera
+            ya reconoce sin leer una palabra.
 
-            `select-none` porque un signo de 9rem es facilísimo de seleccionar por
-            accidente al mantener el dedo, y el texto azul de selección arruina el
-            efecto.
+            Casi negro sobre negro: lo que se ve es su resplandor. Un triángulo
+            blanco sería un botón; éste parece hundido en la pantalla, y al respirar
+            invita a tocarlo sin pedirlo por escrito. `fill` es imprescindible: el
+            icono viene hueco de fábrica y sin relleno el resplandor sólo dibujaría
+            su contorno.
           */}
-          <span
-            className="animate-plus-breathe block select-none text-[9rem] font-thin leading-none
-                       text-zinc-900"
+          <Play
+            size={132}
+            strokeWidth={1}
+            fill="currentColor"
+            className="animate-plus-breathe block select-none text-zinc-900"
             aria-hidden="true"
-          >
-            +
-          </span>
+          />
         </button>
 
         {/*
-          Flotando: sin caja, sin borde y sin fondo. Antes esto era una tarjeta gris
-          con barra de progreso y meta del día; en una pantalla negra, ese recuadro
-          era lo único que se veía y competía con el gesto de empezar.
+          Todo lo de abajo flota: sin caja, sin borde y sin fondo, directamente sobre
+          el negro.
         */}
-        <p
-          className={`mt-10 text-lg font-light tracking-wide text-white/50
-                      transition-opacity duration-300
+        <div
+          className={`mt-12 flex w-full flex-col items-center transition-opacity duration-300
                       ${leaving ? 'opacity-0' : 'opacity-100'}`}
         >
-          {todayLabel}
-        </p>
+          <p className="text-lg font-light tracking-wide text-white/50">
+            {blocks === 0
+              ? 'Sin bloques todavía'
+              : `${blocks} ${blocks === 1 ? 'bloque' : 'bloques'} · ${formatDuration(minutes)}`}
+          </p>
+
+          <div className="mt-10 w-full">
+            <DailyGoal minutes={minutes} />
+          </div>
+        </div>
       </div>
     );
   }

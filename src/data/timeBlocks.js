@@ -18,6 +18,16 @@ const HISTORY_KEY = 'df360:timeBlockHistory:v1';
 /** Tope de duración. Más allá de tres horas ya no es un bloque de enfoque. */
 export const MAX_MINUTES = 180;
 
+/**
+ * Objetivo de referencia del día: dos horas de enfoque real.
+ *
+ * Vive aquí y no en la pantalla porque es una regla del producto, no una decisión
+ * de maquetación: da a la barra algo contra qué llenarse y define qué significa un
+ * buen día. Si alguna vez se personaliza por asesor, este es el valor que se
+ * sustituye.
+ */
+export const DAILY_TARGET_MINUTES = 120;
+
 function readMap(key) {
   try {
     const raw = localStorage.getItem(key);

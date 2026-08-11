@@ -384,11 +384,6 @@ export default function TimeBlocks({ username }) {
 
   // ── Actos 1 y 2 ─────────────────────────────────────────────────────────
   return (
-    <FocusFlow
-      onReady={askForTime}
-      todayLabel={today.blocks === 0
-        ? 'Sin bloques todavía'
-        : `${today.blocks} ${today.blocks === 1 ? 'bloque' : 'bloques'} · ${formatDuration(today.minutes)}`}
-    />
+    <FocusFlow blocks={today.blocks} minutes={today.minutes} onReady={askForTime} />
   );
 }
