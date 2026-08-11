@@ -25,7 +25,7 @@ import { highestPriorityOf } from '../Activities/priorities';
  */
 export default function AdminLayout({
   onNavigate, onLogout, children, canUsePreview = false, isAdminUser = false,
-  username,
+  isPromoterUser = false, onOpenPromotoria, username,
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday } = useEvents();
 
@@ -171,6 +171,14 @@ export default function AdminLayout({
         onClearAgenda={() => { clearAgenda(); setMoreOpen(false); }}
         canUsePreview={canUsePreview}
         isAdminUser={canOpenAdmin}
+        /*
+          Permiso independiente del de administración: un promotor gestiona a su
+          equipo pero no reparte permisos, y un administrador reparte permisos
+          pero no tiene equipo propio. Son dos llaves distintas y ninguna implica
+          la otra.
+        */
+        isPromoterUser={isPromoterUser}
+        onOpenPromotoria={() => { setMoreOpen(false); onOpenPromotoria?.(); }}
         pendingCount={pendingCount}
       />
     </div>

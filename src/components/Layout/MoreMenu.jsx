@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, ChevronDown, X, MonitorSmartphone,
   StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard, ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 
@@ -136,7 +137,8 @@ function CardAvatar({ url }) {
 export default function MoreMenu({
   open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile,
   onOpenAdmin, onOpenApprovals, onOpenCard, onLogout, onLoadDemo, onClearAgenda,
-  canUsePreview = false, isAdminUser = false, pendingCount = 0,
+  canUsePreview = false, isAdminUser = false, isPromoterUser = false,
+  onOpenPromotoria, pendingCount = 0,
 }) {
   const { identity } = useSession();
   const [isAdminOpen, setAdminOpen] = useState(false);
@@ -276,6 +278,26 @@ export default function MoreMenu({
           {/* ── Para todos ── */}
           <MenuRow icon={Gauge} label="Diagnóstico 360" onClick={onOpenDiagnostico} />
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
+          {/*
+            ── Sólo promotores ──
+
+            Va aquí y no en la barra inferior porque esa barra ya tiene sus cinco
+            sitios ocupados (Hoy, Productividad, Agregar, Agenda, Ver más) y en un
+            teléfono de 360 píxeles un sexto destino deja las etiquetas partidas o
+            ilegibles. Éste es el menú de destinos de la app, y es donde ya viven
+            los accesos que dependen del rol.
+
+            Se omite del marcado cuando el rol no corresponde, no se oculta con
+            CSS: una fila con `hidden` sigue en el DOM, se alcanza con el teclado y
+            reaparece quitándole la clase desde el inspector.
+          */}
+          {isPromoterUser && (
+            <MenuRow
+              icon={Users}
+              label="Mi Promotoría"
+              onClick={onOpenPromotoria}
+            />
+          )}
           <MenuRow icon={StickyNote} label="Mis Notas" onClick={onOpenNotes} />
           <MenuRow icon={Settings} label="Configuración" hint="Pronto" />
           {/*
