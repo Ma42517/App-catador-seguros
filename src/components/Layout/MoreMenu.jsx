@@ -197,21 +197,39 @@ export default function MoreMenu({
           tarjeta, que son las dos cosas que deben estar siempre alcanzables.
         */}
         <header className="relative z-50 shrink-0 rounded-t-3xl bg-zinc-950 px-4 pb-3 pt-3">
-          <div className="mb-3 flex items-center">
+          {/*
+            Asa y cierre en una fila real, no con `absolute`.
+
+            Ahí estaba el error: la X iba posicionada en absoluto sobre una fila
+            que sólo medía el grosor del asa —seis píxeles—, así que sus treinta y
+            seis de alto invadían el espacio de la tarjeta. Y como la tarjeta
+            aparece después en el marcado, se pintaba encima y se comía el botón.
+            Subirle el `z-index` lo habría dejado visible pero flotando sobre la
+            tarjeta, tapándole la foto.
+
+            Como fila de verdad —con su alto de `h-9` y el asa centrada por un
+            contrapeso del mismo ancho que el botón— nada puede solaparse: cada
+            pieza ocupa su sitio y el navegador reserva el espacio.
+          */}
+          <div className="mb-2 flex h-9 items-center justify-between">
+            {/* Contrapeso invisible: mantiene el asa en el centro exacto. */}
+            <span className="w-9 shrink-0" aria-hidden="true" />
+
             <span
-              className="mx-auto h-1.5 w-10 rounded-full bg-white/15"
+              className="h-1.5 w-10 rounded-full bg-white/15"
               aria-hidden="true"
             />
+
             <button
               type="button"
               onClick={onClose}
               aria-label="Cerrar"
-              className="absolute right-4 top-3 grid h-9 w-9 place-items-center rounded-full
-                         text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-200
-                         focus-visible:outline-none focus-visible:ring-2
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full
+                         text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100
+                         active:scale-90 focus-visible:outline-none focus-visible:ring-2
                          focus-visible:ring-white/40"
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
 
