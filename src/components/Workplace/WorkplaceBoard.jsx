@@ -9,6 +9,8 @@ import { stampWatermark } from '../../data/watermark';
 import { useAccess } from '../../context/AccessContext';
 import { useSession } from '../../context/SessionContext';
 import PromotoriaWaitingRoom from '../Promotoria/PromotoriaWaitingRoom';
+import { PROFILE_ROLES } from '../../data/profilesRepo';
+import JoinPromotoria from '../Promotoria/JoinPromotoria';
 import { categoryOf, relativeTime } from '../../data/announcements';
 import { attachmentKind, attachmentName, documentLabel } from '../../data/attachments';
 import {
@@ -252,7 +254,7 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
     sin esto, un asesor con el código entraba al muro de una promotoría que
     todavía no lo había aceptado.
   */
-  const { isAwaitingPromotoria } = useSession();
+  const { isAwaitingPromotoria, needsPromotoria, role } = useSession();
   const [sharingId, setSharingId] = useState(null);
   const [toast, setToast] = useState('');
   const [isPublishOpen, setPublishOpen] = useState(false);
@@ -331,7 +333,15 @@ export default function WorkplaceBoard({ isOpen, onClose, username }) {
 
   return (
     <FullScreenView isOpen={isOpen} onClose={onClose} title="Workplace">
-      {isAwaitingPromotoria ? (
+      {/*
+        Tres estados en orden: sin promotoría se pide el código, con solicitud en
+        curso se espera, y sólo después se ve el muro. El orden importa: al revés,
+        un asesor recién llegado vería el formulario del código legado y no sabría
+        que existe el suyo.
+      */}
+      {needsPromotoria && role === PROFILE_ROLES.ADVISOR ? (
+        <JoinPromotoria />
+      ) : isAwaitingPromotoria ? (
         <PromotoriaWaitingRoom title="El muro de comunicados" />
       ) : (
         <>

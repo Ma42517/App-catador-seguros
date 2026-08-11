@@ -119,6 +119,7 @@ function fromRow(row) {
     */
     promotorId: row.promotor_id ?? null,
     promotoriaStatus: row.promotoria_status ?? null,
+    promotoriaCode: row.promotoria_code ?? '',
   };
 }
 

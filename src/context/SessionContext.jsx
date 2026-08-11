@@ -98,6 +98,8 @@ function identityFromProfile(profile) {
     */
     promotorId: profile.promotorId ?? null,
     promotoriaStatus: profile.promotoriaStatus ?? null,
+    promotoriaCode: profile.promotoriaCode ?? '',
+    company: profile.company ?? '',
   };
 }
 
@@ -342,6 +344,14 @@ export function SessionProvider({ children }) {
       */
       promotoriaStatus: identity?.promotoriaStatus ?? null,
       isAwaitingPromotoria: (identity?.promotoriaStatus ?? null) === 'pending',
+      promotorId: identity?.promotorId ?? null,
+      /*
+        Sin promotor y sin solicitud en curso: es el asesor que todavía no ha
+        usado ningún código. Se calcula aquí para que las pantallas no tengan que
+        combinar dos campos y arriesgarse a interpretarlos distinto.
+      */
+      needsPromotoria: !identity?.promotorId
+        && (identity?.promotoriaStatus ?? null) === null,
       googleEnabled: isSupabaseConfigured,
       signInWithGoogle,
       signInWithPassword,
