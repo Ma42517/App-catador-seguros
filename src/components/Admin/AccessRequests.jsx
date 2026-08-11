@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { UserCheck, Loader2, RefreshCw, ShieldCheck, User, Ban, Crown } from 'lucide-react';
 import {
-  listProfiles, setProfileRole, describeError, roleLabel, PROFILE_ROLES, canChangeRole,
+  UserCheck, Loader2, RefreshCw, ShieldCheck, User, Ban, Crown, Trash2, AlertTriangle,
+} from 'lucide-react';
+import {
+  listProfiles, setProfileRole, deleteProfile, describeError, roleLabel,
+  PROFILE_ROLES, canChangeRole, canDeleteProfile,
 } from '../../data/profilesRepo';
 import { useSession } from '../../context/SessionContext';
 
@@ -40,6 +43,16 @@ export default function AccessRequests({ onLog, onChanged }) {
   const [isLoading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState(null);
 
+  /*
+    Qué ficha está pidiendo confirmación para borrarse.
+
+    La confirmación va dentro de la fila y no en un `window.confirm`: ese diálogo
+    lo bloquean varios navegadores dentro de una app instalada, y cuando aparece
+    no puede explicar *qué* se pierde. Aquí el aviso enumera las consecuencias
+    justo debajo del nombre de la persona a la que le van a pasar.
+  */
+  const [confirmId, setConfirmId] = useState(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     onLog?.('cmd', 'select * from profiles order by created_at desc');
@@ -73,6 +86,24 @@ export default function AccessRequests({ onLog, onChanged }) {
     }
     setError('');
     onLog?.('ok', `${profile.email || profile.fullName}: ahora es ${roleLabel(role)}.`);
+    load();
+    onChanged?.();
+  };
+
+  const removeProfile = async (profile) => {
+    setBusyId(profile.id);
+    onLog?.('cmd', `delete from profiles where id = ${profile.id.slice(0, 8)}`);
+    const { error } = await deleteProfile(profile.id);
+    setBusyId(null);
+    setConfirmId(null);
+
+    if (error) {
+      setError(describeError(error));
+      onLog?.('error', describeError(error));
+      return;
+    }
+    setError('');
+    onLog?.('ok', `${profile.email || profile.fullName}: ficha eliminada.`);
     load();
     onChanged?.();
   };
@@ -205,11 +236,10 @@ export default function AccessRequests({ onLog, onChanged }) {
                   },
                 ]
                   .filter((action) => action.role !== profile.role)
-                  .filter((action) => canChangeRole({
+                  .filter(() => canChangeRole({
                     actorRole,
                     actorId: identity?.key,
                     target: profile,
-                    nextRole: action.role,
                   }))
                   .map((action) => (
                     <button
@@ -226,14 +256,95 @@ export default function AccessRequests({ onLog, onChanged }) {
                     </button>
                   ))}
 
+                {/*
+                  Eliminar va al final y con el borde rojo: es la única acción de
+                  esta fila que no se puede deshacer, y separarla del grupo de
+                  aprobación evita el toque por inercia después de aprobar.
+                */}
+                {canDeleteProfile({ actorRole, actorId: identity?.key, target: profile }) && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmId(confirmId === profile.id ? null : profile.id)}
+                    disabled={busy}
+                    className={`${ACTION} border-rose-500/40 text-rose-600 hover:bg-rose-500/10
+                                dark:text-rose-400`}
+                  >
+                    <Trash2 size={11} />
+                    Eliminar
+                  </button>
+                )}
+
                 {/* Sin acciones disponibles se explica por qué, en lugar de
                     dejar una fila muda que parezca un fallo. */}
                 {profile.id === identity?.key && (
                   <span className="text-[11px] italic text-zinc-500">
-                    Tu propia cuenta: nadie puede cambiar su propio rol.
+                    Tu propia cuenta: nadie puede cambiar su propio rol ni borrarla.
                   </span>
                 )}
               </div>
+
+              {/*
+                Confirmación en su sitio, con las consecuencias enumeradas.
+
+                Se dice que la cuenta de acceso sobrevive porque es la parte que
+                sorprende: sin avisarlo, el administrador daría por hecho que esa
+                persona ya no puede volver a registrarse y no entendería verla
+                reaparecer en espera.
+              */}
+              {confirmId === profile.id && (
+                <div className="animate-rise mt-2.5 rounded-xl border border-rose-500/40
+                                bg-rose-500/10 p-3"
+                >
+                  <p className="flex items-start gap-2 text-[11px] font-semibold
+                                leading-snug text-rose-600 dark:text-rose-300"
+                  >
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+                    ¿Eliminar a
+                    {' '}
+                    {profile.fullName || profile.email}
+                    ?
+                  </p>
+
+                  <ul className="mt-2 list-disc space-y-1 pl-8 text-[11px] leading-snug
+                                 text-zinc-600 dark:text-zinc-400"
+                  >
+                    <li>Se borra su tarjeta digital y su rol.</li>
+                    <li>Se borran los prospectos que capturó.</li>
+                    <li>
+                      Su cuenta de acceso sigue existiendo: si vuelve a entrar,
+                      reaparecerá aquí en espera de aprobación.
+                    </li>
+                  </ul>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => removeProfile(profile)}
+                      disabled={busy}
+                      className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5
+                                 text-[11px] font-bold text-white transition-colors
+                                 hover:bg-rose-500 active:scale-95 disabled:cursor-wait
+                                 disabled:opacity-60"
+                    >
+                      {busy
+                        ? <Loader2 size={11} className="animate-spin" />
+                        : <Trash2 size={11} />}
+                      Sí, eliminar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(null)}
+                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-[11px]
+                                 font-semibold text-zinc-600 transition-colors
+                                 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300
+                                 dark:hover:bg-white/5"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
             </li>
           );
         })}

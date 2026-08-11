@@ -278,6 +278,13 @@ export default function MoreMenu({
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
           <MenuRow icon={StickyNote} label="Mis Notas" onClick={onOpenNotes} />
           <MenuRow icon={Settings} label="Configuración" hint="Pronto" />
+          {/*
+            Las dos acciones de agenda van juntas y a la vista de todos: cargar la
+            semana de ejemplo no es una herramienta de administración, es como
+            cualquier asesor prueba la app sin capturar veinte citas a mano. Y
+            queda antes de "Vaciar agenda", que es su contraparte.
+          */}
+          <MenuRow icon={Wand2} label="Cargar semana demo" onClick={onLoadDemo} />
           <MenuRow icon={Eraser} label="Vaciar agenda" onClick={onClearAgenda} />
 
           {/*
@@ -365,12 +372,6 @@ export default function MoreMenu({
                       onClick={onOpenPreview}
                     />
                   )}
-                  <MenuRow
-                    nested
-                    icon={Wand2}
-                    label="Cargar semana demo"
-                    onClick={onLoadDemo}
-                  />
                 </div>
               )}
             </div>

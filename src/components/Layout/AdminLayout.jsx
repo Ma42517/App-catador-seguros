@@ -12,7 +12,6 @@ import LeadsList from '../Profile/LeadsList';
 import AdminPanel from '../Admin/AdminPanel';
 import UserApprovals from '../Admin/UserApprovals';
 import { useEvents } from '../../context/EventContext';
-import { useAccess } from '../../context/AccessContext';
 import { useSession } from '../../context/SessionContext';
 import { countPendingProfiles } from '../../data/profilesRepo';
 import { highestPriorityOf } from '../Activities/priorities';
@@ -30,12 +29,18 @@ export default function AdminLayout({
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday } = useEvents();
 
-  // El panel se abre por dos vías: ser el usuario administrador de la app, o
-  // haber desbloqueado el modo promotor con el código y su contraseña. Son
-  // permisos distintos que llevan al mismo lugar.
-  const { isPromoter } = useAccess();
+  /*
+    El panel de administración tiene una sola llave: el rol `admin`.
+
+    Antes también lo abría el modo promotor —el que se desbloquea con el código y
+    su contraseña—, y ahí estaba el agujero: aprobar usuarios y ascender rangos
+    quedaban al alcance de cualquiera que conociera ese código, que es un secreto
+    compartido y no una identidad. Quien administra los permisos de la promotoría
+    tiene que ser una persona concreta con su rol en la base, no quien recuerde
+    una clave.
+  */
   const { refreshIdentity } = useSession();
-  const canOpenAdmin = isAdminUser || isPromoter;
+  const canOpenAdmin = isAdminUser;
 
   const [moreOpen, setMoreOpen] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);

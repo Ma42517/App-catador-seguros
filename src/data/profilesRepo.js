@@ -34,36 +34,50 @@ export function isAdminRole(role) {
   return role === PROFILE_ROLES.ADMIN;
 }
 
-/** Roles que sólo un administrador puede otorgar o quitar. */
-const ELEVATED = [PROFILE_ROLES.PROMOTER, PROFILE_ROLES.ADMIN];
-
 /**
  * Decide si quien está mirando puede cambiar el rol de una ficha.
  *
- * Tres reglas, y las tres importan:
+ * Dos reglas:
  *
+ *  - Sólo el administrador. Los promotores ya no aprueban a nadie ni mueven
+ *    rangos: el permiso de repartir permisos se propaga solo si se comparte, y
+ *    un promotor que puede nombrar promotores multiplica en un toque a quien
+ *    manda en la promotoría.
  *  - Nadie toca su propia ficha. Un administrador que se degrada por error
- *    dejaría la promotoría sin quien apruebe, sin forma de volver atrás desde
- *    la app.
- *  - Sólo el administrador otorga o retira los roles elevados. Si un promotor
- *    pudiera nombrar promotores, el permiso se propagaría solo.
- *  - Un promotor tampoco puede modificar la ficha de alguien que ya es promotor
- *    o administrador, que es como se evita que degrade al dueño.
+ *    dejaría la promotoría sin quien apruebe, sin forma de volver atrás desde la
+ *    app.
  *
  * La misma regla está escrita en las políticas de la base. Esta versión sólo
  * sirve para no mostrar botones que van a fallar: comprobar permisos en la
  * interfaz no protege nada, porque cualquiera puede llamar a la API directo.
  */
-export function canChangeRole({ actorRole, actorId, target, nextRole }) {
+export function canChangeRole({ actorRole, actorId, target }) {
   if (!target) return false;
   if (target.id === actorId) return false;
+  return isAdminRole(actorRole);
+}
 
-  if (isAdminRole(actorRole)) return true;
-  if (actorRole !== PROFILE_ROLES.PROMOTER) return false;
-
-  // El promotor sólo mueve fichas no elevadas, y sólo entre roles no elevados.
-  if (ELEVATED.includes(target.role)) return false;
-  return !ELEVATED.includes(nextRole);
+/**
+ * Decide si quien está mirando puede borrar una ficha.
+ *
+ * Es más estricto que cambiar el rol, y a propósito: **sólo el administrador**.
+ * Un promotor puede aprobar y revocar asesores porque eso se deshace en un
+ * toque, pero borrar no se deshace y además se lleva por delante los prospectos
+ * que esa persona capturó —`leads.advisor_id` está declarado con `on delete
+ * cascade`—. Repartir ese poder entre varios promotores es demasiada superficie
+ * para una acción que nadie puede revertir.
+ *
+ * Y nunca sobre la propia ficha: un administrador que se borra a sí mismo se
+ * queda fuera de su propia promotoría sin nadie que pueda readmitirlo.
+ *
+ * Igual que `canChangeRole`, esto sólo evita dibujar un botón que va a fallar.
+ * Lo que de verdad protege es la política de RLS: cualquiera puede llamar a la
+ * API sin pasar por esta pantalla.
+ */
+export function canDeleteProfile({ actorRole, actorId, target }) {
+  if (!target) return false;
+  if (target.id === actorId) return false;
+  return isAdminRole(actorRole);
 }
 
 /** Etiqueta legible de un rol, para el panel y la ficha del usuario. */
@@ -333,6 +347,60 @@ export async function setProfileRole(userId, role) {
         message: 'La base aceptó la petición pero no actualizó ninguna fila.',
         code: 'NO_ROWS',
         hint: 'Falta la política de UPDATE sobre public.profiles para promotores.',
+      },
+    };
+  }
+  return { data: fromRow(data), error: null };
+}
+
+/**
+ * Borra la ficha de un usuario.
+ *
+ * Lo que esto borra y lo que no, porque la diferencia importa:
+ *
+ *  - **Sí** borra la fila de `profiles`: su tarjeta digital, su rol y —por el
+ *    `on delete cascade` de `leads.advisor_id`— los prospectos que capturó.
+ *  - **No** borra su cuenta de acceso. Vive en `auth.users`, y esa tabla sólo se
+ *    toca con la llave de servicio, que jamás puede viajar en el navegador:
+ *    quien la tuviera podría leer y borrar toda la base desde la consola.
+ *
+ * La consecuencia práctica hay que tenerla presente: si esa persona vuelve a
+ * iniciar sesión, la app le crea una ficha nueva en `pending` y reaparece en
+ * esta lista esperando aprobación. Para el caso real —sacar a alguien de la
+ * promotoría— es el comportamiento correcto: pierde el acceso y todo lo suyo, y
+ * volver a entrar exige que un administrador lo apruebe otra vez.
+ *
+ * Para que la cuenta desaparezca del todo hace falta una función en el servidor
+ * (Edge Function de Supabase) que use la llave de servicio.
+ */
+export async function deleteProfile(userId) {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: { message: 'Supabase no está configurado.' } };
+  }
+
+  /*
+    `select()` después del `delete` no es adorno: sin él, Postgres responde
+    "correcto" aunque la política de RLS no haya dejado borrar ninguna fila, y el
+    panel diría "eliminado" sobre alguien que sigue ahí. Con la fila devuelta se
+    distingue un borrado real de un permiso que falta.
+  */
+  const { data, error } = await supabase
+    .from(TABLE)
+    .delete()
+    .eq('id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) return { data: null, error };
+
+  if (!data) {
+    return {
+      data: null,
+      error: {
+        message: 'La base aceptó la petición pero no borró ninguna fila.',
+        code: 'NO_ROWS',
+        hint: 'Falta la política de DELETE sobre public.profiles para administradores '
+          + '(policy "administradores borran fichas").',
       },
     };
   }
