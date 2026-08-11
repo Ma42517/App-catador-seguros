@@ -6,6 +6,7 @@ import {
   fetchOrCreateProfile, fetchProfile, describeError,
   PROFILE_ROLES, isApprovedRole, canManage, isAdminRole,
 } from '../data/profilesRepo';
+import { touchLastSeen } from '../data/presence';
 
 /**
  * Identidad de quien está usando la app.
@@ -321,6 +322,38 @@ export function SessionProvider({ children }) {
     if (changed) setIdentity(identityFromProfile(data));
     return { changed, role: data.role };
   }, [identity]);
+
+  /*
+    Latido de presencia.
+
+    Marca `last_seen` al entrar y cada cinco minutos mientras la pestaña esté a la
+    vista. La condición de visibilidad importa: sin ella, una pestaña olvidada en
+    segundo plano seguiría reportando actividad durante días y el promotor vería
+    "en línea" a alguien que dejó el teléfono en un cajón.
+
+    Al volver a la vista se fuerza un envío, porque es justo cuando la persona
+    retoma la app y el dato viejo ya no describe nada.
+  */
+  useEffect(() => {
+    const userId = identity?.key;
+    if (status !== SESSION_STATUS.READY || !userId) return undefined;
+
+    touchLastSeen(userId, { force: true });
+
+    const beat = setInterval(() => {
+      if (document.visibilityState === 'visible') touchLastSeen(userId);
+    }, 5 * 60 * 1000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') touchLastSeen(userId, { force: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(beat);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [status, identity?.key]);
 
   const value = useMemo(() => {
     const role = identity?.role ?? '';

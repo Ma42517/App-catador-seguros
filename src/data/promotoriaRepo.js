@@ -33,8 +33,18 @@ export const PROMOTORIA_STATUS = {
   Columnas que se piden. Se enumeran en lugar de usar `*` porque así el error de
   "columna desconocida" apunta a la migración que falta, en vez de traer de más.
 */
-const COLUMNS = 'id, email, full_name, avatar_url, role, created_at,'
+const BASE_COLUMNS = 'id, email, full_name, avatar_url, role, created_at,'
   + ' promotor_id, promotoria_status';
+
+/*
+  `last_seen` va aparte porque es lo último que se añadió y la base puede no
+  tenerla. Si se pidiera junto a las demás, una columna que falta tumbaría la
+  consulta entera y el promotor no vería a su equipo por un indicador accesorio.
+  Se reintenta sin ella y el equipo aparece igual, sólo sin estado de conexión.
+*/
+const OPTIONAL_COLUMNS = ['last_seen'];
+
+const COLUMNS = [BASE_COLUMNS, ...OPTIONAL_COLUMNS].join(', ');
 
 /**
  * ¿El fallo es que las columnas nuevas no existen todavía?
@@ -51,6 +61,13 @@ function isMissingMigration(error) {
   return text.includes('promotor_id') || text.includes('promotoria_status');
 }
 
+/** ¿Falta sólo la columna de presencia, y no la relación entera? */
+function isMissingOptional(error) {
+  if (!error) return false;
+  const text = String(error.message ?? '');
+  return OPTIONAL_COLUMNS.some((column) => text.includes(column));
+}
+
 function toAdvisor(row) {
   return {
     id: row.id,
@@ -61,6 +78,7 @@ function toAdvisor(row) {
     createdAt: row.created_at ? new Date(row.created_at).getTime() : null,
     promotorId: row.promotor_id ?? null,
     status: row.promotoria_status ?? null,
+    lastSeen: row.last_seen ? new Date(row.last_seen).getTime() : null,
   };
 }
 
@@ -102,11 +120,19 @@ export async function listMyAdvisors(promotorId) {
     sea cual sea su rol. Y es lo correcto además de lo práctico, porque la
     aprobación del promotor es justo lo que convierte a un pendiente en asesor.
   */
-  const { data, error } = await supabase
+  const ask = (columns) => supabase
     .from(TABLE)
-    .select(COLUMNS)
+    .select(columns)
     .eq('promotor_id', promotorId)
     .order('created_at', { ascending: false });
+
+  let { data, error } = await ask(COLUMNS);
+
+  // Sin la columna de presencia se vuelve a pedir sin ella: el equipo importa
+  // más que el indicador.
+  if (error && isMissingOptional(error)) {
+    ({ data, error } = await ask(BASE_COLUMNS));
+  }
 
   if (error) {
     return {
@@ -141,7 +167,7 @@ async function writeStatus(advisorId, patch) {
     .from(TABLE)
     .update(patch)
     .eq('id', advisorId)
-    .select(COLUMNS)
+    .select(BASE_COLUMNS)
     .maybeSingle();
 
   if (error) return { data: null, error };
