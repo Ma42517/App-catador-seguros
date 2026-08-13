@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
 import {
   Wallet, ShoppingCart, CreditCard, TrendingUp, Target, Landmark,
   Activity, PiggyBank, Gauge, Layers, FlaskConical,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
+import { DASHBOARD_VERSIONS, useDashboardVersion } from '../../context/dashboardVersion';
 import {
   Card, CardTitle, SectionTitle, StatCard, SegmentedControl,
   TrafficLightRow, Badge, Tooltip,
@@ -64,7 +64,7 @@ function HealthScore({ score }) {
  * comparar. Ya no es el `export default` porque ahora quien decide qué se ve es el
  * enrutador del final del archivo.
  */
-function ExecutiveDashboardV1() {
+export function ExecutiveDashboardV1() {
   const { matrix: m, diagnosis, findings, recommendations, activeMode, setMode, profile } = useFinance();
 
   const lightRows = [
@@ -379,7 +379,7 @@ function ExecutiveDashboardV1() {
  * no distingue "todavía no hay diseño" de "los datos no llegan", y son dos problemas
  * muy distintos de encontrar dentro de un rediseño a medio hacer.
  */
-function ExecutiveDashboardV2() {
+export function ExecutiveDashboardV2() {
   const { matrix: m, diagnosis, findings, profile } = useFinance();
 
   return (
@@ -446,47 +446,24 @@ function ExecutiveDashboardV2() {
 }
 
 
-/** Las dos versiones que se pueden ver, en el orden en que se ofrecen. */
-const VIEWS = [
-  { value: 'v1', label: 'Versión actual (V1)' },
-  { value: 'v2', label: 'Rediseño (V2)' },
-];
-
-/** Dónde se recuerda la versión elegida. */
-const VIEW_KEY = 'df360:dashboardView:v1';
+/** Las dos versiones, con el texto corto que cabe en el interruptor. */
+const VIEWS = DASHBOARD_VERSIONS.map((v) => ({ value: v.value, label: v.short }));
 
 /**
  * Enrutador entre la versión actual y el rediseño.
  *
- * Arranca en el rediseño, tal como se pidió. Conviene tenerlo presente: mientras V2
- * sea un lienzo, cualquiera que abra el diagnóstico verá el lienzo y no su
- * diagnóstico. El interruptor está arriba y a la vista justamente por eso, y basta
- * cambiar el valor inicial por 'v1' para que en producción siga saliendo el de
- * siempre mientras se diseña.
+ * La elección ya no vive aquí: la guarda el contexto, en el Shell. Tenía que
+ * mudarse porque ahora hay dos sitios que la deciden —este interruptor y el menú
+ * "Ver más"— y con una copia local cada uno habría llevado su propia cuenta: se
+ * elegía V2 en el menú, se llegaba al tablero y el tablero mostraba lo que él
+ * recordaba, no lo que se acababa de pedir.
  *
- * La elección se recuerda en el navegador. Sin eso, el interruptor sería inservible
- * para comparar: esta pantalla se desmonta al navegar a otro paso del diagnóstico, y
- * al volver habría que elegir otra vez. Quien está comparando dos diseños entra y
- * sale muchas veces.
+ * El interruptor se queda de todos modos. Comparar dos diseños es alternar muchas
+ * veces, y hacerlo sin salir de la pantalla es la diferencia entre comparar y
+ * navegar.
  */
 export default function ExecutiveDashboard() {
-  const [view, setView] = useState(() => {
-    try {
-      const saved = localStorage.getItem(VIEW_KEY);
-      return saved === 'v1' || saved === 'v2' ? saved : 'v2';
-    } catch {
-      // Sin almacenamiento —modo privado, permisos—, la elección dura la sesión.
-      return 'v2';
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(VIEW_KEY, view);
-    } catch {
-      // Nada que hacer: se pierde al recargar y no es grave.
-    }
-  }, [view]);
+  const { version: view, setVersion: setView } = useDashboardVersion();
 
   return (
     <div className="space-y-4">

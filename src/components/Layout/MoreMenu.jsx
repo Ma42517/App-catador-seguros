@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, ChevronDown, X, MonitorSmartphone,
   StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard, ShieldCheck,
-  Users,
+  Users, FlaskConical,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
+import { DASHBOARD_VERSIONS, useDashboardVersion } from '../../context/dashboardVersion';
 
 /**
  * Fila estándar del menú.
@@ -18,7 +19,8 @@ import { useSession } from '../../context/SessionContext';
  * con la mitad de las combinaciones sin que nadie las viera nunca.
  */
 function MenuRow({
-  icon: Icon, label, hint, badge, tone = 'default', nested = false, onClick,
+  icon: Icon, label, hint, badge, badgeHint = 'pendientes',
+  tone = 'default', nested = false, onClick,
 }) {
   const isDanger = tone === 'danger';
   const disabled = Boolean(hint);
@@ -56,7 +58,13 @@ function MenuRow({
                      text-amber-400"
         >
           {badge}
-          <span className="sr-only"> pendientes</span>
+          {/*
+            El distintivo casi siempre es un número, y un "3" a secas no dice nada
+            en voz alta. Por eso lleva su aclaración, y por eso se puede vaciar:
+            cuando el distintivo ya es una palabra —"Activa"—, añadirle
+            "pendientes" convertía la pista en una frase falsa.
+          */}
+          {badgeHint && <span className="sr-only"> {badgeHint}</span>}
         </span>
       ) : null}
 
@@ -141,7 +149,9 @@ export default function MoreMenu({
   onOpenPromotoria, pendingCount = 0,
 }) {
   const { identity } = useSession();
+  const { version } = useDashboardVersion();
   const [isAdminOpen, setAdminOpen] = useState(false);
+  const [isDiagOpen, setDiagOpen] = useState(false);
 
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -159,7 +169,11 @@ export default function MoreMenu({
   // El acordeón vuelve cerrado en cada apertura: dejarlo abierto haría que el
   // menú de un administrador arrancara con nueve filas y el propósito del
   // acordeón —que la lista quepa— se perdería.
-  useEffect(() => { if (!open) setAdminOpen(false); }, [open]);
+  useEffect(() => {
+    if (open) return;
+    setAdminOpen(false);
+    setDiagOpen(false);
+  }, [open]);
 
   if (!open) return null;
 
@@ -276,7 +290,71 @@ export default function MoreMenu({
         */}
         <div className="flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-2 pb-safe">
           {/* ── Para todos ── */}
-          <MenuRow icon={Gauge} label="Diagnóstico 360" onClick={onOpenDiagnostico} />
+
+          {/*
+            El diagnóstico se despliega en lugar de navegar directo, porque hay dos
+            versiones y hay que elegir. Es un acordeón y no un modal: esto ya es una
+            hoja inferior, y abrir una ventana encima de otra deja dos capas que
+            capturan el foco y dos maneras de cerrar. El acordeón es además el mismo
+            patrón que usa el panel de administración de más abajo.
+
+            Se pliega solo al salir del menú, como el de administración: reabrirlo
+            desplegado dejaría la fila del diagnóstico ocupando el triple de alto sin
+            que nadie lo haya pedido.
+          */}
+          <div className="overflow-hidden rounded-xl">
+            <button
+              type="button"
+              onClick={() => setDiagOpen((v) => !v)}
+              aria-expanded={isDiagOpen}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left
+                         text-zinc-200 transition-colors hover:bg-white/5"
+            >
+              <span
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border
+                           border-white/10 bg-white/5 text-zinc-400"
+                aria-hidden="true"
+              >
+                <Gauge size={17} />
+              </span>
+
+              <span className="min-w-0 flex-1 text-sm font-semibold">Diagnóstico 360</span>
+
+              {/*
+                Cuál está elegida, visible sin desplegar. Sin esta pista, quien viera
+                un tablero raro no tendría forma de saber que está en la propuesta
+                nueva ni por dónde volver.
+              */}
+              <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5
+                               text-[10px] font-bold uppercase tracking-wide text-zinc-500"
+              >
+                {version}
+              </span>
+
+              <ChevronDown
+                size={16}
+                className={`shrink-0 opacity-40 transition-transform duration-200
+                            ${isDiagOpen ? 'rotate-180' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {isDiagOpen && (
+              <div className="animate-rise space-y-0.5 px-1.5 pb-1.5">
+                {DASHBOARD_VERSIONS.map((option) => (
+                  <MenuRow
+                    key={option.value}
+                    nested
+                    icon={option.value === 'v1' ? Gauge : FlaskConical}
+                    label={option.label}
+                    badge={version === option.value ? 'Activa' : undefined}
+                    badgeHint=""
+                    onClick={() => onOpenDiagnostico(option.value)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
           {/*
             ── Sólo promotores ──
