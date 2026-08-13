@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import {
   Wallet, ShoppingCart, CreditCard, TrendingUp, Target, Landmark,
-  Activity, PiggyBank, Gauge, Layers,
+  Activity, PiggyBank, Gauge, Layers, FlaskConical,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import {
@@ -55,7 +56,15 @@ function HealthScore({ score }) {
 }
 
 
-export default function ExecutiveDashboard() {
+/**
+ * Versión actual del diagnóstico, la que está en uso.
+ *
+ * No cambió nada de su contenido al montarse el A/B: es la referencia contra la
+ * que se compara el rediseño, y una referencia que se toca deja de servir para
+ * comparar. Ya no es el `export default` porque ahora quien decide qué se ve es el
+ * enrutador del final del archivo.
+ */
+function ExecutiveDashboardV1() {
   const { matrix: m, diagnosis, findings, recommendations, activeMode, setMode, profile } = useFinance();
 
   const lightRows = [
@@ -353,6 +362,153 @@ export default function ExecutiveDashboard() {
 
       <FindingsPanel findings={findings} />
       <Recommendations recommendations={recommendations} limit={3} />
+    </div>
+  );
+}
+
+
+/**
+ * Rediseño del diagnóstico. Por ahora, el lienzo.
+ *
+ * Consume `useFinance` desde el primer día aunque todavía no dibuje nada, y eso es
+ * lo importante de este esqueleto: la matriz, el diagnóstico y los hallazgos ya
+ * están enchufados. Cuando llegue el diseño no habrá que pelearse con el cableado,
+ * sólo con la forma.
+ *
+ * El renglón de comprobación de abajo existe por lo mismo. Sin él, un lienzo vacío
+ * no distingue "todavía no hay diseño" de "los datos no llegan", y son dos problemas
+ * muy distintos de encontrar dentro de un rediseño a medio hacer.
+ */
+function ExecutiveDashboardV2() {
+  const { matrix: m, diagnosis, findings, profile } = useFinance();
+
+  return (
+    <div className="space-y-4">
+      <SectionTitle
+        eyebrow="Rediseño"
+        title={profile.name ? `Diagnóstico de ${profile.name}` : 'Diagnóstico ejecutivo'}
+        description="Nueva propuesta visual del diagnóstico. Se construye sobre la misma matriz financiera que la versión actual: ninguna cifra se recalcula aquí."
+      />
+
+      <Card>
+        <CardTitle icon={FlaskConical}>Espacio para Rediseño V2</CardTitle>
+
+        <div className="grid place-items-center rounded-xl border border-dashed border-zinc-700
+                        py-16 text-center"
+        >
+          <p className="text-sm font-semibold text-zinc-300">Espacio para Rediseño V2</p>
+          <p className="mt-1 max-w-xs text-[11px] leading-relaxed text-zinc-500">
+            El lienzo está listo y los datos ya llegan. Aquí se monta la nueva
+            composición.
+          </p>
+        </div>
+
+        {/*
+          Prueba de vida de los datos, no decoración. Tres cifras de tres fuentes
+          distintas —la matriz, la proyección y los hallazgos— para que se vea de un
+          golpe que el cableado funciona antes de que exista una sola tarjeta nueva.
+        */}
+        <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-zinc-700/50 pt-4 text-center">
+          <div>
+            <dt className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Flujo libre
+            </dt>
+            <dd className={`mt-0.5 text-sm font-bold tabular-nums ${m.NET_CASHFLOW < 0
+              ? 'text-rose-400'
+              : 'text-emerald-400'}`}
+            >
+              {fmtMXN(m.NET_CASHFLOW)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Salud
+            </dt>
+            <dd className="mt-0.5 text-sm font-bold tabular-nums text-zinc-200">
+              {m.healthScore}/100
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Hallazgos
+            </dt>
+            <dd className="mt-0.5 text-sm font-bold tabular-nums text-zinc-200">
+              {findings.length}
+              <span className="ml-1 text-[10px] font-semibold text-zinc-500">
+                · {diagnosis.wealthPath.length} años proyectados
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </Card>
+    </div>
+  );
+}
+
+
+/** Las dos versiones que se pueden ver, en el orden en que se ofrecen. */
+const VIEWS = [
+  { value: 'v1', label: 'Versión actual (V1)' },
+  { value: 'v2', label: 'Rediseño (V2)' },
+];
+
+/** Dónde se recuerda la versión elegida. */
+const VIEW_KEY = 'df360:dashboardView:v1';
+
+/**
+ * Enrutador entre la versión actual y el rediseño.
+ *
+ * Arranca en el rediseño, tal como se pidió. Conviene tenerlo presente: mientras V2
+ * sea un lienzo, cualquiera que abra el diagnóstico verá el lienzo y no su
+ * diagnóstico. El interruptor está arriba y a la vista justamente por eso, y basta
+ * cambiar el valor inicial por 'v1' para que en producción siga saliendo el de
+ * siempre mientras se diseña.
+ *
+ * La elección se recuerda en el navegador. Sin eso, el interruptor sería inservible
+ * para comparar: esta pantalla se desmonta al navegar a otro paso del diagnóstico, y
+ * al volver habría que elegir otra vez. Quien está comparando dos diseños entra y
+ * sale muchas veces.
+ */
+export default function ExecutiveDashboard() {
+  const [view, setView] = useState(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_KEY);
+      return saved === 'v1' || saved === 'v2' ? saved : 'v2';
+    } catch {
+      // Sin almacenamiento —modo privado, permisos—, la elección dura la sesión.
+      return 'v2';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch {
+      // Nada que hacer: se pierde al recargar y no es grave.
+    }
+  }, [view]);
+
+  return (
+    <div className="space-y-4">
+      {/*
+        El interruptor va arriba de todo y separado por un borde: es un control de
+        pruebas, no parte del diagnóstico. Mezclarlo con las tarjetas lo convertiría
+        en una función del producto, y esto se va a quitar en cuanto V2 gane.
+      */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl
+                      border border-dashed border-zinc-700 p-2.5"
+      >
+        <span className="flex items-center gap-1.5 pl-1 text-[10px] font-bold uppercase
+                         tracking-widest text-zinc-500"
+        >
+          <FlaskConical size={12} aria-hidden="true" />
+          Prueba A/B
+        </span>
+
+        <SegmentedControl value={view} onChange={setView} options={VIEWS} />
+      </div>
+
+      {view === 'v1' ? <ExecutiveDashboardV1 /> : <ExecutiveDashboardV2 />}
     </div>
   );
 }
