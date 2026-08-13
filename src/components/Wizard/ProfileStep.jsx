@@ -6,6 +6,17 @@ import {
 } from '../ui';
 import { RowGrid } from './RowShell';
 
+/**
+ * Rangos de las tres edades, en un solo lugar.
+ *
+ * Los usan tanto los campos como la regla que mantiene su orden. Escritos por
+ * separado, un cambio en el tope de un campo dejaría a la regla empujando valores
+ * que ese mismo campo rechaza.
+ */
+const AGE_RANGE = { min: 16, max: 100 };
+const RETIREMENT_AGE_MAX = 95;
+const LIFE_EXPECTANCY_MAX = 110;
+
 const MARITAL = [
   { value: 'single', label: 'Soltero(a)' },
   { value: 'married', label: 'Casado(a)' },
@@ -17,6 +28,44 @@ const MARITAL = [
 export default function ProfileStep() {
   const { profile, data, patchSection, setField } = useFinance();
   const set = (patch) => patchSection('profile', patch);
+
+  /*
+    Las tres edades tienen que respetar su orden: se nace, se retira, se vive.
+
+    Cada campo recorta su propio rango al salir, pero el mínimo de uno depende del
+    valor de otro, y ahí quedaba un hueco: subir la edad actual a 70 dejaba la edad
+    de retiro en 65 —por debajo de su propio mínimo— sin que nada la corrigiera,
+    porque el recorte sólo ocurre en el campo que se está editando. El resultado era
+    un perfil imposible: retirarse cinco años antes de la edad que se acaba de
+    declarar, con "0 años de acumulación" y un módulo de retiro sin sentido.
+
+    Así que quien mueve una edad empuja a las siguientes lo mínimo necesario. Nunca
+    las baja: si alguien de 40 planea retirarse a los 70, cambiar su edad a 41 no
+    tiene por qué tocarle el plan.
+  */
+  const pushLifeExpectancy = (retirementAge) => {
+    const lifeExpectancy = Math.min(
+      LIFE_EXPECTANCY_MAX,
+      Math.max(data.retirement.lifeExpectancy, retirementAge + 1),
+    );
+    if (lifeExpectancy !== data.retirement.lifeExpectancy) {
+      patchSection('retirement', { lifeExpectancy });
+    }
+  };
+
+  const setAge = (age) => {
+    const retirementAge = Math.min(
+      RETIREMENT_AGE_MAX,
+      Math.max(profile.retirementAge, age + 1),
+    );
+    set({ age, retirementAge });
+    pushLifeExpectancy(retirementAge);
+  };
+
+  const setRetirementAge = (retirementAge) => {
+    set({ retirementAge });
+    pushLifeExpectancy(retirementAge);
+  };
 
   return (
     <div className="space-y-4">
@@ -52,7 +101,12 @@ export default function ProfileStep() {
         <div className="mt-3">
           <RowGrid cols={4}>
             <Field label="Edad actual">
-              <NumberInput value={profile.age} onChange={(v) => set({ age: v })} min={16} max={100} />
+              <NumberInput
+                value={profile.age}
+                onChange={setAge}
+                min={AGE_RANGE.min}
+                max={AGE_RANGE.max}
+              />
             </Field>
             <Field label="Perceptores de ingreso" help="Cuántas personas del hogar aportan ingreso.">
               <NumberInput value={profile.earners} onChange={(v) => set({ earners: v })} min={1} max={10} />
@@ -150,9 +204,16 @@ export default function ProfileStep() {
           <Field label="Edad deseada de retiro">
             <NumberInput
               value={profile.retirementAge}
-              onChange={(v) => set({ retirementAge: v })}
-              min={Math.max(profile.age + 1, 40)}
-              max={95}
+              onChange={setRetirementAge}
+              /*
+                El mínimo es la edad actual más uno, sin piso de 40. Ese piso
+                impedía capturar un retiro anticipado —alguien de 30 que se plantea
+                dejar de trabajar a los 38— y no protegía de nada: retirarse pronto
+                es una decisión, no un error de captura. El diagnóstico ya se
+                encarga de decir si alcanza.
+              */
+              min={profile.age + 1}
+              max={RETIREMENT_AGE_MAX}
             />
           </Field>
           <Field
@@ -163,7 +224,7 @@ export default function ProfileStep() {
               value={data.retirement.lifeExpectancy}
               onChange={(v) => patchSection('retirement', { lifeExpectancy: v })}
               min={profile.retirementAge + 1}
-              max={110}
+              max={LIFE_EXPECTANCY_MAX}
             />
           </Field>
         </RowGrid>

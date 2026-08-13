@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
 import Tooltip from './Tooltip';
 
 /** Base compartida por todos los controles de texto del sistema. */
@@ -100,6 +100,14 @@ export function Select({ value, onChange, options, icon, className = '', ...rest
 /**
  * Entrada numérica con borrador local: permite vaciar el campo mientras se
  * escribe sin emitir NaN. Siempre notifica un número finito hacia arriba.
+ *
+ * El recorte a `min` y `max` ocurre al SALIR del campo, nunca mientras se teclea.
+ * Recortar en cada tecla hacía imposible escribir en cualquier campo con mínimo
+ * alto: en "Edad actual" (mínimo 16), teclear el 4 de un 45 producía un 4, que se
+ * recortaba a 16 al instante, el efecto de resincronía sobreescribía el borrador
+ * con "16" y el segundo dígito se pegaba a ese 16. El campo respondía con números
+ * que nadie había escrito. En "Edad de retiro" (mínimo 40) y "Años de vida"
+ * (mínimo 66) era aún más evidente.
  */
 export function NumberInput({
   value, onChange, prefix, suffix, icon, min = 0, max, step = 'any',
@@ -107,8 +115,16 @@ export function NumberInput({
 }) {
   const [draft, setDraft] = useState(() => (value === 0 ? '' : String(value ?? '')));
 
+  /*
+    Mientras el campo tiene el cursor dentro, manda el borrador. Es lo que impide
+    que un valor de vuelta del estado —el propio, ya recortado, o el de otro
+    campo— pise a media palabra lo que se está escribiendo.
+  */
+  const isEditing = useRef(false);
+
   // Resincroniza cuando el valor externo cambia (demo, reset, escenario).
   useEffect(() => {
+    if (isEditing.current) return;
     const parsed = parseFloat(draft);
     const current = Number.isFinite(parsed) ? parsed : 0;
     if (current !== (value ?? 0)) {
@@ -118,15 +134,44 @@ export function NumberInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  const commit = (raw) => {
+  /** Cada tecla: se informa el número tal cual, sin recortarlo. */
+  const handleChange = (raw) => {
     setDraft(raw);
     if (raw === '' || raw === '-') { onChange(0); return; }
     const parsed = parseFloat(raw);
     if (!Number.isFinite(parsed)) return;
+    onChange(parsed);
+  };
+
+  /**
+   * Al salir se aplica el rango y el campo se deja en su forma final.
+   *
+   * Aquí sí corresponde: la persona terminó de escribir, así que corregirle un 8
+   * a 66 es una ayuda y no un forcejeo. Los totales en vivo pudieron ver un valor
+   * fuera de rango durante unos segundos, y eso no rompe nada: el motor sólo
+   * necesita que sea un número.
+   */
+  const applyRange = () => {
+    isEditing.current = false;
+
+    if (draft === '' || draft === '-') {
+      setDraft('');
+      onChange(0);
+      return;
+    }
+
+    const parsed = parseFloat(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(value === 0 || value === null || value === undefined ? '' : String(value));
+      return;
+    }
+
     let next = parsed;
     if (min !== undefined && next < min) next = min;
     if (max !== undefined && next > max) next = max;
-    onChange(next);
+
+    setDraft(next === 0 ? '' : String(next));
+    if (next !== value) onChange(next);
   };
 
   return (
@@ -137,7 +182,11 @@ export function NumberInput({
         value={draft}
         step={step}
         placeholder={placeholder}
-        onChange={(e) => commit(e.target.value)}
+        onFocus={() => { isEditing.current = true; }}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={applyRange}
+        // Enter confirma sin tener que tocar otro campo.
+        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         className={`${baseInput} ${padFor(icon, prefix, suffix)} tabular-nums ${className}`}
         {...rest}
       />
