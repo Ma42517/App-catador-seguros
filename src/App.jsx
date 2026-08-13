@@ -342,6 +342,21 @@ function Shell({
         <PromotorDashboard />
       ) : activeSection === 'agenda' ? (
         <CalendarView />
+      ) : activeSection === 'wizard' && captureMode === 'v2' ? (
+        /*
+          La propuesta conversacional se queda con la pestaña entera.
+
+          Se decide aquí, antes de montar nada de la versión clásica, y no dentro del
+          `main`. Ahí abajo habría convivido con la cabecera, su conmutador de fases,
+          el resplandor de cuadrícula y el pie con el aviso legal: la propuesta
+          quedaría como un recuadro rodeado de la interfaz que viene a sustituir, que
+          es exactamente lo que se pidió evitar.
+
+          La barra de navegación inferior sigue en pie —vive por encima— y es la
+          salida de la sección. La vuelta a la captura clásica va dentro, en su
+          propia esquina.
+        */
+        <ConversationalWizard onUseClassic={() => setCaptureMode('v1')} />
       ) : (
         /*
           El módulo de Diagnóstico 360 es un tablero de datos diseñado en
@@ -366,6 +381,11 @@ function Shell({
                     control de pruebas y no una función del producto. Mezclado con la
                     interfaz de captura parecería parte del diagnóstico, y esto se
                     quita en cuanto una de las dos versiones gane.
+
+                    Vive sólo en la versión clásica. La conversacional toma la
+                    pestaña completa y lleva su propia puerta de vuelta: dejarle
+                    encima este recuadro con borde punteado sería devolverle justo el
+                    marco de la versión que viene a sustituir.
                   */}
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-2
                                   rounded-xl border border-dashed border-zinc-700 p-2.5"
@@ -384,9 +404,7 @@ function Shell({
                     />
                   </div>
 
-                  {captureMode === 'v2'
-                    ? <ConversationalWizard />
-                    : <StepWizard step={step} onStepChange={go} />}
+                  <StepWizard step={step} onStepChange={go} />
                 </div>
               ) : (
                 <div className="animate-rise">
