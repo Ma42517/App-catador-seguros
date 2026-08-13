@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   PlayCircle, RotateCcw, Download, FileJson, FileSpreadsheet, X, Gauge,
-  LayoutList, LineChart as LineChartIcon,
+  LayoutList, LineChart as LineChartIcon, FlaskConical,
 } from 'lucide-react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
@@ -24,9 +24,20 @@ import { canRunPromotoria } from './data/profilesRepo';
 import {
   DashboardVersionContext, readVersion, writeVersion,
 } from './context/dashboardVersion';
+import { readPreference, writePreference } from './lib/uiPreference';
+import ConversationalWizard from './components/Wizard/ConversationalWizard';
+
+/** Dónde se recuerda qué versión de la captura se está usando. */
+const CAPTURE_KEY = 'df360:captureMode:v1';
+
+/** Las dos versiones de la captura, en el orden en que se ofrecen. */
+const CAPTURE_MODES = [
+  { value: 'v1', label: 'Captura Clásica (V1)' },
+  { value: 'v2', label: 'Asistente Interactivo (V2)' },
+];
 import PublicCardView from './pages/PublicCardView';
 import { publicCardIdFromPath } from './lib/publicRoute';
-import { Button } from './components/ui';
+import { Button, SegmentedControl } from './components/ui';
 import { exportJSON, exportCSV } from './data/exporters';
 
 /** Clave de sessionStorage para saber si el intro ya se mostró en esta pestaña/sesión. */
@@ -233,6 +244,22 @@ function Shell({
     [dashboardVersion],
   );
 
+  /*
+    Qué versión de la CAPTURA se usa: el asistente clásico de ocho pasos o la
+    propuesta conversacional. Se recuerda por lo mismo que la del tablero: esta
+    pantalla se desmonta al cambiar de sección, y comparar dos diseños es entrar y
+    salir muchas veces.
+
+    Arranca en la clásica y así debe quedarse mientras V2 sea un esqueleto: la
+    captura es donde el asesor invierte media hora de trabajo, y la propuesta nueva
+    todavía no guarda nada de lo que se escribe.
+  */
+  const [captureMode, setCaptureMode] = useState(
+    () => readPreference(CAPTURE_KEY, ['v1', 'v2'], 'v1'),
+  );
+
+  useEffect(() => { writePreference(CAPTURE_KEY, captureMode); }, [captureMode]);
+
   // La vista previa multi-dispositivo es una herramienta interna de desarrollo:
   // sólo el administrador la ve, y nunca se anida dentro de su propio iframe.
   const canUsePreview = isAdmin && !isPreview;
@@ -333,7 +360,34 @@ function Shell({
             <Header step={step} onNavigate={go} />
             <main className="mx-auto max-w-5xl px-4 py-6">
               {activeSection === 'wizard' ? (
-                <StepWizard step={step} onStepChange={go} />
+                <div className="mx-auto w-full max-w-3xl">
+                  {/*
+                    Selector de la prueba A/B, con borde punteado y su rótulo: es un
+                    control de pruebas y no una función del producto. Mezclado con la
+                    interfaz de captura parecería parte del diagnóstico, y esto se
+                    quita en cuanto una de las dos versiones gane.
+                  */}
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-2
+                                  rounded-xl border border-dashed border-zinc-700 p-2.5"
+                  >
+                    <span className="flex items-center gap-1.5 pl-1 text-[10px] font-bold
+                                     uppercase tracking-widest text-zinc-500"
+                    >
+                      <FlaskConical size={12} aria-hidden="true" />
+                      Prueba A/B · Captura
+                    </span>
+
+                    <SegmentedControl
+                      value={captureMode}
+                      onChange={setCaptureMode}
+                      options={CAPTURE_MODES}
+                    />
+                  </div>
+
+                  {captureMode === 'v2'
+                    ? <ConversationalWizard />
+                    : <StepWizard step={step} onStepChange={go} />}
+                </div>
               ) : (
                 <div className="animate-rise">
                   <ExecutiveDashboard />

@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import { readPreference, writePreference } from '../lib/uiPreference';
 
 /**
  * Qué versión del diagnóstico se está viendo: la actual o el rediseño.
@@ -30,23 +31,15 @@ export const DASHBOARD_VERSIONS = [
  */
 const STORAGE_KEY = 'df360:dashboardVersion:v2';
 
+const VALUES = DASHBOARD_VERSIONS.map((v) => v.value);
+
 /** La versión guardada, o la actual si no hay ninguna válida. */
 export function readVersion() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return DASHBOARD_VERSIONS.some((v) => v.value === saved) ? saved : 'v1';
-  } catch {
-    // Sin almacenamiento —modo privado, permisos—, la elección dura la sesión.
-    return 'v1';
-  }
+  return readPreference(STORAGE_KEY, VALUES, 'v1');
 }
 
 export function writeVersion(version) {
-  try {
-    localStorage.setItem(STORAGE_KEY, version);
-  } catch {
-    // Nada que hacer: se pierde al recargar y no es grave.
-  }
+  writePreference(STORAGE_KEY, version);
 }
 
 /*
