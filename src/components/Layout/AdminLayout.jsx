@@ -14,6 +14,7 @@ import UserApprovals from '../Admin/UserApprovals';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
 import { countPendingProfiles } from '../../data/profilesRepo';
+import { useDashboardVersion } from '../../context/dashboardVersion';
 import { highestPriorityOf } from '../Activities/priorities';
 
 /**
@@ -41,6 +42,10 @@ export default function AdminLayout({
   */
   const { refreshIdentity } = useSession();
   const canOpenAdmin = isAdminUser;
+
+  // Qué versión del diagnóstico abre el menú. El estado vive en el Shell, que es el
+  // antepasado común de este menú y del tablero.
+  const { setVersion } = useDashboardVersion();
 
   const [moreOpen, setMoreOpen] = useState(false);
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
@@ -159,7 +164,12 @@ export default function AdminLayout({
       <MoreMenu
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
-        onOpenDiagnostico={() => goTo('wizard')}
+        /*
+          La versión elegida se fija **antes** de navegar. Al revés —navegar y luego
+          cambiarla— el tablero se montaría con la anterior y se vería un parpadeo
+          del diagnóstico que no se pidió.
+        */
+        onOpenDiagnostico={(version) => { setVersion(version); goTo('wizard'); }}
         onOpenPreview={() => goTo('preview')}
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onOpenProfile={() => { setMoreOpen(false); setProfileOpen(true); }}

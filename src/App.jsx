@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   PlayCircle, RotateCcw, Download, FileJson, FileSpreadsheet, X, Gauge,
   LayoutList, LineChart as LineChartIcon,
@@ -21,6 +21,9 @@ import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
 import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
 import { canRunPromotoria } from './data/profilesRepo';
+import {
+  DashboardVersionContext, readVersion, writeVersion,
+} from './context/dashboardVersion';
 import PublicCardView from './pages/PublicCardView';
 import { publicCardIdFromPath } from './lib/publicRoute';
 import { Button } from './components/ui';
@@ -210,6 +213,26 @@ function Shell({
   const [section, setSection] = useState('home');
   const [step, setStep] = useState(stepFromHash);
 
+  /*
+    Qué versión del diagnóstico se ve. El estado vive aquí, en el Shell, porque es
+    el antepasado común de los dos sitios que la deciden: el menú "Ver más", que la
+    elige antes de navegar, y el interruptor de pruebas de dentro del tablero.
+
+    Arranca en la versión actual. Mientras el rediseño sea un lienzo, quien abra su
+    diagnóstico tiene que encontrar su diagnóstico; a la propuesta nueva se entra a
+    propósito, eligiéndola.
+  */
+  const [dashboardVersion, setDashboardVersion] = useState(readVersion);
+
+  // Se recuerda para que comparar no obligue a elegir en cada visita: esta
+  // pantalla se desmonta al cambiar de sección, y comparar es entrar y salir.
+  useEffect(() => { writeVersion(dashboardVersion); }, [dashboardVersion]);
+
+  const versionContext = useMemo(
+    () => ({ version: dashboardVersion, setVersion: setDashboardVersion }),
+    [dashboardVersion],
+  );
+
   // La vista previa multi-dispositivo es una herramienta interna de desarrollo:
   // sólo el administrador la ve, y nunca se anida dentro de su propio iframe.
   const canUsePreview = isAdmin && !isPreview;
@@ -256,7 +279,13 @@ function Shell({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  return (
+  /*
+    El árbol se arma aparte y el proveedor lo envuelve al final. Es para no
+    reindentar doscientas líneas de `AdminLayout` sólo por ganar un nivel: un
+    cambio así ensucia el historial y esconde la modificación de verdad, que son
+    tres líneas.
+  */
+  const content = (
     <AdminLayout
       onNavigate={setSection}
       onLogout={onLogout}
@@ -324,6 +353,12 @@ function Shell({
         </div>
       )}
     </AdminLayout>
+  );
+
+  return (
+    <DashboardVersionContext.Provider value={versionContext}>
+      {content}
+    </DashboardVersionContext.Provider>
   );
 }
 
