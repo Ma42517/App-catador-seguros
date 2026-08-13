@@ -87,6 +87,22 @@ export function runConsistencyChecks(m, state = {}) {
       'El flujo neto no coincide con ingreso menos gastos menos deuda.');
   }
 
+  /*
+    La brecha se mide en bruto contra bruto.
+
+    Esta comprobación existe porque aquí hubo un error real: `REQUIRED_INCOME`
+    lleva los impuestos dentro, y se restaba contra el ingreso ya neto de
+    impuestos. La carga fiscal se contaba dos veces y aparecía una brecha
+    inexistente. Las dos verificaciones de arriba no lo detectaban porque
+    replicaban la misma fórmula equivocada; ésta cierra ese hueco.
+  */
+  const expectedGap = m.REQUIRED_INCOME - m.SUSTAINABLE_GROSS;
+  if (Math.abs(expectedGap - m.INCOME_GAP) > TOLERANCE) {
+    add('gap_drift', 'error',
+      'Descuadre en la brecha de ingreso',
+      'La brecha no coincide con el ingreso requerido menos el ingreso sostenible antes de impuestos.');
+  }
+
   // 7. Aportaciones de ahorro que exceden el flujo disponible.
   if (m.SAVINGS_COMMITMENT > m.NET_CASHFLOW && m.SAVINGS_COMMITMENT > 0) {
     add('savings_exceeds_flow', 'warning',

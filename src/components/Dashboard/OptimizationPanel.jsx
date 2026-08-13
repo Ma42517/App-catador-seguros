@@ -192,8 +192,12 @@ function ScenarioComparison() {
                 const s = scenarios[c.key];
                 return (
                   <td key={c.key} className="px-3 py-2 text-right">
-                    <Badge status={s.healthScore >= 70 ? 'green' : s.healthScore >= 40 ? 'yellow' : 'red'}>
-                      {s.healthScore}/100
+                    {/* El puntaje es null mientras no haya nada evaluable. */}
+                    <Badge status={s.healthScore === null ? 'neutral'
+                      : s.healthScore >= 70 ? 'green'
+                        : s.healthScore >= 40 ? 'yellow' : 'red'}
+                    >
+                      {s.healthScore === null ? '—' : `${s.healthScore}/100`}
                     </Badge>
                   </td>
                 );

@@ -118,7 +118,16 @@ export function calculateGoals(goals = [], availableSurplus = 0, postponeYears =
     };
   });
 
-  const overallFeasibility = clamp(safeDiv(availableSurplus, totalMonthlyRequired), 0, 1);
+  /*
+    Sin aportación requerida, la viabilidad es total: no hay nada que financiar.
+
+    La división segura devolvía 0 al dividir entre cero, así que un diagnóstico sin
+    metas reportaba viabilidad 0% y encendía la luz roja de metas. El tablero
+    llegaba a decir "Sin metas registradas" al lado de un foco rojo.
+  */
+  const overallFeasibility = totalMonthlyRequired <= 0
+    ? 1
+    : clamp(safeDiv(availableSurplus, totalMonthlyRequired), 0, 1);
 
   return {
     items: scored,

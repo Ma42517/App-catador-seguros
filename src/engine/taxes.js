@@ -22,7 +22,15 @@ import { num, toMonthly, safeDiv } from './utils.js';
  * @param {number} grossIncomeMonthly      - Ingreso bruto mensual recurrente.
  */
 export function calculateTaxes(taxes = {}, incomeType = 'net', grossIncomeMonthly = 0) {
-  const freq = taxes.frequency || 'annual';
+  /*
+    Mensual, igual que el estado inicial y que lo que muestra el selector.
+
+    El respaldo era 'annual' y eso abría una discrepancia silenciosa de doce
+    veces: un estado guardado sin `frequency` hacía que el selector mostrara
+    "Mensual" —es la primera opción— mientras el motor dividía los montos entre
+    doce. Los impuestos quedaban en una doceava parte sin que nada lo advirtiera.
+  */
+  const freq = taxes.frequency || 'monthly';
 
   const withheldMonthly = toMonthly(taxes.withheld, freq);
   const additionalMonthly = toMonthly(taxes.additionalPaid, freq);

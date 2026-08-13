@@ -157,11 +157,21 @@ export function simulatePayoff(analyzed, method = 'avalanche', extraPayment = 0)
 
 /**
  * Agregados de deuda del hogar.
+ *
+ * No simula la liquidación acelerada, y es a propósito: el excedente que la
+ * acelera se conoce después, cuando ya existe el flujo de caja, y el flujo de caja
+ * necesita el servicio de deuda que se calcula aquí. Esa simulación vive en
+ * `matrix.payoffPlans`, que es quien tiene el excedente real.
+ *
+ * Antes se hacía en los dos lados: aquí con excedente cero y allá con el de
+ * verdad. Las de aquí no las leía nadie —dos recorridos de hasta 600 meses cada
+ * uno, por cada una de las tres matrices, en cada tecla— y quedaban a un descuido
+ * de que alguien las mostrara creyendo que incluían el excedente.
+ *
  * @param {Array} debts
  * @param {number} sustainableIncomeMonthly
- * @param {number} extraPayment - Excedente disponible para acelerar liquidación.
  */
-export function calculateDebts(debts = [], sustainableIncomeMonthly = 0, extraPayment = 0) {
+export function calculateDebts(debts = [], sustainableIncomeMonthly = 0) {
   const analyzed = debts.map(analyzeDebt);
 
   const totalBalance = analyzed.reduce((s, d) => s + d.balance, 0);
@@ -206,8 +216,5 @@ export function calculateDebts(debts = [], sustainableIncomeMonthly = 0, extraPa
     hasUnpayableDebt,
     cardUtilization: cards.length ? cardUtilization : null,
     mostExpensive,
-
-    avalanche: simulatePayoff(analyzed, 'avalanche', extraPayment),
-    snowball: simulatePayoff(analyzed, 'snowball', extraPayment),
   };
 }

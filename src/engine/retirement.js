@@ -80,7 +80,17 @@ export function calculateRetirement(params = {}) {
   // Aportación ADICIONAL sobre lo que ya se aporta hoy.
   const additionalMonthlyNeeded = Math.max(0, requiredMonthlyContribution - monthlyContribution);
 
-  const progress = clamp(safeDiv(projectedCapital, requiredCapital), 0, 1);
+  /*
+    Sin pensión deseada no hay capital requerido, y sin capital requerido el avance
+    es total: no queda brecha por cerrar.
+
+    Antes la división segura devolvía 0 y el resultado se contradecía consigo
+    mismo: `gap: 0` e `isOnTrack: true` conviviendo con `progress: 0`, o sea la
+    luz de retiro en rojo mientras el propio módulo afirmaba que no faltaba nada.
+  */
+  const progress = requiredCapital <= 0
+    ? 1
+    : clamp(safeDiv(projectedCapital, requiredCapital), 0, 1);
 
   // Pensión mensual sostenible con la trayectoria actual.
   const sustainableIncomeAtRetirement = monthsInRetirement > 0 && postRealMonthly !== 0

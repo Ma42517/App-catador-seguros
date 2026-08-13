@@ -32,7 +32,13 @@ export function buildRecommendations(m) {
         ? `Puedes cerrarlo recortando gasto discrecional y de lujo, que hoy suman ${fmtMXN(m.expenses.compressibleMonthly)} al mes.`
         : `Recortar todo el gasto no esencial (${fmtMXN(m.expenses.compressibleMonthly)}) no alcanza. Necesitas incrementar ingreso en al menos ${fmtMXN(deficit - m.expenses.compressibleMonthly)} al mes.`,
     });
-  } else if (m.savingsRate < 0.1) {
+  } else if (m.INCOME_SUSTAINABLE > 0 && m.savingsRate < 0.1) {
+    /*
+      La condición del ingreso no es adorno: sin ingreso capturado la tasa de
+      ahorro sale 0 y esta recomendación aparecía en un diagnóstico vacío,
+      reprochando una tasa de ahorro baja a alguien que todavía no había escrito
+      cuánto gana.
+    */
     push({
       id: 'low_savings_rate',
       severity: 'high',
@@ -98,7 +104,12 @@ export function buildRecommendations(m) {
 
 
   // ── Fondo de emergencia ───────────────────────────────────────────────────
-  if (m.assets.emergencyMonths < 6) {
+  /*
+    Sin gasto esencial registrado no hay nada que cubrir, y la cobertura en meses
+    sale 0 por la división entre cero. Sin esta guarda, un diagnóstico vacío
+    abría con "tu fondo de emergencia cubre 0.0 meses" en severidad crítica.
+  */
+  if (m.expenses.essentialMonthly > 0 && m.assets.emergencyMonths < 6) {
     const targetMonths = 6;
     const needed = Math.max(0, m.expenses.essentialMonthly * targetMonths - m.assets.emergencyFund);
     push({
@@ -161,10 +172,15 @@ export function buildRecommendations(m) {
       id: 'income_gap',
       severity: 'high',
       area: 'Ingreso',
-      problem: `Para sostener tu vida objetivo necesitas ${fmtMXN(m.REQUIRED_INCOME)} mensuales y hoy generas ${fmtMXN(m.INCOME_SUSTAINABLE)}.`,
+      /*
+        Las dos cifras van en bruto, como la brecha. Con el neto, la resta que el
+        lector hace de cabeza no daba el número que la propia frase anuncia dos
+        líneas abajo.
+      */
+      problem: `Para sostener tu vida objetivo necesitas ${fmtMXN(m.REQUIRED_INCOME)} mensuales y hoy generas ${fmtMXN(m.SUSTAINABLE_GROSS)}.`,
       impact: `La brecha de ingreso es de ${fmtMXN(m.INCOME_GAP)} al mes, equivalente a ${fmtMXN(m.INCOME_GAP * 12)} al año.`,
       number: fmtMXN(m.INCOME_GAP),
-      action: `Incrementar tu ingreso sostenible en ${fmtPct(safeDiv(m.INCOME_GAP, m.INCOME_SUSTAINABLE))} hace viable tu plan completo.`,
+      action: `Incrementar tu ingreso sostenible en ${fmtPct(safeDiv(m.INCOME_GAP, m.SUSTAINABLE_GROSS))} hace viable tu plan completo.`,
     });
   }
 
