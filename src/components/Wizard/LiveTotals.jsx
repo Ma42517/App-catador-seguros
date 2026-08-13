@@ -55,8 +55,16 @@ const ACCENTS = {
 
 /** Medidor de salud financiera 0-100 con barra brillante. */
 function HealthMeter({ score }) {
-  const pct = clamp(score / 100, 0, 1) * 100;
-  const tone = score >= 70
+  /*
+    `score` es null mientras no haya nada evaluable. La barra se queda vacía y en
+    gris en lugar de mostrar un cero rojo: al empezar a capturar, un 0/100 en rojo
+    describe la captura, no las finanzas.
+  */
+  const pending = score === null || score === undefined;
+  const pct = pending ? 0 : clamp(score / 100, 0, 1) * 100;
+  const tone = pending
+    ? { bar: 'from-zinc-600 to-zinc-500', text: 'text-zinc-500', glow: 'transparent' }
+    : score >= 70
     ? { bar: 'from-emerald-500 to-emerald-400', text: 'text-emerald-400', glow: 'rgb(16 185 129 / 0.7)' }
     : score >= 40
       ? { bar: 'from-amber-500 to-amber-400', text: 'text-amber-400', glow: 'rgb(245 158 11 / 0.7)' }
@@ -70,7 +78,7 @@ function HealthMeter({ score }) {
           Salud financiera
         </span>
         <span className="text-[10px] font-medium tabular-nums text-zinc-500">
-          <span className={`text-sm font-bold ${tone.text}`}>{score}</span> / 100
+          <span className={`text-sm font-bold ${tone.text}`}>{pending ? '—' : score}</span> / 100
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-700/40">

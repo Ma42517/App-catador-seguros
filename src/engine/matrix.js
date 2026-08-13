@@ -6,15 +6,24 @@
  *
  * Ecuaciones núcleo:
  *   EXPENSES_TOTAL  = esencial + importante + discrecional + lujo
- *   NET_CASHFLOW    = income_sustainable - impuestos - expenses_total - debt_service
+ *   INCOME_SUSTAINABLE = sostenible_bruto - impuestos        (queda NETO)
+ *   NET_CASHFLOW    = income_sustainable - expenses_total - debt_service
  *   REQUIRED_INCOME = expenses_total + debt_service + savings + goals + impuestos
- *   INCOME_GAP      = required_income - income_sustainable
+ *   INCOME_GAP      = required_income - sostenible_bruto
+ *
+ * OJO con la última ecuación, que es donde vivía un error de doble contabilidad:
+ * `REQUIRED_INCOME` incluye los impuestos, así que está expresado en BRUTO —es
+ * cuánto hay que *ganar*—, mientras `INCOME_SUSTAINABLE` ya viene NETO. Restarle
+ * el neto al bruto contaba los impuestos dos veces e inventaba una brecha que no
+ * existía: con ingreso 100, impuestos 20 y gastos 80, la brecha real es 0 y el
+ * motor reportaba 20. Por eso la brecha se mide contra el sostenible BRUTO.
  *
  * Garantías de no doble contabilidad:
  *   - Los impuestos se restan SÓLO si el ingreso se capturó en bruto.
  *   - La aportación al retiro se DERIVA de los activos de retiro, nunca se suma aparte.
  *   - El ingreso extraordinario jamás entra al ingreso sostenible.
  *   - Liquidar una deuda libera su pago del flujo en el mismo instante.
+ *   - La brecha compara bruto contra bruto, nunca bruto contra neto.
  */
 import { num, safeDiv, clamp } from './utils.js';
 import { calculateIncome } from './income.js';
@@ -117,8 +126,16 @@ export function buildMatrix(state, options = {}) {
   const taxes = calculateTaxes(state.taxes, profile.incomeType || 'net', income.grossMonthly);
   const taxDrag = taxes.taxDeductionMonthly;
 
-  /** Ingreso realmente disponible para comprometer. */
-  const INCOME_SUSTAINABLE = Math.max(0, income.sustainableMonthly - taxDrag);
+  /**
+   * Ingreso sostenible ANTES de impuestos.
+   *
+   * Se conserva aparte porque es la única cifra comparable con `REQUIRED_INCOME`,
+   * que también está en bruto. Sin él, la brecha restaba un neto de un bruto.
+   */
+  const SUSTAINABLE_GROSS = income.sustainableMonthly;
+
+  /** Ingreso realmente disponible para comprometer, ya neto de impuestos. */
+  const INCOME_SUSTAINABLE = Math.max(0, SUSTAINABLE_GROSS - taxDrag);
 
   // ── 3. GASTOS ─────────────────────────────────────────────────────────────
   const scaledExpenses = applyExpenseReduction(state.expenses || [], scenario.expenseReductionPct);
@@ -130,9 +147,7 @@ export function buildMatrix(state, options = {}) {
   const eliminated = new Set(scenario.eliminatedDebtIds || []);
   const activeDebts = (state.debts || []).filter((d) => !eliminated.has(d.id));
 
-  // Excedente preliminar disponible para acelerar la liquidación.
-  const preliminarySurplus = Math.max(0, INCOME_SUSTAINABLE - EXPENSES_TOTAL);
-  const debts = calculateDebts(activeDebts, INCOME_SUSTAINABLE, 0);
+  const debts = calculateDebts(activeDebts, INCOME_SUSTAINABLE);
   const DEBT_SERVICE = debts.monthlyService;
 
   /** Flujo liberado por las deudas que el escenario dio por liquidadas. */
@@ -212,15 +227,25 @@ export function buildMatrix(state, options = {}) {
     + GOALS_COST
     + taxDrag;
 
-  const INCOME_GAP = REQUIRED_INCOME - INCOME_SUSTAINABLE;
+  /*
+    Bruto contra bruto. `REQUIRED_INCOME` lleva los impuestos dentro porque
+    responde a "cuánto necesito ganar", así que se compara contra el sostenible
+    antes de impuestos. Medirlo contra el neto restaba la carga fiscal dos veces.
+  */
+  const INCOME_GAP = REQUIRED_INCOME - SUSTAINABLE_GROSS;
 
   /** Excedente o déficit final, ya considerando ahorro y metas. */
   const FINAL_SURPLUS = NET_CASHFLOW - TOTAL_SAVINGS_COMMITMENT - GOALS_COST;
 
 
   // ── 11. SIMULACIÓN DE LIQUIDACIÓN ACELERADA ───────────────────────────────
-  // El excedente real del hogar se reinvierte en atacar la deuda.
-  const accelerator = Math.max(0, Math.min(preliminarySurplus, NET_CASHFLOW));
+  /*
+    El excedente real del hogar se reinvierte en atacar la deuda. Es el flujo
+    libre y nada más: antes se acotaba además contra un "excedente preliminar"
+    que era el flujo sin descontar la deuda, siempre mayor, así que el mínimo
+    nunca lo elegía. Ese cálculo sobraba.
+  */
+  const accelerator = Math.max(0, NET_CASHFLOW);
   const payoffPlans = {
     avalanche: simulatePayoff(debts.items, 'avalanche', accelerator),
     snowball: simulatePayoff(debts.items, 'snowball', accelerator),
@@ -230,21 +255,77 @@ export function buildMatrix(state, options = {}) {
   // ── 12. SEMÁFORO FINANCIERO ───────────────────────────────────────────────
   const savingsRate = safeDiv(NET_CASHFLOW, INCOME_SUSTAINABLE);
 
+  /*
+    Un indicador sólo se pinta cuando hay con qué juzgarlo.
+
+    Antes todos los divisores vacíos caían en cero y cero disparaba el rojo, así
+    que un diagnóstico recién abierto acusaba cuatro problemas graves sobre
+    información que nadie había capturado: fondo de emergencia insuficiente sin
+    gastos registrados, metas inviables **sin metas**, retiro comprometido sin
+    haber dicho qué pensión se quiere. Un semáforo que se enciende antes de tener
+    datos enseña a ignorar el semáforo.
+
+    `neutral` es "todavía no se puede evaluar" y queda fuera del puntaje. No es lo
+    mismo que verde: verde afirma que algo está bien.
+  */
+  const hasFlowData = SUSTAINABLE_GROSS > 0 || EXPENSES_TOTAL > 0 || DEBT_SERVICE > 0;
+  const hasDebt = debts.totalBalance > 0 || DEBT_SERVICE > 0;
+
   const lights = {
-    cashflow: NET_CASHFLOW <= 0 ? 'red' : savingsRate < 0.1 ? 'yellow' : 'green',
-    debt: debts.debtToIncomeRatio > 0.5 ? 'red'
-      : debts.debtToIncomeRatio >= 0.3 ? 'yellow' : 'green',
-    emergency: assets.emergencyMonths < 3 ? 'red'
-      : assets.emergencyMonths <= 6 ? 'yellow' : 'green',
-    goals: goals.overallFeasibility >= 0.999 ? 'green'
-      : goals.overallFeasibility >= 0.6 ? 'yellow' : 'red',
-    retirement: retirement.progress >= 0.9 ? 'green'
-      : retirement.progress >= 0.5 ? 'yellow' : 'red',
+    cashflow: !hasFlowData ? 'neutral'
+      : NET_CASHFLOW <= 0 ? 'red'
+        : savingsRate < 0.1 ? 'yellow' : 'green',
+
+    /*
+      Dos falsos positivos en direcciones opuestas vivían en esta línea.
+
+      Con deuda y sin ingreso, la razón deuda/ingreso salía 0 por la división
+      segura y pintaba VERDE: alguien pagando deuda sin ingreso registrado veía
+      "riesgo de deuda: saludable".
+
+      Y sin deuda ni ingreso también pintaba verde, con lo que un diagnóstico
+      completamente vacío promediaba 100 de 100. Un certificado de buena salud
+      sobre una hoja en blanco es peor que el rojo que había antes.
+
+      "No tengo deuda" sólo es una virtud comprobable si hay un ingreso con el que
+      compararla; sin nada capturado, no hay nada que afirmar.
+    */
+    debt: !hasDebt
+      ? (SUSTAINABLE_GROSS > 0 ? 'green' : 'neutral')
+      : INCOME_SUSTAINABLE <= 0 ? 'red'
+        : debts.debtToIncomeRatio > 0.5 ? 'red'
+          : debts.debtToIncomeRatio >= 0.3 ? 'yellow' : 'green',
+
+    // Sin gasto esencial capturado no hay nada que cubrir: la cobertura en meses
+    // no significa nada todavía.
+    emergency: expenses.essentialMonthly <= 0 ? 'neutral'
+      : assets.emergencyMonths < 3 ? 'red'
+        : assets.emergencyMonths <= 6 ? 'yellow' : 'green',
+
+    goals: goals.totalMonthlyRequired <= 0 ? 'neutral'
+      : goals.overallFeasibility >= 0.999 ? 'green'
+        : goals.overallFeasibility >= 0.6 ? 'yellow' : 'red',
+
+    // Sin pensión deseada no hay meta contra la que medir el avance.
+    retirement: retirement.requiredCapital <= 0 ? 'neutral'
+      : retirement.progress >= 0.9 ? 'green'
+        : retirement.progress >= 0.5 ? 'yellow' : 'red',
   };
 
-  const lightScore = Object.values(lights)
+  /*
+    El puntaje promedia sólo lo evaluable. Si se contaran los neutros como cero,
+    capturar la mitad del diagnóstico daría un puntaje bajísimo por lo que falta
+    escribir, no por la situación financiera.
+
+    `null` cuando no hay nada evaluable: es la señal de "aún no hay diagnóstico",
+    y quien la reciba debe invitar a capturar en lugar de dibujar un número.
+  */
+  const scored = Object.values(lights).filter((v) => v !== 'neutral');
+  const lightScore = scored
     .reduce((s, v) => s + (v === 'green' ? 2 : v === 'yellow' ? 1 : 0), 0);
-  const healthScore = Math.round(safeDiv(lightScore, Object.keys(lights).length * 2) * 100);
+  const healthScore = scored.length === 0
+    ? null
+    : Math.round(safeDiv(lightScore, scored.length * 2) * 100);
 
   // ── 13. COBERTURA DE RIESGO ───────────────────────────────────────────────
   /**
@@ -278,6 +359,8 @@ export function buildMatrix(state, options = {}) {
 
     // ── Matriz central (todos los valores son MENSUALES en MXN) ─────────────
     INCOME_SUSTAINABLE,
+    /** El mismo ingreso antes de impuestos: con esto se compara la brecha. */
+    SUSTAINABLE_GROSS,
     EXPENSES_TOTAL,
     DEBT_SERVICE,
     SAVINGS_COMMITMENT: TOTAL_SAVINGS_COMMITMENT,

@@ -1,12 +1,51 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import {
+  createContext, useContext, useState, useCallback, useEffect,
+} from 'react';
+
+/**
+ * Referidos capturados en el candado del Plan de Optimización.
+ *
+ * Se guardan en el navegador, igual que el resto del diagnóstico, y nunca salen
+ * de ahí. Antes vivían sólo en memoria, lo que rompía dos cosas: el aviso del
+ * propio candado prometía por escrito que "estos contactos se guardan únicamente
+ * en este navegador" —y no se guardaban en ninguna parte—, y el asesor perdía los
+ * contactos y el desbloqueo con sólo recargar la página. Un candado que hay que
+ * volver a abrir en cada recarga se convierte en un peaje, no en un intercambio.
+ */
+const STORAGE_KEY = 'df360:referrals:v1';
+
+function loadPersisted() {
+  if (typeof window === 'undefined') return { referrals: [], isUnlocked: false };
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== 'object') return { referrals: [], isUnlocked: false };
+    return {
+      referrals: Array.isArray(parsed.referrals) ? parsed.referrals : [],
+      isUnlocked: !!parsed.isUnlocked,
+    };
+  } catch {
+    // Almacenamiento corrupto o bloqueado: se arranca en blanco.
+    return { referrals: [], isUnlocked: false };
+  }
+}
 
 // ─── Context ────────────────────────────────────────────────────────────────
 
 const ReferralContext = createContext(undefined);
 
 export function ReferralProvider({ children }) {
-  const [referrals, setReferrals] = useState([]);
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const persisted = loadPersisted();
+  const [referrals, setReferrals] = useState(persisted.referrals);
+  const [isUnlocked, setIsUnlocked] = useState(persisted.isUnlocked);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ referrals, isUnlocked }));
+    } catch {
+      // Sin almacenamiento —modo privado, permisos—, la sesión sigue funcionando.
+    }
+  }, [referrals, isUnlocked]);
 
   /**
    * Agrega un referido { name, phone }.
@@ -23,7 +62,7 @@ export function ReferralProvider({ children }) {
   }, []);
 
   /**
-   * Desbloquea directamente (útil para pruebas).
+   * Desbloquea sin capturar contactos, para quien prefiere no compartirlos.
    */
   const unlockDirectly = useCallback(() => {
     setIsUnlocked(true);

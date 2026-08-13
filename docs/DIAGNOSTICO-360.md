@@ -231,17 +231,27 @@ tablero:
 | **Excedente final** | Flujo libre − ahorro − metas |
 | **Tasa de ahorro** | Flujo libre / ingreso sostenible |
 
+A esa lista se añade una cifra que no se muestra pero que sostiene la brecha:
+**el ingreso sostenible bruto**, es decir el mismo ingreso antes de impuestos. El
+*ingreso requerido* lleva los impuestos dentro —responde a "cuánto necesito
+ganar"—, así que la brecha se mide contra el bruto. Compararlo contra el neto
+contaba la carga fiscal dos veces.
+
 ### Garantías contra la doble contabilidad
 
 Son decisiones explícitas del motor y vale la pena conocerlas, porque explican
 resultados que a primera vista sorprenden:
 
 1. **Los impuestos se restan una sola vez**, y sólo si el ingreso se declaró bruto.
-2. **La aportación de retiro se deriva de los activos**, nunca se suma aparte.
-3. **El ingreso extraordinario nunca entra** al ingreso sostenible.
-4. **Un ingreso de "única vez" aporta 0** al flujo mensual; se acumula como anual.
-5. **Los pagos de crédito viven sólo en Deudas**, no en Gastos.
-6. **Al eliminar una deuda en un escenario**, su pago se libera en el mismo instante.
+2. **La brecha compara bruto contra bruto**, nunca bruto contra neto.
+3. **La aportación de retiro se deriva de los activos**, nunca se suma aparte.
+4. **El ingreso extraordinario nunca entra** al ingreso sostenible.
+5. **Un ingreso de "única vez" aporta 0** al flujo mensual; se acumula como anual.
+6. **Los pagos de crédito viven sólo en Deudas**, no en Gastos.
+7. **Al eliminar una deuda en un escenario**, su pago se libera en el mismo instante.
+
+Las tres primeras están verificadas por `scripts/verifica-diagnostico.mjs`, que
+ejecuta el motor con casos donde estos errores estaban vivos.
 
 ---
 
@@ -286,9 +296,15 @@ En orden de aparición:
 | **Viabilidad de metas** | 100% | ≥ 60% | < 60% |
 | **Preparación de retiro** | ≥ 90% | ≥ 50% | < 50% |
 
-**Salud financiera (0–100):** los cinco indicadores pesan **igual**. Verde vale 2
-puntos, amarillo 1, rojo 0, sobre un máximo de 10 → el puntaje siempre es múltiplo
-de 10.
+**Hay un cuarto estado: gris.** Un indicador se queda en gris mientras no haya con
+qué juzgarlo — sin gastos esenciales no hay fondo de emergencia que medir, sin metas
+no hay viabilidad, sin pensión deseada no hay avance de retiro. El gris **no es
+verde**: verde afirma que algo está bien, gris dice que todavía no se sabe. La fila
+muestra entonces qué falta capturar.
+
+**Salud financiera (0–100):** promedia **sólo los indicadores evaluables**. Verde
+vale 2 puntos, amarillo 1, rojo 0. Si no hay ninguno evaluable, no hay puntaje: la
+sección muestra un guion e invita a capturar, en lugar de inventar un veredicto.
 
 ---
 
@@ -312,12 +328,16 @@ Tres severidades: **error** (hay que corregir antes de confiar en el diagnóstic
 | Deuda que nunca se liquida | error | El pago no cubre el interés |
 | Descuadre de la matriz | error | El ingreso requerido no coincide con la suma de sus partes |
 | Descuadre del flujo | error | El flujo libre no coincide con su fórmula |
+| Descuadre de la brecha | error | La brecha no coincide con el requerido menos el sostenible bruto |
 | Ahorro que excede el flujo | advertencia | Se aporta más de lo que el flujo permite |
 | Concentración de ingreso | advertencia | Una sola fuente supera el 80% |
 
-Los dos "descuadres" son **auto-auditoría del propio motor**: verifican con
+Los tres "descuadres" son **auto-auditoría del propio motor**: verifican con
 tolerancia de un peso que la aritmética cierre. Si aparecen, el problema está en el
 cálculo, no en la captura.
+
+El de la brecha existe porque ahí hubo un error real en producción: los dos primeros
+no lo detectaban, porque replicaban la misma fórmula equivocada que auditaban.
 
 ---
 
@@ -443,17 +463,26 @@ Todos editables desde la interfaz:
 No son fallas de captura, son comportamientos del motor que explican resultados
 extraños:
 
-- **Con el diagnóstico vacío, la salud sale en 20/100.** Cuatro de los cinco
-  semáforos arrancan en rojo porque sus divisores están en cero, incluido el de
-  metas: **sin metas registradas, la viabilidad de metas es roja**, no verde.
 - **La proyección de patrimonio usa el flujo libre completo** como ahorro, no el
-  compromiso de ahorro. Y si el flujo es negativo, usa cero: no dibuja destrucción de
-  patrimonio.
-- **Las simulaciones de liquidación se calculan dos veces** por render, una con
-  acelerador y otra sin él. El paso de Deudas muestra la versión sin acelerador.
+  compromiso de ahorro: asume que todo lo que sobra se invierte. Y si el flujo es
+  negativo usa cero, así que no dibuja destrucción de patrimonio.
+- **Una meta a cero años pide su brecha completa como aportación mensual.** Es la
+  única lectura mensual posible de un desembolso inmediato, pero infla el ingreso
+  requerido de forma llamativa.
 - **La importación de un respaldo JSON existe en el motor pero no tiene pantalla.**
   Se puede exportar, no reimportar desde la interfaz.
-- **Los contactos del candado de referidos no se guardan.** El desbloqueo dura lo que
-  dura la sesión.
 - **El rediseño V2 está vacío.** Es un lienzo con los datos ya conectados y tres
   cifras de comprobación; el diseño está pendiente.
+
+## 13. Verificación
+
+`node scripts/verifica-diagnostico.mjs` ejecuta el motor contra ocho casos y afirma
+33 comprobaciones. Cada caso corresponde a un error que estuvo en producción, así que
+no es una prueba de que el motor funcione en general: es la garantía de que esos
+errores concretos no vuelven en silencio.
+
+Los casos: la doble contabilidad fiscal en la brecha, el diagnóstico vacío, la
+viabilidad sin metas, el retiro sin pensión deseada, la deuda sin ingreso, la
+frecuencia de impuestos por omisión, las simulaciones de liquidación duplicadas y —
+como red de seguridad contra correcciones que rompan lo que sí funcionaba — el
+diagnóstico completo de los datos de ejemplo.

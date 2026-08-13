@@ -24,10 +24,23 @@ function monthsLabel(months) {
   return m === 0 ? `${y} a` : `${y}a ${m}m`;
 }
 
-/** Puntaje global de salud con anillo. */
+/**
+ * Puntaje global de salud con anillo.
+ *
+ * `score` puede ser `null`, y entonces no se dibuja ningún número: significa que
+ * todavía no hay nada evaluable. Antes esa situación se resolvía con un cero que se
+ * pintaba de rojo, así que el primer contacto con el diagnóstico era un veredicto
+ * demoledor sobre una captura vacía.
+ */
 function HealthScore({ score }) {
-  const tone = score >= 70 ? 'text-emerald-400' : score >= 40 ? 'text-amber-400' : 'text-rose-400';
-  const stroke = score >= 70 ? 'rgb(16 185 129)' : score >= 40 ? 'rgb(245 158 11)' : 'rgb(244 63 94)';
+  const pending = score === null || score === undefined;
+
+  const tone = pending ? 'text-zinc-500'
+    : score >= 70 ? 'text-emerald-400'
+      : score >= 40 ? 'text-amber-400' : 'text-rose-400';
+  const stroke = pending ? 'rgb(82 82 91)'
+    : score >= 70 ? 'rgb(16 185 129)'
+      : score >= 40 ? 'rgb(245 158 11)' : 'rgb(244 63 94)';
   const r = 30;
   const c = 2 * Math.PI * r;
 
@@ -38,17 +51,21 @@ function HealthScore({ score }) {
           <circle cx="38" cy="38" r={r} fill="none" stroke="rgb(30 41 59)" strokeWidth="7" />
           <circle
             cx="38" cy="38" r={r} fill="none" stroke={stroke} strokeWidth="7"
-            strokeDasharray={`${(score / 100) * c} ${c}`} strokeLinecap="round"
+            strokeDasharray={`${(pending ? 0 : score / 100) * c} ${c}`} strokeLinecap="round"
           />
         </svg>
         <div className="absolute inset-0 grid place-items-center">
-          <span className={`text-lg font-bold tabular-nums ${tone}`}>{score}</span>
+          <span className={`text-lg font-bold tabular-nums ${tone}`}>
+            {pending ? '—' : score}
+          </span>
         </div>
       </div>
       <div>
         <p className="text-xs font-semibold text-zinc-200">Salud financiera global</p>
         <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
-          Puntaje compuesto de flujo, deuda, liquidez, metas y retiro.
+          {pending
+            ? 'Captura tus ingresos y gastos para calcularlo.'
+            : 'Promedio de los indicadores que ya se pueden evaluar.'}
         </p>
       </div>
     </div>
@@ -72,31 +89,46 @@ export function ExecutiveDashboardV1() {
       key: 'cashflow',
       label: 'Flujo de caja',
       value: fmtMXN(m.NET_CASHFLOW),
-      verdict: m.NET_CASHFLOW < 0
-        ? 'Déficit: gastas más de lo que sostienes'
-        : `Tasa de ahorro ${fmtPct(m.savingsRate)}`,
+      /*
+        Cada veredicto dice qué falta cuando su luz está en gris. Un indicador sin
+        datos que no explica qué le falta deja al asesor buscando un problema
+        inexistente.
+      */
+      verdict: m.lights.cashflow === 'neutral'
+        ? 'Captura tus ingresos y gastos'
+        : m.NET_CASHFLOW < 0
+          ? 'Déficit: gastas más de lo que sostienes'
+          : `Tasa de ahorro ${fmtPct(m.savingsRate)}`,
       help: 'Ingreso sostenible menos gastos menos servicio de deuda.',
     },
     {
       key: 'debt',
       label: 'Riesgo de deuda',
       value: fmtPct(m.debts.debtToIncomeRatio),
-      verdict: m.debts.debtToIncomeRatio > 0.5 ? 'Sobre el 50%: crítico'
-        : m.debts.debtToIncomeRatio >= 0.3 ? 'Entre 30% y 50%: precaución'
-        : 'Bajo el 30%: saludable',
+      verdict: m.debts.totalBalance <= 0 && m.DEBT_SERVICE <= 0
+        ? 'Sin deuda registrada'
+        : m.INCOME_SUSTAINABLE <= 0
+          ? 'Pagas deuda sin ingreso registrado'
+          : m.debts.debtToIncomeRatio > 0.5 ? 'Sobre el 50%: crítico'
+            : m.debts.debtToIncomeRatio >= 0.3 ? 'Entre 30% y 50%: precaución'
+              : 'Bajo el 30%: saludable',
       help: 'Proporción de tu ingreso sostenible comprometida en pagos de deuda.',
     },
     {
       key: 'emergency',
       label: 'Fondo de emergencia',
-      value: `${m.assets.emergencyMonths.toFixed(1)} meses`,
-      verdict: `Cubre tu gasto esencial de ${fmtMXN(m.expenses.essentialMonthly)}`,
+      value: m.lights.emergency === 'neutral'
+        ? '—'
+        : `${m.assets.emergencyMonths.toFixed(1)} meses`,
+      verdict: m.lights.emergency === 'neutral'
+        ? 'Registra tus gastos esenciales para calcularlo'
+        : `Cubre tu gasto esencial de ${fmtMXN(m.expenses.essentialMonthly)}`,
       help: 'Meses de gasto esencial que puedes cubrir con tus activos líquidos.',
     },
     {
       key: 'goals',
       label: 'Viabilidad de metas',
-      value: `${m.goals.feasibilityScore}/100`,
+      value: m.goals.totalMonthlyRequired > 0 ? `${m.goals.feasibilityScore}/100` : '—',
       verdict: m.goals.totalMonthlyRequired > 0
         ? `Requieren ${fmtMXN(m.goals.totalMonthlyRequired)} al mes`
         : 'Sin metas registradas',
@@ -105,10 +137,12 @@ export function ExecutiveDashboardV1() {
     {
       key: 'retirement',
       label: 'Preparación para el retiro',
-      value: `${m.retirement.progressPct}%`,
-      verdict: m.retirement.gap > 0
-        ? `Brecha de ${fmtMXN(m.retirement.gap)}`
-        : 'Trayectoria suficiente',
+      value: m.lights.retirement === 'neutral' ? '—' : `${m.retirement.progressPct}%`,
+      verdict: m.lights.retirement === 'neutral'
+        ? 'Define la pensión mensual que quieres'
+        : m.retirement.gap > 0
+          ? `Brecha de ${fmtMXN(m.retirement.gap)}`
+          : 'Trayectoria suficiente',
       help: 'Avance de tu capital proyectado frente al capital necesario.',
     },
   ];
@@ -210,14 +244,26 @@ export function ExecutiveDashboardV1() {
             { label: 'Metas', value: m.GOALS_COST, color: 'rgb(124 58 237)' },
             ...(m.taxDrag > 0 ? [{ label: 'Impuestos', value: m.taxDrag, color: 'rgb(100 116 139)' }] : []),
           ]}
-          reference={m.INCOME_SUSTAINABLE}
-          referenceLabel="Tu ingreso"
+          /*
+            La referencia es el ingreso ANTES de impuestos, porque los impuestos
+            aparecen como uno de los destinos de la barra. Medirlos contra el
+            ingreso ya neto los contaba dos veces y la barra se pasaba de la línea
+            por el monto exacto de la carga fiscal, dando la impresión de un
+            sobrecompromiso inexistente.
+          */
+          reference={m.SUSTAINABLE_GROSS}
+          referenceLabel={m.taxDrag > 0 ? 'Tu ingreso bruto' : 'Tu ingreso'}
         />
         <p className={`mt-4 rounded-lg p-3 text-[11px] leading-relaxed ${
           m.INCOME_GAP > 0 ? 'bg-rose-500/10 text-rose-200' : 'bg-emerald-500/10 text-emerald-200'
         }`}>
+          {/*
+            Las dos cifras de la frase son brutas, igual que la brecha. Antes
+            comparaba el requerido (bruto) contra el sostenible (neto), así que la
+            resta no cuadraba con la brecha que anunciaba en la misma línea.
+          */}
           {m.INCOME_GAP > 0
-            ? `Tu vida objetivo cuesta ${fmtMXN(m.REQUIRED_INCOME)} al mes y tu ingreso sostenible es de ${fmtMXN(m.INCOME_SUSTAINABLE)}. Faltan ${fmtMXN(m.INCOME_GAP)} mensuales, o ${fmtMXN(m.INCOME_GAP * 12)} al año.`
+            ? `Tu vida objetivo cuesta ${fmtMXN(m.REQUIRED_INCOME)} al mes y tu ingreso sostenible es de ${fmtMXN(m.SUSTAINABLE_GROSS)}. Faltan ${fmtMXN(m.INCOME_GAP)} mensuales, o ${fmtMXN(m.INCOME_GAP * 12)} al año.`
             : `Tu ingreso sostenible cubre tu vida objetivo completa con un excedente de ${fmtMXN(-m.INCOME_GAP)} al mes.`}
         </p>
       </Card>
@@ -425,7 +471,7 @@ export function ExecutiveDashboardV2() {
               Salud
             </dt>
             <dd className="mt-0.5 text-sm font-bold tabular-nums text-zinc-200">
-              {m.healthScore}/100
+              {m.healthScore === null ? '—' : `${m.healthScore}/100`}
             </dd>
           </div>
           <div>

@@ -27,9 +27,30 @@ function loadPersisted() {
     if (!raw) return fresh;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return fresh;
+    const saved = parsed.data || {};
+
     return {
-      // Merge defensivo: cualquier campo nuevo del esquema conserva su default.
-      data: { ...fresh.data, ...(parsed.data || {}) },
+      /*
+        Merge defensivo, y profundo en las secciones que son objetos.
+
+        Con un merge de un solo nivel, `profile`, `taxes` y `retirement` se
+        reemplazaban enteros: un estado guardado antes de que existiera un campo
+        se quedaba sin ese campo para siempre, aunque el esquema ya lo trajera con
+        valor por omisión. Eso ya estaba causando daño real —un `taxes` sin
+        `frequency` dejaba al motor interpretando los montos como anuales mientras
+        el selector mostraba "Mensual"— y volvería a morder con cada campo nuevo.
+
+        Las colecciones (`incomes`, `expenses`, `debts`, `assets`, `goals`) sí se
+        reemplazan completas, y así debe ser: son listas del usuario, no esquemas
+        con valores por omisión que rellenar.
+      */
+      data: {
+        ...fresh.data,
+        ...saved,
+        profile: { ...fresh.data.profile, ...(saved.profile || {}) },
+        taxes: { ...fresh.data.taxes, ...(saved.taxes || {}) },
+        retirement: { ...fresh.data.retirement, ...(saved.retirement || {}) },
+      },
       scenario: { ...NEUTRAL_SCENARIO, ...(parsed.scenario || {}) },
       activeMode: parsed.activeMode || 'current',
       isDemo: !!parsed.isDemo,
