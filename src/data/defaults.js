@@ -5,7 +5,8 @@
  */
 import { uid } from '../engine/finance.js';
 import {
-  rateForAssetType, inflationForGoalPreset, GOAL_EXPECTED_RETURN,
+  rateForAssetType, inflationForGoalPreset, rateOrBlank,
+  returnForSavingsVehicle, DEFAULT_SAVINGS_VEHICLE,
 } from './historicalRates.js';
 
 /** Supuestos macro editables. Ningún parámetro fiscal está hardcodeado. */
@@ -118,7 +119,7 @@ export function createAsset(overrides = {}) {
     balance: 0,
     monthlyContribution: 0,
     // La tasa acompaña al tipo. 'bank' abre en 1.5 %, no en el 8 % de una inversión.
-    annualReturn: rateForAssetType('bank'),
+    annualReturn: rateOrBlank(rateForAssetType('bank')),
     horizonYears: 10,
     ...overrides,
   };
@@ -132,9 +133,14 @@ export function createGoal(overrides = {}) {
     cost: 0,
     currentSavings: 0,
     years: 5,
-    // La inflación acompaña al tipo de meta: 'other' abre en la general, 4.5 %.
-    inflation: inflationForGoalPreset('other'),
-    expectedReturn: GOAL_EXPECTED_RETURN,
+    /*
+      'other' no tiene inflación de referencia —puede ser una boda, una cirugía o un
+      terreno—, así que abre en cero, que el formulario dibuja como campo vacío.
+    */
+    inflation: rateOrBlank(inflationForGoalPreset('other')),
+    /** Dónde se aparta el dinero. Es lo que determina el rendimiento. */
+    savingsVehicle: DEFAULT_SAVINGS_VEHICLE,
+    expectedReturn: rateOrBlank(returnForSavingsVehicle(DEFAULT_SAVINGS_VEHICLE)),
     priority: 'medium',
     ...overrides,
   };

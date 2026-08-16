@@ -14,7 +14,29 @@ export const ASSET_TYPES = [
   { value: 'cetes', label: 'CETES / Bonos', liquid: true, retirement: false },
   { value: 'stocks', label: 'Acciones', liquid: true, retirement: false },
   { value: 'etf', label: 'ETFs', liquid: true, retirement: false },
-  { value: 'retirement', label: 'Cuenta de retiro / PPR / Afore', liquid: false, retirement: true },
+
+  /*
+    Las cuentas de retiro, separadas.
+
+    Iban en una sola opción —"Cuenta de retiro / PPR / Afore"— y no son el mismo
+    instrumento: una Afore es una siefore con su régimen de inversión publicado y un
+    histórico al que agarrarse, y un PPR es el contrato que cada aseguradora o casa de
+    bolsa arma por su cuenta. Juntos obligaban a sugerir una sola tasa para los tres, que
+    por definición estaba mal para dos.
+
+    `retirement` NO se elimina y conserva su valor: es lo que hay guardado en el
+    navegador de quien ya capturó su Afore. Quitarlo de esta lista le dejaría el activo
+    sin `retirement: true`, y el módulo de retiro dejaría de contar su ahorro de un día
+    para otro, sin aviso y sin nada que lo explicara en pantalla. Se queda como el cajón
+    de lo que no es ninguno de los dos.
+
+    Las tres siguen con `retirement: true` y `liquid: false`, así que ningún cálculo
+    cambia de resultado: esto sólo parte una etiqueta en tres.
+  */
+  { value: 'afore', label: 'Afore (SIEFORE)', liquid: false, retirement: true },
+  { value: 'ppr', label: 'PPR / Plan personal de retiro', liquid: false, retirement: true },
+  { value: 'retirement', label: 'Otra cuenta de retiro', liquid: false, retirement: true },
+
   { value: 'real_estate', label: 'Bienes raíces', liquid: false, retirement: false },
   { value: 'business', label: 'Negocios', liquid: false, retirement: false },
   { value: 'other', label: 'Otro activo', liquid: false, retirement: false },

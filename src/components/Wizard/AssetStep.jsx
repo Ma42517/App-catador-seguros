@@ -2,7 +2,7 @@ import { Plus, PiggyBank, Landmark, AlertTriangle } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useState } from 'react';
 import { createAsset } from '../../data/defaults';
-import { rateForAssetType, isSuggestedRate } from '../../data/historicalRates';
+import { rateForAssetType, isSuggestedRate, rateOrBlank } from '../../data/historicalRates';
 import RateField from './RateField';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput,
@@ -51,9 +51,17 @@ export default function AssetStep() {
     sheet.openEdit(asset);
   };
 
-  /** Cambiar el tipo arrastra la tasa, salvo que sea manual. */
+  /**
+   * Cambiar el tipo arrastra la tasa, salvo que sea manual.
+   *
+   * Si el tipo nuevo no tiene sugerencia, la tasa se va a cero, que en el formulario se
+   * dibuja como campo vacío. Conservar la del tipo anterior sería peor: quien pasa de
+   * Afore a "Negocios" se quedaría con un 7 % heredado que nadie eligió para un negocio.
+   */
   const changeType = (type) => {
-    sheet.patch(manualRate ? { type } : { type, annualReturn: rateForAssetType(type) });
+    sheet.patch(manualRate
+      ? { type }
+      : { type, annualReturn: rateOrBlank(rateForAssetType(type)) });
   };
 
   return (
@@ -291,7 +299,9 @@ export default function AssetStep() {
             help="Puede ser negativo para activos que se deprecian, como un auto."
             value={draft.annualReturn}
             suggested={suggestedRate}
-            note={`Promedio histórico para ${labelOf(ASSET_TYPES, draft.type)}.`}
+            note={suggestedRate === null
+              ? `El rendimiento de ${labelOf(ASSET_TYPES, draft.type)} depende del caso: escríbelo.`
+              : `Promedio histórico para ${labelOf(ASSET_TYPES, draft.type)}.`}
             isManual={manualRate}
             onUseManual={() => setManualRate(true)}
             onUseSuggested={() => {

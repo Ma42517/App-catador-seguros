@@ -3,7 +3,8 @@ import { useFinance } from '../../context/FinanceContext';
 import { useState } from 'react';
 import { createGoal } from '../../data/defaults';
 import {
-  inflationForGoalPreset, isSuggestedRate, GOAL_EXPECTED_RETURN,
+  inflationForGoalPreset, isSuggestedRate, rateOrBlank,
+  returnForSavingsVehicle, SAVINGS_VEHICLES, DEFAULT_SAVINGS_VEHICLE,
 } from '../../data/historicalRates';
 import RateField from './RateField';
 import {
@@ -44,6 +45,7 @@ export default function GoalStep() {
   const [manualReturn, setManualReturn] = useState(false);
 
   const suggestedInflation = inflationForGoalPreset(draft.preset);
+  const suggestedReturn = returnForSavingsVehicle(draft.savingsVehicle);
 
   const openNewGoal = () => {
     setManualInflation(false);
@@ -53,15 +55,33 @@ export default function GoalStep() {
 
   const openEditGoal = (goal) => {
     setManualInflation(!isSuggestedRate(goal.inflation, inflationForGoalPreset(goal.preset)));
-    setManualReturn(!isSuggestedRate(goal.expectedReturn, GOAL_EXPECTED_RETURN));
+    /*
+      Las metas capturadas antes de que existiera el vehículo de ahorro no traen el
+      campo: `returnForSavingsVehicle(undefined)` da `null`, así que abren en manual con
+      su tasa guardada intacta. Es lo correcto —ese rendimiento lo eligió alguien— y
+      evita que al reabrirlas se les cambie el número por debajo.
+    */
+    setManualReturn(!isSuggestedRate(
+      goal.expectedReturn, returnForSavingsVehicle(goal.savingsVehicle),
+    ));
     sheet.openEdit(goal);
   };
 
-  /** Cambiar la categoría arrastra la inflación, salvo que sea manual. */
+  /** Cambiar la categoría arrastra la inflación del bien, salvo que sea manual. */
   const changePreset = (preset) => {
     sheet.patch(manualInflation
       ? { preset }
-      : { preset, inflation: inflationForGoalPreset(preset) });
+      : { preset, inflation: rateOrBlank(inflationForGoalPreset(preset)) });
+  };
+
+  /** Cambiar el instrumento arrastra el rendimiento, salvo que sea manual. */
+  const changeVehicle = (savingsVehicle) => {
+    sheet.patch(manualReturn
+      ? { savingsVehicle }
+      : {
+        savingsVehicle,
+        expectedReturn: rateOrBlank(returnForSavingsVehicle(savingsVehicle)),
+      });
   };
 
   return (
@@ -316,13 +336,34 @@ export default function GoalStep() {
           />
         </Field>
 
+        {/*
+          Dónde se guarda el ahorro, antes de preguntar cuánto rinde.
+
+          Es el orden que tiene sentido: el rendimiento no lo decide la meta, lo decide el
+          instrumento. Y puesto así, cambiar de "Cuenta bancaria" a "Plan de ahorro" mueve
+          la aportación mensual que calcula el motor delante del prospecto, que es la
+          conversación entera sin tener que argumentarla.
+        */}
+        <Field
+          label="¿Dónde vas a guardar este ahorro?"
+          help="Define el rendimiento con el que se proyecta la meta. Cámbialo para comparar instrumentos."
+        >
+          <Select
+            value={draft.savingsVehicle ?? DEFAULT_SAVINGS_VEHICLE}
+            onChange={changeVehicle}
+            options={SAVINGS_VEHICLES}
+          />
+        </Field>
+
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <RateField
             label="Inflación del bien"
             help="La educación y la salud suelen inflarse más rápido que el índice general."
             value={draft.inflation}
             suggested={suggestedInflation}
-            note={`Promedio histórico para ${labelOf(GOAL_PRESETS, draft.preset)}.`}
+            note={suggestedInflation === null
+              ? 'Sin referencia: depende de qué sea la meta. Escríbela.'
+              : `Promedio histórico para ${labelOf(GOAL_PRESETS, draft.preset)}.`}
             isManual={manualInflation}
             onUseManual={() => setManualInflation(true)}
             onUseSuggested={() => {
@@ -333,16 +374,18 @@ export default function GoalStep() {
           />
 
           <RateField
-            label="Rendimiento esperado del ahorro"
-            help="Depende de dónde inviertas el ahorro de esta meta, no de la meta misma."
+            label="Rendimiento del ahorro"
+            help="Sale del instrumento que elegiste arriba, no de la meta."
             value={draft.expectedReturn}
-            suggested={GOAL_EXPECTED_RETURN}
-            note="Portafolio diversificado a largo plazo."
+            suggested={suggestedReturn}
+            note={suggestedReturn === null
+              ? 'Depende del instrumento que uses: escríbelo.'
+              : `Promedio para ${labelOf(SAVINGS_VEHICLES, draft.savingsVehicle ?? DEFAULT_SAVINGS_VEHICLE)}.`}
             isManual={manualReturn}
             onUseManual={() => setManualReturn(true)}
             onUseSuggested={() => {
               setManualReturn(false);
-              sheet.patch({ expectedReturn: GOAL_EXPECTED_RETURN });
+              sheet.patch({ expectedReturn: suggestedReturn });
             }}
             onChange={(v) => sheet.patch({ expectedReturn: v })}
             min={-100}

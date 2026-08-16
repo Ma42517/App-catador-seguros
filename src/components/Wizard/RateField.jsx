@@ -25,6 +25,17 @@ export default function RateField({
 }) {
   const id = useId();
 
+  /*
+    Sin sugerencia no hay dos caminos, sólo uno.
+
+    Pasa con "Otro activo", "Negocios", un PPR o "Otra meta": la etiqueta no dice nada
+    del rendimiento, así que no hay promedio que ofrecer. El campo abre vacío y sin
+    botón, porque un "Usar la sugerida" que llevara a un 0 % sería peor que no estar:
+    parecería un dato y sería un hueco.
+  */
+  const hasSuggestion = suggested !== null && suggested !== undefined;
+  const showInput = isManual || !hasSuggestion;
+
   return (
     <div>
       <label
@@ -36,7 +47,7 @@ export default function RateField({
         {help && <Tooltip text={help} />}
       </label>
 
-      {isManual ? (
+      {showInput ? (
         <PercentInput id={id} value={value} onChange={onChange} min={min} />
       ) : (
         <div
@@ -54,16 +65,19 @@ export default function RateField({
       )}
 
       <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
-        {isManual ? 'Tasa escrita por ti. ' : `${note} `}
-        <button
-          type="button"
-          onClick={isManual ? onUseSuggested : onUseManual}
-          className="font-semibold text-indigo-400 underline-offset-2 transition-colors
-                     hover:text-indigo-300 hover:underline focus-visible:outline-none
-                     focus-visible:underline"
-        >
-          {isManual ? `Usar la sugerida (${fmtPct(suggested)})` : 'Ponerla manualmente'}
-        </button>
+        {!hasSuggestion ? note : isManual ? 'Tasa escrita por ti. ' : `${note} `}
+
+        {hasSuggestion && (
+          <button
+            type="button"
+            onClick={isManual ? onUseSuggested : onUseManual}
+            className="font-semibold text-indigo-400 underline-offset-2 transition-colors
+                       hover:text-indigo-300 hover:underline focus-visible:outline-none
+                       focus-visible:underline"
+          >
+            {isManual ? `Usar la sugerida (${fmtPct(suggested)})` : 'Ponerla manualmente'}
+          </button>
+        )}
       </p>
     </div>
   );
