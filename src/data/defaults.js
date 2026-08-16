@@ -127,3 +127,36 @@ export function createGoal(overrides = {}) {
     ...overrides,
   };
 }
+
+
+
+/**
+ * ¿Hay algo capturado que se pueda perder?
+ *
+ * Decide si el botón de limpiar aparece. En una app recién abierta, un botón que
+ * borra la nada es ruido: ocupa sitio en una cabecera estrecha y ofrece deshacer
+ * algo que no se ha hecho.
+ *
+ * No se compara contra `createEmptyState()` con un `JSON.stringify`: el estado
+ * vacío no lo está del todo —trae edad 35, moneda MXN, los supuestos macro— así
+ * que una comparación estructural respondería "sí hay datos" en una app intacta.
+ * Se pregunta por lo que sólo puede haber escrito una persona.
+ */
+export function hasCapturedData(data) {
+  if (!data) return false;
+
+  const collections = ['incomes', 'expenses', 'debts', 'assets', 'goals'];
+  if (collections.some((key) => (data[key] || []).length > 0)) return true;
+
+  const profile = data.profile || {};
+  if ((profile.name || '').trim() !== '') return true;
+  if ((profile.city || '').trim() !== '') return true;
+
+  if (data.declaredMonthlySavings > 0) return true;
+  if ((data.retirement || {}).desiredMonthlyIncome > 0) return true;
+
+  const taxes = data.taxes || {};
+  return [
+    taxes.withheld, taxes.additionalPaid, taxes.provisionalPayments, taxes.refunds,
+  ].some((value) => value > 0);
+}

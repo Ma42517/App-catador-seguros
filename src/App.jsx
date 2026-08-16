@@ -25,6 +25,7 @@ import {
   DashboardVersionContext, readVersion, writeVersion,
 } from './context/dashboardVersion';
 import { readPreference, writePreference } from './lib/uiPreference';
+import { hasCapturedData } from './data/defaults';
 import ConversationalWizard from './components/Wizard/ConversationalWizard';
 
 /** Dónde se recuerda qué versión de la captura se está usando. */
@@ -100,6 +101,28 @@ function Header({ step, onNavigate }) {
   const { loadDemoData, resetAll, data, diagnosis, isDemo } = useFinance();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  /*
+    El botón de limpiar sólo existe si hay algo que limpiar. Los datos de ejemplo
+    cuentan: son lo que más veces hay que quitar de encima.
+  */
+  const canClear = isDemo || hasCapturedData(data);
+
+  /**
+   * Borra todo. Pregunta antes sólo si lo que se va a perder es del usuario.
+   *
+   * Confirmar para descartar los datos de ejemplo es fricción sin nada que
+   * proteger: no son de nadie y se recuperan con un clic en "Cargar Demo". El
+   * aviso se guarda para cuando de verdad hay trabajo capturado detrás.
+   */
+  const handleClear = () => {
+    if (!isDemo
+      && !window.confirm('Esto borrará toda tu información capturada. ¿Continuar?')) {
+      return;
+    }
+    resetAll();
+    setMenuOpen(false);
+  };
+
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
@@ -129,16 +152,45 @@ function Header({ step, onNavigate }) {
 
         <NavPill step={step} onNavigate={onNavigate} />
 
+        {/*
+          Contorno ámbar y no el azul relleno que tenía antes.
+
+          Siendo el único botón sólido de la cabecera, "Cargar Demo" era lo más
+          llamativo de la pantalla: la acción de pruebas pesaba más que capturar o
+          exportar, que es el trabajo real. El ámbar lo marca como lo que es —un
+          atajo de demostración— y lo emparenta con el aviso de la V2.
+        */}
         <Button
           size="sm"
-          variant="primary"
+          variant="outline"
           icon={PlayCircle}
           onClick={loadDemoData}
-          className="shrink-0"
+          className="shrink-0 border-amber-500/30 text-amber-200/90
+                     hover:border-amber-400/60 hover:bg-amber-500/10 hover:text-amber-100"
         >
-          <span className="hidden sm:inline">Cargar ejemplo</span>
+          <span className="hidden sm:inline">Cargar Demo</span>
           <span className="sm:hidden">Demo</span>
         </Button>
+
+        {/*
+          Limpiar sale de dentro del menú de exportar y se pone a la vista, pero
+          sólo cuando hay algo que borrar: en una app en blanco no aparece.
+
+          Estaba escondido como tercer elemento de un desplegable llamado
+          "Exportar", donde nadie busca cómo empezar de nuevo. Quien acababa de
+          cargar el ejemplo por curiosidad no encontraba la vuelta.
+        */}
+        {canClear && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={RotateCcw}
+            onClick={handleClear}
+            className="shrink-0 text-zinc-500 hover:bg-rose-500/10 hover:text-rose-300"
+          >
+            <span className="hidden sm:inline">Limpiar</span>
+          </Button>
+        )}
 
         <div className="relative shrink-0">
           <Button
@@ -169,19 +221,11 @@ function Header({ step, onNavigate }) {
                 <FileJson size={14} className="text-zinc-500" />
                 Respaldar mis datos (JSON)
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Esto borrará toda tu información capturada. ¿Continuar?')) {
-                    resetAll();
-                    setMenuOpen(false);
-                  }
-                }}
-                className="flex w-full items-center gap-2 border-t border-zinc-800 px-3 py-2.5 text-left text-xs text-rose-400 hover:bg-rose-500/10"
-              >
-                <RotateCcw size={14} />
-                Empezar de cero
-              </button>
+              {/*
+                Aquí estaba "Empezar de cero". Se fue a la cabecera como "Limpiar":
+                dejarlo en los dos sitios daría dos caminos a la misma acción
+                destructiva, con dos confirmaciones que mantener en sintonía.
+              */}
             </div>
           )}
         </div>
@@ -250,9 +294,10 @@ function Shell({
     pantalla se desmonta al cambiar de sección, y comparar dos diseños es entrar y
     salir muchas veces.
 
-    Arranca en la clásica y así debe quedarse mientras V2 sea un esqueleto: la
+    Arranca en la clásica y así debe quedarse mientras V2 esté a medio construir: la
     captura es donde el asesor invierte media hora de trabajo, y la propuesta nueva
-    todavía no guarda nada de lo que se escribe.
+    sólo pregunta dos de sus tres pasos. Lo que sí contesta ya va al mismo perfil que
+    llena la clásica, así que alternar entre las dos no pierde nada.
   */
   const [captureMode, setCaptureMode] = useState(
     () => readPreference(CAPTURE_KEY, ['v1', 'v2'], 'v1'),

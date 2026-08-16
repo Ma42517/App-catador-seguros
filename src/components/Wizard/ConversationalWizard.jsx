@@ -1,6 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, ArrowLeft, Sparkles, FlaskConical } from 'lucide-react';
 import useTypewriter from '../../lib/useTypewriter';
+import { useFinance } from '../../context/FinanceContext';
+import { createEmptyState } from '../../data/defaults';
+
+/*
+  El perfil en blanco, para saber a qué volver al reiniciar.
+
+  Se lee de la fábrica en lugar de escribir aquí los valores: la edad vacía es 35,
+  no 0 ni cadena vacía, y copiar ese 35 a mano lo dejaría desincronizado el día que
+  el esquema cambie de opinión.
+*/
+const EMPTY_PROFILE = createEmptyState().profile;
 
 /** Mínimo de letras para dar por contestada la pregunta del nombre. */
 const MIN_NAME = 2;
@@ -139,11 +150,19 @@ const FIELD_CLASS = 'w-full border-b border-white/20 bg-transparent pb-2 text-ce
  * Esta propuesta invierte el orden: una pregunta a la vez, en el centro de la
  * pantalla, sin que se vea el formulario que hay detrás.
  *
- * Hoy van dos de las tres preguntas. Lo que se contesta **no se guarda** todavía, y
- * eso se avisa en pantalla: un asistente que parece capturar y no captura le
- * costaría a un asesor media hora de trabajo perdido.
+ * Hoy van dos de las tres preguntas, y lo que se contesta **sí se guarda**: nombre y
+ * edad van al mismo perfil que llena la captura clásica. Es lo que permite alternar
+ * entre las dos versiones sin perder lo escrito, y lo que evita que un asesor
+ * conteste aquí con el prospecto delante para descubrir después que no quedó nada.
  */
 export default function ConversationalWizard({ onUseClassic }) {
+  /*
+    El mismo contexto que usa la V1. No un estado local propio: dos versiones de la
+    captura que guardan cada una en su sitio son dos diagnósticos distintos, y al
+    cambiar de pestaña ganaría el que se montara último.
+  */
+  const { profile, patchSection } = useFinance();
+
   /*
     'name' | 'age'  la pregunta correspondiente
     'done'          se acabó lo construido; la pantalla acusa recibo
@@ -157,8 +176,20 @@ export default function ConversationalWizard({ onUseClassic }) {
   /** Cierto cuando la pregunta terminó de escribirse: destraba el campo. */
   const [isReady, setReady] = useState(false);
 
-  const [name, setName] = useState('');
-  const [age, setAge] = useState('');
+  /*
+    Los campos arrancan con lo que ya hubiera en el perfil, para que volver a la V2
+    no borre lo contestado ni obligue a teclearlo de nuevo.
+
+    La edad sólo se recupera si hay nombre, y ahí está el detalle que importa: el
+    perfil vacío trae edad 35: es un valor por omisión razonable para los cálculos,
+    no una respuesta de nadie. Sembrarlo sin más dejaría la pregunta ya contestada
+    con un dato inventado, y bastaría con pulsar "Continuar" para firmar como propia
+    la edad que puso el sistema.
+  */
+  const [name, setName] = useState(() => profile.name || '');
+  const [age, setAge] = useState(
+    () => (profile.name ? String(profile.age ?? '') : ''),
+  );
 
   const inputRef = useRef(null);
 
@@ -183,20 +214,38 @@ export default function ConversationalWizard({ onUseClassic }) {
     setStep(next);
   };
 
+  /*
+    Cada respuesta se guarda al pasar de pregunta, no en cada tecla.
+
+    Escribiendo al teclear, el motor financiero recalcularía el diagnóstico completo
+    letra por letra, y el nombre a medio escribir quedaría guardado si alguien cierra
+    la pestaña a mitad. Al avanzar hay una respuesta terminada y validada.
+  */
   const submitName = (event) => {
     event.preventDefault();
-    if (cleanName.length >= MIN_NAME) goTo('age');
+    if (cleanName.length < MIN_NAME) return;
+    patchSection('profile', { name: cleanName });
+    goTo('age');
   };
 
   const submitAge = (event) => {
     event.preventDefault();
-    if (isAgeValid) goTo('done');
+    if (!isAgeValid) return;
+    patchSection('profile', { age: ageNumber });
+    goTo('done');
   };
 
-  /** Vuelve a la primera pregunta para empezar la conversación de cero. */
+  /**
+   * Vuelve a la primera pregunta para empezar la conversación de cero.
+   *
+   * Limpia también el perfil compartido: "Empezar de nuevo" aquí significa otro
+   * prospecto, y dejar el nombre del anterior en el diagnóstico haría que la captura
+   * clásica siguiera mostrando a alguien que ya no está en la conversación.
+   */
   const restart = () => {
     setName('');
     setAge('');
+    patchSection('profile', { name: '', age: EMPTY_PROFILE.age });
     goTo('name');
   };
 
@@ -217,12 +266,12 @@ export default function ConversationalWizard({ onUseClassic }) {
     */
     <div className="fixed inset-0 z-40 flex flex-col bg-black">
       {/*
-        Lo único que acompaña a la conversación: el aviso de que esto no guarda y la
-        puerta de vuelta a la captura clásica.
+        Lo único que acompaña a la conversación: el aviso de que esto está a medio
+        construir y la puerta de vuelta a la captura clásica.
 
-        El aviso va arriba y a la vista, no en letra chica al final. Mientras esto
-        sea un esqueleto, lo único que no puede pasar es que alguien capture su
-        diagnóstico completo aquí y lo pierda al salir.
+        El aviso dice ahora qué se guarda, no que no se guarde nada. Es la diferencia
+        entre advertir y desinformar: nombre y edad ya van al diagnóstico, y un cartel
+        que siguiera diciendo "aún no guarda" empujaría al asesor a recapturarlos.
       */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-5 pt-5">
         <p className="flex items-center gap-1.5 rounded-full border border-amber-500/25
@@ -230,7 +279,7 @@ export default function ConversationalWizard({ onUseClassic }) {
                       tracking-widest text-amber-300/90"
         >
           <FlaskConical size={11} aria-hidden="true" />
-          En desarrollo · aún no guarda
+          En desarrollo · guarda nombre y edad
         </p>
 
         <button
