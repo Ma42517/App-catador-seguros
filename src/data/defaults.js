@@ -13,6 +13,32 @@ export const DEFAULT_ASSUMPTIONS = {
   lifeExpectancy: 85,
 };
 
+/*
+  Tasas con las que abren los formularios de metas y activos.
+
+  No son un adorno: son lo que evita que la captura se detenga. Preguntarle a un
+  prospecto qué inflación espera para la universidad de sus hijos lo deja pensando en
+  una variable que no tiene forma de estimar, y esa pausa se come la conversación. Con
+  un promedio histórico en el campo, la pregunta pasa de "deduce una tasa" a "cámbiala
+  si no te cuadra", que sí se puede contestar.
+
+  Están aquí y no escritas en cada formulario para que las dos pantallas no puedan
+  discrepar: dos metas capturadas con inflaciones distintas por omisión darían costos
+  futuros que no se pueden comparar entre sí.
+*/
+export const SMART_RATES = {
+  /** Inflación de largo plazo. Va por encima del 4% del retiro a propósito:
+      educación y salud —el destino más común de una meta— se inflan más rápido
+      que el índice general. */
+  inflation: 0.045,
+  /** Rendimiento nominal de un portafolio diversificado a largo plazo. */
+  expectedReturn: 0.08,
+};
+
+/** Aviso que acompaña a los campos de tasas. Uno solo, para que no se desincronicen. */
+export const SMART_RATES_NOTE = 'Usamos tasas promedio históricas para proteger tu '
+  + 'cálculo. Puedes modificarlas si lo deseas.';
+
 export function createEmptyState() {
   return {
     version: 1,
@@ -107,7 +133,7 @@ export function createAsset(overrides = {}) {
     type: 'bank',
     balance: 0,
     monthlyContribution: 0,
-    annualReturn: 0.05,
+    annualReturn: SMART_RATES.expectedReturn,
     horizonYears: 10,
     ...overrides,
   };
@@ -121,8 +147,8 @@ export function createGoal(overrides = {}) {
     cost: 0,
     currentSavings: 0,
     years: 5,
-    inflation: DEFAULT_ASSUMPTIONS.inflation,
-    expectedReturn: 0.08,
+    inflation: SMART_RATES.inflation,
+    expectedReturn: SMART_RATES.expectedReturn,
     priority: 'medium',
     ...overrides,
   };

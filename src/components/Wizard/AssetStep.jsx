@@ -1,6 +1,6 @@
 import { Plus, PiggyBank, Landmark, AlertTriangle } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
-import { createAsset } from '../../data/defaults';
+import { createAsset, SMART_RATES_NOTE } from '../../data/defaults';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput, PercentInput,
   NumberInput, Select, Button, EmptyState, Badge,
@@ -255,26 +255,31 @@ export default function AssetStep() {
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-          <Field
-            label="Rendimiento anual"
-            help="Puede ser negativo para activos que se deprecian, como un auto."
-          >
-            <PercentInput
-              value={draft.annualReturn}
-              onChange={(v) => sheet.patch({ annualReturn: v })}
-              min={-100}
-            />
-          </Field>
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <Field
+              label="Rendimiento anual"
+              help="Puede ser negativo para activos que se deprecian, como un auto."
+            >
+              <PercentInput
+                value={draft.annualReturn}
+                onChange={(v) => sheet.patch({ annualReturn: v })}
+                min={-100}
+              />
+            </Field>
 
-          <Field label="Horizonte (años)">
-            <NumberInput
-              value={draft.horizonYears}
-              onChange={(v) => sheet.patch({ horizonYears: v })}
-              min={0}
-              max={70}
-            />
-          </Field>
+            <Field label="Horizonte (años)">
+              <NumberInput
+                value={draft.horizonYears}
+                onChange={(v) => sheet.patch({ horizonYears: v })}
+                min={0}
+                max={70}
+              />
+            </Field>
+          </div>
+
+          {/* Mismo aviso que en metas, desde la misma constante. */}
+          <p className="text-[11px] leading-relaxed text-zinc-500">{SMART_RATES_NOTE}</p>
         </div>
       </RowSheet>
     </div>

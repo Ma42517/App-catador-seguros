@@ -1,6 +1,6 @@
 import { Plus, Target, Sunset } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
-import { createGoal } from '../../data/defaults';
+import { createGoal, SMART_RATES_NOTE } from '../../data/defaults';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput, PercentInput,
   NumberInput, Select, Button, EmptyState, Badge,
@@ -283,24 +283,35 @@ export default function GoalStep() {
           />
         </Field>
 
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-          <Field
-            label="Inflación del bien"
-            help="La educación y la salud suelen inflarse más rápido que el índice general."
-          >
-            <PercentInput
-              value={draft.inflation}
-              onChange={(v) => sheet.patch({ inflation: v })}
-            />
-          </Field>
+        {/*
+          Las dos tasas y su aviso, en un bloque.
 
-          <Field label="Rendimiento esperado del ahorro">
-            <PercentInput
-              value={draft.expectedReturn}
-              onChange={(v) => sheet.patch({ expectedReturn: v })}
-              min={-100}
-            />
-          </Field>
+          El aviso va una sola vez debajo del par, y no repetido bajo cada campo: es la
+          misma frase, y dicha dos veces en una hoja de ocho campos pasa de tranquilizar
+          a estorbar. Cubre a los dos porque los dos están rellenos por lo mismo.
+        */}
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <Field
+              label="Inflación del bien"
+              help="La educación y la salud suelen inflarse más rápido que el índice general."
+            >
+              <PercentInput
+                value={draft.inflation}
+                onChange={(v) => sheet.patch({ inflation: v })}
+              />
+            </Field>
+
+            <Field label="Rendimiento esperado del ahorro">
+              <PercentInput
+                value={draft.expectedReturn}
+                onChange={(v) => sheet.patch({ expectedReturn: v })}
+                min={-100}
+              />
+            </Field>
+          </div>
+
+          <p className="text-[11px] leading-relaxed text-zinc-500">{SMART_RATES_NOTE}</p>
         </div>
 
         {/* Viabilidad calculada por el motor. Sólo al corregir una meta existente. */}
