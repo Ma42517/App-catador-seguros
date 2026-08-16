@@ -323,39 +323,36 @@ export default function GoalStep() {
             />
           </Field>
 
-          <Field label="Categoría">
-            <Select value={draft.preset} onChange={changePreset} options={GOAL_PRESETS} />
+          <Field label="Prioridad" help="Las metas de mayor prioridad consumen tu excedente primero.">
+            <Select
+              value={draft.priority}
+              onChange={(v) => sheet.patch({ priority: v })}
+              options={GOAL_PRIORITIES}
+            />
           </Field>
         </div>
 
-        <Field label="Prioridad" help="Las metas de mayor prioridad consumen tu excedente primero.">
-          <Select
-            value={draft.priority}
-            onChange={(v) => sheet.patch({ priority: v })}
-            options={GOAL_PRIORITIES}
-          />
-        </Field>
-
         {/*
-          Dónde se guarda el ahorro, antes de preguntar cuánto rinde.
+          Las dos tasas de una meta, cada una pegada a la pregunta que la decide.
 
-          Es el orden que tiene sentido: el rendimiento no lo decide la meta, lo decide el
-          instrumento. Y puesto así, cambiar de "Cuenta bancaria" a "Plan de ahorro" mueve
-          la aportación mensual que calcula el motor delante del prospecto, que es la
-          conversación entera sin tener que argumentarla.
+          La mecánica ya funcionaba —elegir "Educación" ponía su 7 %— pero el selector que
+          la gobernaba se llamaba "Categoría" y vivía cuatro campos más arriba, junto a los
+          años. Desde ahí no se veía que una cosa moviera la otra: la inflación parecía un
+          número que aparecía solo, y quien no lo relacionaba lo escribía a mano encima.
+
+          Emparejadas en dos bloques, cada tasa se lee como la consecuencia de la respuesta
+          que tiene encima. Y las dos preguntas quedan formuladas igual —qué es, y dónde se
+          guarda— que es lo que deja claro que son dos cosas distintas: la meta manda la
+          inflación, el instrumento manda el rendimiento.
         */}
-        <Field
-          label="¿Dónde vas a guardar este ahorro?"
-          help="Define el rendimiento con el que se proyecta la meta. Cámbialo para comparar instrumentos."
-        >
-          <Select
-            value={draft.savingsVehicle ?? DEFAULT_SAVINGS_VEHICLE}
-            onChange={changeVehicle}
-            options={SAVINGS_VEHICLES}
-          />
-        </Field>
+        <div className="space-y-3.5 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
+          <Field
+            label="¿Qué tipo de objetivo es?"
+            help="Define la inflación con la que se valúa la meta a futuro."
+          >
+            <Select value={draft.preset} onChange={changePreset} options={GOAL_PRESETS} />
+          </Field>
 
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <RateField
             label="Inflación del bien"
             help="La educación y la salud suelen inflarse más rápido que el índice general."
@@ -372,6 +369,19 @@ export default function GoalStep() {
             }}
             onChange={(v) => sheet.patch({ inflation: v })}
           />
+        </div>
+
+        <div className="space-y-3.5 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
+          <Field
+            label="¿Dónde vas a guardar este ahorro?"
+            help="Define el rendimiento con el que se proyecta la meta. Cámbialo para comparar instrumentos."
+          >
+            <Select
+              value={draft.savingsVehicle ?? DEFAULT_SAVINGS_VEHICLE}
+              onChange={changeVehicle}
+              options={SAVINGS_VEHICLES}
+            />
+          </Field>
 
           <RateField
             label="Rendimiento del ahorro"
