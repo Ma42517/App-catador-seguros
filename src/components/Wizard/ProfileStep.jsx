@@ -1,10 +1,12 @@
 import { UserRound, Percent, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, NumberInput,
   Select, SegmentedControl, PercentInput, Checkbox,
 } from '../ui';
 import { RowGrid } from './RowShell';
+import SuggestedField from './SuggestedField';
 
 /**
  * Rangos de las tres edades, en un solo lugar.
@@ -31,10 +33,19 @@ const LIFE_EXPECTANCY_MAX = 110;
   lo que convierte el plan en algo que aguanta sobrevivirle al promedio, que es el riesgo
   que un seguro viene a cubrir.
 
-  Se escriben como base + margen, y no como el 85 y el 90 ya sumados, para que se vea de
-  dónde sale cada número y se pueda actualizar la base sin tocar la lógica.
+  Se escriben como base + margen, y no como el resultado ya sumado, para que se vea de
+  dónde sale cada número y se pueda actualizar la base cuando el INEGI publique otra.
+
+  LAS CIFRAS SON LAS DEL INEGI, DESGLOSADAS POR SEXO. Esa precisión costó una corrección:
+  el 75 que se usaba antes para los hombres es la esperanza de vida de la POBLACIÓN TOTAL
+  —75.5 años—, no la de ellos. Es un error fácil porque varias notas de prensa lo repiten,
+  y le regalaba casi tres años de vida a la mitad de los prospectos justo en el dato que
+  decide cuánto tiene que durar su dinero.
+
+    Nacional 75.5 · hombres 72.6 · mujeres 78.4
+    https://cuentame.inegi.org.mx/poblacion/esperanza.aspx?tema=P
 */
-const INEGI_LIFE_EXPECTANCY = { male: 75, female: 80 };
+const INEGI_LIFE_EXPECTANCY = { male: 72.6, female: 78.4 };
 const LONGEVITY_MARGIN = 10;
 
 const SEX_OPTIONS = [
@@ -42,10 +53,15 @@ const SEX_OPTIONS = [
   { value: 'female', label: 'Mujer' },
 ];
 
-/** Años de vida sugeridos para un sexo. `null` si todavía no se eligió. */
+/**
+ * Años de vida sugeridos para un sexo. `null` si todavía no se eligió.
+ *
+ * Se redondea porque el campo captura años enteros: 72.6 + 10 son 83 años, no 82.6. Hacia
+ * arriba por el redondeo normal, que en este caso además juega a favor del prospecto.
+ */
 function lifeExpectancyFor(sex) {
   const base = INEGI_LIFE_EXPECTANCY[sex];
-  return base === undefined ? null : base + LONGEVITY_MARGIN;
+  return base === undefined ? null : Math.round(base + LONGEVITY_MARGIN);
 }
 
 const MARITAL = [
@@ -98,10 +114,33 @@ export default function ProfileStep() {
     pushLifeExpectancy(retirementAge);
   };
 
-  /** Años sugeridos según el sexo elegido, y si el campo los está usando tal cual. */
-  const suggestedLife = lifeExpectancyFor(profile.sex);
-  const usesSuggestion = suggestedLife !== null
-    && data.retirement.lifeExpectancy === suggestedLife;
+  /**
+   * Años sugeridos, ya respetando la regla de las tres edades.
+   *
+   * La sugerencia que se muestra es la misma que se guardaría, tope incluido. Si se
+   * enseñara el 83 crudo y se guardara un 96 —porque alguien planea retirarse a los 95—,
+   * el chip verde estaría afirmando un número distinto del que usa el motor.
+   */
+  const suggestedLife = (() => {
+    const base = lifeExpectancyFor(profile.sex);
+    if (base === null) return null;
+    return Math.min(
+      LIFE_EXPECTANCY_MAX,
+      Math.max(base, profile.retirementAge + 1),
+    );
+  })();
+
+  /*
+    El modo se deduce del valor guardado, con un interruptor sólo para forzar el manual.
+
+    Igual que en los rendimientos del retiro, y por lo mismo: este paso no se desmonta al
+    volver a él, y "Cargar Demo" o "Limpiar" le reescriben el valor por debajo. Con el modo
+    en estado, después de un "Limpiar" el campo seguiría diciendo "lo ajustaste a mano"
+    sobre una cifra que acababa de volver a la de por omisión.
+  */
+  const [lifeOverride, setLifeOverride] = useState(false);
+  const manualLife = lifeOverride
+    || (suggestedLife !== null && data.retirement.lifeExpectancy !== suggestedLife);
 
   /**
    * Elegir el sexo rellena los años de vida.
@@ -117,13 +156,15 @@ export default function ProfileStep() {
   const setSex = (sex) => {
     set({ sex });
 
-    const suggested = lifeExpectancyFor(sex);
-    if (suggested === null) return;
+    const base = lifeExpectancyFor(sex);
+    if (base === null) return;
 
+    // Elegir el sexo vuelve al dato del INEGI, aunque antes se hubiera escrito otro.
+    setLifeOverride(false);
     patchSection('retirement', {
       lifeExpectancy: Math.min(
         LIFE_EXPECTANCY_MAX,
-        Math.max(suggested, profile.retirementAge + 1),
+        Math.max(base, profile.retirementAge + 1),
       ),
     });
   };
@@ -300,31 +341,43 @@ export default function ProfileStep() {
               max={RETIREMENT_AGE_MAX}
             />
           </Field>
-          <Field
+          {/*
+            En verde y con el mismo molde que las tasas de metas, activos y retiro: el dato
+            del INEGI afirmado, y "ponerlo manualmente" debajo para quien quiera otro.
+
+            El pie dice la verdad en cada estado. Afirmar "dato del INEGI" cuando el asesor
+            acaba de teclear 100 a mano, o cuando todavía no se ha elegido el sexo, sería
+            atribuirle a una fuente oficial un número que no salió de ella. En un
+            diagnóstico que el prospecto se lleva impreso, ese detalle es lo que sostiene la
+            credibilidad de todo lo demás.
+          */}
+          <SuggestedField
             label="Años estimados de vida"
             help="Determina cuántos años debe durar tu capital de retiro."
-            /*
-              El pie de ayuda dice la verdad en cada uno de los tres estados posibles.
-
-              Afirmar "basado en el INEGI" cuando el asesor acaba de teclear 100 a mano, o
-              cuando todavía no se ha elegido el sexo, sería atribuirle a una fuente oficial
-              un número que no salió de ella. Y en un diagnóstico que el prospecto se lleva
-              impreso, esa clase de detalle es lo que sostiene o hunde la credibilidad de
-              todo lo demás.
-            */
-            hint={!profile.sex
-              ? 'Elige tu sexo arriba y calculamos este número por ti. Seguirá siendo editable.'
-              : usesSuggestion
-                ? 'Basado en la esperanza de vida del INEGI + un margen de seguridad de 10 años para protegerte del riesgo de sobrevivir a tu dinero.'
-                : 'Lo ajustaste a mano. Vuelve a elegir tu sexo para recuperar la estimación.'}
+            suggested={suggestedLife}
+            format={(v) => `${v} años`}
+            note={profile.sex
+              ? 'Esperanza de vida del INEGI + un margen de seguridad de 10 años para protegerte del riesgo de sobrevivir a tu dinero.'
+              : 'Elige tu sexo arriba y tomamos el dato del INEGI. Seguirá siendo editable.'}
+            isManual={manualLife}
+            onUseManual={() => setLifeOverride(true)}
+            onUseSuggested={() => {
+              setLifeOverride(false);
+              patchSection('retirement', { lifeExpectancy: suggestedLife });
+            }}
+            manualLabel="Ponerlo manualmente"
+            manualNote="Lo ajustaste a mano. "
           >
-            <NumberInput
-              value={data.retirement.lifeExpectancy}
-              onChange={(v) => patchSection('retirement', { lifeExpectancy: v })}
-              min={profile.retirementAge + 1}
-              max={LIFE_EXPECTANCY_MAX}
-            />
-          </Field>
+            {(id) => (
+              <NumberInput
+                id={id}
+                value={data.retirement.lifeExpectancy}
+                onChange={(v) => patchSection('retirement', { lifeExpectancy: v })}
+                min={profile.retirementAge + 1}
+                max={LIFE_EXPECTANCY_MAX}
+              />
+            )}
+          </SuggestedField>
         </RowGrid>
         </div>
         <p className="mt-3 text-[11px] text-zinc-500">
