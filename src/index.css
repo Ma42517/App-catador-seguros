@@ -158,8 +158,29 @@
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  /*
+    `backwards` y no `both`, y la diferencia importa más de lo que parece.
+
+    Con `both` el elemento conserva el último fotograma para siempre, y ese fotograma
+    incluye `transform: translateY(0)`. Un transform distinto de `none` —aunque sea la
+    identidad, `matrix(1, 0, 0, 1, 0, 0)`— convierte al elemento en el bloque
+    contenedor de sus descendientes `position: fixed`. Como `StepWizard` envuelve cada
+    paso en esta clase, cualquier hoja modal abierta dentro de un módulo de captura se
+    medía contra el paso y no contra la ventana: aparecía a media página, se salía por
+    abajo y su `max-height: 85vh` no recortaba nada, así que tampoco se podía
+    desplazar.
+
+    `backwards` conserva lo que hacía falta —el estado inicial antes de arrancar, para
+    que no haya un fogonazo con opacidad 1— y al terminar devuelve el elemento a su
+    estilo natural, que es idéntico al último fotograma: opacidad 1 y sin transform.
+    Nada cambia a la vista y desaparece el bloque contenedor.
+
+    Las hojas modales además se dibujan en un portal a `document.body`, así que ya no
+    dependen de esto. Se corrige igual porque el siguiente `position: fixed` que
+    alguien ponga dentro de un paso se encontraría con la misma trampa.
+  */
   .animate-rise {
-    animation: df-rise 0.28s ease-out both;
+    animation: df-rise 0.28s ease-out backwards;
   }
 
   @keyframes df-pulse-glow {
