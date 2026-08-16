@@ -188,16 +188,19 @@ export function ExecutiveDashboardV1() {
         <StatCard
           label="Gastos totales" value={fmtMXN(m.EXPENSES_TOTAL)} icon={ShoppingCart}
           sub={`${fmtPct(m.expenses.expenseToIncomeRatio)} de tu ingreso`}
+          help="Suma de tus gastos mensuales en las cuatro prioridades: esencial, importante, discrecional y lujo. No incluye los pagos de créditos, que van aparte en Servicio de deuda."
         />
         <StatCard
           label="Servicio de deuda" value={fmtMXN(m.DEBT_SERVICE)} icon={CreditCard}
           tone={m.debts.debtToIncomeRatio > 0.3 ? 'negative' : 'neutral'}
           sub={`${fmtMXN(m.debts.monthlyInterest)} son intereses`}
+          help="Lo que pagas cada mes por todos tus créditos. Toma el pago real que declaraste, y usa el mínimo como piso si el real es menor."
         />
         <StatCard
           label="Flujo de caja libre" value={fmtMXN(m.NET_CASHFLOW)} icon={Activity}
           tone={m.NET_CASHFLOW < 0 ? 'negative' : 'positive'}
           sub={m.NET_CASHFLOW < 0 ? 'Déficit mensual' : `Tasa de ahorro ${fmtPct(m.savingsRate)}`}
+          help="Tu ingreso sostenible, ya neto de impuestos, menos gastos y menos pagos de deuda. Es lo que queda ANTES de apartar ahorro y metas: de aquí sale todo lo que puedas comprometer."
           emphasis
         />
       </div>
@@ -212,6 +215,7 @@ export function ExecutiveDashboardV1() {
         <StatCard
           label="Costo de metas" value={fmtMXN(m.GOALS_COST)} icon={Target}
           sub={m.goals.unfundedMonthly > 0 ? `Faltan ${fmtMXN(m.goals.unfundedMonthly)}` : 'Cubiertas'}
+          help="Aportación mensual que necesitas para cumplir todas tus metas a tiempo. Cada una se valúa a su costo futuro con su propia inflación, no al precio de hoy."
         />
         <StatCard
           label="Ingreso requerido" value={fmtMXN(m.REQUIRED_INCOME)} icon={Gauge}
@@ -224,6 +228,7 @@ export function ExecutiveDashboardV1() {
           sub={m.INCOME_GAP > 0
             ? `Necesitas ${fmtPct(safeDiv(m.INCOME_GAP, m.INCOME_SUSTAINABLE))} más de ingreso`
             : 'Tu ingreso alcanza'}
+          help="Cuánto ingreso te falta para sostener tu vida objetivo. Se compara en bruto contra bruto: el ingreso requerido ya lleva los impuestos dentro."
           emphasis
         />
       </div>
