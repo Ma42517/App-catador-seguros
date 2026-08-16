@@ -7,12 +7,24 @@ import { uid } from '../engine/finance.js';
 import {
   rateForAssetType, inflationForGoalPreset, rateOrBlank,
   returnForSavingsVehicle, DEFAULT_SAVINGS_VEHICLE,
-  DEFAULT_PPR_PROFILE, DEFAULT_PPR_CURRENCY,
+  DEFAULT_PPR_PROFILE, DEFAULT_PPR_CURRENCY, GENERAL_INFLATION,
 } from './historicalRates.js';
 
 /** Supuestos macro editables. Ningún parámetro fiscal está hardcodeado. */
 export const DEFAULT_ASSUMPTIONS = {
-  inflation: 0.04,
+  /*
+    La misma inflación general que usan las metas, leída de la misma constante.
+
+    Estaba en 4 % escrito aquí a mano mientras las metas suponían 4.5 %, y eran la misma
+    magnitud —cuánto se encarece la vida— con dos valores distintos. En una hoja impresa
+    eso se ve: la meta "Fondo de retiro" del módulo de Metas proyectaba con 4.5 % y el
+    módulo de Retiro con 4 %, así que el mismo objetivo salía con dos cifras y ninguna
+    explicación.
+
+    Leerla de `GENERAL_INFLATION` en lugar de copiar el número es lo que impide que se
+    vuelvan a separar la próxima vez que alguien ajuste una de las dos.
+  */
+  inflation: GENERAL_INFLATION,
   preRetirementReturn: 0.09,
   postRetirementReturn: 0.06,
   lifeExpectancy: 85,
