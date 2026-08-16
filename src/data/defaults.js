@@ -7,6 +7,7 @@ import { uid } from '../engine/finance.js';
 import {
   rateForAssetType, inflationForGoalPreset, rateOrBlank,
   returnForSavingsVehicle, DEFAULT_SAVINGS_VEHICLE,
+  DEFAULT_PPR_PROFILE, DEFAULT_PPR_CURRENCY,
 } from './historicalRates.js';
 
 /** Supuestos macro editables. Ningún parámetro fiscal está hardcodeado. */
@@ -120,6 +121,13 @@ export function createAsset(overrides = {}) {
     monthlyContribution: 0,
     // La tasa acompaña al tipo. 'bank' abre en 1.5 %, no en el 8 % de una inversión.
     annualReturn: rateOrBlank(rateForAssetType('bank')),
+    /*
+      Sólo se usan cuando el tipo es 'ppr', pero se declaran siempre: un campo que
+      aparece a mitad de la captura obliga a comprobar si existe en cada sitio que lo
+      lea, y basta olvidarlo una vez para que la tasa sugerida salga en blanco.
+    */
+    portfolioProfile: DEFAULT_PPR_PROFILE,
+    pprCurrency: DEFAULT_PPR_CURRENCY,
     horizonYears: 10,
     ...overrides,
   };

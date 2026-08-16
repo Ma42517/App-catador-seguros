@@ -70,10 +70,38 @@ export const ASSET_RATE_BY_TYPE = {
     fuera. Sólo la primera tiene un histórico público al que agarrarse.
   */
   afore: 0.07,
+
+  /*
+    El PPR no tiene una tasa propia: la tiene el portafolio que se contrató dentro. Su
+    sugerencia sale de `PPR_PROFILES`, más abajo, no de esta tabla. El `null` es lo que
+    obliga a elegir perfil antes de que aparezca una cifra.
+  */
   ppr: null,
+
   retirement: null,
 
-  real_estate: 0.06,
+  /*
+    Bienes raíces: 7.5 %, y sólo PLUSVALÍA.
+
+    Dos conversiones que hay que hacer para que este número signifique algo:
+
+    1) DE REAL A NOMINAL. El crecimiento del valor de la vivienda en México se cita como
+       3–5 % ANUAL REAL. Esta tabla es nominal —el motor descuenta la inflación por su
+       cuenta— así que meter aquí un 4 % descontaría la inflación dos veces y proyectaría
+       una casa creciendo por debajo de los precios. Con la inflación de 4.5 % de la app:
+       1.03 × 1.045 − 1 ≈ 7.6 %. Se usa 7.5 %, el extremo bajo del rango, que deja una
+       tasa real de ~2.9 %.
+
+    2) SIN LA RENTA. La rentabilidad bruta por renta —5–8 %, y 7–10 % en la Ciudad de
+       México— NO va aquí. En esta app la renta se captura como ingreso pasivo en el
+       módulo de Ingresos, que es donde entra al flujo mensual. Sumarla también a la
+       plusvalía contaría el mismo dinero dos veces: una vez como flujo y otra como
+       valor del inmueble, y el patrimonio proyectado saldría inflado sin que nada en
+       pantalla lo delatara.
+
+    Quien invierta en una ciudad con plusvalía más alta que el promedio la escribe a mano.
+  */
+  real_estate: 0.075,
 
   // Un negocio va del quiebre a multiplicar el capital. No hay promedio que signifique algo.
   business: null,
@@ -108,6 +136,92 @@ export const GOAL_INFLATION_BY_PRESET = {
 
 /** Inflación general de largo plazo. El suelo de la tabla de metas. */
 export const GENERAL_INFLATION = 0.045;
+
+/**
+ * Perfiles de portafolio de un PPR, con su rendimiento histórico nominal.
+ *
+ * Un PPR es un envase, no una inversión: lo que rinde es lo que se contrató dentro. Un
+ * PPR en renta fija y otro en renta variable pueden separarse cuatro o cinco puntos al
+ * año, que en un horizonte de veinte años es la mitad del capital final. Sugerir una
+ * sola cifra para los tres sería repetir el error del 10.5 % que agrupaba Afore y PPR.
+ *
+ * Se toma el punto medio de cada rango histórico: renta fija 4–7 %, mixto 6–10 %, renta
+ * variable 8–12 %. El punto medio y no el techo: en un diagnóstico que se le entrega al
+ * prospecto, pasarse de optimista se paga con un plan que no se cumple.
+ *
+ * Nota fiscal que esta app todavía no modela: las aportaciones a un PPR son deducibles
+ * hasta el límite de la Ley del ISR, así que su rendimiento después de impuestos es
+ * mayor que el que se ve aquí. Se captura como el rendimiento del instrumento, sin ese
+ * beneficio, y por eso el número queda del lado conservador.
+ */
+export const PPR_PROFILES = [
+  { value: 'fixed', label: 'Renta fija (bonos, CETES)' },
+  { value: 'mixed', label: 'Mixto (bonos y acciones)' },
+  { value: 'equity', label: 'Renta variable (acciones, ETFs)' },
+];
+
+/**
+ * Moneda del PPR. Muchos planes de aseguradora se contratan en dólares.
+ *
+ * NO CONVIERTE MONTOS: el diagnóstico entero se captura y se calcula en pesos. Lo único
+ * que cambia con la moneda es el rendimiento sugerido, y cambia porque tiene que
+ * cambiar: una tasa nominal lleva dentro la inflación de su divisa, así que el 5.5 % de
+ * un fondo de deuda en pesos y el 4 % de uno en dólares no son dos opiniones sobre el
+ * mismo instrumento, son dos monedas distintas.
+ */
+export const PPR_CURRENCIES = [
+  { value: 'MXN', label: 'Pesos (MXN)' },
+  { value: 'USD', label: 'Dólares (USD)' },
+];
+
+/**
+ * Rendimiento nominal por moneda y perfil.
+ *
+ * MXN — puntos medios de los rangos históricos: renta fija 4–7 %, mixto 6–10 %, renta
+ * variable 8–12 %.
+ *
+ * USD — rendimientos de largo plazo del mercado estadounidense, más bajos en nominal
+ * porque la inflación del dólar es menor que la del peso. Son estimaciones de mercado,
+ * no un dato con fuente citada: deuda ~4 %, cartera equilibrada ~6.5 %, acciones ~9 %.
+ *
+ * OJO CON LO QUE NO INCLUYE EL RENGLÓN DEL DÓLAR. Es el rendimiento EN dólares. Como el
+ * proyectado se muestra en pesos, deja fuera la depreciación histórica del peso frente
+ * al dólar, que a un plan en dólares le ha sumado rendimiento medido en pesos. Se
+ * excluye a propósito: meter un supuesto de tipo de cambio a treinta años sería
+ * inventar la variable más volátil del cálculo. La consecuencia es que un PPR en dólares
+ * se proyecta CONSERVADOR, y eso es preferible a lo contrario en un documento que el
+ * prospecto se lleva a casa.
+ */
+const PPR_RATE = {
+  MXN: { fixed: 0.055, mixed: 0.08, equity: 0.10 },
+  USD: { fixed: 0.04, mixed: 0.065, equity: 0.09 },
+};
+
+/** Perfil con el que abre un PPR nuevo: el intermedio, que es el más contratado. */
+export const DEFAULT_PPR_PROFILE = 'mixed';
+
+/** Moneda por omisión: la del resto del diagnóstico. */
+export const DEFAULT_PPR_CURRENCY = 'MXN';
+
+/** Rendimiento sugerido de un PPR, según su moneda y su perfil de portafolio. */
+export function returnForPprProfile(profile, currency = DEFAULT_PPR_CURRENCY) {
+  return PPR_RATE[currency]?.[profile] ?? null;
+}
+
+/**
+ * Tasa sugerida de un activo completo, no sólo de su tipo.
+ *
+ * Existe porque el PPR necesita mirar dos campos más —moneda y perfil— y quien pregunta
+ * no tiene por qué saber cuáles activos son especiales. Un solo punto de entrada evita
+ * que una pantalla consulte la tabla por tipo y se salte el perfil.
+ */
+export function suggestedRateForAsset(asset) {
+  if (!asset) return null;
+  if (asset.type === 'ppr') {
+    return returnForPprProfile(asset.portfolioProfile, asset.pprCurrency);
+  }
+  return rateForAssetType(asset.type);
+}
 
 /**
  * Dónde se guarda el ahorro de una meta, y lo que rinde cada sitio.

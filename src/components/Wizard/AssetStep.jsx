@@ -2,7 +2,10 @@ import { Plus, PiggyBank, Landmark, AlertTriangle } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useState } from 'react';
 import { createAsset } from '../../data/defaults';
-import { rateForAssetType, isSuggestedRate, rateOrBlank } from '../../data/historicalRates';
+import {
+  isSuggestedRate, rateOrBlank, suggestedRateForAsset,
+  PPR_PROFILES, PPR_CURRENCIES, DEFAULT_PPR_PROFILE, DEFAULT_PPR_CURRENCY,
+} from '../../data/historicalRates';
 import RateField from './RateField';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput,
@@ -34,7 +37,8 @@ export default function AssetStep() {
   */
   const [manualRate, setManualRate] = useState(false);
 
-  const suggestedRate = rateForAssetType(draft.type);
+  const suggestedRate = suggestedRateForAsset(draft);
+  const isPpr = draft.type === 'ppr';
 
   const openNewAsset = () => {
     setManualRate(false);
@@ -47,22 +51,58 @@ export default function AssetStep() {
     manual convertiría en "escrita a mano" cada tasa que sólo venía por omisión.
   */
   const openEditAsset = (asset) => {
-    setManualRate(!isSuggestedRate(asset.annualReturn, rateForAssetType(asset.type)));
+    setManualRate(!isSuggestedRate(asset.annualReturn, suggestedRateForAsset(asset)));
     sheet.openEdit(asset);
   };
 
   /**
-   * Cambiar el tipo arrastra la tasa, salvo que sea manual.
+   * Cambia lo que se pida y recalcula la tasa sugerida a partir del borrador resultante.
    *
-   * Si el tipo nuevo no tiene sugerencia, la tasa se va a cero, que en el formulario se
-   * dibuja como campo vacío. Conservar la del tipo anterior sería peor: quien pasa de
-   * Afore a "Negocios" se quedaría con un 7 % heredado que nadie eligió para un negocio.
+   * Los tres selectores que mueven la tasa —tipo, moneda y perfil del PPR— pasan por
+   * aquí. La tasa se deduce del borrador ya con el cambio aplicado, no del campo que se
+   * tocó: si cada selector calculara su propia tasa, el de moneda tendría que acordarse
+   * del perfil y el de perfil de la moneda, y el primero que se olvidara daría una
+   * sugerencia de otro instrumento.
+   *
+   * Si el resultado no tiene sugerencia, la tasa se va a cero, que el formulario dibuja
+   * como campo vacío. Conservar la anterior sería peor: quien pasa de Afore a "Negocios"
+   * se quedaría con un 7 % heredado que nadie eligió para un negocio.
    */
-  const changeType = (type) => {
-    sheet.patch(manualRate
-      ? { type }
-      : { type, annualReturn: rateOrBlank(rateForAssetType(type)) });
+  const patchWithRate = (patch) => {
+    if (manualRate) {
+      sheet.patch(patch);
+      return;
+    }
+    const next = { ...draft, ...patch };
+    sheet.patch({ ...patch, annualReturn: rateOrBlank(suggestedRateForAsset(next)) });
   };
+
+  const changeType = (type) => patchWithRate({ type });
+  const changeProfile = (portfolioProfile) => patchWithRate({ portfolioProfile });
+  const changeCurrency = (pprCurrency) => patchWithRate({ pprCurrency });
+
+  /**
+   * De dónde sale la tasa que se está sugiriendo, dicho en una línea.
+   *
+   * Cada caso nombra su propia procedencia. Un "promedio histórico" a secas no permite
+   * juzgar si aplica; "Mixto en dólares" o "sólo plusvalía" sí.
+   */
+  const rateNote = (() => {
+    if (isPpr) {
+      const perfil = labelOf(PPR_PROFILES, draft.portfolioProfile ?? DEFAULT_PPR_PROFILE);
+      const moneda = (draft.pprCurrency ?? DEFAULT_PPR_CURRENCY) === 'USD'
+        ? 'en dólares'
+        : 'en pesos';
+      return `Histórico de un portafolio ${perfil.toLowerCase()} ${moneda}.`;
+    }
+    if (draft.type === 'real_estate') {
+      return 'Sólo plusvalía. Si el inmueble se renta, esa renta va en el módulo de Ingresos.';
+    }
+    if (suggestedRate === null) {
+      return `El rendimiento de ${labelOf(ASSET_TYPES, draft.type)} depende del caso: escríbelo.`;
+    }
+    return `Promedio histórico para ${labelOf(ASSET_TYPES, draft.type)}.`;
+  })();
 
   return (
     <div className="space-y-4">
@@ -276,6 +316,48 @@ export default function AssetStep() {
           <Select value={draft.type} onChange={changeType} options={ASSET_TYPES} />
         </Field>
 
+        {/*
+          Moneda y perfil, sólo para el PPR.
+
+          Aparecen aquí porque son las dos preguntas que determinan su rendimiento, y sin
+          ellas el campo de la tasa no tiene nada que sugerir. Para los demás tipos no se
+          dibujan: un selector de moneda sobre una cuenta de nómina en pesos es una
+          pregunta que nadie necesita contestar.
+        */}
+        {isPpr && (
+          <div className="grid grid-cols-1 gap-3.5 rounded-xl border border-zinc-800
+                          bg-zinc-950/40 p-3 sm:grid-cols-2"
+          >
+            <Field
+              label="Moneda del plan"
+              /*
+                El aviso es obligatorio. El diagnóstico entero se calcula en pesos y esta
+                app no convierte divisas: si alguien captura un saldo en dólares porque el
+                selector dice "Dólares", su patrimonio queda dividido entre veinte y no
+                hay nada en pantalla que lo explique.
+              */
+              hint="Los montos se siguen capturando en pesos. La moneda sólo ajusta el rendimiento sugerido."
+            >
+              <Select
+                value={draft.pprCurrency ?? DEFAULT_PPR_CURRENCY}
+                onChange={changeCurrency}
+                options={PPR_CURRENCIES}
+              />
+            </Field>
+
+            <Field
+              label="Perfil del portafolio"
+              help="Un PPR rinde lo que rinde lo que se contrató dentro. Entre renta fija y renta variable hay varios puntos al año de diferencia."
+            >
+              <Select
+                value={draft.portfolioProfile ?? DEFAULT_PPR_PROFILE}
+                onChange={changeProfile}
+                options={PPR_PROFILES}
+              />
+            </Field>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <Field label="Saldo actual">
             <MoneyInput
@@ -299,9 +381,7 @@ export default function AssetStep() {
             help="Puede ser negativo para activos que se deprecian, como un auto."
             value={draft.annualReturn}
             suggested={suggestedRate}
-            note={suggestedRate === null
-              ? `El rendimiento de ${labelOf(ASSET_TYPES, draft.type)} depende del caso: escríbelo.`
-              : `Promedio histórico para ${labelOf(ASSET_TYPES, draft.type)}.`}
+            note={rateNote}
             isManual={manualRate}
             onUseManual={() => setManualRate(true)}
             onUseSuggested={() => {
