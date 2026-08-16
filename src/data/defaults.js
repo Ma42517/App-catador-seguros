@@ -4,6 +4,9 @@
  * está vacío a propósito. Los datos de ejemplo viven en demoData.js.
  */
 import { uid } from '../engine/finance.js';
+import {
+  rateForAssetType, inflationForGoalPreset, GOAL_EXPECTED_RETURN,
+} from './historicalRates.js';
 
 /** Supuestos macro editables. Ningún parámetro fiscal está hardcodeado. */
 export const DEFAULT_ASSUMPTIONS = {
@@ -14,30 +17,11 @@ export const DEFAULT_ASSUMPTIONS = {
 };
 
 /*
-  Tasas con las que abren los formularios de metas y activos.
-
-  No son un adorno: son lo que evita que la captura se detenga. Preguntarle a un
-  prospecto qué inflación espera para la universidad de sus hijos lo deja pensando en
-  una variable que no tiene forma de estimar, y esa pausa se come la conversación. Con
-  un promedio histórico en el campo, la pregunta pasa de "deduce una tasa" a "cámbiala
-  si no te cuadra", que sí se puede contestar.
-
-  Están aquí y no escritas en cada formulario para que las dos pantallas no puedan
-  discrepar: dos metas capturadas con inflaciones distintas por omisión darían costos
-  futuros que no se pueden comparar entre sí.
+  Las tasas con las que abren los formularios ya no viven aquí: dependen del tipo de
+  activo o de meta que se elija, así que están en `historicalRates.js` con su tabla y su
+  procedencia. Una sola cifra para todo dejaba una cuenta bancaria proyectando al 8 %
+  anual, que es un rendimiento que ese instrumento no da.
 */
-export const SMART_RATES = {
-  /** Inflación de largo plazo. Va por encima del 4% del retiro a propósito:
-      educación y salud —el destino más común de una meta— se inflan más rápido
-      que el índice general. */
-  inflation: 0.045,
-  /** Rendimiento nominal de un portafolio diversificado a largo plazo. */
-  expectedReturn: 0.08,
-};
-
-/** Aviso que acompaña a los campos de tasas. Uno solo, para que no se desincronicen. */
-export const SMART_RATES_NOTE = 'Usamos tasas promedio históricas para proteger tu '
-  + 'cálculo. Puedes modificarlas si lo deseas.';
 
 export function createEmptyState() {
   return {
@@ -133,7 +117,8 @@ export function createAsset(overrides = {}) {
     type: 'bank',
     balance: 0,
     monthlyContribution: 0,
-    annualReturn: SMART_RATES.expectedReturn,
+    // La tasa acompaña al tipo. 'bank' abre en 1.5 %, no en el 8 % de una inversión.
+    annualReturn: rateForAssetType('bank'),
     horizonYears: 10,
     ...overrides,
   };
@@ -147,8 +132,9 @@ export function createGoal(overrides = {}) {
     cost: 0,
     currentSavings: 0,
     years: 5,
-    inflation: SMART_RATES.inflation,
-    expectedReturn: SMART_RATES.expectedReturn,
+    // La inflación acompaña al tipo de meta: 'other' abre en la general, 4.5 %.
+    inflation: inflationForGoalPreset('other'),
+    expectedReturn: GOAL_EXPECTED_RETURN,
     priority: 'medium',
     ...overrides,
   };

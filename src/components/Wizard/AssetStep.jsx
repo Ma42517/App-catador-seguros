@@ -1,8 +1,11 @@
 import { Plus, PiggyBank, Landmark, AlertTriangle } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
-import { createAsset, SMART_RATES_NOTE } from '../../data/defaults';
+import { useState } from 'react';
+import { createAsset } from '../../data/defaults';
+import { rateForAssetType, isSuggestedRate } from '../../data/historicalRates';
+import RateField from './RateField';
 import {
-  Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput, PercentInput,
+  Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput,
   NumberInput, Select, Button, EmptyState, Badge,
 } from '../ui';
 import { DonutChart, ProgressBar } from '../charts';
@@ -22,6 +25,37 @@ export default function AssetStep() {
   const sheet = useRowSheet({ collection: 'assets', create: createAsset, add, update });
   const { draft } = sheet;
 
+  /*
+    ¿La tasa la manda el tipo de activo, o la escribió el asesor?
+
+    Mientras sea sugerida, cambiar el tipo la actualiza. En cuanto alguien la escribe a
+    mano deja de moverse: sobreescribir un dato que la persona acaba de teclear, porque
+    después tocó otro campo, es la clase de cosa que hace desconfiar de la herramienta.
+  */
+  const [manualRate, setManualRate] = useState(false);
+
+  const suggestedRate = rateForAssetType(draft.type);
+
+  const openNewAsset = () => {
+    setManualRate(false);
+    sheet.openNew();
+  };
+
+  /*
+    Al corregir un activo ya guardado se deduce en qué modo abrir: si su tasa coincide
+    con la sugerida de su tipo, nadie la tocó y sigue siendo sugerida. Abrir siempre en
+    manual convertiría en "escrita a mano" cada tasa que sólo venía por omisión.
+  */
+  const openEditAsset = (asset) => {
+    setManualRate(!isSuggestedRate(asset.annualReturn, rateForAssetType(asset.type)));
+    sheet.openEdit(asset);
+  };
+
+  /** Cambiar el tipo arrastra la tasa, salvo que sea manual. */
+  const changeType = (type) => {
+    sheet.patch(manualRate ? { type } : { type, annualReturn: rateForAssetType(type) });
+  };
+
   return (
     <div className="space-y-4">
       <SectionTitle
@@ -34,7 +68,7 @@ export default function AssetStep() {
         <CardTitle
           icon={PiggyBank}
           action={
-            <Button size="sm" variant="outline" icon={Plus} onClick={() => sheet.openNew()}>
+            <Button size="sm" variant="outline" icon={Plus} onClick={openNewAsset}>
               Agregar
             </Button>
           }
@@ -48,7 +82,7 @@ export default function AssetStep() {
             title="Sin activos registrados"
             description="Incluye desde tu cuenta de nómina hasta bienes raíces y tu Afore."
             action={
-              <Button size="sm" icon={Plus} onClick={() => sheet.openNew()}>
+              <Button size="sm" icon={Plus} onClick={openNewAsset}>
                 Agregar activo
               </Button>
             }
@@ -82,7 +116,7 @@ export default function AssetStep() {
                   note={analyzed
                     ? `proyectado ${fmtMXN(analyzed.projectedValue)}`
                     : 'saldo'}
-                  onEdit={() => sheet.openEdit(asset)}
+                  onEdit={() => openEditAsset(asset)}
                   onRemove={() => remove('assets', asset.id)}
                 />
               );
@@ -231,11 +265,7 @@ export default function AssetStep() {
             ? 'Este activo alimenta tu módulo de retiro automáticamente'
             : undefined}
         >
-          <Select
-            value={draft.type}
-            onChange={(v) => sheet.patch({ type: v })}
-            options={ASSET_TYPES}
-          />
+          <Select value={draft.type} onChange={changeType} options={ASSET_TYPES} />
         </Field>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
@@ -255,31 +285,31 @@ export default function AssetStep() {
           </Field>
         </div>
 
-        <div className="space-y-1.5">
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <Field
-              label="Rendimiento anual"
-              help="Puede ser negativo para activos que se deprecian, como un auto."
-            >
-              <PercentInput
-                value={draft.annualReturn}
-                onChange={(v) => sheet.patch({ annualReturn: v })}
-                min={-100}
-              />
-            </Field>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <RateField
+            label="Rendimiento anual"
+            help="Puede ser negativo para activos que se deprecian, como un auto."
+            value={draft.annualReturn}
+            suggested={suggestedRate}
+            note={`Promedio histórico para ${labelOf(ASSET_TYPES, draft.type)}.`}
+            isManual={manualRate}
+            onUseManual={() => setManualRate(true)}
+            onUseSuggested={() => {
+              setManualRate(false);
+              sheet.patch({ annualReturn: suggestedRate });
+            }}
+            onChange={(v) => sheet.patch({ annualReturn: v })}
+            min={-100}
+          />
 
-            <Field label="Horizonte (años)">
-              <NumberInput
-                value={draft.horizonYears}
-                onChange={(v) => sheet.patch({ horizonYears: v })}
-                min={0}
-                max={70}
-              />
-            </Field>
-          </div>
-
-          {/* Mismo aviso que en metas, desde la misma constante. */}
-          <p className="text-[11px] leading-relaxed text-zinc-500">{SMART_RATES_NOTE}</p>
+          <Field label="Horizonte (años)">
+            <NumberInput
+              value={draft.horizonYears}
+              onChange={(v) => sheet.patch({ horizonYears: v })}
+              min={0}
+              max={70}
+            />
+          </Field>
         </div>
       </RowSheet>
     </div>

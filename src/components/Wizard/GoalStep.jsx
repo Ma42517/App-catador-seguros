@@ -1,6 +1,11 @@
 import { Plus, Target, Sunset } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
-import { createGoal, SMART_RATES_NOTE } from '../../data/defaults';
+import { useState } from 'react';
+import { createGoal } from '../../data/defaults';
+import {
+  inflationForGoalPreset, isSuggestedRate, GOAL_EXPECTED_RETURN,
+} from '../../data/historicalRates';
+import RateField from './RateField';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput, PercentInput,
   NumberInput, Select, Button, EmptyState, Badge,
@@ -27,6 +32,38 @@ export default function GoalStep() {
   // Análisis de la meta que se corrige, cuando el motor ya la conoce.
   const analyzed = byId[draft.id];
 
+  /*
+    Dos tasas y dos modos independientes.
+
+    La inflación la manda el tipo de meta —la educación se encarece más rápido que un
+    viaje— así que cambiar la categoría la arrastra. El rendimiento no depende de la
+    meta sino de dónde se invierta el ahorro, así que su sugerencia es fija y sólo se
+    ofrece como punto de partida.
+  */
+  const [manualInflation, setManualInflation] = useState(false);
+  const [manualReturn, setManualReturn] = useState(false);
+
+  const suggestedInflation = inflationForGoalPreset(draft.preset);
+
+  const openNewGoal = () => {
+    setManualInflation(false);
+    setManualReturn(false);
+    sheet.openNew();
+  };
+
+  const openEditGoal = (goal) => {
+    setManualInflation(!isSuggestedRate(goal.inflation, inflationForGoalPreset(goal.preset)));
+    setManualReturn(!isSuggestedRate(goal.expectedReturn, GOAL_EXPECTED_RETURN));
+    sheet.openEdit(goal);
+  };
+
+  /** Cambiar la categoría arrastra la inflación, salvo que sea manual. */
+  const changePreset = (preset) => {
+    sheet.patch(manualInflation
+      ? { preset }
+      : { preset, inflation: inflationForGoalPreset(preset) });
+  };
+
   return (
     <div className="space-y-4">
       <SectionTitle
@@ -39,7 +76,7 @@ export default function GoalStep() {
         <CardTitle
           icon={Target}
           action={
-            <Button size="sm" variant="outline" icon={Plus} onClick={() => sheet.openNew()}>
+            <Button size="sm" variant="outline" icon={Plus} onClick={openNewGoal}>
               Agregar
             </Button>
           }
@@ -54,7 +91,7 @@ export default function GoalStep() {
             title="Sin metas registradas"
             description="Una casa, la universidad de tus hijos, un viaje, un negocio. Ponles número y fecha."
             action={
-              <Button size="sm" icon={Plus} onClick={() => sheet.openNew()}>
+              <Button size="sm" icon={Plus} onClick={openNewGoal}>
                 Agregar meta
               </Button>
             }
@@ -85,7 +122,7 @@ export default function GoalStep() {
                   ].filter(Boolean).join(' · ')}
                   amount={a ? fmtMXN(a.monthlyRequired) : fmtMXN(goal.cost)}
                   note={a ? 'requerido/mes' : 'costo hoy'}
-                  onEdit={() => sheet.openEdit(goal)}
+                  onEdit={() => openEditGoal(goal)}
                   onRemove={() => remove('goals', goal.id)}
                 />
               );
@@ -267,11 +304,7 @@ export default function GoalStep() {
           </Field>
 
           <Field label="Categoría">
-            <Select
-              value={draft.preset}
-              onChange={(v) => sheet.patch({ preset: v })}
-              options={GOAL_PRESETS}
-            />
+            <Select value={draft.preset} onChange={changePreset} options={GOAL_PRESETS} />
           </Field>
         </div>
 
@@ -283,35 +316,37 @@ export default function GoalStep() {
           />
         </Field>
 
-        {/*
-          Las dos tasas y su aviso, en un bloque.
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <RateField
+            label="Inflación del bien"
+            help="La educación y la salud suelen inflarse más rápido que el índice general."
+            value={draft.inflation}
+            suggested={suggestedInflation}
+            note={`Promedio histórico para ${labelOf(GOAL_PRESETS, draft.preset)}.`}
+            isManual={manualInflation}
+            onUseManual={() => setManualInflation(true)}
+            onUseSuggested={() => {
+              setManualInflation(false);
+              sheet.patch({ inflation: suggestedInflation });
+            }}
+            onChange={(v) => sheet.patch({ inflation: v })}
+          />
 
-          El aviso va una sola vez debajo del par, y no repetido bajo cada campo: es la
-          misma frase, y dicha dos veces en una hoja de ocho campos pasa de tranquilizar
-          a estorbar. Cubre a los dos porque los dos están rellenos por lo mismo.
-        */}
-        <div className="space-y-1.5">
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <Field
-              label="Inflación del bien"
-              help="La educación y la salud suelen inflarse más rápido que el índice general."
-            >
-              <PercentInput
-                value={draft.inflation}
-                onChange={(v) => sheet.patch({ inflation: v })}
-              />
-            </Field>
-
-            <Field label="Rendimiento esperado del ahorro">
-              <PercentInput
-                value={draft.expectedReturn}
-                onChange={(v) => sheet.patch({ expectedReturn: v })}
-                min={-100}
-              />
-            </Field>
-          </div>
-
-          <p className="text-[11px] leading-relaxed text-zinc-500">{SMART_RATES_NOTE}</p>
+          <RateField
+            label="Rendimiento esperado del ahorro"
+            help="Depende de dónde inviertas el ahorro de esta meta, no de la meta misma."
+            value={draft.expectedReturn}
+            suggested={GOAL_EXPECTED_RETURN}
+            note="Portafolio diversificado a largo plazo."
+            isManual={manualReturn}
+            onUseManual={() => setManualReturn(true)}
+            onUseSuggested={() => {
+              setManualReturn(false);
+              sheet.patch({ expectedReturn: GOAL_EXPECTED_RETURN });
+            }}
+            onChange={(v) => sheet.patch({ expectedReturn: v })}
+            min={-100}
+          />
         </div>
 
         {/* Viabilidad calculada por el motor. Sólo al corregir una meta existente. */}
