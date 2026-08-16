@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
-import StepWizard, { STEPS } from './components/Wizard/StepWizard';
+import StepWizard from './components/Wizard/StepWizard';
+import { STEPS, FIRST_INSIGHT_STEP } from './components/Wizard/steps';
 import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 import SplashScreen from './components/SplashScreen';
 import Login from './components/Auth/Login';
@@ -61,10 +62,21 @@ function isPreviewFrame() {
  * paso dentro del mismo StepWizard; no introduce una ruta nueva.
  */
 function NavPill({ step, onNavigate }) {
-  const isCapture = step < 6;
+  /*
+    El corte entre captura y lectura se importa del wizard, no se escribe aquí.
+
+    Estaba copiado como un `6` literal en las dos líneas de abajo. Al partir "Activos" en
+    "Ahorro y Afore" y "Patrimonio", el diagnóstico se corrió al 7: este conmutador habría
+    seguido mandando al 6, que ahora es Metas, y habría marcado como "Diagnóstico" un paso
+    de captura. Un número derivado no se desincroniza.
+  */
+  const isCapture = step < FIRST_INSIGHT_STEP;
   const groups = [
     { key: 'capture', label: 'Captura', short: 'Captura', Icon: LayoutList, target: 0 },
-    { key: 'insights', label: 'Diagnóstico', short: 'Diag.', Icon: LineChartIcon, target: 6 },
+    {
+      key: 'insights', label: 'Diagnóstico', short: 'Diag.',
+      Icon: LineChartIcon, target: FIRST_INSIGHT_STEP,
+    },
   ];
 
   return (

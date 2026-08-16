@@ -1,37 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  ChevronLeft, ChevronRight, Check, UserRound, Wallet, ShoppingCart,
-  CreditCard, PiggyBank, Target, Gauge, SlidersHorizontal,
+  ChevronLeft, ChevronRight, Check,
 } from 'lucide-react';
 import { Button } from '../ui';
 import LiveTotals from './LiveTotals';
-import ProfileStep from './ProfileStep';
-import IncomeStep from './IncomeStep';
-import ExpenseStep from './ExpenseStep';
-import DebtStep from './DebtStep';
-import AssetStep from './AssetStep';
-import GoalStep from './GoalStep';
-import ExecutiveDashboard from '../Dashboard/ExecutiveDashboard';
-import OptimizationPanel from '../Dashboard/OptimizationPanel';
-
-export const STEPS = [
-  { key: 'profile', label: 'Perfil', short: 'Perfil', Icon: UserRound, Component: ProfileStep },
-  { key: 'income', label: 'Ingresos', short: 'Ingr.', Icon: Wallet, Component: IncomeStep },
-  { key: 'expenses', label: 'Gastos', short: 'Gastos', Icon: ShoppingCart, Component: ExpenseStep },
-  { key: 'debt', label: 'Deudas', short: 'Deuda', Icon: CreditCard, Component: DebtStep },
-  { key: 'assets', label: 'Activos', short: 'Activos', Icon: PiggyBank, Component: AssetStep },
-  { key: 'goals', label: 'Metas', short: 'Metas', Icon: Target, Component: GoalStep },
-  { key: 'diagnosis', label: 'Diagnóstico', short: 'Diag.', Icon: Gauge, Component: ExecutiveDashboard },
-  { key: 'optimization', label: 'Optimización', short: 'Optim.', Icon: SlidersHorizontal, Component: OptimizationPanel },
-];
-
-/** Lee el paso inicial del hash de la URL, para que sea enlazable y sobreviva recargas. */
-function stepFromHash() {
-  if (typeof window === 'undefined') return 0;
-  const key = window.location.hash.replace('#', '');
-  const found = STEPS.findIndex((s) => s.key === key);
-  return found >= 0 ? found : 0;
-}
+import { STEPS, FIRST_INSIGHT_STEP, LAST_INPUT_STEP, stepFromHash } from './steps';
 
 /**
  * StepWizard puede usarse controlado (recibiendo `step`/`onStepChange` desde
@@ -70,7 +43,7 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
   const isFirst = step === 0;
   const isLast = step === STEPS.length - 1;
   // Los dos últimos pasos son de lectura: no necesitan la cinta de captura.
-  const isInputStep = step < 6;
+  const isInputStep = step < FIRST_INSIGHT_STEP;
   const progressPct = (step / (STEPS.length - 1)) * 100;
 
   return (
@@ -174,7 +147,7 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
           disabled={isLast}
           className="flex-1 sm:flex-initial"
         >
-          {step === 5 ? 'Ver diagnóstico' : 'Siguiente'}
+          {step === LAST_INPUT_STEP ? 'Ver diagnóstico' : 'Siguiente'}
         </Button>
       </div>
     </div>
