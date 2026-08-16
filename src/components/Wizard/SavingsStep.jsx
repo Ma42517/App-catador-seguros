@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { PiggyBank, AlertTriangle, Sunset } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import {
@@ -7,6 +8,9 @@ import { ProgressBar, LineChart } from '../charts';
 import { RowGrid } from './RowShell';
 import AssetCapture from './AssetCapture';
 import { SAVINGS_TYPES, isSavingsAsset } from '../../data/assetGroups';
+import { DEFAULT_ASSUMPTIONS } from '../../data/defaults';
+import { isSuggestedRate } from '../../data/historicalRates';
+import RateField from './RateField';
 import { fmtMXN, fmtPct } from '../../engine/finance';
 
 /**
@@ -28,6 +32,31 @@ export default function SavingsStep() {
   const { data, matrix, diagnosis, setField, patchSection } = useFinance();
   const a = matrix.assets;
   const r = matrix.retirement;
+
+  /*
+    El modo de los dos campos de rendimiento se DEDUCE del valor guardado, y sólo se
+    fuerza a manual con estos dos interruptores.
+
+    Es distinto de las hojas modales, y tiene que serlo: una hoja se monta al abrirse, así
+    que puede decidir su modo una vez y olvidarse. Esta tarjeta vive montada mientras se
+    usa la pestaña, y el valor puede cambiarle por debajo —"Cargar Demo" y "Limpiar"
+    reescriben el diagnóstico completo sin desmontar nada—. Con el modo guardado en estado,
+    después de un "Limpiar" el campo seguiría diciendo "escrito por ti" sobre una cifra que
+    acababa de volver a la de por omisión.
+
+    Derivado del valor se corrige solo: si coincide con la sugerencia, es la sugerencia. El
+    interruptor sólo cubre el caso de querer teclear a mano un número que resulta ser
+    idéntico al sugerido.
+  */
+  const [preOverride, setPreOverride] = useState(false);
+  const [postOverride, setPostOverride] = useState(false);
+
+  const manualPreReturn = preOverride || !isSuggestedRate(
+    data.retirement.preRetirementReturn, DEFAULT_ASSUMPTIONS.preRetirementReturn,
+  );
+  const manualPostReturn = postOverride || !isSuggestedRate(
+    data.retirement.postRetirementReturn, DEFAULT_ASSUMPTIONS.postRetirementReturn,
+  );
 
   return (
     <div className="space-y-4">
@@ -161,19 +190,54 @@ export default function SavingsStep() {
               onChange={(v) => patchSection('retirement', { inflation: v })}
             />
           </Field>
-          <Field label="Rendimiento antes del retiro">
-            <PercentInput
-              value={data.retirement.preRetirementReturn}
-              onChange={(v) => patchSection('retirement', { preRetirementReturn: v })}
-            />
-          </Field>
-          <Field label="Rendimiento durante el retiro" help="Suele ser menor: el portafolio se vuelve más conservador.">
-            <PercentInput
-              value={data.retirement.postRetirementReturn}
-              onChange={(v) => patchSection('retirement', { postRetirementReturn: v })}
-            />
-          </Field>
         </RowGrid>
+
+        {/*
+          Los dos rendimientos, con el mismo trato que las tasas de metas y activos:
+          sugerencia puesta y "ponerla manualmente" debajo.
+
+          Son las dos preguntas más difíciles de todo el diagnóstico. A nadie se le
+          ocurre de memoria qué va a rendir su portafolio en los treinta años antes de
+          retirarse, y menos aún en los veinte de después. Eran los últimos campos de
+          tasa que quedaban como caja vacía.
+        */}
+        <div className="mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <RateField
+            label="Rendimiento antes del retiro"
+            help="Lo que rinde el ahorro durante los años en que se acumula."
+            value={data.retirement.preRetirementReturn}
+            suggested={DEFAULT_ASSUMPTIONS.preRetirementReturn}
+            note="Supuesto de largo plazo para un portafolio de retiro."
+            isManual={manualPreReturn}
+            onUseManual={() => setPreOverride(true)}
+            onUseSuggested={() => {
+              setPreOverride(false);
+              patchSection('retirement', {
+                preRetirementReturn: DEFAULT_ASSUMPTIONS.preRetirementReturn,
+              });
+            }}
+            onChange={(v) => patchSection('retirement', { preRetirementReturn: v })}
+            min={-100}
+          />
+
+          <RateField
+            label="Rendimiento durante el retiro"
+            help="Suele ser menor: el portafolio se vuelve más conservador."
+            value={data.retirement.postRetirementReturn}
+            suggested={DEFAULT_ASSUMPTIONS.postRetirementReturn}
+            note="Más bajo a propósito: al retirarse, el portafolio se vuelve defensivo."
+            isManual={manualPostReturn}
+            onUseManual={() => setPostOverride(true)}
+            onUseSuggested={() => {
+              setPostOverride(false);
+              patchSection('retirement', {
+                postRetirementReturn: DEFAULT_ASSUMPTIONS.postRetirementReturn,
+              });
+            }}
+            onChange={(v) => patchSection('retirement', { postRetirementReturn: v })}
+            min={-100}
+          />
+        </div>
 
         <div className="mt-4 rounded-xl bg-indigo-500/10 p-3 text-[11px] leading-relaxed text-indigo-200 ring-1 ring-indigo-500/25">
           Tu capital de retiro y tu aportación mensual se toman automáticamente de los activos
