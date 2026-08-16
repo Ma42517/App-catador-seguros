@@ -17,6 +17,37 @@ const AGE_RANGE = { min: 16, max: 100 };
 const RETIREMENT_AGE_MAX = 95;
 const LIFE_EXPECTANCY_MAX = 110;
 
+/*
+  Esperanza de vida sugerida, por sexo.
+
+  Preguntarle a alguien a qué edad calcula morirse detiene la captura en seco. No es un
+  dato que nadie tenga, y encima obliga a pensar en la propia muerte delante del asesor
+  justo en el primer paso. Con una estimación puesta, la pregunta pasa a ser "¿te parece
+  bien este número?", que sí se puede contestar.
+
+  EL MARGEN NO ES UN ADORNO, ES LA PROTECCIÓN. Planear hasta la esperanza de vida promedio
+  significa quedarse sin dinero exactamente en la mitad de los casos: el promedio es, por
+  definición, el punto donde la mitad de las personas vive más. Los diez años de margen son
+  lo que convierte el plan en algo que aguanta sobrevivirle al promedio, que es el riesgo
+  que un seguro viene a cubrir.
+
+  Se escriben como base + margen, y no como el 85 y el 90 ya sumados, para que se vea de
+  dónde sale cada número y se pueda actualizar la base sin tocar la lógica.
+*/
+const INEGI_LIFE_EXPECTANCY = { male: 75, female: 80 };
+const LONGEVITY_MARGIN = 10;
+
+const SEX_OPTIONS = [
+  { value: 'male', label: 'Hombre' },
+  { value: 'female', label: 'Mujer' },
+];
+
+/** Años de vida sugeridos para un sexo. `null` si todavía no se eligió. */
+function lifeExpectancyFor(sex) {
+  const base = INEGI_LIFE_EXPECTANCY[sex];
+  return base === undefined ? null : base + LONGEVITY_MARGIN;
+}
+
 const MARITAL = [
   { value: 'single', label: 'Soltero(a)' },
   { value: 'married', label: 'Casado(a)' },
@@ -65,6 +96,36 @@ export default function ProfileStep() {
   const setRetirementAge = (retirementAge) => {
     set({ retirementAge });
     pushLifeExpectancy(retirementAge);
+  };
+
+  /** Años sugeridos según el sexo elegido, y si el campo los está usando tal cual. */
+  const suggestedLife = lifeExpectancyFor(profile.sex);
+  const usesSuggestion = suggestedLife !== null
+    && data.retirement.lifeExpectancy === suggestedLife;
+
+  /**
+   * Elegir el sexo rellena los años de vida.
+   *
+   * Se hace al elegir y no con un efecto que vigile el valor: es una acción explícita, y
+   * así el número cambia mientras la persona mira el selector, no por su cuenta después.
+   *
+   * El `Math.max` con la edad de retiro respeta la regla de las tres edades que ya vive en
+   * este archivo: se nace, se retira, se vive. Sin él, alguien que planea retirarse a los
+   * 95 y elige "Hombre" acabaría con 85 años de vida y un retiro que empieza diez años
+   * después de morirse, y el módulo de retiro dividiría entre un plazo negativo.
+   */
+  const setSex = (sex) => {
+    set({ sex });
+
+    const suggested = lifeExpectancyFor(sex);
+    if (suggested === null) return;
+
+    patchSection('retirement', {
+      lifeExpectancy: Math.min(
+        LIFE_EXPECTANCY_MAX,
+        Math.max(suggested, profile.retirementAge + 1),
+      ),
+    });
   };
 
   return (
@@ -200,6 +261,29 @@ export default function ProfileStep() {
 
       <Card>
         <CardTitle icon={UserRound}>Horizonte de retiro</CardTitle>
+
+        {/*
+          El sexo vive aquí y no en "Datos personales", que es donde a primera vista
+          parecería que va.
+
+          En esta app su única función es estimar los años de vida, y ponerlo tres tarjetas
+          más arriba dejaba el número apareciendo solo, sin que se viera qué lo produjo.
+          Pegado al campo que rellena, la relación se lee sin explicarla. Si algún día se
+          usa para tarifas —las tablas de mortalidad sí distinguen por sexo— tendrá sentido
+          moverlo a los datos personales.
+        */}
+        <Field
+          label="Sexo"
+          help="Sólo se usa para estimar tus años de vida. Las mujeres viven más en promedio, así que su plan tiene que durar más."
+        >
+          <SegmentedControl
+            value={profile.sex}
+            onChange={setSex}
+            options={SEX_OPTIONS}
+          />
+        </Field>
+
+        <div className="mt-4">
         <RowGrid cols={2}>
           <Field label="Edad deseada de retiro">
             <NumberInput
@@ -219,6 +303,20 @@ export default function ProfileStep() {
           <Field
             label="Años estimados de vida"
             help="Determina cuántos años debe durar tu capital de retiro."
+            /*
+              El pie de ayuda dice la verdad en cada uno de los tres estados posibles.
+
+              Afirmar "basado en el INEGI" cuando el asesor acaba de teclear 100 a mano, o
+              cuando todavía no se ha elegido el sexo, sería atribuirle a una fuente oficial
+              un número que no salió de ella. Y en un diagnóstico que el prospecto se lleva
+              impreso, esa clase de detalle es lo que sostiene o hunde la credibilidad de
+              todo lo demás.
+            */
+            hint={!profile.sex
+              ? 'Elige tu sexo arriba y calculamos este número por ti. Seguirá siendo editable.'
+              : usesSuggestion
+                ? 'Basado en la esperanza de vida del INEGI + un margen de seguridad de 10 años para protegerte del riesgo de sobrevivir a tu dinero.'
+                : 'Lo ajustaste a mano. Vuelve a elegir tu sexo para recuperar la estimación.'}
           >
             <NumberInput
               value={data.retirement.lifeExpectancy}
@@ -228,6 +326,7 @@ export default function ProfileStep() {
             />
           </Field>
         </RowGrid>
+        </div>
         <p className="mt-3 text-[11px] text-zinc-500">
           Te quedan <span className="font-semibold text-zinc-400">
             {Math.max(0, profile.retirementAge - profile.age)} años

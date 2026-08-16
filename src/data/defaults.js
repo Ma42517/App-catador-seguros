@@ -43,6 +43,13 @@ export function createEmptyState() {
     profile: {
       name: '',
       age: 35,
+      /*
+        Sin valor por omisión, y es deliberado: da de sí la estimación de los años de vida,
+        así que suponer un sexo sería suponer también cuánto va a durar el plan de alguien
+        a quien no se le ha preguntado. Vacío, el campo de años conserva su valor por
+        omisión y el pie de ayuda invita a elegir.
+      */
+      sex: '',
       maritalStatus: 'married',
       earners: 1,
       dependents: 0,
