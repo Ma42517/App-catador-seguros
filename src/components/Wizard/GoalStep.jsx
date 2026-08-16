@@ -1,4 +1,4 @@
-import { Plus, Target, Sunset } from 'lucide-react';
+import { Plus, Target } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useState } from 'react';
 import { createGoal } from '../../data/defaults';
@@ -8,23 +8,19 @@ import {
 } from '../../data/historicalRates';
 import RateField from './RateField';
 import {
-  Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput, PercentInput,
+  Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput,
   NumberInput, Select, Button, EmptyState, Badge,
 } from '../ui';
-import { ProgressBar, LineChart } from '../charts';
-import { RowGrid } from './RowShell';
+import { ProgressBar } from '../charts';
 import CompactRow from './CompactRow';
 import RowSheet from './RowSheet';
 import useRowSheet, { newestFirst } from './useRowSheet';
 import { labelOf } from '../../lib/options';
-import { GOAL_PRESETS, GOAL_PRIORITIES, fmtMXN, fmtPct } from '../../engine/finance';
+import { GOAL_PRESETS, GOAL_PRIORITIES, fmtMXN } from '../../engine/finance';
 
 export default function GoalStep() {
-  const {
-    goals, data, matrix, diagnosis, add, update, remove, patchSection,
-  } = useFinance();
+  const { goals, matrix, add, update, remove } = useFinance();
   const g = matrix.goals;
-  const r = matrix.retirement;
   const byId = Object.fromEntries(g.items.map((x) => [x.id, x]));
 
   const sheet = useRowSheet({ collection: 'goals', create: createGoal, add, update });
@@ -87,9 +83,9 @@ export default function GoalStep() {
   return (
     <div className="space-y-4">
       <SectionTitle
-        eyebrow="Módulos 8 y 9"
-        title="Metas y retiro"
-        description="Cada meta se valúa a futuro con su propia inflación. El motor calcula la aportación mensual real que necesitas y reparte tu excedente por prioridad."
+        eyebrow="Módulo 9"
+        title="Metas"
+        description="Cada meta se valúa a futuro con su propia inflación. El motor calcula la aportación mensual real que necesitas y reparte tu excedente por prioridad. Tu retiro se planea en el paso anterior."
       />
 
       <Card>
@@ -178,104 +174,6 @@ export default function GoalStep() {
         )}
       </Card>
 
-
-      <Card>
-        <CardTitle
-          icon={Sunset}
-          help="Todo el cálculo de retiro se hace en pesos de hoy usando la tasa real: (1 + rendimiento) / (1 + inflación) - 1."
-          action={
-            <Badge status={r.progress >= 0.9 ? 'green' : r.progress >= 0.5 ? 'yellow' : 'red'}>
-              {r.progressPct}% de avance
-            </Badge>
-          }
-        >
-          Retiro
-        </CardTitle>
-
-        {/*
-          El retiro no es una lista: son cuatro supuestos de un solo escenario. Se
-          queda como formulario abierto, igual que impuestos y la verificación de
-          ahorro. El patrón de hoja modal es para lo que se agrega en renglones.
-        */}
-        <RowGrid cols={2}>
-          <Field
-            label="Pensión mensual deseada"
-            help="Exprésala en pesos de HOY. El motor ajusta la inflación internamente."
-          >
-            <MoneyInput
-              value={data.retirement.desiredMonthlyIncome}
-              onChange={(v) => patchSection('retirement', { desiredMonthlyIncome: v })}
-            />
-          </Field>
-          <Field label="Inflación esperada">
-            <PercentInput
-              value={data.retirement.inflation}
-              onChange={(v) => patchSection('retirement', { inflation: v })}
-            />
-          </Field>
-          <Field label="Rendimiento antes del retiro">
-            <PercentInput
-              value={data.retirement.preRetirementReturn}
-              onChange={(v) => patchSection('retirement', { preRetirementReturn: v })}
-            />
-          </Field>
-          <Field label="Rendimiento durante el retiro" help="Suele ser menor: el portafolio se vuelve más conservador.">
-            <PercentInput
-              value={data.retirement.postRetirementReturn}
-              onChange={(v) => patchSection('retirement', { postRetirementReturn: v })}
-            />
-          </Field>
-        </RowGrid>
-
-        <div className="mt-4 rounded-xl bg-indigo-500/10 p-3 text-[11px] leading-relaxed text-indigo-200 ring-1 ring-indigo-500/25">
-          Tu capital de retiro y tu aportación mensual se toman automáticamente de los activos
-          que marcaste como <span className="font-semibold">cuenta de retiro</span> en el paso anterior
-          ({fmtMXN(r.currentSavings)} acumulados, {fmtMXN(r.monthlyContribution)} al mes).
-          Así se evita contar el mismo ahorro dos veces.
-        </div>
-
-
-        <div className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
-          <div>
-            <p className="text-zinc-400">Capital necesario</p>
-            <p className="font-semibold tabular-nums text-zinc-100">{fmtMXN(r.requiredCapital)}</p>
-          </div>
-          <div>
-            <p className="text-zinc-400">Proyectado</p>
-            <p className="font-semibold tabular-nums text-zinc-100">{fmtMXN(r.projectedCapital)}</p>
-          </div>
-          <div>
-            <p className="text-zinc-400">Brecha</p>
-            <p className={`font-semibold tabular-nums ${r.gap > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-              {fmtMXN(r.gap)}
-            </p>
-          </div>
-          <div>
-            <p className="text-zinc-400">Aportación faltante</p>
-            <p className="font-semibold tabular-nums text-zinc-100">{fmtMXN(r.additionalMonthlyNeeded)}/mes</p>
-          </div>
-        </div>
-
-        <div className="mt-4 border-t border-zinc-700/50 pt-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-            Trayectoria del capital (pesos de hoy)
-          </p>
-          <LineChart
-            points={diagnosis.retirementPath.map((p) => ({ x: p.age, y: p.value }))}
-            target={r.requiredCapital}
-            targetLabel="Capital necesario"
-            xLabel="Edad"
-          />
-        </div>
-
-        <p className="mt-3 text-[11px] leading-relaxed text-zinc-400">
-          Con tu trayectoria actual tu pensión sería de{' '}
-          <span className="font-semibold text-zinc-300">{fmtMXN(r.sustainableIncomeAtRetirement)}</span> al mes
-          durante {r.yearsInRetirement} años, contra los{' '}
-          <span className="font-semibold text-zinc-300">{fmtMXN(r.desiredMonthlyIncome)}</span> que deseas.
-          Tasa real de acumulación: {fmtPct(r.preRealRate)}.
-        </p>
-      </Card>
 
       <RowSheet
         isOpen={sheet.isOpen}
