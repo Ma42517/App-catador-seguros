@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   PlayCircle, RotateCcw, Download, FileJson, FileSpreadsheet, X, Gauge,
-  LayoutList, LineChart as LineChartIcon, FlaskConical,
+  LayoutList, LineChart as LineChartIcon, FlaskConical, ArrowLeft,
 } from 'lucide-react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
@@ -97,7 +97,7 @@ function NavPill({ step, onNavigate }) {
   );
 }
 
-function Header({ step, onNavigate }) {
+function Header({ step, onNavigate, onExit }) {
   const { loadDemoData, resetAll, data, diagnosis, isDemo } = useFinance();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -126,9 +126,33 @@ function Header({ step, onNavigate }) {
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
+        {/*
+          La salida de la sección, en la esquina superior izquierda.
+
+          Es la contrapartida de haber escondido la barra inferior: sin ella, esta
+          era la única pantalla de la app sin vuelta atrás. Va primero en el orden de
+          lectura y de tabulación, que es donde se busca.
+
+          En el teléfono se queda sólo la flecha. La palabra "Regresar" ocupaba el
+          sitio del título del módulo en una cabecera de dieciséis unidades de alto,
+          y una flecha a la izquierda no necesita que le expliquen qué hace.
+        */}
+        <button
+          type="button"
+          onClick={onExit}
+          className="-ml-1 flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs
+                     font-semibold text-zinc-400 transition-colors hover:bg-zinc-800/70
+                     hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2
+                     focus-visible:ring-indigo-500"
+        >
+          <ArrowLeft size={16} className="shrink-0" />
+          <span className="hidden sm:inline">Regresar</span>
+          <span className="sr-only sm:hidden">Regresar</span>
+        </button>
+
         {/* Marca */}
         <span
-          className="mr-1 hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 shadow-lg shadow-indigo-600/30 sm:grid"
+          className="mr-1 hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 shadow-lg shadow-indigo-600/30 lg:grid"
           aria-hidden="true"
         >
           <Gauge size={17} className="text-white" />
@@ -376,6 +400,14 @@ function Shell({
       isPromoterUser={isPromoterUser}
       onOpenPromotoria={() => setSection('promotoria')}
       username={storageKey}
+      /*
+        El Diagnóstico se queda con la pantalla completa: sin barra inferior.
+
+        Es donde el asesor captura de pie, con el prospecto enfrente y seis módulos
+        de formularios por delante. Las dos versiones de la captura ponen su propio
+        "Regresar", así que esconder la barra no encierra a nadie.
+      */
+      immersive={activeSection === 'wizard'}
     >
       {activeSection === 'preview' ? (
         <DevicePreview />
@@ -401,7 +433,10 @@ function Shell({
           salida de la sección. La vuelta a la captura clásica va dentro, en su
           propia esquina.
         */
-        <ConversationalWizard onUseClassic={() => setCaptureMode('v1')} />
+        <ConversationalWizard
+          onUseClassic={() => setCaptureMode('v1')}
+          onExit={() => setSection('home')}
+        />
       ) : (
         /*
           El módulo de Diagnóstico 360 es un tablero de datos diseñado en
@@ -417,7 +452,7 @@ function Shell({
           />
 
           <div className="relative">
-            <Header step={step} onNavigate={go} />
+            <Header step={step} onNavigate={go} onExit={() => setSection('home')} />
             <main className="mx-auto max-w-5xl px-4 py-6">
               {activeSection === 'wizard' ? (
                 <div className="mx-auto w-full max-w-3xl">

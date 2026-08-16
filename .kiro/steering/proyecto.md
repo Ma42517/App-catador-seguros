@@ -50,17 +50,22 @@ Todo trabajo termina en `main`. Dejarlo en una rama no cuenta como entregado:
 Vercel sólo publica en Producción lo que está en `main`, así que un cambio
 parado en una rama es un cambio que nadie puede ver ni probar.
 
+**Sin pull requests.** Se empuja directo a `main` una vez verificado. Abrir un PR
+para fusionarlo un segundo después sólo genera una notificación de revisión por
+tarea, y aquí no hay nadie más revisando: el dueño del repo pidió expresamente
+que se dejara de hacer.
+
 El recorrido de cada cambio:
 
-1. **Rama y PR.** Al empujar la rama, Vercel levanta un despliegue de vista
-   previa con su propia URL. Sirve para revisar en el teléfono antes de
-   publicar.
-2. **Fusionar a `main`.** Con `gh api -X PUT .../pulls/N/merge -f
-   merge_method=squash`. El historial va en squash: cada PR es un commit con su
-   número al final del título.
+1. **Verificar antes.** `npm run build` y `oxlint`, más el script de
+   comprobación si la lógica lo admite. Sin eso no se empuja.
+2. **Commit y `git push origin main`.**
 3. **Producción sale sola.** Vercel despliega al recibir `main`, en
    https://app-catador-seguros.vercel.app. No hay que ejecutar nada de Vercel a
    mano, y no existe CLI de Vercel en este entorno.
+
+Después de empujar se confirma que el despliegue quedó en `success` y que el
+bundle publicado trae de verdad el cambio.
 
 Las órdenes `gh pr` y `gh issue` fallan siempre aquí porque van por GraphQL. Se
 usa `gh api` con las rutas REST.

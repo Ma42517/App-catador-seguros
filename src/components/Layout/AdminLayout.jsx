@@ -27,6 +27,17 @@ import { highestPriorityOf } from '../Activities/priorities';
 export default function AdminLayout({
   onNavigate, onLogout, children, canUsePreview = false, isAdminUser = false,
   isPromoterUser = false, onOpenPromotoria, username,
+  /*
+    Modo inmersivo: la sección se queda con la pantalla completa y se hace cargo de
+    su propia salida.
+
+    Lo usa el Diagnóstico 360, que es el único destino donde se trabaja de pie y con
+    el prospecto delante: seis módulos de captura con formularios largos, donde la
+    barra inferior se comía cuatro centímetros de alto útil en cada scroll y ofrecía
+    cuatro destinos que ahí no se van a usar. Quien la esconda tiene que poner un
+    "Regresar" en su cabecera; si no, la sección se convierte en un callejón.
+  */
+  immersive = false,
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday } = useEvents();
 
@@ -93,18 +104,35 @@ export default function AdminLayout({
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden flex flex-col relative bg-white dark:bg-black">
-      {/* pb-28 + mb-24 evita que el contenido quede bajo la barra inferior */}
-      <div className="flex-1 min-w-0 w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto px-4 pb-28 mb-24">{children}</div>
+      {/*
+        `pb-28 mb-24` reserva el alto de la barra inferior. En modo inmersivo la barra
+        no existe, y ese hueco tiene que irse con ella: dejarlo abriría trece
+        centímetros de negro al final de cada módulo, con el último campo flotando a
+        media pantalla.
 
-      <BottomTabBar
-        onToday={() => goTo('home')}
-        onProductivity={() => goTo('productivity')}
-        onAgenda={() => goTo('agenda')}
-        onAdd={() => setQuickAddOpen(true)}
-        onMore={openMore}
-        agendaCount={activeToday.length}
-        agendaPriority={highestPriorityOf(activeToday)}
-      />
+        Tampoco se limita el ancho ahí: el Diagnóstico ya centra su propio contenido
+        en `max-w-5xl`, y encajarlo además en `max-w-md` estrangulaba sus rejillas de
+        campos en el teléfono.
+      */}
+      <div
+        className={immersive
+          ? 'flex-1 min-w-0 w-full'
+          : 'flex-1 min-w-0 w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto px-4 pb-28 mb-24'}
+      >
+        {children}
+      </div>
+
+      {!immersive && (
+        <BottomTabBar
+          onToday={() => goTo('home')}
+          onProductivity={() => goTo('productivity')}
+          onAgenda={() => goTo('agenda')}
+          onAdd={() => setQuickAddOpen(true)}
+          onMore={openMore}
+          agendaCount={activeToday.length}
+          agendaPriority={highestPriorityOf(activeToday)}
+        />
+      )}
 
       <QuickAddMenu
         isOpen={isQuickAddOpen}

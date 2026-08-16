@@ -155,7 +155,7 @@ const FIELD_CLASS = 'w-full border-b border-white/20 bg-transparent pb-2 text-ce
  * entre las dos versiones sin perder lo escrito, y lo que evita que un asesor
  * conteste aquí con el prospecto delante para descubrir después que no quedó nada.
  */
-export default function ConversationalWizard({ onUseClassic }) {
+export default function ConversationalWizard({ onUseClassic, onExit }) {
   /*
     El mismo contexto que usa la V1. No un estado local propio: dos versiones de la
     captura que guardan cada una en su sitio son dos diagnósticos distintos, y al
@@ -274,13 +274,35 @@ export default function ConversationalWizard({ onUseClassic }) {
         que siguiera diciendo "aún no guarda" empujaría al asesor a recapturarlos.
       */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-5 pt-5">
-        <p className="flex items-center gap-1.5 rounded-full border border-amber-500/25
-                      bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase
-                      tracking-widest text-amber-300/90"
-        >
-          <FlaskConical size={11} aria-hidden="true" />
-          En desarrollo · guarda nombre y edad
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          {/*
+            La salida de la sección.
+
+            Antes la ponía la barra de navegación inferior, que en el Diagnóstico ya
+            no se dibuja. Sin esta flecha, una pantalla en `fixed inset-0` sin barra
+            deja al usuario encerrado en la conversación, con "Captura clásica" como
+            única puerta: le cambia la versión cuando lo que quería era salir.
+          */}
+          <button
+            type="button"
+            onClick={onExit}
+            aria-label="Regresar"
+            className="-ml-2 grid h-8 w-8 shrink-0 place-items-center rounded-lg
+                       text-white/40 transition-colors hover:bg-white/10 hover:text-white
+                       focus-visible:outline-none focus-visible:ring-2
+                       focus-visible:ring-indigo-500"
+          >
+            <ArrowLeft size={17} />
+          </button>
+
+          <p className="flex items-center gap-1.5 rounded-full border border-amber-500/25
+                        bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase
+                        tracking-widest text-amber-300/90"
+          >
+            <FlaskConical size={11} aria-hidden="true" />
+            En desarrollo · guarda nombre y edad
+          </p>
+        </div>
 
         <button
           type="button"
@@ -293,10 +315,14 @@ export default function ConversationalWizard({ onUseClassic }) {
       </div>
 
       {/*
-        `pb-32` reserva el alto de la barra de navegación: sin ese hueco, el botón
-        "Continuar" queda debajo de ella y no se puede tocar en el teléfono.
+        Antes aquí había un `pb-32` que reservaba el alto de la barra de navegación.
+        En el Diagnóstico esa barra ya no se dibuja, así que el hueco sobra: mantenerlo
+        empujaría la conversación un tercio de pantalla hacia arriba y dejaría la
+        pregunta descentrada. Queda el respiro del área segura del teléfono.
       */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-32">
+      <div className="flex flex-1 flex-col items-center justify-center px-6
+                      pb-[max(2rem,env(safe-area-inset-bottom))]"
+      >
         {step === 'name' && (
           <Ask
             text={QUESTION.name()}
