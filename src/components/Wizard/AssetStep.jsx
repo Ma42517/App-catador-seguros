@@ -6,56 +6,21 @@ import {
   NumberInput, Select, Button, EmptyState, Badge,
 } from '../ui';
 import { DonutChart, ProgressBar } from '../charts';
-import RowShell, { RowGrid } from './RowShell';
+import { RowGrid } from './RowShell';
+import CompactRow from './CompactRow';
+import RowSheet from './RowSheet';
+import useRowSheet, { newestFirst } from './useRowSheet';
+import { labelOf } from '../../lib/options';
 import { ASSET_TYPES, isRetirementType, fmtMXN, fmtPct } from '../../engine/finance';
-
-function AssetRow({ asset, analyzed, onChange, onRemove }) {
-  return (
-    <RowShell
-      title={asset.name || 'Nuevo activo'}
-      derived={analyzed ? `Proyectado: ${fmtMXN(analyzed.projectedValue)}` : null}
-      onRemove={onRemove}
-    >
-      <RowGrid cols={2}>
-        <Field label="Concepto">
-          <TextInput value={asset.name} onChange={(v) => onChange({ name: v })} placeholder="Fondo de emergencia" />
-        </Field>
-        <Field
-          label="Tipo"
-          hint={isRetirementType(asset.type)
-            ? 'Este activo alimenta tu módulo de retiro automáticamente'
-            : undefined}
-        >
-          <Select value={asset.type} onChange={(v) => onChange({ type: v })} options={ASSET_TYPES} />
-        </Field>
-      </RowGrid>
-
-      <div className="mt-3">
-        <RowGrid cols={4}>
-          <Field label="Saldo actual">
-            <MoneyInput value={asset.balance} onChange={(v) => onChange({ balance: v })} step="1000" />
-          </Field>
-          <Field label="Aportación mensual">
-            <MoneyInput value={asset.monthlyContribution} onChange={(v) => onChange({ monthlyContribution: v })} />
-          </Field>
-          <Field label="Rendimiento anual" help="Puede ser negativo para activos que se depre­cian, como un auto.">
-            <PercentInput value={asset.annualReturn} onChange={(v) => onChange({ annualReturn: v })} min={-100} />
-          </Field>
-          <Field label="Horizonte (años)">
-            <NumberInput value={asset.horizonYears} onChange={(v) => onChange({ horizonYears: v })} min={0} max={70} />
-          </Field>
-        </RowGrid>
-      </div>
-    </RowShell>
-  );
-}
-
 
 export default function AssetStep() {
   const { assets, data, matrix, add, update, remove, setField } = useFinance();
   const a = matrix.assets;
   const nw = matrix.netWorth;
   const byId = Object.fromEntries(a.items.map((x) => [x.id, x]));
+
+  const sheet = useRowSheet({ collection: 'assets', create: createAsset, add, update });
+  const { draft } = sheet;
 
   return (
     <div className="space-y-4">
@@ -69,7 +34,7 @@ export default function AssetStep() {
         <CardTitle
           icon={PiggyBank}
           action={
-            <Button size="sm" variant="outline" icon={Plus} onClick={() => add('assets', createAsset())}>
+            <Button size="sm" variant="outline" icon={Plus} onClick={() => sheet.openNew()}>
               Agregar
             </Button>
           }
@@ -83,22 +48,45 @@ export default function AssetStep() {
             title="Sin activos registrados"
             description="Incluye desde tu cuenta de nómina hasta bienes raíces y tu Afore."
             action={
-              <Button size="sm" icon={Plus} onClick={() => add('assets', createAsset())}>
+              <Button size="sm" icon={Plus} onClick={() => sheet.openNew()}>
                 Agregar activo
               </Button>
             }
           />
         ) : (
-          <div className="space-y-3">
-            {assets.map((asset) => (
-              <AssetRow
-                key={asset.id}
-                asset={asset}
-                analyzed={byId[asset.id]}
-                onChange={(patch) => update('assets', asset.id, patch)}
-                onRemove={() => remove('assets', asset.id)}
-              />
-            ))}
+          <div className="space-y-2">
+            {newestFirst(assets).map((asset) => {
+              const analyzed = byId[asset.id];
+
+              /*
+                Que un activo alimente el módulo de retiro cambia cómo lo lee el
+                motor, así que se dice en la tarjeta. Sin esa marca, dos activos con
+                saldos parecidos se ven iguales y pesan distinto en el diagnóstico.
+              */
+              const flag = isRetirementType(asset.type)
+                ? <Badge status="neutral">Retiro</Badge>
+                : null;
+
+              return (
+                <CompactRow
+                  key={asset.id}
+                  title={asset.name || 'Activo sin nombre'}
+                  badge={flag}
+                  subtitle={[
+                    labelOf(ASSET_TYPES, asset.type),
+                    asset.monthlyContribution > 0
+                      ? `+${fmtMXN(asset.monthlyContribution)}/mes`
+                      : '',
+                  ].filter(Boolean).join(' · ')}
+                  amount={fmtMXN(asset.balance)}
+                  note={analyzed
+                    ? `proyectado ${fmtMXN(analyzed.projectedValue)}`
+                    : 'saldo'}
+                  onEdit={() => sheet.openEdit(asset)}
+                  onRemove={() => remove('assets', asset.id)}
+                />
+              );
+            })}
           </div>
         )}
       </Card>
@@ -112,6 +100,11 @@ export default function AssetStep() {
           Verificación de ahorro
         </CardTitle>
 
+        {/*
+          Bloque de dos campos fijos, no una lista: se queda como formulario abierto.
+          Meterlo en una hoja modal escondería la comparación, que es justamente lo
+          que se viene a ver aquí.
+        */}
         <RowGrid cols={2}>
           <Field label="¿Cuánto crees que ahorras al mes?">
             <MoneyInput
@@ -212,6 +205,78 @@ export default function AssetStep() {
           </Card>
         </>
       )}
+
+      <RowSheet
+        isOpen={sheet.isOpen}
+        onClose={sheet.close}
+        onSave={sheet.save}
+        isEditing={sheet.isEditing}
+        title="activo"
+        hint="Registra el saldo actual, la aportación mensual, o ambos."
+        canSave={(draft.name || '').trim() !== ''
+          && (draft.balance > 0 || draft.monthlyContribution > 0)}
+        saveLabel="Agregar activo"
+      >
+        <Field label="Concepto">
+          <TextInput
+            value={draft.name}
+            onChange={(v) => sheet.patch({ name: v })}
+            placeholder="Fondo de emergencia"
+          />
+        </Field>
+
+        <Field
+          label="Tipo"
+          hint={isRetirementType(draft.type)
+            ? 'Este activo alimenta tu módulo de retiro automáticamente'
+            : undefined}
+        >
+          <Select
+            value={draft.type}
+            onChange={(v) => sheet.patch({ type: v })}
+            options={ASSET_TYPES}
+          />
+        </Field>
+
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Field label="Saldo actual">
+            <MoneyInput
+              value={draft.balance}
+              onChange={(v) => sheet.patch({ balance: v })}
+              step="1000"
+            />
+          </Field>
+
+          <Field label="Aportación mensual">
+            <MoneyInput
+              value={draft.monthlyContribution}
+              onChange={(v) => sheet.patch({ monthlyContribution: v })}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Field
+            label="Rendimiento anual"
+            help="Puede ser negativo para activos que se deprecian, como un auto."
+          >
+            <PercentInput
+              value={draft.annualReturn}
+              onChange={(v) => sheet.patch({ annualReturn: v })}
+              min={-100}
+            />
+          </Field>
+
+          <Field label="Horizonte (años)">
+            <NumberInput
+              value={draft.horizonYears}
+              onChange={(v) => sheet.patch({ horizonYears: v })}
+              min={0}
+              max={70}
+            />
+          </Field>
+        </div>
+      </RowSheet>
     </div>
   );
 }

@@ -6,7 +6,10 @@ import {
   Select, Button, EmptyState, Badge,
 } from '../ui';
 import { BarList } from '../charts';
-import RowShell, { RowGrid } from './RowShell';
+import CompactRow from './CompactRow';
+import RowSheet from './RowSheet';
+import useRowSheet, { newestFirst } from './useRowSheet';
+import { labelOf } from '../../lib/options';
 import { DEBT_TYPES, fmtMXN, fmtPct } from '../../engine/finance';
 
 function monthsLabel(months) {
@@ -18,85 +21,24 @@ function monthsLabel(months) {
   return m === 0 ? `${y} año${y > 1 ? 's' : ''}` : `${y}a ${m}m`;
 }
 
-function DebtRow({ debt, analyzed, onChange, onRemove }) {
-  const a = analyzed;
-  const isCard = debt.type === 'credit_card';
-
-  return (
-    <RowShell
-      title={debt.name || 'Nueva deuda'}
-      derived={a ? monthsLabel(a.payoffMonths) : null}
-      onRemove={onRemove}
-    >
-      <RowGrid cols={2}>
-        <Field label="Concepto">
-          <TextInput value={debt.name} onChange={(v) => onChange({ name: v })} placeholder="Tarjeta de crédito" />
-        </Field>
-        <Field label="Tipo">
-          <Select value={debt.type} onChange={(v) => onChange({ type: v })} options={DEBT_TYPES} />
-        </Field>
-      </RowGrid>
-
-      <div className="mt-3">
-        <RowGrid cols={4}>
-          <Field label="Saldo actual">
-            <MoneyInput value={debt.balance} onChange={(v) => onChange({ balance: v })} step="1000" />
-          </Field>
-          <Field label="Tasa anual" help="Tasa de interés anual efectiva del crédito.">
-            <PercentInput value={debt.interestRate} onChange={(v) => onChange({ interestRate: v })} />
-          </Field>
-          <Field label="Pago mínimo">
-            <MoneyInput value={debt.minPayment} onChange={(v) => onChange({ minPayment: v })} />
-          </Field>
-          <Field label="Pago real" hint="Lo que efectivamente pagas">
-            <MoneyInput value={debt.actualPayment} onChange={(v) => onChange({ actualPayment: v })} />
-          </Field>
-        </RowGrid>
-      </div>
-
-
-      <div className="mt-3">
-        <RowGrid cols={2}>
-          {isCard && (
-            <Field label="Línea de crédito" help="Necesaria para calcular tu porcentaje de utilización.">
-              <MoneyInput value={debt.creditLimit} onChange={(v) => onChange({ creditLimit: v })} step="1000" />
-            </Field>
-          )}
-          <Field label="Activo vinculado" hint="Opcional: qué bien respalda esta deuda">
-            <TextInput value={debt.linkedAsset} onChange={(v) => onChange({ linkedAsset: v })} placeholder="Casa, auto..." />
-          </Field>
-        </RowGrid>
-      </div>
-
-      {a && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-700/50 pt-2.5 text-[11px] text-zinc-400">
-          <span>Interés mensual: <span className="font-semibold text-zinc-300">{fmtMXN(a.monthlyInterest)}</span></span>
-          <span>A capital: <span className="font-semibold text-zinc-300">{fmtMXN(a.principalPortion)}</span></span>
-          {a.totalInterest !== null && (
-            <span>Interés total: <span className="font-semibold text-zinc-300">{fmtMXN(a.totalInterest)}</span></span>
-          )}
-          {isCard && a.utilization !== null && (
-            <Badge status={a.utilization > 0.7 ? 'red' : a.utilization > 0.3 ? 'yellow' : 'green'}>
-              Utilización {fmtPct(a.utilization)}
-            </Badge>
-          )}
-          {a.isNeverPaidOff && a.balance > 0 && (
-            <Badge status="red">
-              El pago no cubre el interés de {fmtMXN(a.monthlyInterest)}
-            </Badge>
-          )}
-        </div>
-      )}
-    </RowShell>
-  );
-}
-
-
 export default function DebtStep() {
   const { debts, matrix, add, update, remove } = useFinance();
   const d = matrix.debts;
   const plans = matrix.payoffPlans;
   const byId = Object.fromEntries(d.items.map((x) => [x.id, x]));
+
+  const sheet = useRowSheet({ collection: 'debts', create: createDebt, add, update });
+  const { draft } = sheet;
+
+  const isCard = draft.type === 'credit_card';
+
+  /*
+    El análisis de la fila que se está editando, si ya existe en el diagnóstico.
+    Sirve para mostrar dentro de la hoja lo que el motor calculó —interés mensual,
+    utilización, si el pago no cubre el interés— en lugar de recalcularlo aquí, que
+    sería duplicar el motor y arriesgarse a que las dos cuentas discrepen.
+  */
+  const analyzed = byId[draft.id];
 
   return (
     <div className="space-y-4">
@@ -110,7 +52,7 @@ export default function DebtStep() {
         <CardTitle
           icon={CreditCard}
           action={
-            <Button size="sm" variant="outline" icon={Plus} onClick={() => add('debts', createDebt())}>
+            <Button size="sm" variant="outline" icon={Plus} onClick={() => sheet.openNew()}>
               Agregar
             </Button>
           }
@@ -124,22 +66,42 @@ export default function DebtStep() {
             title="Sin deudas registradas"
             description="Si no tienes deuda, puedes avanzar al siguiente paso."
             action={
-              <Button size="sm" icon={Plus} onClick={() => add('debts', createDebt())}>
+              <Button size="sm" icon={Plus} onClick={() => sheet.openNew()}>
                 Agregar deuda
               </Button>
             }
           />
         ) : (
-          <div className="space-y-3">
-            {debts.map((debt) => (
-              <DebtRow
-                key={debt.id}
-                debt={debt}
-                analyzed={byId[debt.id]}
-                onChange={(patch) => update('debts', debt.id, patch)}
-                onRemove={() => remove('debts', debt.id)}
-              />
-            ))}
+          <div className="space-y-2">
+            {newestFirst(debts).map((debt) => {
+              const a = byId[debt.id];
+
+              /*
+                Una deuda cuyo pago no alcanza a cubrir el interés no se termina
+                nunca, y es el hallazgo más grave del módulo. Va en la tarjeta
+                compacta y no sólo dentro de la hoja: escondido tras un toque,
+                nadie lo vería hasta abrir la deuda que ya daba por revisada.
+              */
+              const flag = a?.isNeverPaidOff && a.balance > 0
+                ? <Badge status="red">No amortiza</Badge>
+                : null;
+
+              return (
+                <CompactRow
+                  key={debt.id}
+                  title={debt.name || 'Deuda sin nombre'}
+                  badge={flag}
+                  subtitle={[
+                    labelOf(DEBT_TYPES, debt.type),
+                    debt.interestRate > 0 ? `${fmtPct(debt.interestRate)} anual` : '',
+                  ].filter(Boolean).join(' · ')}
+                  amount={fmtMXN(debt.balance)}
+                  note={a ? monthsLabel(a.payoffMonths) : 'saldo'}
+                  onEdit={() => sheet.openEdit(debt)}
+                  onRemove={() => remove('debts', debt.id)}
+                />
+              );
+            })}
           </div>
         )}
       </Card>
@@ -237,6 +199,116 @@ export default function DebtStep() {
           </Card>
         </>
       )}
+
+      <RowSheet
+        isOpen={sheet.isOpen}
+        onClose={sheet.close}
+        onSave={sheet.save}
+        isEditing={sheet.isEditing}
+        title="deuda"
+        hint="El concepto y el saldo son obligatorios."
+        canSave={(draft.name || '').trim() !== '' && draft.balance > 0}
+        saveLabel="Agregar deuda"
+      >
+        <Field label="Concepto">
+          <TextInput
+            value={draft.name}
+            onChange={(v) => sheet.patch({ name: v })}
+            placeholder="Tarjeta de crédito"
+          />
+        </Field>
+
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Field label="Saldo actual">
+            <MoneyInput
+              value={draft.balance}
+              onChange={(v) => sheet.patch({ balance: v })}
+              step="1000"
+            />
+          </Field>
+
+          <Field label="Tipo">
+            <Select
+              value={draft.type}
+              onChange={(v) => sheet.patch({ type: v })}
+              options={DEBT_TYPES}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Field label="Tasa anual" help="Tasa de interés anual efectiva del crédito.">
+            <PercentInput
+              value={draft.interestRate}
+              onChange={(v) => sheet.patch({ interestRate: v })}
+            />
+          </Field>
+
+          <Field label="Pago mínimo">
+            <MoneyInput
+              value={draft.minPayment}
+              onChange={(v) => sheet.patch({ minPayment: v })}
+            />
+          </Field>
+        </div>
+
+        <Field label="Pago real" hint="Lo que efectivamente pagas">
+          <MoneyInput
+            value={draft.actualPayment}
+            onChange={(v) => sheet.patch({ actualPayment: v })}
+          />
+        </Field>
+
+        {isCard && (
+          <Field label="Línea de crédito" help="Necesaria para calcular tu porcentaje de utilización.">
+            <MoneyInput
+              value={draft.creditLimit}
+              onChange={(v) => sheet.patch({ creditLimit: v })}
+              step="1000"
+            />
+          </Field>
+        )}
+
+        <Field label="Activo vinculado" hint="Opcional: qué bien respalda esta deuda">
+          <TextInput
+            value={draft.linkedAsset}
+            onChange={(v) => sheet.patch({ linkedAsset: v })}
+            placeholder="Casa, auto..."
+          />
+        </Field>
+
+        {/* Lo que el motor ya calculó de esta deuda. Sólo al corregir una existente. */}
+        {sheet.isEditing && analyzed && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t
+                          border-zinc-700/50 pt-3 text-[11px] text-zinc-400"
+          >
+            <span>
+              Interés mensual:{' '}
+              <span className="font-semibold text-zinc-300">{fmtMXN(analyzed.monthlyInterest)}</span>
+            </span>
+            <span>
+              A capital:{' '}
+              <span className="font-semibold text-zinc-300">{fmtMXN(analyzed.principalPortion)}</span>
+            </span>
+            {analyzed.totalInterest !== null && (
+              <span>
+                Interés total:{' '}
+                <span className="font-semibold text-zinc-300">{fmtMXN(analyzed.totalInterest)}</span>
+              </span>
+            )}
+            {isCard && analyzed.utilization !== null && (
+              <Badge status={analyzed.utilization > 0.7 ? 'red' : analyzed.utilization > 0.3 ? 'yellow' : 'green'}>
+                Utilización {fmtPct(analyzed.utilization)}
+              </Badge>
+            )}
+            {analyzed.isNeverPaidOff && analyzed.balance > 0 && (
+              <Badge status="red">
+                El pago no cubre el interés de {fmtMXN(analyzed.monthlyInterest)}
+              </Badge>
+            )}
+          </div>
+        )}
+      </RowSheet>
     </div>
   );
 }

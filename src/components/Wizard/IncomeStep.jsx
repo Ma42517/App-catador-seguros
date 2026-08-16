@@ -5,76 +5,37 @@ import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput, Select,
   Button, EmptyState, Badge, Collapsible,
 } from '../ui';
-import RowShell, { RowGrid } from './RowShell';
+import { RowGrid } from './RowShell';
+import CompactRow from './CompactRow';
+import RowSheet from './RowSheet';
+import useRowSheet, { newestFirst } from './useRowSheet';
+import { labelOf } from '../../lib/options';
 import {
   INCOME_GROUPS, INCOME_TYPES, STABILITY, FREQUENCY_OPTIONS,
   fmtMXN, fmtPct, toMonthly,
 } from '../../engine/finance';
 
-function IncomeRow({ income, onChange, onRemove, variabilityFactor }) {
-  const monthly = toMonthly(income.amount, income.frequency);
-  const factor = income.stability === 'stable' ? 1
-    : income.stability === 'variable' ? variabilityFactor : 0;
-  const typeOptions = INCOME_TYPES[income.group] || INCOME_TYPES.other;
-
-  return (
-    <RowShell
-      title={income.name || 'Nuevo ingreso'}
-      derived={income.frequency === 'one-time'
-        ? `${fmtMXN(income.amount)} única vez`
-        : `${fmtMXN(monthly * factor)} sostenible/mes`}
-      onRemove={onRemove}
-    >
-      <RowGrid cols={3}>
-        <Field label="Concepto">
-          <TextInput value={income.name} onChange={(v) => onChange({ name: v })} placeholder="Sueldo principal" />
-        </Field>
-        <Field label="Categoría">
-          <Select
-            value={income.group}
-            onChange={(v) => onChange({
-              group: v,
-              // El subtipo debe pertenecer al grupo elegido.
-              type: (INCOME_TYPES[v] || [])[0]?.value ?? 'other',
-            })}
-            options={INCOME_GROUPS}
-          />
-        </Field>
-        <Field label="Tipo">
-          <Select value={income.type} onChange={(v) => onChange({ type: v })} options={typeOptions} />
-        </Field>
-      </RowGrid>
-
-
-      <div className="mt-3">
-        <RowGrid cols={3}>
-          <Field label="Monto">
-            <MoneyInput value={income.amount} onChange={(v) => onChange({ amount: v })} />
-          </Field>
-          <Field label="Frecuencia">
-            <Select
-              value={income.frequency}
-              onChange={(v) => onChange({ frequency: v })}
-              options={FREQUENCY_OPTIONS}
-            />
-          </Field>
-          <Field
-            label="Estabilidad"
-            hint={income.stability === 'stable' ? 'Se usa al 100%'
-              : income.stability === 'variable' ? `Se usa al ${Math.round(variabilityFactor * 100)}%`
-              : 'Excluido del ingreso sostenible'}
-          >
-            <Select value={income.stability} onChange={(v) => onChange({ stability: v })} options={STABILITY} />
-          </Field>
-        </RowGrid>
-      </div>
-    </RowShell>
-  );
+/** Cuánto de este ingreso cuenta como sostenible, según su estabilidad. */
+function sustainableFactor(stability, variabilityFactor) {
+  if (stability === 'stable') return 1;
+  if (stability === 'variable') return variabilityFactor;
+  return 0;
 }
 
 export default function IncomeStep() {
-  const { incomes, data, taxes, matrix, add, update, remove, patchSection } = useFinance();
+  const {
+    incomes, data, taxes, matrix, add, update, remove, patchSection,
+  } = useFinance();
   const inc = matrix.income;
+
+  const sheet = useRowSheet({
+    collection: 'incomes', create: createIncome, add, update,
+  });
+  const { draft } = sheet;
+
+  const typeOptions = INCOME_TYPES[draft.group] || INCOME_TYPES.other;
+  const draftMonthly = toMonthly(draft.amount, draft.frequency)
+    * sustainableFactor(draft.stability, data.variabilityFactor);
 
   return (
     <div className="space-y-4">
@@ -89,8 +50,12 @@ export default function IncomeStep() {
           icon={Wallet}
           help="El ingreso sostenible es el único que el motor usa para calcular tu capacidad real de compromiso."
           action={
-            <Button size="sm" variant="outline" icon={Plus}
-              onClick={() => add('incomes', createIncome({ frequency: data.profile.inputFrequency }))}>
+            <Button
+              size="sm"
+              variant="outline"
+              icon={Plus}
+              onClick={() => sheet.openNew({ frequency: data.profile.inputFrequency })}
+            >
               Agregar
             </Button>
           }
@@ -105,22 +70,33 @@ export default function IncomeStep() {
             title="Sin ingresos registrados"
             description="Agrega al menos una fuente para que el motor pueda calcular tu capacidad financiera."
             action={
-              <Button size="sm" icon={Plus} onClick={() => add('incomes', createIncome())}>
+              <Button size="sm" icon={Plus} onClick={() => sheet.openNew()}>
                 Agregar ingreso
               </Button>
             }
           />
         ) : (
-          <div className="space-y-3">
-            {incomes.map((income) => (
-              <IncomeRow
-                key={income.id}
-                income={income}
-                variabilityFactor={data.variabilityFactor}
-                onChange={(patch) => update('incomes', income.id, patch)}
-                onRemove={() => remove('incomes', income.id)}
-              />
-            ))}
+          <div className="space-y-2">
+            {newestFirst(incomes).map((income) => {
+              const isOneTime = income.frequency === 'one-time';
+              const monthly = toMonthly(income.amount, income.frequency)
+                * sustainableFactor(income.stability, data.variabilityFactor);
+
+              return (
+                <CompactRow
+                  key={income.id}
+                  title={income.name || 'Ingreso sin nombre'}
+                  subtitle={[
+                    labelOf(INCOME_GROUPS, income.group),
+                    labelOf(STABILITY, income.stability),
+                  ].filter(Boolean).join(' · ')}
+                  amount={isOneTime ? fmtMXN(income.amount) : fmtMXN(monthly)}
+                  note={isOneTime ? 'única vez' : 'sostenible/mes'}
+                  onEdit={() => sheet.openEdit(income)}
+                  onRemove={() => remove('incomes', income.id)}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -171,6 +147,12 @@ export default function IncomeStep() {
           {' '}Ningún parámetro fiscal está preprogramado: todo es editable.
         </p>
 
+        {/*
+          Los impuestos se quedan como formulario abierto, y no es una omisión: son
+          seis campos fijos de un mismo bloque, no una lista a la que se agregan
+          renglones. La hoja modal existe para no tener veinte formularios a la vez;
+          aquí sólo hay uno, y ya vive dentro de un desplegable.
+        */}
         <RowGrid cols={2}>
           <Field label="Impuesto retenido">
             <MoneyInput value={taxes.withheld} onChange={(v) => patchSection('taxes', { withheld: v })} />
@@ -206,6 +188,76 @@ export default function IncomeStep() {
         <TrendingUp size={13} className="shrink-0 text-zinc-500" />
         Exposición a ingreso no garantizado: {fmtPct(inc.variableExposure)} de tu ingreso bruto.
       </div>
+
+      <RowSheet
+        isOpen={sheet.isOpen}
+        onClose={sheet.close}
+        onSave={sheet.save}
+        isEditing={sheet.isEditing}
+        title="ingreso"
+        hint="Sólo el concepto y el monto son obligatorios."
+        badge={draft.amount > 0 && draft.frequency !== 'one-time'
+          ? `${fmtMXN(draftMonthly)}/mes`
+          : null}
+        canSave={(draft.name || '').trim() !== '' && draft.amount > 0}
+        saveLabel="Agregar ingreso"
+      >
+        <Field label="Concepto">
+          <TextInput
+            value={draft.name}
+            onChange={(v) => sheet.patch({ name: v })}
+            placeholder="Sueldo principal"
+          />
+        </Field>
+
+        <Field label="Monto">
+          <MoneyInput value={draft.amount} onChange={(v) => sheet.patch({ amount: v })} />
+        </Field>
+
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Field label="Frecuencia">
+            <Select
+              value={draft.frequency}
+              onChange={(v) => sheet.patch({ frequency: v })}
+              options={FREQUENCY_OPTIONS}
+            />
+          </Field>
+
+          <Field label="Categoría">
+            <Select
+              value={draft.group}
+              onChange={(v) => sheet.patch({
+                group: v,
+                // El subtipo debe pertenecer al grupo elegido.
+                type: (INCOME_TYPES[v] || [])[0]?.value ?? 'other',
+              })}
+              options={INCOME_GROUPS}
+            />
+          </Field>
+        </div>
+
+        <Field label="Tipo">
+          <Select
+            value={draft.type}
+            onChange={(v) => sheet.patch({ type: v })}
+            options={typeOptions}
+          />
+        </Field>
+
+        <Field
+          label="Estabilidad"
+          hint={draft.stability === 'stable' ? 'Se usa al 100%'
+            : draft.stability === 'variable'
+              ? `Se usa al ${Math.round(data.variabilityFactor * 100)}%`
+              : 'Excluido del ingreso sostenible'}
+        >
+          <Select
+            value={draft.stability}
+            onChange={(v) => sheet.patch({ stability: v })}
+            options={STABILITY}
+          />
+        </Field>
+      </RowSheet>
     </div>
   );
 }

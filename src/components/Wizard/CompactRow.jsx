@@ -18,7 +18,7 @@ import { IconButton } from '../ui';
  * borde acabaría abriendo el formulario en lugar de borrar.
  */
 export default function CompactRow({
-  title, subtitle, amount, note, onEdit, onRemove,
+  title, subtitle, amount, note, badge, onEdit, onRemove,
 }) {
   return (
     <div className="surface-sunken flex items-center gap-1 p-2.5 transition-colors
@@ -32,8 +32,12 @@ export default function CompactRow({
                    focus-visible:ring-indigo-500/60"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold text-zinc-100">
-            {title}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[13px] font-semibold text-zinc-100">
+              {title}
+            </span>
+            {/* Aviso del motor: utilización alta, un pago que no cubre el interés... */}
+            {badge}
           </span>
           {subtitle && (
             <span className="block truncate text-[10.5px] leading-tight text-zinc-500">
