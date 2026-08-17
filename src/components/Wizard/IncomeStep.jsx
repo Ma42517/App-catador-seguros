@@ -161,7 +161,14 @@ export default function IncomeStep() {
             <Select
               value={taxes.frequency}
               onChange={(v) => patchSection('taxes', { frequency: v })}
-              options={FREQUENCY_OPTIONS.filter((f) => f.value !== 'one-time')}
+              /*
+                Sin 'one-time' ni 'weekly'. La semanal se añadió para gastos —despensa,
+                transporte— y todavía no se ha decidido ofrecerla aquí. El motor ya sabe
+                normalizarla, así que habilitarla es borrar una condición de este filtro.
+              */
+              options={FREQUENCY_OPTIONS.filter(
+                (f) => f.value !== 'one-time' && f.value !== 'weekly',
+              )}
             />
           </Field>
           <Field label="Impuestos adicionales pagados">
@@ -219,7 +226,12 @@ export default function IncomeStep() {
             <Select
               value={draft.frequency}
               onChange={(v) => sheet.patch({ frequency: v })}
-              options={FREQUENCY_OPTIONS}
+              /*
+                La frecuencia semanal se pidió para gastos y aquí no se ofrece todavía,
+                aunque el motor ya la normaliza. Quitar este filtro la habilita para
+                ingresos —un sueldo semanal es de lo más común— cuando se decida.
+              */
+              options={FREQUENCY_OPTIONS.filter((f) => f.value !== 'weekly')}
             />
           </Field>
 

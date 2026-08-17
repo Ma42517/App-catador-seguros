@@ -87,9 +87,21 @@ export default function ExpenseStep() {
                 <CompactRow
                   key={expense.id}
                   title={expense.name || 'Gasto sin nombre'}
+                  /*
+                    La frecuencia se nombra en la tarjeta cuando no es mensual.
+
+                    El monto que se muestra es el equivalente mensual, porque es el que usa
+                    el diagnóstico, y sin decir la frecuencia una despensa de 1,000 a la
+                    semana aparece como "$4,333 al mes": correcto, e imposible de reconocer
+                    para quien escribió mil. Con la etiqueta, la cifra normalizada se explica
+                    sola.
+                  */
                   subtitle={[
                     labelOf(EXPENSE_CATEGORIES, expense.category),
                     labelOf(EXPENSE_PRIORITIES, expense.priority),
+                    expense.frequency !== 'monthly'
+                      ? labelOf(FREQUENCY_OPTIONS, expense.frequency)
+                      : '',
                   ].filter(Boolean).join(' · ')}
                   amount={isOneTime ? fmtMXN(expense.amount) : fmtMXN(monthly)}
                   note={isOneTime ? 'única vez' : 'al mes'}

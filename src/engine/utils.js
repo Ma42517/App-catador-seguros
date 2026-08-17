@@ -21,7 +21,23 @@ export function clamp(v, min, max) {
   return Math.min(max, Math.max(min, num(v)));
 }
 
+/*
+  Semanas por mes: 52 / 12 = 4.3333…, no 4.33.
+
+  La diferencia parece un decimal y no lo es. Un mes no tiene 4 semanas —serían 48 semanas
+  al año— y tampoco 4.33: con ese factor, doce meses suman 51.96 semanas, así que el año
+  pierde 0.04 semanas. En una despensa de 1,000 al mes eso se queda corto 40 pesos al año, y
+  siempre en la misma dirección: el gasto real es un poco mayor que el capturado. Un
+  diagnóstico que subestima el gasto en todos los renglones semanales infla el flujo libre,
+  que es la cifra sobre la que se decide cuánto puede comprometerse alguien.
+
+  Con 52/12 el equivalente anual cierra exacto: `toAnnual` multiplica por 12 y devuelve
+  amount × 52, es decir las 52 semanas del año.
+*/
+export const WEEKS_PER_MONTH = 52 / 12;
+
 export const FREQUENCY_OPTIONS = [
+  { value: 'weekly', label: 'Semanal' },
   { value: 'monthly', label: 'Mensual' },
   { value: 'quarterly', label: 'Trimestral' },
   { value: 'annual', label: 'Anual' },
@@ -31,10 +47,18 @@ export const FREQUENCY_OPTIONS = [
 /**
  * Equivalente mensual recurrente.
  * Los montos 'one-time' NO son recurrentes: aportan 0 al flujo mensual.
+ *
+ * El caso 'weekly' se añadió después, y es aditivo: ninguna de las frecuencias que ya
+ * existían cambia de resultado, así que ningún diagnóstico capturado antes se mueve. Tiene
+ * que vivir aquí y no en el formulario de gastos porque esta función es el único sitio por
+ * el que el motor normaliza montos: convertir en la pantalla y guardar el resultado dejaría
+ * un gasto de 4,333 mensuales donde la persona escribió 1,000, imposible de reconocer al
+ * volver a abrirlo.
  */
 export function toMonthly(amount, frequency = 'monthly') {
   const a = num(amount);
   switch (frequency) {
+    case 'weekly': return a * WEEKS_PER_MONTH;
     case 'annual': return a / 12;
     case 'quarterly': return a / 3;
     case 'one-time': return 0;
