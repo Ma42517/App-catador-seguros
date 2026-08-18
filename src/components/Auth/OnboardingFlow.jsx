@@ -45,9 +45,9 @@ function Caret({ show }) {
  * `<button>` no lleva ningún relleno visual, así que lo único que delata que
  * es tocable es el cursor y el leve resalte de hover—.
  *
- * Sirve tanto para las tres tarjetas del Paso 2 (`{ title, subtitle }`,
- * `EXPERIENCE_LEVELS`) como para las listas de opción simple de los pasos 3
- * a 7 (`{ label }`, `advisorOnboarding.js`): un único componente en vez de
+ * Sirve tanto para las tres tarjetas del Paso 3 (`{ title, subtitle }`,
+ * `EXPERIENCE_LEVELS`) como para las listas de opción simple de los pasos 4
+ * a 9 (`{ label }`, `advisorOnboarding.js`): un único componente en vez de
  * uno por cada forma de dato evita que ajustar el hover o el espaciado en
  * un paso deje a los demás desincronizados.
  */
@@ -77,7 +77,7 @@ function ChoiceOption({ option, onSelect, disabled }) {
  * avanza sola al tocarse: elegir ya es responder, así que no hace falta un
  * segundo toque en "Continuar" para confirmar lo que se acaba de tocar.
  *
- * `busyValue` sólo lo usa el Paso 8 (la única elección de esta pantalla que
+ * `busyValue` sólo lo usa el Paso 9 (la única elección de esta pantalla que
  * dispara una escritura real a la base): marca qué opción se está
  * guardando, para que un segundo toque en otra mientras la primera guarda no
  * deje dos escrituras compitiendo por la misma fila.
@@ -128,10 +128,10 @@ function ChoiceStep({ text, options, onSelect, busyValue = null }) {
  * Paso 1 — Bautizo rápido. La única pregunta de texto libre de todo el
  * recorrido, y la primera cosa que ve la persona: cómo se le quiere llamar.
  *
- * Va antes de la bienvenida (que ahora vive en el Paso 2, ya con el nombre
+ * Va antes de la bienvenida (que vive en el Paso 2, ya con el nombre
  * puesto) a propósito: es lo que permite personalizar "Bienvenido,
- * [Nombre]" desde el segundo mensaje del recorrido, en vez de sólo desde el
- * tercero.
+ * [Nombre]" desde ese segundo mensaje, en vez de sólo desde la selección
+ * de etapa que sigue en el Paso 3.
  *
  * El campo y el botón nacen montados y sólo se encienden con opacidad al
  * terminar de escribirse el texto, igual que en el resto de los pasos: un
@@ -193,6 +193,51 @@ function NameStep({ initialValue, onContinue }) {
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Paso 2 — Bienvenida. Un solo mensaje, sin ninguna pregunta todavía: sólo
+ * el propósito de la app, ya con el nombre puesto, y un "Continuar" para
+ * pasar a la primera pregunta (la etapa profesional, en el Paso 3).
+ *
+ * Separado a propósito de la selección de etapa —antes vivían juntos en un
+ * mismo paso— porque son dos momentos distintos: uno es un mensaje que se
+ * lee, el otro es una pregunta que se contesta. Fundirlos apuraba la
+ * lectura del mensaje con las tres tarjetas ya asomando debajo.
+ *
+ * El botón es texto flotante, igual que las opciones de selección de más
+ * abajo: nada de píldora con fondo ni borde, sólo la palabra "Continuar" y
+ * el leve resalte de hover como pista de que es tocable.
+ */
+function WelcomeStep({ name, onContinue }) {
+  const text = `Bienvenido, ${name}. Nuestro objetivo es simple: que todos los días te `
+    + 'vayas a dormir sabiendo que tu negocio creció.';
+  const { typed, isTyping } = useTypewriter(text);
+
+  return (
+    <div className="flex flex-col items-center px-6 text-center">
+      <p className="sr-only">{text}</p>
+      <p
+        className="max-w-lg text-2xl font-light leading-relaxed text-white sm:text-3xl"
+        aria-hidden="true"
+      >
+        {typed}
+        <Caret show={isTyping} />
+      </p>
+
+      <button
+        type="button"
+        onClick={onContinue}
+        aria-hidden={isTyping}
+        tabIndex={isTyping ? -1 : 0}
+        className={`mt-10 text-base font-semibold text-white transition-opacity
+                    duration-700 hover:opacity-70 active:scale-95
+                    ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+      >
+        Continuar
+      </button>
+    </div>
   );
 }
 
@@ -274,7 +319,7 @@ function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
 }
 
 /**
- * Paso 7 — Mapa de horas. Reemplaza la lista de cuatro franjas fijas
+ * Paso 8 — Mapa de horas. Reemplaza la lista de cuatro franjas fijas
  * ("Por las mañanas"...) por un cuadro de 24 celdas, una por hora,
  * agrupadas en cuatro bloques sólo para que se lean como jornada.
  *
@@ -387,7 +432,7 @@ function HourGridStep({ initialHours, onContinue }) {
  * Cuenta la misma clase de historia que el Paso 3 de la promotoría
  * (`PromotoriaWaitingRoom.jsx`) con una puesta en escena distinta: aquí no
  * hay "administrador revisando" — el guardado ya ocurrió al completar el
- * Paso 8 — sino "estamos analizando tus respuestas", que es honesto con lo
+ * Paso 9 — sino "estamos analizando tus respuestas", que es honesto con lo
  * que de verdad pasa: la aprobación de acceso y el análisis del perfil son
  * dos procesos distintos que corren en paralelo, y esta pantalla sólo
  * habla del segundo.
@@ -433,15 +478,21 @@ function AnalysisRoomStep() {
 }
 
 /**
- * Flujo de bienvenida para un registro nuevo: ocho preguntas que levantan
- * la radiografía del asesor y terminan en la Sala de Análisis.
+ * Flujo de bienvenida para un registro nuevo: un mensaje de bienvenida y
+ * ocho preguntas que levantan la radiografía del asesor, terminando en la
+ * Sala de Análisis.
+ *
+ * El Paso 1 pide el nombre y el Paso 2 sólo da la bienvenida con él ya
+ * puesto —sin pregunta todavía—: son dos momentos distintos (uno se lee,
+ * el otro se contesta) y por eso viven en pasos separados, aunque antes
+ * compartieran uno con la primera pregunta (etapa profesional, Paso 3).
  *
  * Sólo se le muestra a quien todavía no eligió su etapa profesional
  * (`identity.experienceLevel` vacío) — es `Gate`, en `App.jsx`, quien decide
  * si monta esto o `PendingApproval` directamente, comparando esa misma
  * columna. Esa columna, y la radiografía completa en `advisorProfileData`
  * (ver `saveAdvisorProfile` en `profilesRepo.js`), sólo se escriben una vez,
- * al completar el Paso 8 — no en cada paso— para que abandonar el
+ * al completar el Paso 9 — no en cada paso— para que abandonar el
  * cuestionario a la mitad no deje ni una elección a medias en la base ni a
  * la persona atrapada en la Sala de Análisis sin haber terminado de
  * contestar: si vuelve a entrar antes de terminar, `experience_level` sigue
@@ -484,32 +535,32 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
 
   const chooseProfile = (value) => {
     answer('perfil')(value);
-    setStep(3);
+    setStep(4);
   };
 
   const chooseStrength = (value) => {
     answer('fortaleza')(value);
-    setStep(4);
+    setStep(5);
   };
 
   const chooseConcern = (value) => {
     answer('inquietud')(value);
-    setStep(5);
+    setStep(6);
   };
 
   const chooseMarket = (value) => {
     answer('mercado')(value);
-    setStep(6);
+    setStep(7);
   };
 
   const chooseAvailability = (value) => {
     answer('disponibilidad')(value);
-    setStep(7);
+    setStep(8);
   };
 
   const submitSchedule = (hours) => {
     answer('horario')(hours);
-    setStep(8);
+    setStep(9);
   };
 
   /**
@@ -537,7 +588,7 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
     await onProfileSaved?.();
     if (!alive) return;
     setBusyValue(null);
-    setStep(9);
+    setStep(10);
   };
 
   return (
@@ -545,16 +596,18 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
       {step === 1 && <NameStep initialValue={advisorData.nombre} onContinue={submitName} />}
 
       {step === 2 && (
+        <WelcomeStep name={advisorData.nombre} onContinue={() => setStep(3)} />
+      )}
+
+      {step === 3 && (
         <ChoiceStep
-          text={`Bienvenido, ${advisorData.nombre}. Nuestro objetivo es simple: que `
-            + 'todos los días te vayas a dormir sabiendo que tu negocio creció. Para '
-            + 'adaptar tu experiencia, cuéntanos en qué etapa te encuentras:'}
+          text="Para adaptar tu experiencia, cuéntanos en qué etapa te encuentras:"
           options={EXPERIENCE_LEVELS}
           onSelect={chooseProfile}
         />
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <ChoiceStep
           text={`${advisorData.nombre}, el autoconocimiento es tu mejor herramienta. `
             + 'Al arrancar este negocio, ¿cuál consideras que es tu mayor ventaja?'}
@@ -563,15 +616,15 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
         />
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <ChoiceStep text={CONCERN_TEXT} options={CONCERN_OPTIONS} onSelect={chooseConcern} />
       )}
 
-      {step === 5 && (
+      {step === 6 && (
         <ChoiceStep text={MARKET_TEXT} options={MARKET_OPTIONS} onSelect={chooseMarket} />
       )}
 
-      {step === 6 && (
+      {step === 7 && (
         <ChoiceStep
           text={AVAILABILITY_TEXT}
           options={AVAILABILITY_OPTIONS}
@@ -579,11 +632,11 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
         />
       )}
 
-      {step === 7 && (
+      {step === 8 && (
         <HourGridStep initialHours={advisorData.horario} onContinue={submitSchedule} />
       )}
 
-      {step === 8 && (
+      {step === 9 && (
         <ChoiceStep
           text={MOTIVATION_TEXT}
           options={MOTIVATION_OPTIONS}
@@ -592,7 +645,7 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
         />
       )}
 
-      {step === 9 && <AnalysisRoomStep />}
+      {step === 10 && <AnalysisRoomStep />}
     </div>
   );
 }
