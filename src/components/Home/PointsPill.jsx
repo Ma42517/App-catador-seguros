@@ -95,12 +95,18 @@ export default function PointsPill({ puntosActuales = 0 }) {
         />
       </svg>
 
-      {/* Sin "pts" ni "/25" dentro del anillo: sólo el número, minúsculo y centrado. */}
+      {/*
+        "0/25" completo y no sólo el número: un anillo en 0 sin la meta a la
+        vista es indistinguible de un anillo roto — el "/25" es lo que dice
+        "esto es un contador, no un ícono que no cargó". `text-[7px]` es lo
+        que permite que las cuatro cifras quepan sin desbordar el círculo
+        de 28px.
+      */}
       <span
-        className={`absolute text-[10px] font-bold tabular-nums transition-colors
-                    duration-500 ${tone.text}`}
+        className={`absolute text-[7px] font-bold leading-none tabular-nums
+                    transition-colors duration-500 ${tone.text}`}
       >
-        {points}
+        {points}/{META}
       </span>
     </span>
   );
