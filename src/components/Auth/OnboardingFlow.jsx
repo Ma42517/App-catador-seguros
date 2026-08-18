@@ -58,20 +58,28 @@ function WelcomeStep({ onStart }) {
   );
 }
 
-/** Una de las tres tarjetas de etapa profesional del Paso 2. */
+/**
+ * Una de las tres opciones de etapa profesional del Paso 2.
+ *
+ * Texto flotante y no una tarjeta con borde: sin caja ni fondo propio, sólo
+ * el título y, debajo y más chico, la frase que explica qué significa. El
+ * "botón" es el bloque de texto entero —el `<button>` no lleva ningún
+ * relleno visual, así que lo único que delata que es tocable es el cursor y
+ * el leve resalte de hover—.
+ */
 function ProfileCard({ level, onSelect, disabled }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(level.value)}
       disabled={disabled}
-      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left
-                 transition-all hover:border-indigo-500/50 hover:bg-white/[0.06]
-                 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60
-                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      className="w-full rounded-lg py-3 text-center transition-opacity
+                 hover:opacity-80 active:scale-[0.98] disabled:cursor-wait
+                 disabled:opacity-40 focus-visible:outline-none
+                 focus-visible:ring-1 focus-visible:ring-white/30"
     >
-      <p className="text-base font-bold text-white">{level.title}</p>
-      <p className="mt-1 text-sm leading-relaxed text-zinc-400">{level.subtitle}</p>
+      <p className="text-lg font-semibold text-white">{level.title}</p>
+      <p className="mt-1 text-xs leading-relaxed text-zinc-500">{level.subtitle}</p>
     </button>
   );
 }
@@ -98,21 +106,23 @@ function ProfileSelectionStep({ onSelect, busyValue }) {
       </p>
 
       <div
-        className={`mt-8 flex w-full max-w-sm flex-col gap-3 transition-opacity
-                    duration-700 ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        className={`mt-10 w-full max-w-sm transition-opacity duration-700
+                    ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
         aria-hidden={isTyping}
       >
-        {EXPERIENCE_LEVELS.map((level) => (
-          <ProfileCard
-            key={level.value}
-            level={level}
-            onSelect={onSelect}
-            disabled={Boolean(busyValue)}
-          />
-        ))}
+        <div className="flex flex-col divide-y divide-white/10">
+          {EXPERIENCE_LEVELS.map((level) => (
+            <ProfileCard
+              key={level.value}
+              level={level}
+              onSelect={onSelect}
+              disabled={Boolean(busyValue)}
+            />
+          ))}
+        </div>
 
         {busyValue && (
-          <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-zinc-500">
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-zinc-500">
             <Loader2 size={13} className="animate-spin" aria-hidden="true" />
             Guardando...
           </p>
@@ -210,7 +220,7 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-4 py-10">
+    <div className="flex min-h-screen w-full items-center justify-center bg-black px-4 py-10">
       {step === 1 && <WelcomeStep onStart={() => setStep(2)} />}
       {step === 2 && <ProfileSelectionStep onSelect={chooseLevel} busyValue={busyValue} />}
       {step === 3 && <WaitingRoomStep />}
