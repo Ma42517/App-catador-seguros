@@ -29,7 +29,7 @@ const CONCERN_TEXT = 'Para que podamos guiarte con precisión, ¿qué es lo que 
   + 'te inquieta o te impone en esta etapa inicial?';
 const MARKET_TEXT = 'Todo gran negocio arranca con un mercado cálido (tus familiares, '
   + 'amigos y conocidos). Si revisas tus contactos hoy, ¿a cuántas personas podrías '
-  + 'llamarles cómodamente para platicarles de tu nueva etapa?';
+  + 'llamar para platicarles de tu nueva etapa?';
 const AVAILABILITY_TEXT = 'El éxito requiere constancia. ¿Cómo planeas gestionar tu tiempo?';
 const SCHEDULE_TEXT = 'Toca las horas que le dedicarás al negocio. Deja en blanco el resto.';
 /*
