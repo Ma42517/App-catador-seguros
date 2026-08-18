@@ -2,12 +2,13 @@
  * src/components/Home/PointsPill.jsx
  *
  * Ancla visual del "Tracker de 25 Puntos": un anillo de progreso circular.
- * Dos tamaños (`sm` discreto junto a la fecha, `lg` destacado en el centro
- * de la pantalla) del mismo componente. Sólo lectura: no hay botones, no
- * suma nada por su cuenta — refleja `puntosActuales`, que calculará en algún
- * otro lugar la lógica de producto todavía por construir. El día que exista
- * ese cálculo (o un `useProductivity()` real), esta pieza no cambia: sólo
- * cambia quién le pasa el número.
+ * Dos tamaños (`sm` discreto junto a la fecha, `lg` para la entrada central)
+ * y dos variantes de color (`tiered` semáforo, `splash` naranja de marca) del
+ * mismo componente. Sólo lectura: no hay botones, no suma nada por su
+ * cuenta — refleja `puntosActuales`, que calculará en algún otro lugar la
+ * lógica de producto todavía por construir. El día que exista ese cálculo
+ * (o un `useProductivity()` real), esta pieza no cambia: sólo cambia quién
+ * le pasa el número.
  *
  * El anillo sigue el mismo patrón SVG que `ProgressRingVisual`
  * (Productivity/CardVisuals.jsx): circunferencia fija, `strokeDasharray` al
@@ -60,31 +61,51 @@ function toneFor(points) {
 */
 const SIZES = {
   sm: { box: 'h-9 w-9', viewBox: 32, radius: 15, stroke: 2, text: 'text-[9px]' },
-  lg: { box: 'h-24 w-24', viewBox: 88, radius: 40, stroke: 5, text: 'text-lg' },
+  lg: { box: 'h-32 w-32', viewBox: 88, radius: 40, stroke: 5, text: 'text-lg' },
+};
+
+/*
+  El anillo grande de la entrada ("splash") es siempre naranja, sin importar
+  el tramo de `puntosActuales` — es un momento de marca, no el indicador
+  continuo. El anillo pequeño que vive junto a la fecha sí sigue el
+  semáforo de `toneFor` (gris/ámbar/verde), porque ese es el que informa de
+  verdad durante el resto de la sesión.
+*/
+const SPLASH_TONE = {
+  stroke: 'stroke-orange-500',
+  glow: 'drop-shadow-[0_0_15px_rgba(249,115,22,0.8)]',
+  text: 'text-orange-400',
 };
 
 /**
  * @param {number} puntosActuales - Puntos ya calculados en el fondo. Por ahora
  *   se recibe como prop; cuando exista el contexto de productividad real, el
  *   único cambio es leerlo de ahí en el componente que llama a este anillo.
- * @param {'sm'|'lg'} size - 'sm' (36px, junto a la fecha) o 'lg' (96px, para
- *   destacarlo en el centro de la pantalla). Mismo componente, mismo cálculo
- *   de tramo y color: sólo cambian las medidas del SVG.
+ * @param {'sm'|'lg'} size - 'sm' (36px, junto a la fecha) o 'lg' (128px, para
+ *   la entrada central). Mismo componente, mismo cálculo de progreso: sólo
+ *   cambian las medidas del SVG.
+ * @param {'tiered'|'splash'} variant - 'tiered' (por defecto) sigue el
+ *   semáforo gris/ámbar/verde de `toneFor`. 'splash' fuerza el naranja de
+ *   marca de `SPLASH_TONE`, para la entrada dramática del centro.
+ * @param {string} className - Clases extra (p. ej. una animación de
+ *   entrada) que el llamador quiera añadir al contenedor del anillo.
  */
-export default function PointsPill({ puntosActuales = 0, size = 'sm' }) {
+export default function PointsPill({
+  puntosActuales = 0, size = 'sm', variant = 'tiered', className = '',
+}) {
   const points = Math.max(0, Math.min(puntosActuales, META));
   const percent = points / META;
   const dims = SIZES[size];
   const circumference = 2 * Math.PI * dims.radius;
   const offset = circumference * (1 - percent);
-  const tone = toneFor(points);
+  const tone = variant === 'splash' ? SPLASH_TONE : toneFor(points);
   const center = dims.viewBox / 2;
 
   return (
     <span
       role="status"
       aria-label={`${points} de ${META} puntos del día`}
-      className={`relative inline-grid shrink-0 place-items-center ${dims.box}`}
+      className={`relative inline-grid shrink-0 place-items-center ${dims.box} ${className}`}
     >
       <svg
         viewBox={`0 0 ${dims.viewBox} ${dims.viewBox}`}
