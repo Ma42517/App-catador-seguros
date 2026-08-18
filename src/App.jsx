@@ -37,6 +37,14 @@ const CAPTURE_MODES = [
   { value: 'v1', label: 'Captura Clásica (V1)' },
   { value: 'v2', label: 'Asistente Interactivo (V2)' },
 ];
+
+/*
+  El Asistente Interactivo (V2) se descarta por ahora, sin borrar su código:
+  se apaga aquí, en un solo lugar, en vez de desmontar `ConversationalWizard`
+  o desarmar el selector de prueba A/B pieza por pieza. Volver a mostrarlo el
+  día que se retome es cambiar este valor a `true`, no reconstruir nada.
+*/
+const V2_ENABLED = false;
 import PublicCardView from './pages/PublicCardView';
 import { publicCardIdFromPath } from './lib/publicRoute';
 import { Button, SegmentedControl } from './components/ui';
@@ -336,11 +344,20 @@ function Shell({
     sólo pregunta dos de sus tres pasos. Lo que sí contesta ya va al mismo perfil que
     llena la clásica, así que alternar entre las dos no pierde nada.
   */
-  const [captureMode, setCaptureMode] = useState(
+  const [captureModeChoice, setCaptureMode] = useState(
     () => readPreference(CAPTURE_KEY, ['v1', 'v2'], 'v1'),
   );
 
-  useEffect(() => { writePreference(CAPTURE_KEY, captureMode); }, [captureMode]);
+  useEffect(() => { writePreference(CAPTURE_KEY, captureModeChoice); }, [captureModeChoice]);
+
+  /*
+    Con el V2 apagado, la sección de captura es siempre la clásica sin
+    importar qué haya quedado guardado en el navegador de una sesión
+    anterior en la que sí estaba activo. `captureModeChoice` conserva la
+    preferencia real para que, al reactivar `V2_ENABLED`, la elección de
+    quien ya lo estaba probando vuelva tal como la dejó.
+  */
+  const captureMode = V2_ENABLED ? captureModeChoice : 'v1';
 
   // La vista previa multi-dispositivo es una herramienta interna de desarrollo:
   // sólo el administrador la ve, y nunca se anida dentro de su propio iframe.
@@ -479,23 +496,30 @@ function Shell({
                     pestaña completa y lleva su propia puerta de vuelta: dejarle
                     encima este recuadro con borde punteado sería devolverle justo el
                     marco de la versión que viene a sustituir.
-                  */}
-                  <div className="mb-5 flex flex-wrap items-center justify-between gap-2
-                                  rounded-xl border border-dashed border-zinc-700 p-2.5"
-                  >
-                    <span className="flex items-center gap-1.5 pl-1 text-[10px] font-bold
-                                     uppercase tracking-widest text-zinc-500"
-                    >
-                      <FlaskConical size={12} aria-hidden="true" />
-                      Prueba A/B · Captura
-                    </span>
 
-                    <SegmentedControl
-                      value={captureMode}
-                      onChange={setCaptureMode}
-                      options={CAPTURE_MODES}
-                    />
-                  </div>
+                    Con `V2_ENABLED` en falso no hay nada que elegir: un
+                    interruptor con una sola opción real no es un control, es una
+                    promesa vacía. Se oculta en vez de dejarlo deshabilitado —la
+                    interfaz no ofrece lo que no puede cumplir.
+                  */}
+                  {V2_ENABLED && (
+                    <div className="mb-5 flex flex-wrap items-center justify-between gap-2
+                                    rounded-xl border border-dashed border-zinc-700 p-2.5"
+                    >
+                      <span className="flex items-center gap-1.5 pl-1 text-[10px] font-bold
+                                       uppercase tracking-widest text-zinc-500"
+                      >
+                        <FlaskConical size={12} aria-hidden="true" />
+                        Prueba A/B · Captura
+                      </span>
+
+                      <SegmentedControl
+                        value={captureMode}
+                        onChange={setCaptureMode}
+                        options={CAPTURE_MODES}
+                      />
+                    </div>
+                  )}
 
                   <StepWizard step={step} onStepChange={go} />
                 </div>
