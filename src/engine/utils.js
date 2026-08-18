@@ -40,9 +40,22 @@ export const FREQUENCY_OPTIONS = [
   { value: 'weekly', label: 'Semanal' },
   { value: 'monthly', label: 'Mensual' },
   { value: 'quarterly', label: 'Trimestral' },
+  { value: 'semiannual', label: 'Semestral' },
   { value: 'annual', label: 'Anual' },
   { value: 'one-time', label: 'Única vez' },
 ];
+
+/**
+ * Periodicidades con las que se cobra una prima o una aportación programada.
+ *
+ * Son las cuatro que usan las aseguradoras. Se deja fuera la semanal —ninguna póliza se
+ * cobra por semana— y sobre todo la de "única vez", que aquí sería una trampa: una prima es
+ * un compromiso recurrente, y ofrecer esa opción permitiría capturar como pago aislado algo
+ * que va a salir del bolsillo todos los años.
+ */
+export const PREMIUM_FREQUENCIES = FREQUENCY_OPTIONS.filter(
+  (f) => ['monthly', 'quarterly', 'semiannual', 'annual'].includes(f.value),
+);
 
 /**
  * Equivalente mensual recurrente.
@@ -60,6 +73,7 @@ export function toMonthly(amount, frequency = 'monthly') {
   switch (frequency) {
     case 'weekly': return a * WEEKS_PER_MONTH;
     case 'annual': return a / 12;
+    case 'semiannual': return a / 6;
     case 'quarterly': return a / 3;
     case 'one-time': return 0;
     case 'monthly':

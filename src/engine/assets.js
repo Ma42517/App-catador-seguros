@@ -37,6 +37,19 @@ export const ASSET_TYPES = [
   { value: 'ppr', label: 'PPR / Plan personal de retiro', liquid: false, retirement: true },
   { value: 'retirement', label: 'Otra cuenta de retiro', liquid: false, retirement: true },
 
+  /*
+    Seguro con componente de ahorro: dotal, vida con inversión, universal.
+
+    `retirement: false` a propósito, aunque muchos se vendan como plan de retiro: su valor
+    de rescate no está atado a la edad de retiro y puede disponerse antes. Marcarlo como
+    cuenta de retiro lo metería en el capital proyectado del módulo de retiro, y ahí
+    inflaría una cifra que el prospecto no necesariamente va a tener a los 65.
+
+    `liquid: false` porque rescatarlo en los primeros años castiga el valor: no es dinero
+    disponible para una emergencia, que es lo que mide la liquidez en esta app.
+  */
+  { value: 'insurance', label: 'Seguro con ahorro', liquid: false, retirement: false },
+
   { value: 'real_estate', label: 'Bienes raíces', liquid: false, retirement: false },
   { value: 'business', label: 'Negocios', liquid: false, retirement: false },
   { value: 'other', label: 'Otro activo', liquid: false, retirement: false },

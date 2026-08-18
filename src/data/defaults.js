@@ -147,6 +147,32 @@ export function createAsset(overrides = {}) {
     */
     portfolioProfile: DEFAULT_PPR_PROFILE,
     pprCurrency: DEFAULT_PPR_CURRENCY,
+
+    /*
+      Desglose de la Afore. Sólo se usa cuando el tipo es 'afore'.
+
+      `monthlyContribution` sigue siendo lo que lee el motor; estos tres campos son de dónde
+      sale ese número cuando se captura una Afore. Se guardan aparte y no se reemplazan
+      entre sí porque el asesor necesita poder mostrar el desglose: la aportación patronal
+      es el argumento de venta de un PPR —"tu patrón aporta esto, tú puedes aportar más"—.
+    */
+    grossSalary: 0,
+    employerContribution: 0,
+    workerContribution: 0,
+
+    /*
+      Prima de un PPR o de un seguro con ahorro. Sólo se usan en esos dos tipos.
+
+      Un PPR y un seguro no se parecen a una cuenta bancaria en una cosa que importa para el
+      flujo: se pagan del bolsillo, después de impuestos, y con una periodicidad que rara vez
+      es mensual. `premiumPaidBy` distingue lo que sale del bolsillo de lo que paga la
+      empresa como prestación, porque sólo lo primero compite con el gasto del mes.
+    */
+    premiumAmount: 0,
+    premiumFrequency: 'monthly',
+    premiumPaidBy: 'self',
+    includeInFixedExpenses: false,
+
     horizonYears: 10,
     ...overrides,
   };

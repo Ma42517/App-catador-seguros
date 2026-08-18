@@ -23,6 +23,16 @@ import { ASSET_TYPES } from '../engine/finance.js';
 export const SAVINGS_TYPE_VALUES = [
   'cash', 'bank', 'emergency_fund', 'cetes', 'stocks', 'etf',
   'afore', 'ppr', 'retirement',
+  /*
+    El seguro con ahorro entra aquí y no en Patrimonio, aunque sea ilíquido.
+
+    El criterio de estas dos pestañas no es la liquidez sino qué clase de cosa se captura:
+    dinero apartado que crece con una tasa, o bienes que se poseen. Una póliza dotal es lo
+    primero —se aporta una prima y acumula valor de rescate— y se parece mucho más a un PPR
+    que a una casa. Puesto en Patrimonio quedaría junto a los terrenos y los autos, donde
+    nadie iría a buscar su seguro.
+  */
+  'insurance',
 ];
 
 const SAVINGS_SET = new Set(SAVINGS_TYPE_VALUES);

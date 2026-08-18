@@ -4,7 +4,7 @@ import { useFinance } from '../../context/FinanceContext';
 import { createAsset } from '../../data/defaults';
 import {
   Card, CardTitle, Field, TextInput, MoneyInput, NumberInput, Select,
-  Button, EmptyState, Badge,
+  SegmentedControl, Switch, Button, EmptyState, Badge,
 } from '../ui';
 import CompactRow from './CompactRow';
 import RowSheet from './RowSheet';
@@ -15,7 +15,12 @@ import {
   isSuggestedRate, rateOrBlank, suggestedRateForAsset,
   PPR_PROFILES, PPR_CURRENCIES, DEFAULT_PPR_PROFILE, DEFAULT_PPR_CURRENCY,
 } from '../../data/historicalRates';
-import { ASSET_TYPES, isRetirementType, fmtMXN } from '../../engine/finance';
+import {
+  ASSET_TYPES, isRetirementType, fmtMXN, toMonthly, PREMIUM_FREQUENCIES,
+} from '../../engine/finance';
+import {
+  aforeContributions, AFORE_ESTIMATE_NOTE, PREMIUM_PAYERS,
+} from '../../data/contributionRates';
 
 /**
  * La captura de activos, compartida por "Ahorro y Afore" y por "Patrimonio".
@@ -98,6 +103,59 @@ export default function AssetCapture({
   };
 
   const changeType = (type) => patchWithRate({ type });
+
+  const isAfore = draft.type === 'afore';
+  const isPremiumAsset = draft.type === 'ppr' || draft.type === 'insurance';
+
+  /** Equivalente mensual de la prima, con la periodicidad elegida. */
+  const premiumMonthly = toMonthly(draft.premiumAmount, draft.premiumFrequency);
+
+  /**
+   * El sueldo estima las dos aportaciones y, con ellas, la aportación mensual.
+   *
+   * Se recalcula al escribir el sueldo y no con un efecto que lo vigile: un efecto también
+   * se dispararía al abrir una Afore ya guardada, y le sobreescribiría al asesor el desglose
+   * exacto que copió del estado de cuenta con una estimación.
+   */
+  const changeSalary = (grossSalary) => {
+    const { employerContribution, workerContribution } = aforeContributions(grossSalary);
+    sheet.patch({
+      grossSalary,
+      employerContribution,
+      workerContribution,
+      monthlyContribution: employerContribution + workerContribution,
+    });
+  };
+
+  /** Corregir una aportación a mano rehace la suma, sin tocar la otra ni el sueldo. */
+  const changeBreakdown = (patch) => {
+    const next = { ...draft, ...patch };
+    sheet.patch({
+      ...patch,
+      monthlyContribution: (next.employerContribution || 0) + (next.workerContribution || 0),
+    });
+  };
+
+  /*
+    La prima y su periodicidad alimentan la aportación mensual, que es lo que lee el motor.
+
+    Se normaliza aquí y se guarda también el monto y la frecuencia originales: guardar sólo
+    el equivalente mensual dejaría una prima anual de 24,000 convertida en 2,000, imposible
+    de reconocer al reabrir la póliza.
+  */
+  const changePremiumAmount = (premiumAmount) => {
+    sheet.patch({
+      premiumAmount,
+      monthlyContribution: Math.round(toMonthly(premiumAmount, draft.premiumFrequency)),
+    });
+  };
+
+  const changePremiumFrequency = (premiumFrequency) => {
+    sheet.patch({
+      premiumFrequency,
+      monthlyContribution: Math.round(toMonthly(draft.premiumAmount, premiumFrequency)),
+    });
+  };
 
   /** De dónde sale la tasa sugerida, dicho en una línea. */
   const rateNote = (() => {
@@ -217,13 +275,112 @@ export default function AssetCapture({
             />
           </Field>
 
-          <Field label="Aportación mensual">
+          <Field
+            label="Aportación mensual"
+            hint={isAfore && draft.grossSalary > 0
+              ? 'Suma de la aportación patronal y la tuya. Edítala para incluir aportaciones voluntarias.'
+              : isPremiumAsset && draft.premiumAmount > 0
+                ? `Equivale a tu prima de ${labelOf(PREMIUM_FREQUENCIES, draft.premiumFrequency).toLowerCase()}.`
+                : undefined}
+          >
             <MoneyInput
               value={draft.monthlyContribution}
               onChange={(v) => sheet.patch({ monthlyContribution: v })}
             />
           </Field>
         </div>
+
+        {/*
+          Desglose de la Afore.
+
+          Casi nadie sabe cuánto le aporta su patrón, y es justo el número que abre la
+          conversación de un PPR: "tu patrón pone esto, con esto no alcanza". Se estima del
+          sueldo bruto, que sí se sabe de memoria.
+        */}
+        {isAfore && (
+          <div className="space-y-3.5 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
+            <Field
+              label="Sueldo mensual bruto"
+              help="Con él se estiman las dos aportaciones. No se guarda en ningún otro cálculo del diagnóstico."
+            >
+              <MoneyInput value={draft.grossSalary} onChange={changeSalary} step="1000" />
+            </Field>
+
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <Field label="Aportación patronal mensual" hint={AFORE_ESTIMATE_NOTE}>
+                <MoneyInput
+                  value={draft.employerContribution}
+                  onChange={(v) => changeBreakdown({ employerContribution: v })}
+                />
+              </Field>
+
+              <Field label="Aportación del trabajador">
+                <MoneyInput
+                  value={draft.workerContribution}
+                  onChange={(v) => changeBreakdown({ workerContribution: v })}
+                />
+              </Field>
+            </div>
+          </div>
+        )}
+
+        {/*
+          Prima de un PPR o de un seguro con ahorro.
+
+          Se pregunta aparte de la "aportación mensual" porque estos dos instrumentos casi
+          nunca se pagan por mes, y porque quién paga cambia el diagnóstico: una prima que
+          cubre la empresa como prestación no compite con el gasto del mes, y una que sale
+          del bolsillo sí.
+        */}
+        {isPremiumAsset && (
+          <div className="space-y-3.5 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <Field label="Aportación / Prima">
+                <MoneyInput value={draft.premiumAmount} onChange={changePremiumAmount} />
+              </Field>
+
+              <Field
+                label="Frecuencia de pago"
+                hint={premiumMonthly > 0 ? `${fmtMXN(premiumMonthly)} al mes` : undefined}
+              >
+                <Select
+                  value={draft.premiumFrequency}
+                  onChange={changePremiumFrequency}
+                  options={PREMIUM_FREQUENCIES}
+                />
+              </Field>
+            </div>
+
+            <Field label="¿Quién realiza esta aportación?">
+              <SegmentedControl
+                value={draft.premiumPaidBy ?? 'self'}
+                onChange={(v) => sheet.patch({ premiumPaidBy: v })}
+                options={PREMIUM_PAYERS}
+              />
+            </Field>
+
+            {/*
+              El interruptor sólo aparece si la prima la paga la persona. Ofrecerlo cuando la
+              cubre la empresa invitaría a restar de su presupuesto un dinero que no sale de
+              su bolsillo, y el flujo libre saldría más bajo de lo que es.
+            */}
+            {(draft.premiumPaidBy ?? 'self') === 'self' ? (
+              <Switch
+                checked={!!draft.includeInFixedExpenses}
+                onChange={(v) => sheet.patch({ includeInFixedExpenses: v })}
+                label="Incluir automáticamente en mi presupuesto de Gastos Fijos"
+                hint={premiumMonthly > 0
+                  ? `Marca esta prima como un compromiso de ${fmtMXN(premiumMonthly)} al mes que sale de tu bolsillo.`
+                  : 'Marca esta prima como un compromiso mensual que sale de tu bolsillo.'}
+              />
+            ) : (
+              <p className="text-[11px] leading-relaxed text-zinc-500">
+                Al pagarla tu empresa, esta prima no se descuenta de tu flujo mensual: suma a
+                tu patrimonio sin competir con tu gasto.
+              </p>
+            )}
+          </div>
+        )}
 
         {/*
           Moneda y perfil, sólo para el PPR. Son las dos preguntas que determinan su
@@ -280,7 +437,16 @@ export default function AssetCapture({
             min={-100}
           />
 
-          <Field label="Horizonte (años)">
+          {/*
+            "Horizonte" es vocabulario financiero, no lenguaje común: la palabra sola no
+            dice si se miden años, si es una fecha o si es el plazo de un contrato. El pie
+            traduce el término y da los tramos, que es lo que permite contestar sin saber
+            qué es un horizonte de inversión.
+          */}
+          <Field
+            label="Horizonte (años)"
+            hint="El tiempo que planeas mantener este patrimonio o fondo antes de disponer de él. Corto plazo (0-2 años), Mediano plazo (3-7 años) o Largo plazo (más de 7 años)."
+          >
             <NumberInput
               value={draft.horizonYears}
               onChange={(v) => sheet.patch({ horizonYears: v })}
