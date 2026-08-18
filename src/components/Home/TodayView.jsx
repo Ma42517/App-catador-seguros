@@ -27,22 +27,26 @@ export default function TodayView({ name, puntosActuales = 0 }) {
     <AISequence
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
-            {fecha}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
+              {fecha}
+            </p>
+            {/* Anillo pequeño, ancla discreta junto a la fecha. */}
+            <PointsPill puntosActuales={puntosActuales} size="sm" />
+          </div>
           <div className="mt-1">
             <WelcomeGreeting text={greeting} accentWords={saludo.split(' ')} />
           </div>
 
           {/*
-            PRUEBA VISUAL: el anillo aquí, centrado, justo debajo del saludo.
+            PRUEBA VISUAL: además del anillo pequeño de arriba, uno grande
+            centrado debajo del saludo, para comparar los dos tamaños a la vez.
             `header` se renderiza completo antes del mensaje del asistente
             ("La agenda está libre...", en blanco) dentro de `AISequence`, así
-            que basta con cerrar el bloque del header aquí para que el anillo
-            quede arriba de ese texto en el orden visual.
+            que este anillo queda arriba de ese texto en el orden visual.
           */}
-          <div className="mt-4 flex justify-center">
-            <PointsPill puntosActuales={puntosActuales} />
+          <div className="mt-6 flex justify-center">
+            <PointsPill puntosActuales={puntosActuales} size="lg" />
           </div>
         </div>
       )}

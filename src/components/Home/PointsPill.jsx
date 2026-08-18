@@ -1,8 +1,9 @@
 /**
  * src/components/Home/PointsPill.jsx
  *
- * Ancla visual del "Tracker de 25 Puntos": un anillo de progreso circular,
- * discreto (w-9 h-9), junto a la fecha. Sólo lectura: no hay botones, no
+ * Ancla visual del "Tracker de 25 Puntos": un anillo de progreso circular.
+ * Dos tamaños (`sm` discreto junto a la fecha, `lg` destacado en el centro
+ * de la pantalla) del mismo componente. Sólo lectura: no hay botones, no
  * suma nada por su cuenta — refleja `puntosActuales`, que calculará en algún
  * otro lugar la lógica de producto todavía por construir. El día que exista
  * ese cálculo (o un `useProductivity()` real), esta pieza no cambia: sólo
@@ -17,16 +18,6 @@
  */
 
 const META = 25;
-/*
-  Círculo agrandado a 36px (de los 28px iniciales): a 28px, "0/25" caía por
-  debajo del tamaño mínimo de fuente que varios navegadores fuerzan por
-  accesibilidad (suelen imponer un piso aunque el CSS pida menos), así que el
-  texto se recortaba a "0" visible y el resto quedaba invisible o
-  desbordado. Con más círculo hay sitio para un tamaño de fuente por encima
-  de ese piso sin que las cuatro cifras se encimen.
-*/
-const RADIUS = 15;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 /*
   Tres tramos y no una interpolación continua: la meta es un umbral binario
@@ -60,44 +51,62 @@ function toneFor(points) {
   };
 }
 
+/*
+  Dos tamaños y no uno con escala CSS: escalar con `transform` un SVG cuyo
+  `strokeWidth` está fijado en unidades de `viewBox` engrosaría o afinaría el
+  trazo de forma proporcional al zoom, no al tamaño real en pantalla — el
+  anillo grande necesita un trazo más grueso en términos absolutos para no
+  verse débil, no el mismo trazo estirado.
+*/
+const SIZES = {
+  sm: { box: 'h-9 w-9', viewBox: 32, radius: 15, stroke: 2, text: 'text-[9px]' },
+  lg: { box: 'h-24 w-24', viewBox: 88, radius: 40, stroke: 5, text: 'text-lg' },
+};
+
 /**
  * @param {number} puntosActuales - Puntos ya calculados en el fondo. Por ahora
  *   se recibe como prop; cuando exista el contexto de productividad real, el
  *   único cambio es leerlo de ahí en el componente que llama a este anillo.
+ * @param {'sm'|'lg'} size - 'sm' (36px, junto a la fecha) o 'lg' (96px, para
+ *   destacarlo en el centro de la pantalla). Mismo componente, mismo cálculo
+ *   de tramo y color: sólo cambian las medidas del SVG.
  */
-export default function PointsPill({ puntosActuales = 0 }) {
+export default function PointsPill({ puntosActuales = 0, size = 'sm' }) {
   const points = Math.max(0, Math.min(puntosActuales, META));
   const percent = points / META;
-  const offset = CIRCUMFERENCE * (1 - percent);
+  const dims = SIZES[size];
+  const circumference = 2 * Math.PI * dims.radius;
+  const offset = circumference * (1 - percent);
   const tone = toneFor(points);
+  const center = dims.viewBox / 2;
 
   return (
     <span
       role="status"
       aria-label={`${points} de ${META} puntos del día`}
-      className="relative inline-grid h-9 w-9 shrink-0 place-items-center"
+      className={`relative inline-grid shrink-0 place-items-center ${dims.box}`}
     >
       <svg
-        viewBox="0 0 32 32"
-        className={`h-9 w-9 -rotate-90 transition-[filter] duration-500 ${tone.glow}`}
+        viewBox={`0 0 ${dims.viewBox} ${dims.viewBox}`}
+        className={`-rotate-90 transition-[filter] duration-500 ${dims.box} ${tone.glow}`}
       >
         {/* Riel de fondo: apenas visible, marca el círculo completo como referencia. */}
         <circle
-          cx="16"
-          cy="16"
-          r={RADIUS}
+          cx={center}
+          cy={center}
+          r={dims.radius}
           fill="none"
-          strokeWidth="2"
+          strokeWidth={dims.stroke}
           className="stroke-white/10"
         />
         <circle
-          cx="16"
-          cy="16"
-          r={RADIUS}
+          cx={center}
+          cy={center}
+          r={dims.radius}
           fill="none"
-          strokeWidth="2"
+          strokeWidth={dims.stroke}
           strokeLinecap="round"
-          strokeDasharray={CIRCUMFERENCE}
+          strokeDasharray={circumference}
           strokeDashoffset={offset}
           className={`transition-[stroke,stroke-dashoffset] duration-700 ease-out ${tone.stroke}`}
         />
@@ -106,14 +115,11 @@ export default function PointsPill({ puntosActuales = 0 }) {
       {/*
         "0/25" completo y no sólo el número: un anillo en 0 sin la meta a la
         vista es indistinguible de un anillo roto — el "/25" es lo que dice
-        "esto es un contador, no un ícono que no cargó". `text-[9px]` ya
-        queda por encima del piso de fuente mínimo que fuerzan varios
-        navegadores, así que las cuatro cifras se pintan completas y no sólo
-        el primer carácter.
+        "esto es un contador, no un ícono que no cargó".
       */}
       <span
-        className={`absolute text-[9px] font-bold leading-none tabular-nums
-                    transition-colors duration-500 ${tone.text}`}
+        className={`absolute font-bold leading-none tabular-nums transition-colors
+                    duration-500 ${dims.text} ${tone.text}`}
       >
         {points}/{META}
       </span>
