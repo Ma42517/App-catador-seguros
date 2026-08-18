@@ -18,7 +18,6 @@ import { useDashboardVersion } from '../../context/dashboardVersion';
 import { highestPriorityOf } from '../Activities/priorities';
 import { buildMessage } from '../../lib/homeMessage';
 import useTypewriter from '../../lib/useTypewriter';
-import { hasSeenIntro } from '../../lib/homeIntroMemory';
 
 /**
  * Chrome de navegación del área autenticada.
@@ -52,17 +51,8 @@ export default function AdminLayout({
     hermanos dentro del mismo commit inicial) y corren el mismo intervalo
     sobre el mismo texto, así que terminan de "escribir" juntas y la barra
     se revela exactamente cuando el resto lo hace.
-
-    `instant: hasSeenIntro()` lee la misma Memoria de Sesión que consulta
-    `AISequence.jsx`. Sin esto, con la intro ya vista el contenido central
-    aparecería de golpe pero esta barra seguiría esperando a que una
-    animación de escritura —que en ese caso nunca corre— "termine", y
-    quedaría invisible para siempre tras la primera vez.
   */
-  const { isTyping: isHomeTextTyping } = useTypewriter(
-    buildMessage(highPriorityToday.length),
-    { instant: hasSeenIntro() },
-  );
+  const { isTyping: isHomeTextTyping } = useTypewriter(buildMessage(highPriorityToday.length));
 
   /*
     El panel de administración tiene una sola llave: el rol `admin`.
