@@ -2,7 +2,7 @@
  * src/components/Home/PointsPill.jsx
  *
  * Ancla visual del "Tracker de 25 Puntos": un anillo de progreso circular,
- * discreto (w-7 h-7), junto a la fecha. Sólo lectura: no hay botones, no
+ * discreto (w-9 h-9), junto a la fecha. Sólo lectura: no hay botones, no
  * suma nada por su cuenta — refleja `puntosActuales`, que calculará en algún
  * otro lugar la lógica de producto todavía por construir. El día que exista
  * ese cálculo (o un `useProductivity()` real), esta pieza no cambia: sólo
@@ -17,7 +17,15 @@
  */
 
 const META = 25;
-const RADIUS = 11;
+/*
+  Círculo agrandado a 36px (de los 28px iniciales): a 28px, "0/25" caía por
+  debajo del tamaño mínimo de fuente que varios navegadores fuerzan por
+  accesibilidad (suelen imponer un piso aunque el CSS pida menos), así que el
+  texto se recortaba a "0" visible y el resto quedaba invisible o
+  desbordado. Con más círculo hay sitio para un tamaño de fuente por encima
+  de ese piso sin que las cuatro cifras se encimen.
+*/
+const RADIUS = 15;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 /*
@@ -67,24 +75,24 @@ export default function PointsPill({ puntosActuales = 0 }) {
     <span
       role="status"
       aria-label={`${points} de ${META} puntos del día`}
-      className="relative inline-grid h-7 w-7 shrink-0 place-items-center"
+      className="relative inline-grid h-9 w-9 shrink-0 place-items-center"
     >
       <svg
-        viewBox="0 0 24 24"
-        className={`h-7 w-7 -rotate-90 transition-[filter] duration-500 ${tone.glow}`}
+        viewBox="0 0 32 32"
+        className={`h-9 w-9 -rotate-90 transition-[filter] duration-500 ${tone.glow}`}
       >
         {/* Riel de fondo: apenas visible, marca el círculo completo como referencia. */}
         <circle
-          cx="12"
-          cy="12"
+          cx="16"
+          cy="16"
           r={RADIUS}
           fill="none"
           strokeWidth="2"
           className="stroke-white/10"
         />
         <circle
-          cx="12"
-          cy="12"
+          cx="16"
+          cy="16"
           r={RADIUS}
           fill="none"
           strokeWidth="2"
@@ -98,12 +106,13 @@ export default function PointsPill({ puntosActuales = 0 }) {
       {/*
         "0/25" completo y no sólo el número: un anillo en 0 sin la meta a la
         vista es indistinguible de un anillo roto — el "/25" es lo que dice
-        "esto es un contador, no un ícono que no cargó". `text-[7px]` es lo
-        que permite que las cuatro cifras quepan sin desbordar el círculo
-        de 28px.
+        "esto es un contador, no un ícono que no cargó". `text-[9px]` ya
+        queda por encima del piso de fuente mínimo que fuerzan varios
+        navegadores, así que las cuatro cifras se pintan completas y no sólo
+        el primer carácter.
       */}
       <span
-        className={`absolute text-[7px] font-bold leading-none tabular-nums
+        className={`absolute text-[9px] font-bold leading-none tabular-nums
                     transition-colors duration-500 ${tone.text}`}
       >
         {points}/{META}
