@@ -27,15 +27,15 @@ export default function TodayView({ name, puntosActuales = 0 }) {
     <AISequence
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
             <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
               {fecha}
             </p>
             {/*
-              La píldora vive junto a la fecha y no junto al saludo: el saludo
+              El anillo vive pegado a la fecha y no junto al saludo: el saludo
               entra palabra por palabra con `WelcomeGreeting`, y un elemento a su
               lado competiría con esa animación por la misma línea de atención.
-              Aquí arriba se ancla de una vez, quieta, mientras el saludo hace
+              Aquí arriba se ancla de una vez, quieto, mientras el saludo hace
               lo suyo debajo.
             */}
             <PointsPill puntosActuales={puntosActuales} />
