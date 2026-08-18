@@ -60,7 +60,7 @@ export const AVAILABILITY_OPTIONS = [
  * Es distinto de `disponibilidad` (Paso 6, tiempo completo/medio tiempo):
  * ese paso dice CUÁNTO tiempo tiene, éste dice CUÁNDO exactamente. Cuatro
  * botones ("Por las mañanas"...) obligaban a todo o nada dentro de un
- * bloque de seis horas — un freelance con la mañana libre salvo la hora de
+ * bloque de varias horas — un freelance con la mañana libre salvo la hora de
  * la comida no podía decirlo sin, o bien marcar la mañana entera (y que la
  * app le sugiera prospectar mientras come), o bien no marcar nada (y
  * perder las otras cinco horas libres). El mapa hora por hora deja hueca
@@ -71,11 +71,26 @@ export const AVAILABILITY_OPTIONS = [
  * no como una fila plana de 24 botones idénticos; no es una opción
  * seleccionable en sí misma, así que no tiene `value` propio.
  */
+/*
+  Los límites entre bloques siguen la definición estándar de las cuatro
+  partes del día, no una división mecánica de 24 horas en cuatro sextos:
+
+    Madrugada  00:00–05:59  las horas más oscuras, antes del amanecer.
+    Mañana     06:00–11:59  desde el amanecer hasta el mediodía.
+    Tarde      12:00–18:59  desde el mediodía hasta el ocaso — incluye la
+                             hora 18 a propósito, porque a esa hora todavía
+                             hay luz de tarde, no es noche cerrada.
+    Noche      19:00–23:59  desde el ocaso hasta la medianoche.
+
+  Por eso Tarde tiene siete horas y Noche cinco, en vez de seis y seis: la
+  hora que "sobra" respecto a una partición pareja es la que de verdad
+  describe cuándo empieza a oscurecer.
+*/
 export const HOUR_BLOCKS = [
   { key: 'dawn', label: 'Madrugada', hours: [0, 1, 2, 3, 4, 5] },
   { key: 'morning', label: 'Mañana', hours: [6, 7, 8, 9, 10, 11] },
-  { key: 'afternoon', label: 'Tarde', hours: [12, 13, 14, 15, 16, 17] },
-  { key: 'evening', label: 'Noche', hours: [18, 19, 20, 21, 22, 23] },
+  { key: 'afternoon', label: 'Tarde', hours: [12, 13, 14, 15, 16, 17, 18] },
+  { key: 'evening', label: 'Noche', hours: [19, 20, 21, 22, 23] },
 ];
 
 /** Las 24 horas en orden, para el atajo "Todo el día libre". */

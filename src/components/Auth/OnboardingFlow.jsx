@@ -269,10 +269,14 @@ function HourCell({ hour, isSelected, onToggle }) {
 
 /**
  * Un bloque del mapa (Madrugada, Mañana, Tarde, Noche): su título con
- * icono, un atajo para marcar o vaciar las seis horas de golpe, y la fila
- * de celdas.
+ * icono, un atajo para marcar o vaciar todas sus horas de golpe, y la fila
+ * de celdas. El grid de seis columnas es fijo para los cuatro bloques —da
+ * igual que Tarde tenga siete horas y Noche cinco (ver `HOUR_BLOCKS`)—, así
+ * que la última fila de Tarde se completa con una sola celda y la de
+ * Noche queda con la sexta columna vacía, el mismo efecto de un calendario
+ * cuya última semana no llena la cuadrícula entera.
  *
- * El atajo por bloque existe porque tocar seis celdas una por una para
+ * El atajo por bloque existe porque tocar varias celdas una por una para
  * decir "toda la tarde libre" es fricción que un asesor con la agenda
  * simple no debería pagar — y sigue permitiendo que alguien con esa misma
  * tarde libre, salvo la hora de la comida, toque el atajo y luego
