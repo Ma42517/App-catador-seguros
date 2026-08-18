@@ -1,5 +1,6 @@
 import AISequence from './AISequence';
 import WelcomeGreeting from './WelcomeGreeting';
+import PointsPill from './PointsPill';
 
 const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
 
@@ -11,7 +12,7 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  * El saludo entra palabra por palabra, sin vibración: el golpe al tacto se
  * reserva para los botones y los avisos del cronómetro.
  */
-export default function TodayView({ name }) {
+export default function TodayView({ name, puntosActuales = 0 }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
 
@@ -26,9 +27,19 @@ export default function TodayView({ name }) {
     <AISequence
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
-            {fecha}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
+              {fecha}
+            </p>
+            {/*
+              La píldora vive junto a la fecha y no junto al saludo: el saludo
+              entra palabra por palabra con `WelcomeGreeting`, y un elemento a su
+              lado competiría con esa animación por la misma línea de atención.
+              Aquí arriba se ancla de una vez, quieta, mientras el saludo hace
+              lo suyo debajo.
+            */}
+            <PointsPill puntosActuales={puntosActuales} />
+          </div>
           <div className="mt-1">
             <WelcomeGreeting text={greeting} accentWords={saludo.split(' ')} />
           </div>
