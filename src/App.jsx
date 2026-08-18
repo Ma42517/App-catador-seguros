@@ -22,7 +22,7 @@ import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
 import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
-import { canRunPromotoria } from './data/profilesRepo';
+import { canRunPromotoria, PROFILE_ROLES } from './data/profilesRepo';
 import {
   DashboardVersionContext, readVersion, writeVersion,
 } from './context/dashboardVersion';
@@ -66,20 +66,61 @@ function isPreviewFrame() {
 }
 
 /**
- * `?onboardingPreview=1`: entorno para probar `OnboardingFlow` sin crear ni
- * abrir ninguna cuenta real.
+ * `?onboardingPreview=1`: entorno para probar el resto de la app —agenda,
+ * metas, horario— con un asesor ya aprobado, sin crear ni abrir ninguna
+ * cuenta real.
  *
  * Se resuelve en `App()`, antes de montar `SessionProvider` — misma idea que
  * la tarjeta pública (`publicCardIdFromPath`) un poco más abajo—: así el
- * flujo no depende de que exista una sesión, ni de Supabase, ni de ningún
- * registro con estado `pending` de verdad. Es sólo para desarrollo; no se
- * enlaza desde ningún sitio de la app y desaparece si se quita el parámetro
- * de la URL.
+ * acceso no depende de que exista una sesión, ni de Supabase, ni de ningún
+ * registro aprobado de verdad. Es sólo para desarrollo; no se enlaza desde
+ * ningún sitio de la app y desaparece si se quita el parámetro de la URL.
  */
 function isOnboardingPreview() {
   if (typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('onboardingPreview') === '1';
 }
+
+/**
+ * Ficha ficticia para `?onboardingPreview=1`: un asesor ya aprobado, con la
+ * radiografía completa del Onboarding ya contestada, para poder ver el resto
+ * de la app (agenda, metas, horario) sin crear ni abrir ninguna cuenta real.
+ *
+ * `key` no es un UUID real de Supabase, así que todo lo que se guarda por
+ * usuario (agenda, metas, bloques de tiempo, marca de agua) usa esta clave
+ * fija: entrar dos veces a la vista previa encuentra los mismos datos de
+ * prueba, en vez de arrancar en blanco cada vez.
+ *
+ * `horario` trae mañana y tarde marcados (ver `HOUR_BLOCKS` en
+ * `advisorOnboarding.js`) a propósito, y no las 24 horas: así el filtro de
+ * horario del mensaje inteligente (`smartMessage.js`) tiene algo real que
+ * mostrar — de noche, la vista previa se ve exactamente como la vería este
+ * asesor ficticio fuera de su horario declarado.
+ */
+const PREVIEW_IDENTITY = {
+  key: 'preview-sin-cuenta',
+  name: 'Sofía Ramírez',
+  email: 'sofia.preview@ejemplo.com',
+  avatarUrl: '',
+  role: PROFILE_ROLES.ADVISOR,
+  promotorId: null,
+  promotoriaStatus: null,
+  promotoriaCode: '',
+  company: '',
+  phone: '',
+  whatsapp: '',
+  experienceLevel: 'new_professional',
+  advisorProfileData: {
+    nombre: 'Sofía',
+    perfil: 'new_professional',
+    fortaleza: 'people',
+    inquietud: 'organization',
+    mercado: 'between_20_50',
+    disponibilidad: 'full_time',
+    horario: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    motor: 'independence',
+  },
+};
 
 /**
  * Conmutador tipo pill entre las dos grandes fases de la app: captura
@@ -689,37 +730,47 @@ export default function App() {
   if (publicCardId) return <PublicCardView advisorId={publicCardId} />;
 
   /*
-    Vista previa del Onboarding, resuelta por la misma razón que la tarjeta
+    Vista previa de acceso, resuelta por la misma razón que la tarjeta
     pública: entorno de prueba, sin `SessionProvider` ni ninguna cuenta real
-    detrás. `userId` es un texto que no coincide con ninguna fila de
-    `profiles` —`saveExperienceLevel` y `saveAdvisorProfile` ya están hechas
-    para no romperse cuando la escritura no encuentra a quién actualizar (ver
-    el comentario junto a `finish` en `OnboardingFlow.jsx`)—, así que se
-    puede recorrer el flujo completo sin tocar la base de verdad.
-
-    El botón de reiniciar existe porque este componente no expone ninguna
-    otra forma de volver al Paso 1: es una vista terminal por diseño (la
-    sala de espera no lleva salida), y aquí sí hace falta poder repetir la
-    prueba sin recargar la pestaña a mano.
+    detrás. Monta la app completa —agenda, metas, horario— con la ficha
+    ficticia `PREVIEW_IDENTITY`, ya aprobada, en vez de recorrer el
+    Onboarding: es un atajo para probar el resto de la app, no el propio
+    flujo de bienvenida (ese se prueba sin `?onboardingPreview=1`, contestando
+    el cuestionario en el Login real o entrando aquí con las herramientas de
+    desarrollo si se necesita ver esa pantalla en particular).
   */
   if (isOnboardingPreview()) {
     return (
       <div className="relative min-h-screen">
-        <OnboardingFlow
-          userId="preview-sin-cuenta"
-          onProfileSaved={async () => {}}
-        />
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
+        <FinanceProvider>
+          <ReferralProvider>
+            <EventProvider username={PREVIEW_IDENTITY.key}>
+              <AccessProvider username={PREVIEW_IDENTITY.key} forcedPromoter={false}>
+                <GoalsProvider username={PREVIEW_IDENTITY.key}>
+                  <Shell
+                    onLogout={() => window.location.reload()}
+                    isPreview={isPreview}
+                    isAdmin={false}
+                    isPromoterUser={false}
+                    storageKey={PREVIEW_IDENTITY.key}
+                    displayName={PREVIEW_IDENTITY.name}
+                    horario={PREVIEW_IDENTITY.advisorProfileData.horario}
+                  />
+                </GoalsProvider>
+              </AccessProvider>
+            </EventProvider>
+          </ReferralProvider>
+        </FinanceProvider>
+
+        <span
           className="fixed left-3 top-3 z-50 flex items-center gap-1.5 rounded-full
                      border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
                      font-bold uppercase tracking-widest text-amber-300/90
-                     backdrop-blur-md transition-colors hover:bg-amber-500/20"
+                     backdrop-blur-md"
         >
           <FlaskConical size={11} aria-hidden="true" />
-          Vista previa · Reiniciar
-        </button>
+          Vista previa · {PREVIEW_IDENTITY.name}
+        </span>
       </div>
     );
   }
