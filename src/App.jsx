@@ -21,8 +21,13 @@ import PromotorDashboard from './components/Promotoria/PromotorDashboard';
 import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
-import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
-import { canRunPromotoria } from './data/profilesRepo';
+import {
+  SessionProvider, InjectedSession, useSession, SESSION_STATUS,
+} from './context/SessionContext';
+import {
+  canRunPromotoria, isApprovedRole, canManage as canManageRole, isAdminRole,
+  isPromoterOwner, isAssistantRole, PROFILE_ROLES,
+} from './data/profilesRepo';
 import {
   DashboardVersionContext, readVersion, writeVersion,
 } from './context/dashboardVersion';
@@ -91,6 +96,69 @@ function isOnboardingPreview() {
  * vez.
  */
 const PREVIEW_KEY = 'preview-sin-cuenta';
+
+/**
+ * Valor simulado de `useSession()` para la vista previa.
+ *
+ * Sin esto, `SessionContext.Provider` recibiría sólo `identity` y
+ * `Shell` funcionaría a medias: en cuanto la persona abriera el menú "Ver
+ * más", la tarjeta digital o cualquier otra pantalla que también llama a
+ * `useSession()` (`PriorityAlerts`, `AdminLayout`, `AccessBar`...), esa
+ * llamada encontraría un contexto con la forma equivocada —`identity`
+ * suelto, sin `role`, sin `refreshIdentity`— y fallaría en cuanto leyera
+ * una propiedad que no está, tirando la pantalla a negro igual que sin
+ * proveedor. Se construye con la misma forma exacta que arma
+ * `SessionProvider`, con funciones no-op donde tocaría escribir en
+ * Supabase: aquí no hay sesión real que cerrar ni ficha real que releer.
+ *
+ * `role: PROFILE_ROLES.ADVISOR` porque el resto de la app (menú, permisos)
+ * espera un rol aprobado para dibujar sus pantallas normales; con
+ * `advisorProfileData` ya resuelto no hace falta simular ningún otro rol
+ * para este propósito.
+ */
+function buildPreviewSessionValue(advisorProfileData) {
+  const role = PROFILE_ROLES.ADVISOR;
+  const identity = {
+    key: PREVIEW_KEY,
+    name: advisorProfileData.nombre || 'Asesor',
+    email: '',
+    avatarUrl: '',
+    role,
+    promotorId: null,
+    promotoriaStatus: null,
+    promotoriaCode: '',
+    company: '',
+    phone: '',
+    whatsapp: '',
+    experienceLevel: advisorProfileData.perfil || '',
+    advisorProfileData,
+  };
+
+  return {
+    status: SESSION_STATUS.READY,
+    identity,
+    error: '',
+    isApproved: isApprovedRole(role),
+    isPending: false,
+    canManage: canManageRole(role),
+    canRunPromotoria: canRunPromotoria(role),
+    isPromoterOwner: isPromoterOwner(role),
+    isAssistant: isAssistantRole(role),
+    isAdmin: isAdminRole(role),
+    role,
+    promotoriaStatus: null,
+    isAwaitingPromotoria: false,
+    promotorId: null,
+    needsPromotoria: false,
+    googleEnabled: false,
+    signInWithGoogle: async () => ({ error: null }),
+    signInWithPassword: async () => ({ error: null }),
+    signUpWithPassword: async () => ({ error: null }),
+    signOut: async () => { window.location.reload(); },
+    refreshRole: async () => ({ changed: false }),
+    refreshIdentity: async () => {},
+  };
+}
 
 /**
  * Conmutador tipo pill entre las dos grandes fases de la app: captura
@@ -729,27 +797,36 @@ function OnboardingPreview({ isPreview }) {
   const [approvedData, setApprovedData] = useState(null);
 
   if (approvedData) {
+    /*
+      El valor no se memoriza con `useMemo` porque `approvedData` sólo
+      cambia una vez, al terminar el cuestionario: no hay ningún re-render
+      frecuente aquí que memoizar evitaría.
+    */
+    const sessionValue = buildPreviewSessionValue(approvedData);
+
     return (
       <div className="relative min-h-screen">
-        <FinanceProvider>
-          <ReferralProvider>
-            <EventProvider username={PREVIEW_KEY}>
-              <AccessProvider username={PREVIEW_KEY} forcedPromoter={false}>
-                <GoalsProvider username={PREVIEW_KEY}>
-                  <Shell
-                    onLogout={() => window.location.reload()}
-                    isPreview={isPreview}
-                    isAdmin={false}
-                    isPromoterUser={false}
-                    storageKey={PREVIEW_KEY}
-                    displayName={approvedData.nombre || 'Asesor'}
-                    horario={approvedData.horario ?? []}
-                  />
-                </GoalsProvider>
-              </AccessProvider>
-            </EventProvider>
-          </ReferralProvider>
-        </FinanceProvider>
+        <InjectedSession value={sessionValue}>
+          <FinanceProvider>
+            <ReferralProvider>
+              <EventProvider username={PREVIEW_KEY}>
+                <AccessProvider username={PREVIEW_KEY} forcedPromoter={false}>
+                  <GoalsProvider username={PREVIEW_KEY}>
+                    <Shell
+                      onLogout={() => window.location.reload()}
+                      isPreview={isPreview}
+                      isAdmin={false}
+                      isPromoterUser={false}
+                      storageKey={PREVIEW_KEY}
+                      displayName={approvedData.nombre || 'Asesor'}
+                      horario={approvedData.horario ?? []}
+                    />
+                  </GoalsProvider>
+                </AccessProvider>
+              </EventProvider>
+            </ReferralProvider>
+          </FinanceProvider>
+        </InjectedSession>
 
         <span
           className="fixed left-3 top-3 z-50 flex items-center gap-1.5 rounded-full

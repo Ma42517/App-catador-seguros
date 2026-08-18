@@ -447,3 +447,25 @@ export function useSession() {
   if (!ctx) throw new Error('useSession debe usarse dentro de <SessionProvider>');
   return ctx;
 }
+
+/**
+ * Provee un valor de sesión ya armado, en vez de resolverlo contra
+ * Supabase.
+ *
+ * Existe para `OnboardingPreview` (`App.jsx`, entorno `?onboardingPreview=1`):
+ * ahí no hay ninguna cuenta real detrás del botón "Simular aprobación",
+ * pero cualquier pantalla alcanzable dentro de `Shell` —el menú "Ver más",
+ * la tarjeta digital, los avisos— llama a `useSession()`, y sin un
+ * proveedor de verdad encima esa llamada lanza y tira abajo toda la app con
+ * la pantalla en negro que describe el reporte que motivó este componente.
+ *
+ * No se exporta `SessionContext` directamente para armar el mismo
+ * `<SessionContext.Provider>` desde fuera: eso convertiría una constante en
+ * la superficie pública del módulo, y el linter ya avisa cuando un archivo
+ * de contexto exporta algo que no es un componente (Fast Refresh). Este
+ * envoltorio es un componente como cualquier otro, así que no añade esa
+ * advertencia.
+ */
+export function InjectedSession({ value, children }) {
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+}
