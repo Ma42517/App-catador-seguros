@@ -396,7 +396,7 @@ function stepFromHash() {
   texto que la persona puede cambiar.
 */
 function Shell({
-  onLogout, isPreview, isAdmin, isPromoterUser, storageKey, displayName, horario,
+  onLogout, isPreview, isAdmin, isPromoterUser, storageKey, displayName, horario, inquietud,
 }) {
   /*
     No hay estado de tema. La app es oscura de forma permanente y la clase `dark`
@@ -538,7 +538,12 @@ function Shell({
       {activeSection === 'preview' ? (
         <DevicePreview />
       ) : activeSection === 'home' ? (
-        <TodayView name={displayName} horario={horario} />
+        <TodayView
+          name={displayName}
+          horario={horario}
+          inquietud={inquietud}
+          username={storageKey}
+        />
       ) : activeSection === 'productivity' ? (
         <ProductivityDashboard username={storageKey} />
       ) : activeSection === 'promotoria' ? (
@@ -741,6 +746,7 @@ function Gate({ isPreview }) {
                 storageKey={identity.key}
                 displayName={identity.name}
                 horario={identity.advisorProfileData?.horario ?? []}
+                inquietud={identity.advisorProfileData?.inquietud ?? ''}
               />
             </GoalsProvider>
           </AccessProvider>
@@ -820,6 +826,7 @@ function OnboardingPreview({ isPreview }) {
                       storageKey={PREVIEW_KEY}
                       displayName={approvedData.nombre || 'Asesor'}
                       horario={approvedData.horario ?? []}
+                      inquietud={approvedData.inquietud ?? ''}
                     />
                   </GoalsProvider>
                 </AccessProvider>
