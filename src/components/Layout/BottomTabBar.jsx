@@ -1,13 +1,6 @@
-import { useState, useEffect } from 'react';
 import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
 import { priorityByKey } from '../Activities/priorities';
 import { tapFeedback } from '../../lib/haptics';
-
-/** Meta del Tracker de 25 Puntos. */
-const POINTS_GOAL = 25;
-
-/** Cuánto tarda el botón Agregar en mutar, contado desde que la barra ya es visible. */
-const TRACKER_REVEAL_MS = 5000;
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
@@ -27,27 +20,9 @@ const LABEL = 'text-[10px] font-medium leading-none';
  */
 export default function BottomTabBar({
   onToday, onProductivity, onAgenda, onAdd, onMore,
-  agendaCount = 0, agendaPriority = null, revealed = true, puntosActuales = 0,
+  agendaCount = 0, agendaPriority = null, revealed = true,
 }) {
   const today = new Date().getDate();
-
-  /*
-    El botón Agregar muta 5 segundos después de que la barra ya es visible,
-    no 5 segundos después de montarse: la barra puede pasar un rato invisible
-    (`revealed=false`) mientras el texto de "Hoy" todavía se escribe, y ese
-    tiempo no debe contar. El temporizador arranca —y se reinicia si hiciera
-    falta— cuando `revealed` pasa a `true`.
-  */
-  const [trackerRevealed, setTrackerRevealed] = useState(false);
-
-  useEffect(() => {
-    if (!revealed) return undefined;
-    const timer = setTimeout(() => setTrackerRevealed(true), TRACKER_REVEAL_MS);
-    return () => clearTimeout(timer);
-  }, [revealed]);
-
-  const points = Math.max(0, Math.min(puntosActuales, POINTS_GOAL));
-  const metaCumplida = points >= POINTS_GOAL;
 
   // Más de nueve pendientes en un día ya no se leen como una cuenta, sino como
   // "muchos": el número exacto deja de aportar y ensancharía la pastilla.
@@ -120,63 +95,23 @@ export default function BottomTabBar({
             <span className={LABEL}>Productividad</span>
           </button>
 
-          {/*
-            Agregar — botón central. Sigue siendo el botón de agregar en todo
-            momento (misma acción, misma etiqueta): lo único que muta es lo
-            que hay dentro del círculo. Arranca con el "+" de siempre y, 5s
-            después de que la barra ya es visible, el círculo pasa de
-            degradado a negro sólido —transición CSS continua, suave— y el
-            ícono es reemplazado por "N/25" con un fundido de escala también
-            suave (`animate-tracker-in`, ver tailwind.config.js): sin dips de
-            opacidad ni temblores, sólo un acercamiento continuo.
-          */}
+          {/* Agregar — botón central destacado */}
           <div className="flex-1 flex justify-center">
             <button
               type="button"
               onClick={withTap(onAdd)}
-              aria-label={trackerRevealed
-                ? `Agregar. Puntos del día: ${points} de ${POINTS_GOAL}${metaCumplida ? ', meta cumplida' : ''}`
-                : 'Agregar'}
               className="group flex flex-col items-center transition-transform will-change-transform hover:scale-105
                          focus-visible:outline-none"
             >
               <span
-                className={`-mt-5 grid h-11 w-11 place-items-center rounded-full p-3 text-white
-                            shadow-lg ring-1 ring-white/20 transition-[background,box-shadow]
-                            duration-700 group-hover:shadow-xl
-                            ${trackerRevealed
-                    ? 'bg-black shadow-black/50'
-                    : 'bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 shadow-violet-600/40 group-hover:shadow-violet-500/50'}`}
+                className="-mt-5 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500
+                           to-violet-600 p-3 text-white shadow-lg shadow-violet-600/40
+                           ring-1 ring-white/20 transition-shadow
+                           group-hover:shadow-xl group-hover:shadow-violet-500/50"
                 aria-hidden="true"
               >
-                {trackerRevealed ? (
-                  /*
-                    `flex w-full items-center justify-center` centra el texto
-                    de forma explícita: sin esto, el span se comporta como una
-                    caja de línea normal y el navegador la ancha justo al
-                    contenido, dejando que el "/" y el "25" empujen el bloque
-                    visualmente hacia la derecha dentro del círculo. `font-mono`
-                    cambia la fuente a una tipografía monoespaciada — más
-                    "digital", coherente con un contador— y de paso hace que
-                    cada carácter ocupe el mismo ancho, sin el problema de
-                    `tabular-nums` (que sólo empareja dígitos, no el "/").
-                    Los colores suben un tono (300 en vez de 400) porque sobre
-                    negro puro se leían apagados, casi grises, y no con el
-                    naranja o verde vivos que se buscaban.
-                  */
-                  <span
-                    key="tracker"
-                    className={`animate-tracker-in flex w-full items-center justify-center
-                                font-mono text-sm font-bold leading-none
-                                ${metaCumplida ? 'text-emerald-300' : 'text-orange-300'}`}
-                  >
-                    {points}/{POINTS_GOAL}
-                  </span>
-                ) : (
-                  <Plus size={22} strokeWidth={2.3} />
-                )}
+                <Plus size={22} strokeWidth={2.3} />
               </span>
-              {/* La etiqueta se queda igual: sigue siendo el botón de agregar, sólo cambia el contenido de dentro del círculo. */}
               <span className={`${LABEL} mt-1 text-zinc-600 dark:text-zinc-300`}>Agregar</span>
             </button>
           </div>

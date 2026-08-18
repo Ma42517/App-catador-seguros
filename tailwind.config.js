@@ -97,18 +97,6 @@ export default {
           from: { opacity: '0', transform: 'translateY(12px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
-        /*
-          Aterrizaje del "0/25" en el botón Agregar de la barra inferior,
-          cuando muta de + a Tracker de puntos. Reemplaza al "glitch" de
-          parpadeos que tenía antes —los tramos de opacidad baja (0.2-0.3)
-          se leían como letras apagadas o grises, justo lo contrario del
-          naranja o verde vivo que debían mostrar—. Ahora es un único fundido
-          continuo, sin dips de opacidad a medio camino.
-        */
-        'tracker-in': {
-          from: { opacity: '0', transform: 'scale(0.85)' },
-          to: { opacity: '1', transform: 'scale(1)' },
-        },
         // Reflejo que recorre el cristal de "About Me".
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
@@ -214,7 +202,6 @@ export default {
           estado final durante la espera y la cascada no existiría.
         */
         'fade-in-up': 'fade-in-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
-        'tracker-in': 'tracker-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
         shimmer: 'shimmer 4.5s linear infinite',
         /*
           Ciclos distintos entre sí (3, 2.5, 3 y 2.8 s) y sin divisores comunes
