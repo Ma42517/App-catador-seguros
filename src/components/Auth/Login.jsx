@@ -3,6 +3,7 @@ import {
   Lock, Mail, User, LogIn, UserPlus, Loader2, AlertTriangle, MailCheck,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
+import TextScaleControl from '../ui/TextScaleControl';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-700 bg-zinc-950/60 py-3 pl-10 pr-3 text-sm '
@@ -167,6 +168,17 @@ export default function Login() {
       />
 
       <div className="animate-rise relative w-full max-w-sm">
+        {/*
+          Antes de entrar, no después: quien no lee bien el formulario que
+          tiene delante necesita poder arreglarlo primero, no encontrar el
+          ajuste ya adentro de una cuenta a la que no puede llegar. Va fuera
+          de la tarjeta y centrado, para que sea lo primero que se note al
+          abrir la pantalla y no un detalle escondido en una esquina.
+        */}
+        <div className="mb-4 flex justify-center">
+          <TextScaleControl />
+        </div>
+
         <div
           className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl
                      shadow-zinc-950/60 backdrop-blur-md sm:p-8"

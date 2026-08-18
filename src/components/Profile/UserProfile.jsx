@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
+import TextScaleControl from '../ui/TextScaleControl';
 import { readAdvisorProfile, saveAdvisorProfile, initialsFrom } from '../../data/advisorProfile';
 import { readLeads } from '../../data/leads';
 
@@ -142,6 +143,27 @@ export default function UserProfile({ isOpen, onClose, username, onEditCard, onO
         <p className="mt-4 text-[11px] leading-relaxed text-zinc-500">
           Así aparecerán tus datos en los flyers que compartas.
         </p>
+      </section>
+
+      {/*
+        Mismo ajuste que en la pantalla de acceso, para quien lo quiera
+        cambiar después de haber entrado: no todo el mundo lo necesita desde
+        el primer momento, y aquí queda a la mano sin ocupar espacio en el
+        login para quien nunca lo toca.
+      */}
+      <section className="mb-6 flex items-center justify-between gap-3 rounded-2xl
+                          border border-zinc-200 bg-white p-4
+                          dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+            Tamaño de texto
+          </p>
+          <p className="text-[11px] text-zinc-500">
+            Ajusta qué tan grande se ve la app
+          </p>
+        </div>
+        <TextScaleControl />
       </section>
 
       {/*
