@@ -99,20 +99,15 @@ export default {
         },
         /*
           Aterrizaje del "0/25" en el botón Agregar de la barra inferior,
-          cuando muta de + a Tracker de puntos. Tres parpadeos rápidos de
-          opacidad con un ligero temblor horizontal antes de asentarse: es el
-          "glitch" que se pidió, discreto y corto (280ms en total) para no
-          desentonar con el resto de transiciones lisas de la app. No anima
-          el color de fondo del botón —eso es una transición CSS aparte,
-          continua— sólo el contenido que aparece dentro.
+          cuando muta de + a Tracker de puntos. Reemplaza al "glitch" de
+          parpadeos que tenía antes —los tramos de opacidad baja (0.2-0.3)
+          se leían como letras apagadas o grises, justo lo contrario del
+          naranja o verde vivo que debían mostrar—. Ahora es un único fundido
+          continuo, sin dips de opacidad a medio camino.
         */
-        'glitch-in': {
-          '0%': { opacity: '0', transform: 'translateX(0)' },
-          '20%': { opacity: '1', transform: 'translateX(-1px)' },
-          '35%': { opacity: '0.2', transform: 'translateX(1px)' },
-          '50%': { opacity: '1', transform: 'translateX(-1px)' },
-          '65%': { opacity: '0.3', transform: 'translateX(1px)' },
-          '80%, 100%': { opacity: '1', transform: 'translateX(0)' },
+        'tracker-in': {
+          from: { opacity: '0', transform: 'scale(0.85)' },
+          to: { opacity: '1', transform: 'scale(1)' },
         },
         // Reflejo que recorre el cristal de "About Me".
         shimmer: {
@@ -219,7 +214,7 @@ export default {
           estado final durante la espera y la cascada no existiría.
         */
         'fade-in-up': 'fade-in-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
-        'glitch-in': 'glitch-in 0.28s steps(6, end) both',
+        'tracker-in': 'tracker-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
         shimmer: 'shimmer 4.5s linear infinite',
         /*
           Ciclos distintos entre sí (3, 2.5, 3 y 2.8 s) y sin divisores comunes

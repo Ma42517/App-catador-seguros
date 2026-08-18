@@ -126,11 +126,9 @@ export default function BottomTabBar({
             que hay dentro del círculo. Arranca con el "+" de siempre y, 5s
             después de que la barra ya es visible, el círculo pasa de
             degradado a negro sólido —transición CSS continua, suave— y el
-            ícono es reemplazado por "N/25" con una entrada tipo glitch
-            (`animate-glitch-in`, tres parpadeos rápidos con temblor
-            horizontal). Dos efectos distintos a propósito: el fondo se
-            desliza hacia el negro, el número aparece con un golpe — son dos
-            cosas diferentes y no deben verse iguales.
+            ícono es reemplazado por "N/25" con un fundido de escala también
+            suave (`animate-tracker-in`, ver tailwind.config.js): sin dips de
+            opacidad ni temblores, sólo un acercamiento continuo.
           */}
           <div className="flex-1 flex justify-center">
             <button
@@ -152,10 +150,25 @@ export default function BottomTabBar({
                 aria-hidden="true"
               >
                 {trackerRevealed ? (
+                  /*
+                    `flex w-full items-center justify-center` centra el texto
+                    de forma explícita: sin esto, el span se comporta como una
+                    caja de línea normal y el navegador la ancha justo al
+                    contenido, dejando que el "/" y el "25" empujen el bloque
+                    visualmente hacia la derecha dentro del círculo. `font-mono`
+                    cambia la fuente a una tipografía monoespaciada — más
+                    "digital", coherente con un contador— y de paso hace que
+                    cada carácter ocupe el mismo ancho, sin el problema de
+                    `tabular-nums` (que sólo empareja dígitos, no el "/").
+                    Los colores suben un tono (300 en vez de 400) porque sobre
+                    negro puro se leían apagados, casi grises, y no con el
+                    naranja o verde vivos que se buscaban.
+                  */
                   <span
                     key="tracker"
-                    className={`animate-glitch-in text-sm font-black leading-none tabular-nums
-                                ${metaCumplida ? 'text-emerald-400' : 'text-orange-400'}`}
+                    className={`animate-tracker-in flex w-full items-center justify-center
+                                font-mono text-sm font-bold leading-none
+                                ${metaCumplida ? 'text-emerald-300' : 'text-orange-300'}`}
                   >
                     {points}/{POINTS_GOAL}
                   </span>
