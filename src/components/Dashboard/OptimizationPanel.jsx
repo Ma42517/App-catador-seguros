@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
-import { SlidersHorizontal, RotateCcw, Columns3, Zap, MessageCircle } from 'lucide-react';
+import { SlidersHorizontal, RotateCcw, Columns3, Zap } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
+import { useSession } from '../../context/SessionContext';
+import { resolveAdvisorPhone, whatsAppLink } from '../../lib/advisorPhone';
 import {
   Card, CardTitle, SectionTitle, Slider, Button, Badge, Checkbox, Tooltip,
 } from '../ui';
@@ -342,13 +344,131 @@ function OptimizedOutcome() {
 }
 
 
-export default function OptimizationPanel() {
-  const { recommendations, matrix, profile } = useFinance();
+/**
+ * Glifo de WhatsApp.
+ *
+ * Va como SVG en el archivo y no desde una librería de iconos: `lucide-react` —la que ya usa
+ * la app— no incluye marcas comerciales, y traer `react-icons` entera para un solo glifo
+ * añadiría un paquete al proyecto para dibujar 24 píxeles.
+ */
+function WhatsAppGlyph({ size = 20 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.347-.347.52-.52.174-.174.232-.298.347-.497.115-.198.057-.371-.015-.52-.074-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+    </svg>
+  );
+}
 
-  const waMessage = `Hola, completé mi Diagnóstico Financiero 360${profile.name ? ` (${profile.name})` : ''}. `
-    + `Mi flujo libre es de ${fmtMXN(matrix.NET_CASHFLOW)} al mes y tengo una brecha de retiro de `
-    + `${fmtMXN(matrix.retirement.gap)}. Me interesa una consultoría.`;
-  const waLink = `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
+/**
+ * Llamado a la acción hacia el WhatsApp del asesor.
+ *
+ * Es la última pantalla del diagnóstico y la única que pide algo. Lo que decide si se toca no
+ * es el botón sino la frase de arriba: nombra la brecha que el prospecto acaba de ver con su
+ * propio número, así que la oferta llega justo cuando el problema está a la vista.
+ */
+function AdvisorCTA({ advisorPhone }) {
+  const { matrix } = useFinance();
+  const { identity } = useSession();
+
+  const phone = resolveAdvisorPhone(advisorPhone, identity);
+  const gap = matrix.retirement.gap;
+
+  /*
+    El texto cambia con el resultado del diagnóstico.
+
+    A quien ya tiene el retiro cubierto no se le puede ofrecer cerrar una brecha que no
+    tiene: la frase sonaría a plantilla y tiraría la credibilidad de las nueve pantallas
+    anteriores. Sí le queda lo otro, que aplica a todos: la protección.
+  */
+  const pitch = gap > 0
+    ? `Un asesor puede ayudarte a cerrar tu brecha de retiro de ${fmtMXN(gap)} y a `
+      + 'estructurar la protección que hoy te falta.'
+    : 'Un asesor puede ayudarte a optimizar tu estrategia financiera y a estructurar la '
+      + 'protección que hoy te falta.';
+
+  /*
+    Al saludo se le añaden las dos cifras del diagnóstico.
+
+    El mensaje lo manda el prospecto, así que estos números llegan al asesor antes de la
+    primera llamada: sabe con qué caso está tratando sin tener que preguntar nada, y la
+    conversación empieza donde el diagnóstico la dejó.
+  */
+  const message = '¡Hola! Acabo de terminar mi diagnóstico financiero 360 y me gustaría '
+    + `agendar una revisión. Mi flujo libre es de ${fmtMXN(matrix.NET_CASHFLOW)} al mes`
+    + `${gap > 0 ? ` y mi brecha de retiro es de ${fmtMXN(gap)}` : ''}.`;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-[#25D366]/35
+                 bg-gradient-to-br from-[#25D366]/15 via-emerald-500/[0.06] to-transparent
+                 p-6 shadow-2xl shadow-emerald-950/40"
+    >
+      {/*
+        Resplandor detrás del título. Va en un elemento aparte y no como sombra del
+        contenedor porque tiene que quedar DENTRO del borde luminoso: una sombra exterior en
+        una pantalla negra se pierde, y este bloque compite con nueve pantallas de datos.
+      */}
+      <div
+        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-80 -translate-x-1/2
+                   rounded-full bg-[#25D366]/20 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <div className="relative text-center">
+        <h3 className="text-base font-bold text-zinc-50">
+          ¿Quieres ayuda para ejecutar este plan?
+        </h3>
+
+        <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-zinc-300">
+          {pitch}
+        </p>
+
+        <div className="mt-5 flex justify-center">
+          <a
+            href={whatsAppLink(phone, message)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-full items-center justify-center gap-2.5 rounded-xl
+                       bg-[#25D366] px-6 py-4 text-sm font-bold text-white shadow-lg
+                       shadow-[#25D366]/30 transition-all duration-150 hover:bg-[#1DA851]
+                       hover:shadow-xl hover:shadow-[#25D366]/40 active:scale-[0.98]
+                       focus-visible:outline-none focus-visible:ring-2
+                       focus-visible:ring-[#25D366] focus-visible:ring-offset-2
+                       focus-visible:ring-offset-zinc-950 sm:w-auto sm:px-8"
+          >
+            <WhatsAppGlyph size={20} />
+            Hablar con mi Asesor por WhatsApp
+          </a>
+        </div>
+
+        {/*
+          Aviso sólo para el asesor en sesión, no para el prospecto.
+
+          Sin número, el botón abre WhatsApp y pide elegir contacto: sigue sirviendo, pero el
+          prospecto ya no llega solo. Quien puede arreglarlo es quien tiene la sesión abierta,
+          y es el único que ve este renglón.
+        */}
+        {!phone && identity && (
+          <p className="mt-3 text-[10px] leading-relaxed text-amber-300/80">
+            Aún no has guardado tu WhatsApp en tu tarjeta digital, así que este botón abrirá
+            WhatsApp sin destinatario. Agrégalo para que los prospectos te escriban directo.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+export default function OptimizationPanel({ advisorPhone }) {
+  const { recommendations } = useFinance();
 
   return (
     <div className="space-y-4">
@@ -369,26 +489,7 @@ export default function OptimizationPanel() {
           <OptimizedOutcome />
           <Recommendations recommendations={recommendations} />
 
-          <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent">
-            <div className="text-center">
-              <h3 className="text-sm font-bold text-zinc-100">
-                ¿Quieres ayuda para ejecutar este plan?
-              </h3>
-              <p className="mx-auto mt-1.5 max-w-md text-[11px] leading-relaxed text-zinc-400">
-                Un asesor puede ayudarte a cerrar tu brecha de retiro de{' '}
-                {fmtMXN(matrix.retirement.gap)} y a estructurar la protección que hoy te falta.
-              </p>
-              <a
-                href={waLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
-              >
-                <MessageCircle size={15} />
-                Agendar consultoría por WhatsApp
-              </a>
-            </div>
-          </Card>
+          <AdvisorCTA advisorPhone={advisorPhone} />
         </div>
       </ReferralGate>
     </div>

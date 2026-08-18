@@ -102,6 +102,15 @@ function identityFromProfile(profile) {
     promotoriaStatus: profile.promotoriaStatus ?? null,
     promotoriaCode: profile.promotoriaCode ?? '',
     company: profile.company ?? '',
+
+    /*
+      Contacto de la tarjeta digital. Viaja aquí por la misma razón que la promotoría:
+      el llamado a la acción del diagnóstico necesita el WhatsApp del asesor, y esa
+      pantalla no consulta la base. Sin esto tendría que pedir la ficha por su cuenta,
+      y el botón aparecería primero sin número y luego con él.
+    */
+    phone: profile.phone ?? '',
+    whatsapp: profile.whatsapp ?? '',
   };
 }
 
