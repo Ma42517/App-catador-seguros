@@ -20,7 +20,7 @@ const LABEL = 'text-[10px] font-medium leading-none';
  */
 export default function BottomTabBar({
   onToday, onProductivity, onAgenda, onAdd, onMore,
-  agendaCount = 0, agendaPriority = null,
+  agendaCount = 0, agendaPriority = null, revealed = true,
 }) {
   const today = new Date().getDate();
 
@@ -57,7 +57,18 @@ export default function BottomTabBar({
   return (
     <nav
       aria-label="Navegación inferior"
-      className="fixed bottom-0 left-0 right-0 z-50 w-full max-w-md mx-auto px-2 pt-2 pb-6 md:pb-4"
+      /*
+        `transition-opacity duration-1000` es exactamente `revealClass` de
+        `AISequence.jsx`, copiado literal y no importado: importar un JSX
+        helper de `Home/` dentro de `Layout/` habría invertido la dirección
+        de dependencia del árbol (el layout es quien monta las pantallas, no
+        al revés). Si esa duración cambia algún día, hay que tocarla en los
+        dos sitios — es el precio de no acoplar los dos módulos.
+      */
+      className={`fixed bottom-0 left-0 right-0 z-50 w-full max-w-md mx-auto px-2 pt-2 pb-6
+                  md:pb-4 transition-opacity duration-1000
+                  ${revealed ? 'opacity-100' : 'opacity-0'}`}
+      aria-hidden={!revealed}
     >
       <div
         className="w-full rounded-[1.75rem] border border-zinc-200/70

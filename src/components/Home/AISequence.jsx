@@ -2,26 +2,7 @@ import { useEvents } from '../../context/EventContext';
 import ActionableCard from '../Activities/ActionableCard';
 import PriorityAlerts from './PriorityAlerts';
 import useTypewriter from '../../lib/useTypewriter';
-
-/**
- * El mensaje cambia según lo que haya en la agenda de hoy.
- *
- * Sin saludo ni nombre: de eso ya se encarga el encabezado, tres líneas más
- * arriba. Aquí se saludaba por segunda vez a alguien que acababa de leer su
- * nombre, y el texto tardaba en llegar a lo único que importa, que es cuántos
- * pendientes tiene.
- */
-function buildMessage(pendientes) {
-  if (pendientes > 0) {
-    // Se cuida el singular: "1 evento pendiente", no "1 eventos pendientes".
-    const cuenta = pendientes === 1
-      ? '1 evento pendiente'
-      : `${pendientes} eventos pendientes`;
-    return `Tienes ${cuenta} para hoy. Empecemos por aquí...`;
-  }
-  return 'La agenda está libre. '
-    + '¿Cerramos algún negocio pendiente hoy? Empieza por aquí...';
-}
+import { buildMessage } from '../../lib/homeMessage';
 
 /**
  * Secuencia de inicio del panel principal, en dos fases:

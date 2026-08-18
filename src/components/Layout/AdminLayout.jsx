@@ -16,6 +16,8 @@ import { useSession } from '../../context/SessionContext';
 import { countPendingProfiles } from '../../data/profilesRepo';
 import { useDashboardVersion } from '../../context/dashboardVersion';
 import { highestPriorityOf } from '../Activities/priorities';
+import { buildMessage } from '../../lib/homeMessage';
+import useTypewriter from '../../lib/useTypewriter';
 
 /**
  * Chrome de navegación del área autenticada.
@@ -39,7 +41,18 @@ export default function AdminLayout({
   */
   immersive = false,
 }) {
-  const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday } = useEvents();
+  const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday, highPriorityToday } = useEvents();
+
+  /*
+    Mismo texto y el mismo `useTypewriter` que ya usa `AISequence.jsx` para
+    revelar el saludo, la fecha y los recordatorios de "Hoy" — no una segunda
+    versión del efecto, ni otra velocidad. Las dos instancias del hook
+    montan en el mismo instante (esta barra y el contenido de "Hoy" son
+    hermanos dentro del mismo commit inicial) y corren el mismo intervalo
+    sobre el mismo texto, así que terminan de "escribir" juntas y la barra
+    se revela exactamente cuando el resto lo hace.
+  */
+  const { isTyping: isHomeTextTyping } = useTypewriter(buildMessage(highPriorityToday.length));
 
   /*
     El panel de administración tiene una sola llave: el rol `admin`.
@@ -131,6 +144,14 @@ export default function AdminLayout({
           onMore={openMore}
           agendaCount={activeToday.length}
           agendaPriority={highestPriorityOf(activeToday)}
+          /*
+            Mismo fundido, mismo instante que el saludo/fecha/recordatorios
+            de "Hoy": ambos usan la clase `revealClass` de `AISequence.jsx`
+            (transition-opacity duration-1000), gobernada por el mismo
+            `isTyping`. No es una animación nueva ni una copia con otra
+            velocidad — es la misma condición leída aquí también.
+          */
+          revealed={!isHomeTextTyping}
         />
       )}
 
