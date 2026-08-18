@@ -183,18 +183,6 @@ export default {
           '0%, 100%': { boxShadow: '0 0 0 0 rgb(255 255 255 / 0)' },
           '50%': { boxShadow: '0 0 12px 2px rgb(255 255 255 / 0.28)' },
         },
-        /*
-          Aterrizaje del anillo pequeño de la cabecera, justo cuando el
-          grande del centro termina de contraerse ("teletransportación" del
-          Tracker de 25 Puntos). Un leve rebote (pasa de 1.15 a 1 en vez de
-          asentarse liso) es lo que hace sentir que algo *llegó* a su lugar,
-          en vez de simplemente aparecer.
-        */
-        'pop-in': {
-          '0%': { transform: 'scale(0.3)', opacity: '0' },
-          '60%': { transform: 'scale(1.15)', opacity: '1' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
-        },
       },
       animation: {
         breathe: 'breathe 6s ease-in-out infinite',
@@ -232,7 +220,6 @@ export default {
         */
         'flip-hint': 'flip-hint 6s ease-in-out infinite',
         'attention-halo': 'attention-halo 3s ease-in-out infinite',
-        'pop-in': 'pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
       backgroundImage: {
         'grid-fade':
