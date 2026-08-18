@@ -31,8 +31,66 @@
  */
 import { toMonthlyRate, futureValue, fvAnnuity } from '../engine/finance.js';
 
-/** Inflación de largo plazo con la que se descuenta el poder de compra. */
+/** Inflación mexicana de largo plazo con la que se descuenta el poder de compra. */
 export const LONG_RUN_INFLATION = 0.045;
+
+/**
+ * Inflación de largo plazo en Estados Unidos.
+ *
+ * El objetivo de la Reserva Federal es 2 %, y su presidencia lo ha reiterado como compromiso
+ * irrestricto. Se usa 2.5 % para no suponer que lo cumple exactamente todos los años durante
+ * veinticuatro.
+ */
+export const US_INFLATION = 0.025;
+
+/**
+ * Depreciación del peso frente al dólar: SE DERIVA, no se elige.
+ *
+ * Es el número más manipulable de todo el archivo, y por eso no se escribe a mano. La
+ * depreciación anualizada observada depende por completo de la ventana:
+ *
+ *     desde 1994  →  +5.23 %      desde 2015  →  +0.82 %
+ *     desde 2000  →  +2.35 %      desde 2020  →  −3.46 %  (el peso se APRECIÓ)
+ *     desde 2008  →  +2.53 %
+ *
+ * Y a agosto de 2026 el peso cotiza cerca de 17.06 por dólar, su nivel más fuerte en 26 meses.
+ * Con ese abanico, cualquier cifra "histórica" es una elección disfrazada de dato.
+ *
+ * Así que se calcula por paridad de poder de compra relativa, que es el marco estándar para el
+ * largo plazo: a treinta años el tipo de cambio sigue al DIFERENCIAL DE INFLACIÓN entre los dos
+ * países. Con los supuestos que ya usa esta app —4.5 % en México, 2.5 % en Estados Unidos—
+ * salen ~1.95 % anual.
+ *
+ * Dos ventajas sobre un número fijo: es defendible con teoría en lugar de con una ventana
+ * elegida, y si alguien ajusta la inflación de la app, la depreciación se ajusta con ella en
+ * lugar de quedarse contradiciéndola.
+ */
+export const PESO_DEPRECIATION = (1 + LONG_RUN_INFLATION) / (1 + US_INFLATION) - 1;
+
+/**
+ * Rendimiento REAL de los UDIBONOS. Aquí hubo una corrección importante.
+ *
+ * Se venía usando 2 %, que es el ejemplo con el que se planteó la función, y subestimaba el
+ * instrumento a la mitad. Los UDIBONOS son deuda del gobierno federal indizada a la inflación,
+ * y sus tasas reales observadas andan bastante más arriba: el bono a 30 años se ha citado en
+ * 5.21 % real, y Hacienda colocó su referencia real a 3 años en 5.015 %.
+ *
+ * Se usa 4 %: por debajo de lo observado, dejando margen para comisiones de la casa de bolsa o
+ * de la afore, que es lo que el prospecto no ve en la tasa de subasta.
+ *
+ * La consecuencia importa y va en contra de lo que se esperaría de una herramienta de venta:
+ * con el dato real, los UDIS proyectan POR ENCIMA de un portafolio equilibrado en dólares, y con
+ * mucho menos riesgo. El 2 % anterior hacía ver mejor al dólar sólo porque castigaba a las UDIS.
+ */
+const UDIS_REAL_RETURN = 0.04;
+
+/**
+ * Rendimiento nominal de un portafolio equilibrado en dólares.
+ *
+ * Es el supuesto más blando de los tres: no hay una tasa de subasta que citar, depende de la
+ * mezcla contratada, y es el único que además carga riesgo de mercado y de tipo de cambio.
+ */
+const USD_PORTFOLIO_RETURN = 0.06;
 
 /**
  * Los tres instrumentos, con su tasa nominal compuesta.
@@ -55,10 +113,10 @@ export const RETIREMENT_INSTRUMENTS = [
     key: 'udis',
     label: 'Inversión en UDIS',
     short: 'Instrumentos indizados a la inflación',
-    nominalRate: (1 + LONG_RUN_INFLATION) * (1 + 0.02) - 1,
+    nominalRate: (1 + LONG_RUN_INFLATION) * (1 + UDIS_REAL_RETURN) - 1,
     parts: [
       { label: 'Inflación cubierta', value: LONG_RUN_INFLATION },
-      { label: 'Rendimiento real', value: 0.02 },
+      { label: 'Rendimiento real', value: UDIS_REAL_RETURN },
     ],
     tone: 'emerald',
     note: 'La UDI sigue a la inflación, así que tu dinero conserva su poder de compra y el '
@@ -68,10 +126,10 @@ export const RETIREMENT_INSTRUMENTS = [
     key: 'usd',
     label: 'Inversión en dólares',
     short: 'Portafolio equilibrado en USD',
-    nominalRate: (1 + 0.025) * (1 + 0.06) - 1,
+    nominalRate: (1 + PESO_DEPRECIATION) * (1 + USD_PORTFOLIO_RETURN) - 1,
     parts: [
-      { label: 'Depreciación del peso', value: 0.025 },
-      { label: 'Rendimiento en dólares', value: 0.06 },
+      { label: 'Depreciación del peso', value: PESO_DEPRECIATION },
+      { label: 'Rendimiento en dólares', value: USD_PORTFOLIO_RETURN },
     ],
     tone: 'indigo',
     /*
@@ -83,7 +141,8 @@ export const RETIREMENT_INSTRUMENTS = [
       vender un rendimiento como si fuera un dato.
     */
     note: 'Depende del tipo de cambio y del mercado: si el peso se fortalece, rinde menos de '
-      + 'lo proyectado. Es el escenario con más riesgo de los tres.',
+      + 'lo proyectado, y lleva haciéndolo desde 2020. Es el escenario con más riesgo de los '
+      + 'tres y, con estos supuestos, proyecta por debajo de las UDIS.',
   },
 ];
 
