@@ -1,6 +1,5 @@
 import AISequence from './AISequence';
 import WelcomeGreeting from './WelcomeGreeting';
-import PointsPill from './PointsPill';
 
 const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
 
@@ -11,8 +10,14 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  * El día y el saludo viven arriba; el centro lo ocupa la secuencia de inicio.
  * El saludo entra palabra por palabra, sin vibración: el golpe al tacto se
  * reserva para los botones y los avisos del cronómetro.
+ *
+ * El Tracker de 25 Puntos ya no vive aquí. Se probaron dos anillos (uno junto
+ * a la fecha, otro grande centrado) y no convencieron: el ancla definitiva es
+ * el botón "Productividad" de la barra inferior (`BottomTabBar.jsx`), con su
+ * efecto de luz LED recorriendo el borde. `PointsPill.jsx` queda sin usar por
+ * ahora — no se borra por si el anillo circular se retoma en otro sitio.
  */
-export default function TodayView({ name, puntosActuales = 0 }) {
+export default function TodayView({ name }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
 
@@ -27,26 +32,11 @@ export default function TodayView({ name, puntosActuales = 0 }) {
     <AISequence
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
-          <div className="flex items-center gap-2">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
-              {fecha}
-            </p>
-            {/* Anillo pequeño, ancla discreta junto a la fecha. */}
-            <PointsPill puntosActuales={puntosActuales} size="sm" />
-          </div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
+            {fecha}
+          </p>
           <div className="mt-1">
             <WelcomeGreeting text={greeting} accentWords={saludo.split(' ')} />
-          </div>
-
-          {/*
-            PRUEBA VISUAL: además del anillo pequeño de arriba, uno grande
-            centrado debajo del saludo, para comparar los dos tamaños a la vez.
-            `header` se renderiza completo antes del mensaje del asistente
-            ("La agenda está libre...", en blanco) dentro de `AISequence`, así
-            que este anillo queda arriba de ese texto en el orden visual.
-          */}
-          <div className="mt-6 flex justify-center">
-            <PointsPill puntosActuales={puntosActuales} size="lg" />
           </div>
         </div>
       )}

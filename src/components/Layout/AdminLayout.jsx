@@ -26,7 +26,7 @@ import { highestPriorityOf } from '../Activities/priorities';
  */
 export default function AdminLayout({
   onNavigate, onLogout, children, canUsePreview = false, isAdminUser = false,
-  isPromoterUser = false, onOpenPromotoria, username,
+  isPromoterUser = false, onOpenPromotoria, username, puntosActuales = 0,
   /*
     Modo inmersivo: la sección se queda con la pantalla completa y se hace cargo de
     su propia salida.
@@ -131,6 +131,7 @@ export default function AdminLayout({
           onMore={openMore}
           agendaCount={activeToday.length}
           agendaPriority={highestPriorityOf(activeToday)}
+          puntosActuales={puntosActuales}
         />
       )}
 

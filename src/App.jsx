@@ -431,6 +431,14 @@ function Shell({
       onOpenPromotoria={() => setSection('promotoria')}
       username={storageKey}
       /*
+        Puntos del Tracker de 25, para el botón "Productividad" de la barra
+        inferior. Todavía no existe el cálculo real (ver comentario junto a
+        `POINTS_GOAL` en BottomTabBar.jsx) — arranca en 0 explícito, sin
+        inventar un valor de muestra. El día que haya una fuente real, este
+        es el único sitio donde conectarla.
+      */
+      puntosActuales={0}
+      /*
         El Diagnóstico se queda con la pantalla completa: sin barra inferior.
 
         Es donde el asesor captura de pie, con el prospecto enfrente y seis módulos
