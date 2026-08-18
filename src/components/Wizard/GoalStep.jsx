@@ -7,6 +7,7 @@ import {
   returnForSavingsVehicle, SAVINGS_VEHICLES, DEFAULT_SAVINGS_VEHICLE,
 } from '../../data/historicalRates';
 import RateField from './RateField';
+import GoalFeasibility from './GoalFeasibility';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput,
   NumberInput, Select, Button, EmptyState, Badge,
@@ -209,6 +210,29 @@ export default function GoalStep() {
               step="1000"
             />
           </Field>
+        </div>
+
+        {/*
+          Lo que la persona puede aportar, y el veredicto justo debajo.
+
+          El plazo se queda como campo: es una decisión ("la quiero en 5 años"), no un resultado.
+          Lo que faltaba era la otra mitad —cuánto puede poner al mes— para poder contestar si
+          esas dos cosas caben juntas. El motor ya calculaba el requerido; ahora se compara con
+          el disponible y el veredicto sale solo.
+        */}
+        <div className="space-y-3.5 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
+          <Field
+            label="¿Cuánto puedes aportar al mes?"
+            help="Se compara contra la aportación que la meta exige, para decirte si el plazo que elegiste es alcanzable."
+          >
+            <MoneyInput
+              value={draft.plannedContribution}
+              onChange={(v) => sheet.patch({ plannedContribution: v })}
+              step="500"
+            />
+          </Field>
+
+          <GoalFeasibility goal={draft} contribution={draft.plannedContribution} />
         </div>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">

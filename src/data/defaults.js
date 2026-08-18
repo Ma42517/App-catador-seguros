@@ -193,6 +193,12 @@ export function createGoal(overrides = {}) {
     inflation: rateOrBlank(inflationForGoalPreset('other')),
     /** Dónde se aparta el dinero. Es lo que determina el rendimiento. */
     savingsVehicle: DEFAULT_SAVINGS_VEHICLE,
+    /*
+      Lo que la persona dice que puede aportar al mes. Es distinto del requerido que calcula el
+      motor, y esa diferencia es justo el diagnóstico de la meta: lo que puede contra lo que
+      necesita. Arranca en cero porque todavía no lo ha dicho.
+    */
+    plannedContribution: 0,
     expectedReturn: rateOrBlank(returnForSavingsVehicle(DEFAULT_SAVINGS_VEHICLE)),
     priority: 'medium',
     ...overrides,
