@@ -16,14 +16,6 @@ import DailyGoalBar from './DailyGoalBar';
   no se debe romper.
 */
 const SMART_MESSAGE_DELAY_MS = 6500;
-/*
-  Duración del cruce de salida/entrada del mensaje central. Un solo valor
-  gobierna las dos mitades del cruce (la transición de opacidad del párrafo
-  central, más abajo en el JSX) para que fundido de salida y fundido de
-  entrada se sientan como el mismo gesto y no como dos animaciones distintas
-  encadenadas.
-*/
-const SMART_MESSAGE_FADE_MS = 400;
 
 /**
  * Secuencia de inicio del panel principal, en dos fases:
@@ -33,10 +25,12 @@ const SMART_MESSAGE_FADE_MS = 400;
  *     y el contenido (`children`) con un fundido lento.
  *
  * Pasado `SMART_MESSAGE_DELAY_MS` desde que la fase 2 ya asentó, el mensaje
- * central se sustituye —con un cruce de opacidad, no con una segunda pasada
- * de máquina de escribir— por un mensaje inteligente que lee la carga de
- * trabajo del día y los puntos acumulados. Ninguna de las dos fases
- * originales cambia: esto ocurre después, y por completo aparte.
+ * central se sustituye por uno inteligente que lee la carga de trabajo del
+ * día y los puntos acumulados — también con máquina de escribir, no con un
+ * fundido de opacidad: cualquier texto que hable "en voz del asistente" en
+ * esta pantalla se escribe letra por letra, es la misma convención en toda
+ * la app (`lib/useTypewriter`). Ninguna de las dos fases originales cambia:
+ * esto ocurre después, y por completo aparte.
  */
 export default function AISequence({ header, children, puntosActuales = 0 }) {
   const { highPriorityToday, activeToday } = useEvents();
@@ -52,45 +46,53 @@ export default function AISequence({ header, children, puntosActuales = 0 }) {
 
   /*
     `null` mientras se muestra el mensaje original; se llena una sola vez,
-    justo cuando toca cruzar. No se recalcula en cada render con la carga
-    actual: el mensaje inteligente describe el momento en que apareció, y
+    pasado el retraso. No se recalcula en cada render con la carga actual:
+    el mensaje inteligente describe el momento en que apareció, y
     recalcularlo mientras sigue en pantalla haría que un evento que se cierra
-    a media lectura cambiara el texto por debajo, sin ningún cruce que lo
-    anuncie.
+    a media lectura cambiara el texto por debajo sin ningún aviso.
   */
   const [smartText, setSmartText] = useState(null);
+
   /*
-    'idle' -> 'out' (arrancó el fundido de salida) -> 'in' (ya con el texto
-    nuevo, fundiendo hacia adentro). El swap de contenido ocurre en la
-    transición 'out' -> 'in', a medio cruce, cuando el texto viejo ya está
-    invisible y el nuevo todavía no se pinta.
+    Segunda máquina de escribir, independiente de la del mensaje base. Vive
+    aparte —y no se reutiliza el mismo `typed`/`isTyping` de arriba
+    cambiándole el texto— porque `isTyping` del mensaje base gobierna
+    `revealClass`: si el mismo hook volviera a escribir para el mensaje
+    inteligente, `isTyping` se pondría en `true` otra vez y ocultaría de
+    nuevo el encabezado, los avisos y la agenda que ya se habían revelado.
+    Con dos instancias separadas, sólo el párrafo central vuelve a
+    "escribirse"; el resto de la pantalla se queda quieto.
+
+    Mientras `smartText` es `null` se le pasa `''` con `instant: true`: así
+    no arranca ningún intervalo de escritura hasta que de verdad haya un
+    mensaje que mostrar.
   */
-  const [crossfadePhase, setCrossfadePhase] = useState('idle');
+  const { typed: smartTyped, isTyping: isSmartTyping } = useTypewriter(
+    smartText ?? '',
+    { instant: smartText === null },
+  );
 
   useEffect(() => {
     if (isTyping) return undefined;
-    const timer = setTimeout(() => setCrossfadePhase('out'), SMART_MESSAGE_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [isTyping]);
-
-  useEffect(() => {
-    if (crossfadePhase !== 'out') return undefined;
     const timer = setTimeout(() => {
       setSmartText(buildSmartMessage(activeToday.length, puntosActuales));
-      setCrossfadePhase('in');
-    }, SMART_MESSAGE_FADE_MS);
+    }, SMART_MESSAGE_DELAY_MS);
     return () => clearTimeout(timer);
-    // Sólo reacciona a la fase, no a `activeToday`/`puntosActuales`: son la
-    // instantánea que se congela al momento del cruce, no un valor que deba
-    // reprogramar el temporizador cada vez que la agenda cambia.
+    // Sólo reacciona a `isTyping`: `activeToday`/`puntosActuales` se leen en
+    // el instante en que el temporizador se cumple, no deben reprogramarlo
+    // cada vez que la agenda cambia mientras se espera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [crossfadePhase]);
+  }, [isTyping]);
 
   // El encabezado y el contenido comparten el mismo fundido de la revelación.
   const revealClass = `transition-opacity duration-1000 ${isTyping ? 'opacity-0' : 'opacity-100'}`;
 
-  const displayText = smartText ?? typed;
-  const isCrossfadingOut = crossfadePhase === 'out';
+  const hasSmartMessage = smartText !== null;
+  const displayText = hasSmartMessage ? smartTyped : typed;
+  // El cursor parpadeante acompaña a la máquina de escribir que esté activa
+  // en cada instante: la del mensaje base mientras no haya mensaje
+  // inteligente, y la del mensaje inteligente en cuanto aparece.
+  const isAssistantTyping = hasSmartMessage ? isSmartTyping : isTyping;
 
   return (
     <>
@@ -107,23 +109,12 @@ export default function AISequence({ header, children, puntosActuales = 0 }) {
         {/* El mensaje visible en cada instante, para lectores de pantalla. */}
         <p className="sr-only">{smartText ?? text}</p>
 
-        {/*
-          La duración del cruce va como estilo inline y no como clase de
-          Tailwind (`duration-[Nms]`): una clase con un valor interpolado en
-          tiempo de ejecución no existe en la hoja generada por el JIT de
-          Tailwind —sólo reconoce los valores que ve como texto literal
-          durante el build—, así que la transición simplemente no habría
-          aplicado ninguna duración.
-        */}
         <p
-          className={`max-w-md text-center text-xl font-light text-zinc-800 dark:text-white
-                      transition-opacity
-                      ${isCrossfadingOut ? 'opacity-0' : 'opacity-100'}`}
-          style={{ transitionDuration: `${SMART_MESSAGE_FADE_MS}ms` }}
+          className="max-w-md text-center text-xl font-light text-zinc-800 dark:text-white"
           aria-hidden="true"
         >
           {displayText}
-          {isTyping && <span className="animate-pulse text-amber-400">|</span>}
+          {isAssistantTyping && <span className="animate-pulse text-amber-400">|</span>}
         </p>
 
         {/*
