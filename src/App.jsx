@@ -11,6 +11,7 @@ import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 import SplashScreen from './components/SplashScreen';
 import Login from './components/Auth/Login';
 import PendingApproval from './components/Auth/PendingApproval';
+import OnboardingFlow from './components/Auth/OnboardingFlow';
 import AdminLayout from './components/Layout/AdminLayout';
 import DevicePreview from './components/Layout/DevicePreview';
 import TodayView from './components/Home/TodayView';
@@ -561,7 +562,7 @@ function Shell({
  */
 function Gate({ isPreview }) {
   const {
-    status, identity, isApproved, canManage, isAdmin, role, signOut,
+    status, identity, isApproved, canManage, isAdmin, role, signOut, refreshIdentity,
   } = useSession();
 
   // Dentro del iframe de vista previa no se repite el splash: molesta al
@@ -598,8 +599,21 @@ function Gate({ isPreview }) {
     se bloqueaba únicamente `pending`, así que un rol vacío, mal escrito o
     desconocido pasaba de largo hasta el contenido. Una puerta de acceso tiene
     que cerrarse ante lo que no reconoce.
+
+    Sin aprobar hay dos vistas posibles, y la que corresponde se decide con
+    `identity.experienceLevel`: vacío significa que la persona nunca pasó por
+    el Onboarding (registro nuevo, primera vez), así que le toca el
+    recorrido completo de tres pasos. Ya elegida una etapa —en esta sesión o
+    en cualquiera anterior—, cualquier apertura posterior mientras el rol
+    siga pendiente cae directo en la sala de espera de siempre: la
+    bienvenida es un momento, no una pantalla de estado que se repite cada
+    vez que se recarga la página.
   */
-  if (!isApproved) return <PendingApproval />;
+  if (!isApproved) {
+    return identity.experienceLevel
+      ? <PendingApproval />
+      : <OnboardingFlow userId={identity.key} onProfileSaved={refreshIdentity} />;
+  }
 
   return (
     <FinanceProvider>

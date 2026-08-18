@@ -168,6 +168,17 @@ function fromRow(row) {
     promotorId: row.promotor_id ?? null,
     promotoriaStatus: row.promotoria_status ?? null,
     promotoriaCode: row.promotoria_code ?? '',
+
+    /*
+      Etapa profesional elegida en el Paso 2 del Onboarding. Vacío significa
+      "todavía no pasó por el onboarding" — es la señal que usa `App.jsx`
+      para decidir entre mostrar `OnboardingFlow` (primera vez) o
+      `PendingApproval` (cualquier apertura posterior mientras sigue
+      pendiente). Con respaldo a `''` por la misma razón que el resto de
+      columnas de esta ficha: puede no existir todavía en una base que no
+      corrió la migración.
+    */
+    experienceLevel: row.experience_level ?? '',
   };
 }
 
@@ -463,6 +474,39 @@ export async function deleteProfile(userId) {
     };
   }
   return { data: fromRow(data), error: null };
+}
+
+/**
+ * Guarda la etapa profesional elegida en el Paso 2 del Onboarding.
+ *
+ * Es una escritura de una sola columna y no pasa por `saveMyCard`: la
+ * tarjeta digital es un formulario que el asesor llena cuando quiere, y esto
+ * se dispara una sola vez, sin que la persona lo perciba como un guardado,
+ * al tocar una de las tres tarjetas del onboarding.
+ *
+ * `experience_level` es una columna opcional, igual que las de
+ * `OPTIONAL_COLUMNS` arriba: si la migración todavía no corrió, la
+ * escritura falla en silencio. No es un fallo grave — el peor caso es que
+ * `OnboardingFlow` vuelva a aparecer la próxima vez, porque la ficha sigue
+ * sin la elección guardada.
+ */
+export async function saveExperienceLevel(userId, level) {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: { message: 'Supabase no está configurado.' } };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ experience_level: level })
+    .eq('id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingColumn(error, 'experience_level')) return { data: null, error: null };
+    return { data: null, error };
+  }
+  return { data: data ? fromRow(data) : null, error: null };
 }
 
 export { describeError };
