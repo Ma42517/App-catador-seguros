@@ -66,6 +66,22 @@ function isPreviewFrame() {
 }
 
 /**
+ * `?onboardingPreview=1`: entorno para probar `OnboardingFlow` sin crear ni
+ * abrir ninguna cuenta real.
+ *
+ * Se resuelve en `App()`, antes de montar `SessionProvider` — misma idea que
+ * la tarjeta pública (`publicCardIdFromPath`) un poco más abajo—: así el
+ * flujo no depende de que exista una sesión, ni de Supabase, ni de ningún
+ * registro con estado `pending` de verdad. Es sólo para desarrollo; no se
+ * enlaza desde ningún sitio de la app y desaparece si se quita el parámetro
+ * de la URL.
+ */
+function isOnboardingPreview() {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('onboardingPreview') === '1';
+}
+
+/**
  * Conmutador tipo pill entre las dos grandes fases de la app: captura
  * (pasos 0-5) y lectura (diagnóstico + optimización). Sólo cambia de
  * paso dentro del mismo StepWizard; no introduce una ruta nueva.
@@ -670,6 +686,42 @@ export default function App() {
   */
   const [publicCardId] = useState(publicCardIdFromPath);
   if (publicCardId) return <PublicCardView advisorId={publicCardId} />;
+
+  /*
+    Vista previa del Onboarding, resuelta por la misma razón que la tarjeta
+    pública: entorno de prueba, sin `SessionProvider` ni ninguna cuenta real
+    detrás. `userId` es un texto que no coincide con ninguna fila de
+    `profiles` —`saveExperienceLevel` ya está hecho para no romperse cuando
+    la escritura no encuentra a quién actualizar (ver el comentario junto a
+    `chooseLevel` en `OnboardingFlow.jsx`)—, así que se puede recorrer el
+    flujo completo sin tocar la base de verdad.
+
+    El botón de reiniciar existe porque este componente no expone ninguna
+    otra forma de volver al Paso 1: es una vista terminal por diseño (el
+    Paso 3 no lleva salida), y aquí sí hace falta poder repetir la prueba
+    sin recargar la pestaña a mano.
+  */
+  if (isOnboardingPreview()) {
+    return (
+      <div className="relative min-h-screen">
+        <OnboardingFlow
+          userId="preview-sin-cuenta"
+          onProfileSaved={async () => {}}
+        />
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="fixed left-3 top-3 z-50 flex items-center gap-1.5 rounded-full
+                     border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
+                     font-bold uppercase tracking-widest text-amber-300/90
+                     backdrop-blur-md transition-colors hover:bg-amber-500/20"
+        >
+          <FlaskConical size={11} aria-hidden="true" />
+          Vista previa · Reiniciar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <SessionProvider>
