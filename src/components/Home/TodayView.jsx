@@ -25,6 +25,7 @@ export default function TodayView({ name, puntosActuales = 0 }) {
 
   return (
     <AISequence
+      puntosActuales={puntosActuales}
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
           <div className="flex items-center gap-2">
