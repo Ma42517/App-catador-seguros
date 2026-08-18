@@ -5,6 +5,8 @@ import { useEvents } from '../../context/EventContext';
 import {
   fetchPendingAlerts, respondToAlert, ALERT_RESPONSE,
 } from '../../data/alertsRepo';
+import { isAlertActive } from '../../lib/alertExpiry';
+import useNow from '../../lib/useNow';
 
 /** Fecha y hora del evento, en una línea corta. */
 function eventLabel(date, time) {
@@ -42,6 +44,15 @@ export default function PriorityAlerts() {
 
   const [alerts, setAlerts] = useState([]);
   const [busyId, setBusyId] = useState(null);
+
+  /*
+    El reloj de `useNow` es lo que hace que un aviso desaparezca solo al
+    cruzar las 4:00 AM del día siguiente, sin que nadie tenga que refrescar
+    la pantalla. El mismo hook ya lo usa `ActionableCard.jsx` para el estado
+    vencido/próximo de las citas, así que no es un segundo temporizador
+    corriendo por separado en esta pantalla.
+  */
+  const now = useNow();
 
   /*
     De qué muro se leen los avisos.
@@ -104,11 +115,20 @@ export default function PriorityAlerts() {
     setBusyId(null);
   };
 
-  if (alerts.length === 0) return null;
+  /*
+    Filtro de caducidad: un aviso con fecha de evento sigue vigente hasta las
+    4:00 AM del día siguiente a esa fecha, no hasta la medianoche de su
+    propio día — ver `alertExpiry.js` para el porqué del margen. Los avisos
+    sin `eventDate` no entran en esta regla y siguen visibles hasta que se
+    contestan, como antes.
+  */
+  const activeAlerts = alerts.filter((alert) => isAlertActive(alert.eventDate, now));
+
+  if (activeAlerts.length === 0) return null;
 
   return (
     <section className="mt-6 flex flex-col gap-2" aria-label="Avisos de tu promotoría">
-      {alerts.map((alert) => {
+      {activeAlerts.map((alert) => {
         const busy = busyId === alert.id;
         const when = eventLabel(alert.eventDate, alert.eventTime);
 
