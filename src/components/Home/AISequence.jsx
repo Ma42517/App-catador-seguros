@@ -5,6 +5,7 @@ import PriorityAlerts from './PriorityAlerts';
 import useTypewriter from '../../lib/useTypewriter';
 import { buildMessage } from '../../lib/homeMessage';
 import { buildSmartMessage } from '../../lib/smartMessage';
+import DailyGoalBar from './DailyGoalBar';
 
 /*
   Cuánto se espera, ya con la interfaz inicial asentada por completo (esto
@@ -124,6 +125,18 @@ export default function AISequence({ header, children, puntosActuales = 0 }) {
           {displayText}
           {isTyping && <span className="animate-pulse text-amber-400">|</span>}
         </p>
+
+        {/*
+          La barra de "Objetivo Diario" comparte exactamente `revealClass`
+          con los avisos y la lista de citas de abajo: es la misma Fase 2
+          —el fundido lento tras el texto blanco inicial—, no una animación
+          nueva. Va antes que los avisos y la agenda, en el espacio
+          intermedio que describe el pedido, con su propio margen para no
+          heredar el `mt-10` que separa la lista de eventos.
+        */}
+        <div className={`mt-8 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
+          <DailyGoalBar puntosActuales={puntosActuales} />
+        </div>
 
         {/*
           Los avisos que esperan confirmación van justo aquí: después del texto que
