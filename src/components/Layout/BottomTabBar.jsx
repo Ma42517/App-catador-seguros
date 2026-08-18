@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
 import { priorityByKey } from '../Activities/priorities';
 import { tapFeedback } from '../../lib/haptics';
@@ -15,86 +16,106 @@ const TAB =
 
 const LABEL = 'text-[10px] font-medium leading-none';
 
+/*
+  Cuánto tarda el botón en mutar, contado desde que la barra se monta. El
+  fundido de cruce en sí (`duration-300` en las clases de abajo) es fijo y
+  corto a propósito: no necesita su propia constante porque Tailwind no
+  interpola una duración arbitraria en tiempo de ejecución sin un valor
+  inline, y 300ms es un fundido de UI estándar que no hace falta parametrizar.
+*/
+const MUTATION_DELAY_MS = 4000;
+
 /**
- * Botón "Productividad": ancla del Tracker de 25 Puntos, con un efecto de luz
- * LED recorriendo el borde (estilo circuito). Reemplaza el ícono simple que
- * tenía antes — la píldora "N/25" que vivía junto a la fecha en `TodayView`
- * se aloja aquí, en el único destino de la barra donde de verdad se mide la
- * productividad del día.
+ * Botón "Productividad": ancla del Tracker de 25 Puntos. Muta a los 4
+ * segundos de que la barra aparece — el ícono de gráfica y la palabra
+ * "Productividad" se desvanecen y en su lugar aparece "N/25", con un haz de
+ * luz recorriéndolo por dentro (texto transparente sobre un degradado
+ * animado, no un borde ni un anillo).
  *
- * Estructura de tres capas, todas dentro de un `relative overflow-hidden`:
- *   1. La luz giratoria — un `div` más grande que el botón, con degradado
- *      cónico y `animate-spin`, apenas visible en el arco iluminado.
- *   2. La máscara — un `div` interior con `inset-[2px]` y el fondo oscuro
- *      normal del menú, que tapa el centro del degradado y sólo deja ver el
- *      borde. Sin esta capa, el botón entero se vería del color del LED.
- *   3. El contenido — ícono, número y etiqueta, en `relative z-10` para
- *      quedar por encima de la máscara.
- *
- * El degradado cónico no puede animarse con una transición CSS (no hay un
- * valor intermedio razonable entre dos gradientes con ángulos de corte
- * distintos), así que el giro es responsabilidad de `animate-spin` sobre el
- * elemento completo — es el propio contenedor el que gira, no el gradiente
- * dentro de un contenedor fijo.
+ * Sin bordes circulares, anillos exteriores ni `border-radius` en el efecto:
+ * a diferencia del diseño anterior de este botón (LED girando por el borde),
+ * aquí el brillo vive *dentro* de los caracteres del número, recortado por
+ * `bg-clip-text` — es la misma técnica de `animate-shimmer` que ya usa el
+ * cristal de "About Me" en otra parte de la app, reutilizada tal cual.
  */
 function ProductivityButton({ onClick, puntosActuales = 0 }) {
   const points = Math.max(0, Math.min(puntosActuales, POINTS_GOAL));
   const metaCumplida = points >= POINTS_GOAL;
 
   /*
-    Naranja mientras no se cumple la meta, verde al llegar a 25 — el mismo
-    criterio binario que ya usaba `PointsPill.jsx`: la meta es un umbral, no
-    una escala, y un tercer color intermedio diluiría el momento exacto en
-    que se cumple.
+    Arranca mostrando el ícono normal. `mutated` en `false` durante los
+    primeros `MUTATION_DELAY_MS`, y sólo entonces empieza la propia
+    transición de fundido — dos estados y no uno, porque el pedido distingue
+    "cuándo empieza a mutar" (el temporizador) de "qué tan visible está cada
+    cara en este instante" (la opacidad), y colapsarlos en un solo booleano
+    no deja sitio para el cruce de un fade-out con un fade-in.
   */
-  const ledGradient = metaCumplida
-    ? 'bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(34,197,94,1)_360deg)]'
-    : 'bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(249,115,22,1)_360deg)]';
+  const [mutated, setMutated] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMutated(true), MUTATION_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  /*
+    El degradado del shimmer recorre tres paradas: el color base, un tono
+    claro en medio y de vuelta al color base. Es lo que hace que el barrido
+    se lea como una luz que cruza y no como un color que simplemente cambia
+    de tono — con sólo dos paradas, el "haz" nunca se distinguiría del resto
+    del número. Naranja mientras no se cumple la meta; verde al llegar a 25,
+    mismo criterio binario que ya usaba el diseño anterior de este botón: la
+    meta es un umbral, no una escala.
+  */
+  const shimmerGradient = metaCumplida
+    ? 'from-emerald-600 via-lime-300 to-emerald-600'
+    : 'from-orange-600 via-yellow-300 to-orange-600';
 
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={`Productividad, ${points} de ${POINTS_GOAL} puntos del día${metaCumplida ? ', meta cumplida' : ''}`}
-      className="relative flex-1 overflow-hidden rounded-2xl active:scale-95 transition-transform
+      className="relative flex-1 rounded-2xl active:scale-95 transition-transform
                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
     >
       {/*
-        La luz giratoria. `inset-[-50%]` la hace más grande que el botón a
-        propósito: un degradado cónico gira sobre su propio centro, y si el
-        elemento midiera lo mismo que el botón, las esquinas —más lejos del
-        centro que los bordes— quedarían fuera del arco iluminado en ciertos
-        ángulos de giro. Sobredimensionado, el arco cubre el borde completo
-        en cualquier posición del giro.
+        Las dos caras ocupan el mismo lugar (`absolute inset-0`, apiladas) en
+        vez de una detrás de otra en el flujo normal: así el fundido de una
+        no empuja a la otra durante la transición, y el botón no cambia de
+        alto ni de ancho al mutar.
       */}
       <span
-        aria-hidden="true"
-        className={`absolute inset-[-50%] animate-spin ${ledGradient}`}
-        style={{ animationDuration: '3s' }}
-      />
-
-      {/* La máscara: tapa el centro del degradado y deja sólo el borde iluminado. */}
-      <span
-        aria-hidden="true"
-        className="absolute inset-[2px] rounded-2xl bg-white dark:bg-zinc-950"
-      />
-
-      {/* Contenido, por encima de la máscara. */}
-      <span className="relative z-10 flex flex-col items-center justify-center gap-0.5 px-1 py-1.5">
+        aria-hidden={mutated}
+        className={`absolute inset-0 flex flex-col items-center justify-center gap-0.5
+                    px-1 py-1.5 transition-opacity duration-300
+                    ${mutated ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+      >
         <TrendingUp size={22} strokeWidth={1.8} className="text-zinc-600 dark:text-zinc-300" aria-hidden="true" />
         <span className={`${LABEL} text-zinc-600 dark:text-zinc-300`}>Productividad</span>
+      </span>
+
+      <span
+        aria-hidden={!mutated}
+        className={`absolute inset-0 flex flex-col items-center justify-center gap-0.5
+                    px-1 py-1.5 transition-opacity duration-300
+                    ${mutated ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+      >
         {/*
-          El número de puntos, discreto, junto al ícono. `tabular-nums` evita
-          que la anchura del botón respire cada vez que el número cambia de
-          dígitos.
+          El haz de luz: texto transparente sobre un degradado animado de
+          fondo, recortado a la forma de los caracteres con `bg-clip-text`.
+          `bg-[length:200%_auto]` es lo que le da al degradado más ancho que
+          recorrer del que ocupa el texto — sin eso, `animate-shimmer` movería
+          un degradado que ya cubre las cuatro cifras enteras y el barrido no
+          se vería, porque no habría "sobrante" de color por donde desplazarse.
         */}
         <span
-          className={`text-[9px] font-bold leading-none tabular-nums ${
-            metaCumplida ? 'text-emerald-500 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'
-          }`}
+          className={`bg-gradient-to-r ${shimmerGradient} bg-[length:200%_auto]
+                      bg-clip-text text-lg font-black leading-none tabular-nums
+                      text-transparent animate-shimmer`}
         >
           {points}/{POINTS_GOAL}
         </span>
+        <span className={`${LABEL} text-zinc-600 dark:text-zinc-300`}>Productividad</span>
       </span>
     </button>
   );
@@ -166,7 +187,7 @@ export default function BottomTabBar({
             <span className={LABEL}>Hoy</span>
           </button>
 
-          {/* Productividad — ancla del Tracker de 25 Puntos, con LED giratorio */}
+          {/* Productividad — ancla del Tracker de 25 Puntos, muta a "N/25" con shimmer */}
           <ProductivityButton onClick={withTap(onProductivity)} puntosActuales={puntosActuales} />
 
           {/* Agregar — botón central destacado */}
