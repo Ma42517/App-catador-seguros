@@ -619,9 +619,9 @@ function Gate({ isPreview }) {
     Sin aprobar hay dos vistas posibles, y la que corresponde se decide con
     `identity.experienceLevel`: vacío significa que la persona nunca pasó por
     el Onboarding (registro nuevo, primera vez), así que le toca el
-    recorrido completo de tres pasos. Ya elegida una etapa —en esta sesión o
-    en cualquiera anterior—, cualquier apertura posterior mientras el rol
-    siga pendiente cae directo en la sala de espera de siempre: la
+    recorrido completo de siete preguntas. Ya elegida una etapa —en esta
+    sesión o en cualquiera anterior—, cualquier apertura posterior mientras
+    el rol siga pendiente cae directo en la sala de espera de siempre: la
     bienvenida es un momento, no una pantalla de estado que se repite cada
     vez que se recarga la página.
   */
@@ -691,15 +691,15 @@ export default function App() {
     Vista previa del Onboarding, resuelta por la misma razón que la tarjeta
     pública: entorno de prueba, sin `SessionProvider` ni ninguna cuenta real
     detrás. `userId` es un texto que no coincide con ninguna fila de
-    `profiles` —`saveExperienceLevel` ya está hecho para no romperse cuando
-    la escritura no encuentra a quién actualizar (ver el comentario junto a
-    `chooseLevel` en `OnboardingFlow.jsx`)—, así que se puede recorrer el
-    flujo completo sin tocar la base de verdad.
+    `profiles` —`saveExperienceLevel` y `saveAdvisorProfile` ya están hechas
+    para no romperse cuando la escritura no encuentra a quién actualizar (ver
+    el comentario junto a `finish` en `OnboardingFlow.jsx`)—, así que se
+    puede recorrer el flujo completo sin tocar la base de verdad.
 
     El botón de reiniciar existe porque este componente no expone ninguna
-    otra forma de volver al Paso 1: es una vista terminal por diseño (el
-    Paso 3 no lleva salida), y aquí sí hace falta poder repetir la prueba
-    sin recargar la pestaña a mano.
+    otra forma de volver al Paso 1: es una vista terminal por diseño (la
+    sala de espera no lleva salida), y aquí sí hace falta poder repetir la
+    prueba sin recargar la pestaña a mano.
   */
   if (isOnboardingPreview()) {
     return (

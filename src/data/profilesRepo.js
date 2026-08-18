@@ -179,6 +179,16 @@ function fromRow(row) {
       corrió la migración.
     */
     experienceLevel: row.experience_level ?? '',
+
+    /*
+      Radiografía completa del Onboarding (pasos 3 a 7): fortaleza, inquietud,
+      mercado, disponibilidad y motor declarados al registrarse. Objeto vacío
+      cuando todavía no se guardó nada —columna sin migrar o persona a medio
+      cuestionario— para que quien lea esto no tenga que distinguir "no
+      corrió la migración" de "no ha contestado": ambos casos se ven igual y
+      se tratan igual, como cuestionario pendiente.
+    */
+    advisorProfileData: row.advisor_profile_data ?? null,
   };
 }
 
@@ -504,6 +514,46 @@ export async function saveExperienceLevel(userId, level) {
 
   if (error) {
     if (isMissingColumn(error, 'experience_level')) return { data: null, error: null };
+    return { data: null, error };
+  }
+  return { data: data ? fromRow(data) : null, error: null };
+}
+
+/**
+ * Guarda la radiografía completa de los pasos 3 a 7 del Onboarding
+ * (`advisorOnboarding.js`): fortaleza, inquietud, mercado, disponibilidad y
+ * motor, además del nombre con el que la persona quiso que le llamaran y la
+ * etapa profesional ya elegida en el Paso 2 — todo junto, en una sola
+ * columna JSONB, porque es un único cuestionario que se contesta de una vez
+ * y se lee de una vez: no hay ningún caso en que la app necesite el
+ * "mercado" sin el resto de las respuestas.
+ *
+ * Se escribe una sola vez, al terminar el Paso 7 (ver el comentario en
+ * `OnboardingFlow.jsx`), y no columna por columna en cada paso: así una
+ * persona que abandona el cuestionario a la mitad no deja una radiografía a
+ * medio llenar dando vueltas por la base, sólo el vacío de siempre.
+ *
+ * `advisor_profile_data` es una columna opcional, igual que `experience_level`
+ * arriba: si la migración todavía no corrió, la escritura falla en
+ * silencio. El peor caso es que la radiografía no se recuerde entre
+ * sesiones —la persona sigue avanzando hacia la sala de espera con
+ * normalidad, porque quien decide esa transición es `experience_level`, no
+ * esta columna.
+ */
+export async function saveAdvisorProfile(userId, advisorProfileData) {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: { message: 'Supabase no está configurado.' } };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ advisor_profile_data: advisorProfileData })
+    .eq('id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingColumn(error, 'advisor_profile_data')) return { data: null, error: null };
     return { data: null, error };
   }
   return { data: data ? fromRow(data) : null, error: null };
