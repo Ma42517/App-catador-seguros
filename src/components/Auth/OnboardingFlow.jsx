@@ -1,31 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Lock, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import useTypewriter from '../../lib/useTypewriter';
 import { EXPERIENCE_LEVELS } from '../../lib/experienceLevels';
 import {
   STRENGTH_OPTIONS, CONCERN_OPTIONS, MARKET_OPTIONS,
-  AVAILABILITY_OPTIONS, MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
+  AVAILABILITY_OPTIONS, SCHEDULE_OPTIONS, MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
 } from '../../lib/advisorOnboarding';
 import { saveExperienceLevel, saveAdvisorProfile } from '../../data/profilesRepo';
 
 /** Mínimo de letras para dar por contestado el nombre del Paso 1. */
 const MIN_NAME = 2;
 
-const PROFILE_TEXT = 'Para adaptar tu experiencia, cuéntanos en qué etapa te encuentras:';
 const CONCERN_TEXT = 'Para que podamos guiarte con precisión, ¿qué es lo que más '
   + 'te inquieta o te impone en esta etapa inicial?';
-const MARKET_TEXT = 'Todo gran negocio comienza con un mercado natural. Si revisas '
-  + 'tus contactos hoy, ¿a cuántas personas podrías llamarles cómodamente para '
-  + 'platicarles de tu nueva etapa?';
+const MARKET_TEXT = 'Todo gran negocio arranca con un mercado cálido (tus familiares, '
+  + 'amigos y conocidos). Si revisas tus contactos hoy, ¿a cuántas personas podrías '
+  + 'llamarles cómodamente para platicarles de tu nueva etapa?';
 const AVAILABILITY_TEXT = 'El éxito requiere constancia. ¿Cómo planeas gestionar tu tiempo?';
+const SCHEDULE_TEXT = 'Para que tu asistente se adapte a tu vida y no te interrumpa en '
+  + 'tus otras actividades, ¿en qué bloques de horario tienes pensado dedicarle tiempo '
+  + 'a este negocio?';
 const MOTIVATION_TEXT = 'Finalmente, ¿cuál es tu objetivo principal al desarrollar esta carrera?';
 const CONFIRM_TEXT = 'Excelente. Tu perfil ha sido registrado con éxito.';
-const SECONDARY_TEXT = 'Para mantener la seguridad de la promotoría, un administrador '
-  + 'está revisando tu solicitud. Te notificaremos en cuanto tu acceso esté liberado.';
+const SECONDARY_TEXT = 'Estamos analizando tus respuestas para estructurar tu plan de '
+  + 'arranque ideal. Te notificaremos en cuanto tu espacio de trabajo esté configurado '
+  + 'y listo.';
 
 /**
  * Cursor parpadeante compartido por todos los pasos, para no repetir el
- * mismo `<span>` siete veces.
+ * mismo `<span>` ocho veces.
  */
 function Caret({ show }) {
   if (!show) return null;
@@ -71,7 +74,7 @@ function ChoiceOption({ option, onSelect, disabled }) {
  * avanza sola al tocarse: elegir ya es responder, así que no hace falta un
  * segundo toque en "Continuar" para confirmar lo que se acaba de tocar.
  *
- * `busyValue` sólo lo usa el Paso 7 (la única elección de esta pantalla que
+ * `busyValue` sólo lo usa el Paso 8 (la única elección de esta pantalla que
  * dispara una escritura real a la base): marca qué opción se está
  * guardando, para que un segundo toque en otra mientras la primera guarda no
  * deje dos escrituras compitiendo por la misma fila.
@@ -119,8 +122,13 @@ function ChoiceStep({ text, options, onSelect, busyValue = null }) {
 }
 
 /**
- * Paso 1 — Bautizo. Bienvenida más la única pregunta de texto libre de todo
- * el recorrido: cómo se le quiere llamar a la persona.
+ * Paso 1 — Bautizo rápido. La única pregunta de texto libre de todo el
+ * recorrido, y la primera cosa que ve la persona: cómo se le quiere llamar.
+ *
+ * Va antes de la bienvenida (que ahora vive en el Paso 2, ya con el nombre
+ * puesto) a propósito: es lo que permite personalizar "Bienvenido,
+ * [Nombre]" desde el segundo mensaje del recorrido, en vez de sólo desde el
+ * tercero.
  *
  * El campo y el botón nacen montados y sólo se encienden con opacidad al
  * terminar de escribirse el texto, igual que en el resto de los pasos: un
@@ -128,9 +136,7 @@ function ChoiceStep({ text, options, onSelect, busyValue = null }) {
  * todavía no se ha preguntado.
  */
 function NameStep({ initialValue, onContinue }) {
-  const text = 'Bienvenido a tu asistente. Nuestro objetivo es simple: que todos los '
-    + 'días te vayas a dormir sabiendo que tu negocio creció. Para personalizar tu '
-    + 'entorno, ¿cómo te gusta que te llamen?';
+  const text = 'Hola. Para comenzar, ¿cómo te gusta que te llamen?';
   const { typed, isTyping } = useTypewriter(text);
   const [name, setName] = useState(initialValue);
   const cleanName = name.trim();
@@ -188,8 +194,16 @@ function NameStep({ initialValue, onContinue }) {
 }
 
 /**
- * Paso final — Sala de espera. Vista terminal: sin botón de salida ni de
+ * Paso final — Sala de Análisis. Vista terminal: sin botón de salida ni de
  * revisar, a propósito (ver la nota junto a `OnboardingFlow` más abajo).
+ *
+ * Cuenta la misma clase de historia que el Paso 3 de la promotoría
+ * (`PromotoriaWaitingRoom.jsx`) con una puesta en escena distinta: aquí no
+ * hay "administrador revisando" — el guardado ya ocurrió al completar el
+ * Paso 8 — sino "estamos analizando tus respuestas", que es honesto con lo
+ * que de verdad pasa: la aprobación de acceso y el análisis del perfil son
+ * dos procesos distintos que corren en paralelo, y esta pantalla sólo
+ * habla del segundo.
  *
  * El texto secundario no se escribe letra por letra —el pedido lo dice de
  * forma explícita ("aparece después con fade-in")— así que aquí sí se usa
@@ -197,7 +211,7 @@ function NameStep({ initialValue, onContinue }) {
  * mensaje principal: cuando el texto de arriba termina de escribirse, el de
  * abajo entra.
  */
-function WaitingRoomStep() {
+function AnalysisRoomStep() {
   const { typed, isTyping } = useTypewriter(CONFIRM_TEXT);
 
   return (
@@ -207,7 +221,7 @@ function WaitingRoomStep() {
                    border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
         aria-hidden="true"
       >
-        <Lock size={28} />
+        <Loader2 size={28} className="animate-spin" aria-hidden="true" />
       </span>
 
       <p className="sr-only">{`${CONFIRM_TEXT} ${SECONDARY_TEXT}`}</p>
@@ -232,28 +246,28 @@ function WaitingRoomStep() {
 }
 
 /**
- * Flujo de bienvenida para un registro nuevo: siete preguntas que levantan
- * la radiografía del asesor y terminan en la sala de espera de aprobación.
+ * Flujo de bienvenida para un registro nuevo: ocho preguntas que levantan
+ * la radiografía del asesor y terminan en la Sala de Análisis.
  *
  * Sólo se le muestra a quien todavía no eligió su etapa profesional
  * (`identity.experienceLevel` vacío) — es `Gate`, en `App.jsx`, quien decide
  * si monta esto o `PendingApproval` directamente, comparando esa misma
  * columna. Esa columna, y la radiografía completa en `advisorProfileData`
  * (ver `saveAdvisorProfile` en `profilesRepo.js`), sólo se escriben una vez,
- * al completar el Paso 7 — no en cada paso— para que abandonar el
+ * al completar el Paso 8 — no en cada paso— para que abandonar el
  * cuestionario a la mitad no deje ni una elección a medias en la base ni a
- * la persona atrapada en la sala de espera sin haber terminado de
+ * la persona atrapada en la Sala de Análisis sin haber terminado de
  * contestar: si vuelve a entrar antes de terminar, `experience_level` sigue
  * vacía y le toca el recorrido completo desde el Paso 1, igual que la
  * primera vez.
  *
- * El paso final de este componente y `PendingApproval.jsx` cuentan la misma
- * historia con distinta puesta en escena (uno la escribe como un momento,
- * el otro la presenta como una pantalla de estado con botón de revisar) —
+ * El paso final de este componente y `PendingApproval.jsx` cuentan
+ * historias distintas con puestas en escena propias (uno anuncia que el
+ * perfil ya se analizó, el otro que la cuenta sigue esperando aprobación) —
  * son intencionalmente dos vistas separadas, no una condicionada dentro de
- * la otra, porque el paso final es el cierre de una animación y no debe
- * cargar los controles de "revisar de nuevo" que sí tienen sentido en una
- * vista a la que se puede volver muchas veces.
+ * la otra, porque el paso final de este flujo es el cierre de una animación
+ * y no debe cargar los controles de "revisar de nuevo" que sí tienen
+ * sentido en una vista a la que se puede volver muchas veces.
  */
 export default function OnboardingFlow({ userId, onProfileSaved }) {
   const [step, setStep] = useState(1);
@@ -261,7 +275,7 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
 
   /*
     La radiografía completa del recorrido. Vive en un solo objeto —y no en
-    siete variables sueltas— porque así es como se guarda al final (ver
+    ocho variables sueltas— porque así es como se guarda al final (ver
     `saveAdvisorProfile`): mantenerla ya con esa forma evita traducirla en el
     último paso.
   */
@@ -306,9 +320,14 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
     setStep(7);
   };
 
+  const chooseSchedule = (value) => {
+    answer('horario')(value);
+    setStep(8);
+  };
+
   /**
    * Cierra el cuestionario: guarda la radiografía completa y la etapa
-   * profesional, y sólo entonces avanza a la sala de espera.
+   * profesional, y sólo entonces avanza a la Sala de Análisis.
    *
    * Se guarda con el objeto armado en el momento (`{ ...advisorData, motor
    * }`) y no con `advisorData` del cierre de esta función: `setAdvisorData`
@@ -331,22 +350,27 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
     await onProfileSaved?.();
     if (!alive) return;
     setBusyValue(null);
-    setStep(8);
+    setStep(9);
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-black px-4 py-10">
+    <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-4 py-10">
       {step === 1 && <NameStep initialValue={advisorData.nombre} onContinue={submitName} />}
 
       {step === 2 && (
-        <ChoiceStep text={PROFILE_TEXT} options={EXPERIENCE_LEVELS} onSelect={chooseProfile} />
+        <ChoiceStep
+          text={`Bienvenido, ${advisorData.nombre}. Nuestro objetivo es simple: que `
+            + 'todos los días te vayas a dormir sabiendo que tu negocio creció. Para '
+            + 'adaptar tu experiencia, cuéntanos en qué etapa te encuentras:'}
+          options={EXPERIENCE_LEVELS}
+          onSelect={chooseProfile}
+        />
       )}
 
       {step === 3 && (
         <ChoiceStep
-          text={`Excelente elección, ${advisorData.nombre}. El autoconocimiento es tu `
-            + 'mejor herramienta. Al arrancar este negocio, ¿cuál consideras que es tu '
-            + 'mayor ventaja?'}
+          text={`${advisorData.nombre}, el autoconocimiento es tu mejor herramienta. `
+            + 'Al arrancar este negocio, ¿cuál consideras que es tu mayor ventaja?'}
           options={STRENGTH_OPTIONS}
           onSelect={chooseStrength}
         />
@@ -369,6 +393,10 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
       )}
 
       {step === 7 && (
+        <ChoiceStep text={SCHEDULE_TEXT} options={SCHEDULE_OPTIONS} onSelect={chooseSchedule} />
+      )}
+
+      {step === 8 && (
         <ChoiceStep
           text={MOTIVATION_TEXT}
           options={MOTIVATION_OPTIONS}
@@ -377,7 +405,7 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
         />
       )}
 
-      {step === 8 && <WaitingRoomStep />}
+      {step === 9 && <AnalysisRoomStep />}
     </div>
   );
 }

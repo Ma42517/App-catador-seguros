@@ -113,7 +113,7 @@ function identityFromProfile(profile) {
     whatsapp: profile.whatsapp ?? '',
 
     /*
-      Etapa profesional elegida en el Paso 2 del Onboarding (de siete pasos).
+      Etapa profesional elegida en el Paso 2 del Onboarding (de ocho pasos).
       `Gate` la usa para decidir si a alguien sin aprobar le toca el
       recorrido completo (`OnboardingFlow` desde el Paso 1, cuando todavía
       está vacía) o directo la sala de espera (cuando ya se eligió, en esta

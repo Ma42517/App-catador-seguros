@@ -181,12 +181,13 @@ function fromRow(row) {
     experienceLevel: row.experience_level ?? '',
 
     /*
-      Radiografía completa del Onboarding (pasos 3 a 7): fortaleza, inquietud,
-      mercado, disponibilidad y motor declarados al registrarse. Objeto vacío
-      cuando todavía no se guardó nada —columna sin migrar o persona a medio
-      cuestionario— para que quien lea esto no tenga que distinguir "no
-      corrió la migración" de "no ha contestado": ambos casos se ven igual y
-      se tratan igual, como cuestionario pendiente.
+      Radiografía completa del Onboarding (pasos 3 a 8): fortaleza,
+      inquietud, mercado, disponibilidad, horario operativo y motor
+      declarados al registrarse. Objeto vacío cuando todavía no se guardó
+      nada —columna sin migrar o persona a medio cuestionario— para que
+      quien lea esto no tenga que distinguir "no corrió la migración" de
+      "no ha contestado": ambos casos se ven igual y se tratan igual, como
+      cuestionario pendiente.
     */
     advisorProfileData: row.advisor_profile_data ?? null,
   };
@@ -520,15 +521,15 @@ export async function saveExperienceLevel(userId, level) {
 }
 
 /**
- * Guarda la radiografía completa de los pasos 3 a 7 del Onboarding
- * (`advisorOnboarding.js`): fortaleza, inquietud, mercado, disponibilidad y
- * motor, además del nombre con el que la persona quiso que le llamaran y la
- * etapa profesional ya elegida en el Paso 2 — todo junto, en una sola
- * columna JSONB, porque es un único cuestionario que se contesta de una vez
- * y se lee de una vez: no hay ningún caso en que la app necesite el
- * "mercado" sin el resto de las respuestas.
+ * Guarda la radiografía completa de los pasos 3 a 8 del Onboarding
+ * (`advisorOnboarding.js`): fortaleza, inquietud, mercado, disponibilidad,
+ * horario operativo y motor, además del nombre con el que la persona quiso
+ * que le llamaran y la etapa profesional ya elegida en el Paso 2 — todo
+ * junto, en una sola columna JSONB, porque es un único cuestionario que se
+ * contesta de una vez y se lee de una vez: no hay ningún caso en que la app
+ * necesite el "mercado" sin el resto de las respuestas.
  *
- * Se escribe una sola vez, al terminar el Paso 7 (ver el comentario en
+ * Se escribe una sola vez, al terminar el Paso 8 (ver el comentario en
  * `OnboardingFlow.jsx`), y no columna por columna en cada paso: así una
  * persona que abandona el cuestionario a la mitad no deja una radiografía a
  * medio llenar dando vueltas por la base, sólo el vacío de siempre.

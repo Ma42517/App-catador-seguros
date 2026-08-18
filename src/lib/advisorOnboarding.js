@@ -1,7 +1,7 @@
 /**
  * src/lib/advisorOnboarding.js
  *
- * Preguntas y opciones de los pasos 3 a 7 del Onboarding
+ * Preguntas y opciones de los pasos 3 a 8 del Onboarding
  * (`OnboardingFlow.jsx`): la radiografía del asesor que arranca. Viven en su
  * propio módulo, sin JSX, por la misma razón que `experienceLevels.js`: se
  * puede ajustar el texto de una pregunta, reordenar una opción o añadir una
@@ -16,11 +16,12 @@
  * querer, ese contrato.
  *
  * Cada `value` es lo que viaja dentro de `advisorProfileData` — el objeto
- * estructurado que se guarda al terminar el Paso 7, pensado para calibrar en
- * el futuro el algoritmo de tareas diarias (por ejemplo, dosificar
- * prospección según el tamaño de mercado declarado aquí). No cambia aunque
- * el texto del botón se reformule, para no dejar radiografías antiguas con
- * un valor que ya no corresponde a nada visible en pantalla.
+ * estructurado que se guarda al terminar el Paso 8, pensado para calibrar en
+ * el futuro las notificaciones y tareas diarias (por ejemplo, dosificar
+ * prospección según el tamaño de mercado declarado aquí, o respetar el
+ * horario elegido en el Paso 7). No cambia aunque el texto del botón se
+ * reformule, para no dejar radiografías antiguas con un valor que ya no
+ * corresponde a nada visible en pantalla.
  */
 
 /** Paso 3 — Fortaleza declarada al arrancar el negocio. */
@@ -51,7 +52,24 @@ export const AVAILABILITY_OPTIONS = [
   { value: 'part_time', label: 'Medio tiempo. Lo combinaré con otra actividad.' },
 ];
 
-/** Paso 7 — Motor: el objetivo principal detrás de la carrera. */
+/**
+ * Paso 7 — Horario operativo: en qué bloques del día la persona piensa
+ * dedicarle tiempo al negocio.
+ *
+ * Es distinto de `disponibilidad` (Paso 6, tiempo completo/medio tiempo):
+ * ese paso dice CUÁNTO tiempo tiene, éste dice CUÁNDO. Un asesor de medio
+ * tiempo que sólo puede "por las noches" necesita que las tareas y
+ * notificaciones respeten justo esa ventana; sin este dato, el algoritmo de
+ * tareas sólo sabría que tiene poco tiempo, no cuál es.
+ */
+export const SCHEDULE_OPTIONS = [
+  { value: 'mornings', label: 'Por las mañanas' },
+  { value: 'afternoons', label: 'Por las tardes' },
+  { value: 'evenings', label: 'Por las noches' },
+  { value: 'weekends', label: 'Fines de semana' },
+];
+
+/** Paso 8 — Motor: el objetivo principal detrás de la carrera. */
 export const MOTIVATION_OPTIONS = [
   { value: 'independence', label: 'Independencia y libertad financiera' },
   { value: 'extra_income', label: 'Generar un ingreso extra o diversificar' },
@@ -63,8 +81,8 @@ export const MOTIVATION_OPTIONS = [
  * `advisorProfileData`. Ninguna respuesta llega con un valor por
  * omisión —a diferencia del perfil financiero (ver `defaults.js`)— porque
  * aquí no hay un dato razonable que inventar por alguien que todavía no
- * contestó: un mercado o una disponibilidad puestos por el sistema
- * calibrarían el algoritmo de tareas con una respuesta que nadie dio.
+ * contestó: un mercado o un horario puestos por el sistema calibrarían el
+ * algoritmo de tareas con una respuesta que nadie dio.
  */
 export const EMPTY_ADVISOR_DATA = {
   nombre: '',
@@ -73,5 +91,6 @@ export const EMPTY_ADVISOR_DATA = {
   inquietud: '',
   mercado: '',
   disponibilidad: '',
+  horario: '',
   motor: '',
 };

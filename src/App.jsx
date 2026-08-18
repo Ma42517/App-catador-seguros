@@ -619,7 +619,7 @@ function Gate({ isPreview }) {
     Sin aprobar hay dos vistas posibles, y la que corresponde se decide con
     `identity.experienceLevel`: vacío significa que la persona nunca pasó por
     el Onboarding (registro nuevo, primera vez), así que le toca el
-    recorrido completo de siete preguntas. Ya elegida una etapa —en esta
+    recorrido completo de ocho preguntas. Ya elegida una etapa —en esta
     sesión o en cualquiera anterior—, cualquier apertura posterior mientras
     el rol siga pendiente cae directo en la sala de espera de siempre: la
     bienvenida es un momento, no una pantalla de estado que se repite cada

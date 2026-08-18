@@ -1,5 +1,6 @@
--- Radiografía completa del Onboarding (pasos 3 a 7: fortaleza, inquietud,
--- mercado, disponibilidad y motor) — ver src/lib/advisorOnboarding.js.
+-- Radiografía completa del Onboarding (pasos 3 a 8: fortaleza, inquietud,
+-- mercado, disponibilidad, horario operativo y motor) — ver
+-- src/lib/advisorOnboarding.js.
 --
 -- Se guarda como un solo objeto JSONB y no como columnas sueltas porque es
 -- un único cuestionario que se contesta de una vez y se lee de una vez: no
@@ -12,7 +13,7 @@
 -- Sin esta columna la app degrada con seguridad: `profilesRepo.js` lee con
 -- `?? null` y escribe con reintento silencioso si la columna no existe
 -- (mismo patrón que `experience_level`/`photo_focus`/`video_url`), así que
--- instalar el Onboarding de 7 pasos no exige correr esta migración de
+-- instalar el Onboarding de 8 pasos no exige correr esta migración de
 -- inmediato — sólo hace que la radiografía no se recuerde entre sesiones
 -- hasta que se corra.
 
@@ -20,6 +21,6 @@ alter table public.profiles
   add column if not exists advisor_profile_data jsonb;
 
 comment on column public.profiles.advisor_profile_data is
-  'Radiografía del Onboarding (pasos 3-7): { nombre, perfil, fortaleza, '
-  'inquietud, mercado, disponibilidad, motor }. Null = todavía no completó '
-  'el cuestionario. Ver src/lib/advisorOnboarding.js.';
+  'Radiografía del Onboarding (pasos 3-8): { nombre, perfil, fortaleza, '
+  'inquietud, mercado, disponibilidad, horario, motor }. Null = todavía no '
+  'completó el cuestionario. Ver src/lib/advisorOnboarding.js.';
