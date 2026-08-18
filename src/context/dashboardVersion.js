@@ -14,11 +14,23 @@ import { readPreference, writePreference } from '../lib/uiPreference';
  * dos opciones. El proveedor se monta en `App.jsx`, que es quien tiene el estado.
  */
 
-/** Las dos versiones, en el orden en que se ofrecen. */
-export const DASHBOARD_VERSIONS = [
-  { value: 'v1', label: 'Diagnóstico V1 (Actual)', short: 'Versión actual (V1)' },
-  { value: 'v2', label: 'Diagnóstico V2 (Nueva Propuesta)', short: 'Rediseño (V2)' },
-];
+/**
+ * El rediseño del tablero (V2) se descarta por ahora, junto con el Asistente
+ * Interactivo de captura (ver `V2_ENABLED` en App.jsx) — ambos son parte de
+ * la misma iniciativa de rediseño. Se apaga aquí, en un solo lugar, sin
+ * borrar `ExecutiveDashboardV2`: reactivarlo es volver esto a `true`.
+ */
+export const DASHBOARD_V2_ENABLED = false;
+
+/** Las versiones ofrecidas. Sólo una mientras el rediseño esté descartado. */
+export const DASHBOARD_VERSIONS = DASHBOARD_V2_ENABLED
+  ? [
+    { value: 'v1', label: 'Diagnóstico V1 (Actual)', short: 'Versión actual (V1)' },
+    { value: 'v2', label: 'Diagnóstico V2 (Nueva Propuesta)', short: 'Rediseño (V2)' },
+  ]
+  : [
+    { value: 'v1', label: 'Diagnóstico V1 (Actual)', short: 'Versión actual (V1)' },
+  ];
 
 /**
  * Dónde se recuerda la elección.

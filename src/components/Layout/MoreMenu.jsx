@@ -302,59 +302,75 @@ export default function MoreMenu({
             desplegado dejaría la fila del diagnóstico ocupando el triple de alto sin
             que nadie lo haya pedido.
           */}
-          <div className="overflow-hidden rounded-xl">
-            <button
-              type="button"
-              onClick={() => setDiagOpen((v) => !v)}
-              aria-expanded={isDiagOpen}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left
-                         text-zinc-200 transition-colors hover:bg-white/5"
-            >
-              <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border
-                           border-white/10 bg-white/5 text-zinc-400"
-                aria-hidden="true"
+          {/*
+            Con una sola versión disponible (el rediseño V2 está descartado, ver
+            `DASHBOARD_V2_ENABLED` en dashboardVersion.js) no hay nada que elegir:
+            la fila navega directo, en vez de desplegar un acordeón con una sola
+            opción ya activa. Es la misma razón por la que el conmutador de
+            captura desaparece con `V2_ENABLED` en falso — un control con una
+            sola salida no es una elección, es ruido.
+          */}
+          {DASHBOARD_VERSIONS.length <= 1 ? (
+            <MenuRow
+              icon={Gauge}
+              label="Diagnóstico 360"
+              onClick={() => onOpenDiagnostico(DASHBOARD_VERSIONS[0].value)}
+            />
+          ) : (
+            <div className="overflow-hidden rounded-xl">
+              <button
+                type="button"
+                onClick={() => setDiagOpen((v) => !v)}
+                aria-expanded={isDiagOpen}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left
+                           text-zinc-200 transition-colors hover:bg-white/5"
               >
-                <Gauge size={17} />
-              </span>
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border
+                             border-white/10 bg-white/5 text-zinc-400"
+                  aria-hidden="true"
+                >
+                  <Gauge size={17} />
+                </span>
 
-              <span className="min-w-0 flex-1 text-sm font-semibold">Diagnóstico 360</span>
+                <span className="min-w-0 flex-1 text-sm font-semibold">Diagnóstico 360</span>
 
-              {/*
-                Cuál está elegida, visible sin desplegar. Sin esta pista, quien viera
-                un tablero raro no tendría forma de saber que está en la propuesta
-                nueva ni por dónde volver.
-              */}
-              <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5
-                               text-[10px] font-bold uppercase tracking-wide text-zinc-500"
-              >
-                {version}
-              </span>
+                {/*
+                  Cuál está elegida, visible sin desplegar. Sin esta pista, quien viera
+                  un tablero raro no tendría forma de saber que está en la propuesta
+                  nueva ni por dónde volver.
+                */}
+                <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5
+                                 text-[10px] font-bold uppercase tracking-wide text-zinc-500"
+                >
+                  {version}
+                </span>
 
-              <ChevronDown
-                size={16}
-                className={`shrink-0 opacity-40 transition-transform duration-200
-                            ${isDiagOpen ? 'rotate-180' : ''}`}
-                aria-hidden="true"
-              />
-            </button>
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 opacity-40 transition-transform duration-200
+                              ${isDiagOpen ? 'rotate-180' : ''}`}
+                  aria-hidden="true"
+                />
+              </button>
 
-            {isDiagOpen && (
-              <div className="animate-rise space-y-0.5 px-1.5 pb-1.5">
-                {DASHBOARD_VERSIONS.map((option) => (
-                  <MenuRow
-                    key={option.value}
-                    nested
-                    icon={option.value === 'v1' ? Gauge : FlaskConical}
-                    label={option.label}
-                    badge={version === option.value ? 'Activa' : undefined}
-                    badgeHint=""
-                    onClick={() => onOpenDiagnostico(option.value)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+              {isDiagOpen && (
+                <div className="animate-rise space-y-0.5 px-1.5 pb-1.5">
+                  {DASHBOARD_VERSIONS.map((option) => (
+                    <MenuRow
+                      key={option.value}
+                      nested
+                      icon={option.value === 'v1' ? Gauge : FlaskConical}
+                      label={option.label}
+                      badge={version === option.value ? 'Activa' : undefined}
+                      badgeHint=""
+                      onClick={() => onOpenDiagnostico(option.value)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
           {/*
             ── Sólo promotores ──

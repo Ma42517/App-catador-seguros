@@ -522,19 +522,26 @@ export default function ExecutiveDashboard() {
         El interruptor va arriba de todo y separado por un borde: es un control de
         pruebas, no parte del diagnóstico. Mezclarlo con las tarjetas lo convertiría
         en una función del producto, y esto se va a quitar en cuanto V2 gane.
-      */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl
-                      border border-dashed border-zinc-700 p-2.5"
-      >
-        <span className="flex items-center gap-1.5 pl-1 text-[10px] font-bold uppercase
-                         tracking-widest text-zinc-500"
-        >
-          <FlaskConical size={12} aria-hidden="true" />
-          Prueba A/B
-        </span>
 
-        <SegmentedControl value={view} onChange={setView} options={VIEWS} />
-      </div>
+        Con el rediseño descartado (`DASHBOARD_VERSIONS` reducido a una sola
+        opción, ver dashboardVersion.js) no hay nada que probar A/B: el
+        interruptor desaparece en vez de quedarse mostrando una sola opción ya
+        elegida, que es una promesa de control que no cumple nada.
+      */}
+      {VIEWS.length > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl
+                        border border-dashed border-zinc-700 p-2.5"
+        >
+          <span className="flex items-center gap-1.5 pl-1 text-[10px] font-bold uppercase
+                           tracking-widest text-zinc-500"
+          >
+            <FlaskConical size={12} aria-hidden="true" />
+            Prueba A/B
+          </span>
+
+          <SegmentedControl value={view} onChange={setView} options={VIEWS} />
+        </div>
+      )}
 
       {view === 'v1' ? <ExecutiveDashboardV1 /> : <ExecutiveDashboardV2 />}
     </div>
