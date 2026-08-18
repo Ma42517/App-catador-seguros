@@ -1,6 +1,16 @@
+import { useState, useEffect } from 'react';
 import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
 import { priorityByKey } from '../Activities/priorities';
 import { tapFeedback } from '../../lib/haptics';
+
+/** Cuánto espera la barra antes de entrar, después de montarse. */
+const ENTRANCE_DELAY_MS = 260;
+
+/** Si la persona pidió menos movimiento, la barra aparece de golpe, sin deslizarse. */
+function prefersReducedMotion() {
+  return typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
@@ -22,6 +32,26 @@ export default function BottomTabBar({
   onToday, onProductivity, onAgenda, onAdd, onMore,
   agendaCount = 0, agendaPriority = null,
 }) {
+  /*
+    La barra entra con un pequeño retraso después del resto de la pantalla,
+    en lugar de aparecer de golpe junto con todo lo de arriba.
+
+    `AdminLayout` la monta en el mismo instante en que se resuelve el splash
+    (`isAppReady`) — el mismo momento en que se monta el saludo, la fecha y
+    la lista de eventos —, así que sin este retraso los cuatro llegan a la
+    vez y la barra se lee como un elemento más del fondo en vez de la pieza
+    de navegación que es. El retraso vive aquí, en la propia barra, y no en
+    quien la monta: así cualquier pantalla que la use hereda la misma
+    entrada sin tener que orquestarla desde fuera.
+  */
+  const [entered, setEntered] = useState(prefersReducedMotion());
+
+  useEffect(() => {
+    if (prefersReducedMotion()) return undefined;
+    const timer = setTimeout(() => setEntered(true), ENTRANCE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   const today = new Date().getDate();
 
   // Más de nueve pendientes en un día ya no se leen como una cuenta, sino como
@@ -57,7 +87,9 @@ export default function BottomTabBar({
   return (
     <nav
       aria-label="Navegación inferior"
-      className="fixed bottom-0 left-0 right-0 z-50 w-full max-w-md mx-auto px-2 pt-2 pb-6 md:pb-4"
+      className={`fixed bottom-0 left-0 right-0 z-50 w-full max-w-md mx-auto px-2 pt-2 pb-6
+                  md:pb-4 transition-[transform,opacity] duration-300 ease-out
+                  ${entered ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}
     >
       <div
         className="w-full rounded-[1.75rem] border border-zinc-200/70
