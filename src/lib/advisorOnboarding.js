@@ -97,14 +97,24 @@ export const HOUR_BLOCKS = [
 export const ALL_DAY_HOURS = HOUR_BLOCKS.flatMap((block) => block.hours);
 
 /**
- * Una hora en formato corto de 12 —"6a", "12p", "11p"— para que quepa en
- * una celda pequeña del mapa sin ambigüedad entre las 6 de la mañana y las
- * 6 de la tarde, que un simple "6" no distinguiría.
+ * El número de la hora en formato de 12, sin la "a"/"p" de antes ("7", "8",
+ * "9"...): con las celdas ya agrupadas bajo un título por bloque
+ * (Madrugada, Mañana...) la letra de más era ruido, no información — nadie
+ * confunde las 9 de "MAÑANA" con las 9 de "NOCHE" cuando el bloque ya lo
+ * dice arriba.
  */
 export function formatHour(hour) {
-  const period = hour < 12 ? 'a' : 'p';
-  const twelveHour = hour % 12 === 0 ? 12 : hour % 12;
-  return `${twelveHour}${period}`;
+  return String(hour % 12 === 0 ? 12 : hour % 12);
+}
+
+/**
+ * La hora completa, para quien no ve el mapa: "7:00 a. m.". Sólo la usan
+ * los lectores de pantalla (`aria-label` de cada celda) — sin el bloque
+ * visual como contexto, un lector que anuncia sólo "7" sí sería ambiguo.
+ */
+export function formatHourLabel(hour) {
+  const period = hour < 12 ? 'a. m.' : 'p. m.';
+  return `${formatHour(hour)}:00 ${period}`;
 }
 
 /** Paso 8 — Motor: el objetivo principal detrás de la carrera. */

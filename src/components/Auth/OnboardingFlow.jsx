@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Sun, Moon, Sunrise, Sunset } from 'lucide-react';
+import { Loader2, Sun, Moon, Sunrise, Sunset, ChevronDown } from 'lucide-react';
 import useTypewriter from '../../lib/useTypewriter';
 import { EXPERIENCE_LEVELS } from '../../lib/experienceLevels';
 import {
   STRENGTH_OPTIONS, CONCERN_OPTIONS, MARKET_OPTIONS, AVAILABILITY_OPTIONS,
-  HOUR_BLOCKS, ALL_DAY_HOURS, formatHour, MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
+  HOUR_BLOCKS, ALL_DAY_HOURS, formatHour, formatHourLabel,
+  MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
 } from '../../lib/advisorOnboarding';
 import { saveExperienceLevel, saveAdvisorProfile } from '../../data/profilesRepo';
 
@@ -14,15 +15,32 @@ const MIN_NAME = 2;
 /** Un icono por bloque del mapa de horas, sólo decorativo junto al título. */
 const BLOCK_ICONS = { dawn: Moon, morning: Sunrise, afternoon: Sun, evening: Sunset };
 
+/**
+ * Bloques que se dibujan siempre. "Madrugada" queda fuera a propósito: es
+ * poco común que un asesor trabaje entre las 12a y las 5a, así que se
+ * esconde detrás de un botón discreto (ver `HourGridStep`) en vez de ocupar
+ * espacio de la pantalla que el resto del mapa necesita para caber sin
+ * scroll.
+ */
+const DEFAULT_VISIBLE_BLOCKS = HOUR_BLOCKS.filter((block) => block.key !== 'dawn');
+const DAWN_BLOCK = HOUR_BLOCKS.find((block) => block.key === 'dawn');
+
 const CONCERN_TEXT = 'Para que podamos guiarte con precisión, ¿qué es lo que más '
   + 'te inquieta o te impone en esta etapa inicial?';
 const MARKET_TEXT = 'Todo gran negocio arranca con un mercado cálido (tus familiares, '
   + 'amigos y conocidos). Si revisas tus contactos hoy, ¿a cuántas personas podrías '
   + 'llamarles cómodamente para platicarles de tu nueva etapa?';
 const AVAILABILITY_TEXT = 'El éxito requiere constancia. ¿Cómo planeas gestionar tu tiempo?';
-const SCHEDULE_TEXT = 'Para que tu asistente se adapte a tu vida y no te interrumpa en tus '
-  + 'otras actividades, toca las horas del día que sí puedes dedicarle al negocio. Deja '
-  + 'sin marcar lo que ya usas para otra cosa, aunque sea sólo una hora suelta.';
+const SCHEDULE_TEXT = 'Toca las horas que le dedicarás al negocio. Deja en blanco el resto.';
+/*
+  Aclaración secundaria, no la instrucción principal: por eso vive aparte
+  de `SCHEDULE_TEXT` y se dibuja como leyenda pequeña (ver `HourGridStep`)
+  en vez de sumarse al párrafo que se escribe con máquina de escribir —ese
+  texto ya quedó corto a propósito, y pegarle esta frase se lo volvería a
+  alargar.
+*/
+const SCHEDULE_HINT_TEXT = 'Deja sin marcar lo que ya usas para otra cosa, '
+  + 'aunque sea sólo una hora suelta.';
 const MOTIVATION_TEXT = 'Finalmente, ¿cuál es tu objetivo principal al desarrollar esta carrera?';
 const CONFIRM_TEXT = 'Excelente. Tu perfil ha sido registrado con éxito.';
 const SECONDARY_TEXT = 'Estamos analizando tus respuestas para estructurar tu plan de '
@@ -243,10 +261,13 @@ function WelcomeStep({ name, onContinue }) {
 
 /**
  * Una hora del mapa: una celda pequeña que alterna entre libre y ocupada
- * con un toque. No lleva ningún texto además de la hora —ni "libre" ni
- * "ocupada"— porque con 24 celdas en pantalla cualquier palabra de más
- * las volvería ilegibles; el color y el check son toda la explicación que
- * necesita una grilla de este tamaño.
+ * con un toque. No lleva ningún texto además del número —ni "libre" ni
+ * "ocupada"— porque con hasta 24 celdas en pantalla cualquier palabra de
+ * más las volvería ilegibles; el color es toda la explicación que necesita
+ * una grilla de este tamaño. El número por sí solo ("7", sin "a"/"p") no es
+ * ambiguo porque cada celda ya vive bajo el título de su bloque —Mañana,
+ * Tarde...—, que es quien distingue las 7 de la mañana de las 7 de la
+ * noche.
  */
 function HourCell({ hour, isSelected, onToggle }) {
   return (
@@ -254,11 +275,11 @@ function HourCell({ hour, isSelected, onToggle }) {
       type="button"
       onClick={() => onToggle(hour)}
       aria-pressed={isSelected}
-      aria-label={`${formatHour(hour)}: ${isSelected ? 'disponible' : 'ocupado'}`}
-      className={`aspect-square rounded-lg text-[11px] font-semibold transition-all
-                 active:scale-90 ${
+      aria-label={`${formatHourLabel(hour)}: ${isSelected ? 'disponible' : 'ocupado'}`}
+      className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm
+                 font-semibold transition-all active:scale-90 ${
         isSelected
-          ? 'bg-amber-500 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+          ? 'bg-amber-500 text-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
           : 'bg-white/[0.04] text-white/30 hover:bg-white/[0.08] hover:text-white/50'
       }`}
     >
@@ -268,13 +289,13 @@ function HourCell({ hour, isSelected, onToggle }) {
 }
 
 /**
- * Un bloque del mapa (Madrugada, Mañana, Tarde, Noche): su título con
- * icono, un atajo para marcar o vaciar todas sus horas de golpe, y la fila
- * de celdas. El grid de seis columnas es fijo para los cuatro bloques —da
- * igual que Tarde tenga siete horas y Noche cinco (ver `HOUR_BLOCKS`)—, así
- * que la última fila de Tarde se completa con una sola celda y la de
- * Noche queda con la sexta columna vacía, el mismo efecto de un calendario
- * cuya última semana no llena la cuadrícula entera.
+ * Un bloque del mapa (Mañana, Tarde, Noche y, si se despliega, Madrugada):
+ * su título con icono, un atajo para marcar o vaciar todas sus horas de
+ * golpe, y la fila de celdas. El grid de seis columnas es fijo para los
+ * cuatro bloques —da igual que Tarde tenga siete horas y Noche cinco (ver
+ * `HOUR_BLOCKS`)—, así que la última fila de Tarde se completa con una sola
+ * celda y la de Noche queda con la sexta columna vacía, el mismo efecto de
+ * un calendario cuya última semana no llena la cuadrícula entera.
  *
  * El atajo por bloque existe porque tocar varias celdas una por una para
  * decir "toda la tarde libre" es fricción que un asesor con la agenda
@@ -290,11 +311,11 @@ function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-1.5 flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-xs font-semibold uppercase
                          tracking-wider text-white/40"
         >
-          <Icon size={13} aria-hidden="true" />
+          <Icon size={12} aria-hidden="true" />
           {block.label}
         </span>
 
@@ -323,9 +344,15 @@ function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
 }
 
 /**
- * Paso 8 — Mapa de horas. Reemplaza la lista de cuatro franjas fijas
- * ("Por las mañanas"...) por un cuadro de 24 celdas, una por hora,
- * agrupadas en cuatro bloques sólo para que se lean como jornada.
+ * Paso 8 — Mapa de horas. Un cuadro de 24 celdas, una por hora, agrupadas
+ * en bloques sólo para que se lean como jornada.
+ *
+ * Pensado para caber entero en una pantalla sin scroll: instrucción de una
+ * sola línea, espaciado reducido entre secciones (`space-y-3`), celdas de
+ * `h-9 w-9` y el bloque de Madrugada escondido por defecto (ver
+ * `DEFAULT_VISIBLE_BLOCKS`) — es la sección menos usada, y la única forma
+ * de que Mañana, Tarde y Noche quepan sin apretar demasiado las celdas es
+ * no dibujar un cuarto bloque que casi nadie despliega.
  *
  * `selected` vive en el propio paso y no en `advisorData` directamente
  * (a diferencia del resto de los pasos, que escriben en cada toque):
@@ -337,6 +364,15 @@ function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
 function HourGridStep({ initialHours, onContinue }) {
   const { typed, isTyping } = useTypewriter(SCHEDULE_TEXT);
   const [selected, setSelected] = useState(initialHours);
+
+  /*
+    Se abre sola si ya trae alguna hora de madrugada marcada (por ejemplo,
+    al volver con "Atrás" desde el Paso 9): ocultar un bloque que ya tiene
+    una respuesta dentro escondería esa respuesta, no sólo la sección.
+  */
+  const [showDawn, setShowDawn] = useState(
+    () => DAWN_BLOCK.hours.some((h) => initialHours.includes(h)),
+  );
 
   const toggleHour = (hour) => {
     setSelected((current) => (
@@ -360,18 +396,33 @@ function HourGridStep({ initialHours, onContinue }) {
   const isFreelanceAllDay = selected.length === ALL_DAY_HOURS.length;
 
   return (
-    <div className="flex w-full flex-col items-center px-6 text-center">
-      <p className="sr-only">{SCHEDULE_TEXT}</p>
+    <div className="flex h-screen w-full flex-col items-center justify-center px-6 text-center">
+      <p className="sr-only">{`${SCHEDULE_TEXT} ${SCHEDULE_HINT_TEXT}`}</p>
       <p
-        className="max-w-md text-xl font-light leading-snug text-white sm:text-2xl"
+        className="max-w-sm text-lg leading-snug text-white"
         aria-hidden="true"
       >
         {typed}
         <Caret show={isTyping} />
       </p>
 
+      {/*
+        Leyenda pequeña, no una segunda oración del mismo tamaño: aclara el
+        caso de la hora suelta (la de comer, por ejemplo) sin competir con
+        la instrucción principal por la atención de quien recién empieza a
+        tocar el mapa.
+      */}
+      <p
+        className={`mt-1.5 max-w-xs text-[11px] leading-snug text-white/40
+                    transition-opacity duration-700
+                    ${isTyping ? 'opacity-0' : 'opacity-100'}`}
+        aria-hidden="true"
+      >
+        {SCHEDULE_HINT_TEXT}
+      </p>
+
       <div
-        className={`mt-8 w-full max-w-sm transition-opacity duration-700
+        className={`mt-4 w-full max-w-sm space-y-3 transition-opacity duration-700
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
         aria-hidden={isTyping}
       >
@@ -384,7 +435,7 @@ function HourGridStep({ initialHours, onContinue }) {
         <button
           type="button"
           onClick={toggleAllDay}
-          className={`mb-6 w-full rounded-xl border px-4 py-2.5 text-xs font-semibold
+          className={`w-full rounded-lg border px-4 py-1.5 text-xs font-semibold
                      transition-colors ${
             isFreelanceAllDay
               ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
@@ -394,8 +445,8 @@ function HourGridStep({ initialHours, onContinue }) {
           {isFreelanceAllDay ? 'Todo el día está marcado libre' : 'Tengo todo el día libre'}
         </button>
 
-        <div className="flex flex-col gap-5 text-left">
-          {HOUR_BLOCKS.map((block) => (
+        <div className="space-y-3 text-left">
+          {DEFAULT_VISIBLE_BLOCKS.map((block) => (
             <HourBlockRow
               key={block.key}
               block={block}
@@ -404,9 +455,33 @@ function HourGridStep({ initialHours, onContinue }) {
               onToggleBlock={toggleBlock}
             />
           ))}
+
+          {/*
+            Madrugada, escondida detrás de un botón fantasma: es la franja
+            menos común (ver la nota junto a `DEFAULT_VISIBLE_BLOCKS`), así
+            que sólo ocupa espacio en pantalla si alguien la pide.
+          */}
+          {showDawn ? (
+            <HourBlockRow
+              block={DAWN_BLOCK}
+              selectedHours={selected}
+              onToggleHour={toggleHour}
+              onToggleBlock={toggleBlock}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowDawn(true)}
+              className="flex items-center gap-1 text-xs text-slate-500
+                         transition-colors hover:text-slate-300"
+            >
+              <ChevronDown size={12} aria-hidden="true" />
+              Mostrar horario de madrugada
+            </button>
+          )}
         </div>
 
-        <p className="mt-5 text-xs text-zinc-500">
+        <p className="text-xs text-zinc-500">
           {selected.length === 0
             ? 'Todavía no marcas ninguna hora.'
             : `${selected.length} ${selected.length === 1 ? 'hora libre' : 'horas libres'} marcadas.`}
@@ -416,7 +491,7 @@ function HourGridStep({ initialHours, onContinue }) {
           type="button"
           onClick={() => onContinue(selected)}
           disabled={selected.length === 0}
-          className="mt-6 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
+          className="w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
                      font-semibold text-white shadow-lg shadow-indigo-600/30
                      transition-all hover:bg-indigo-500 active:scale-95
                      disabled:cursor-not-allowed disabled:bg-white/[0.06]
