@@ -121,6 +121,16 @@ function identityFromProfile(profile) {
       vez que se recarga o se vuelve a entrar.
     */
     experienceLevel: profile.experienceLevel ?? '',
+
+    /*
+      Radiografía del Onboarding (pasos 3 a 8: fortaleza, inquietud,
+      mercado, disponibilidad, horario y motor). Viaja en la identidad por
+      la misma razón que `experienceLevel`: pantallas como `AISequence.jsx`
+      necesitan el horario marcado para no sugerir trabajo fuera de él, y
+      pedirle el perfil completo a la base en cada una repetiría la misma
+      consulta que ya resolvió `SessionContext` al entrar.
+    */
+    advisorProfileData: profile.advisorProfileData ?? null,
   };
 }
 

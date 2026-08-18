@@ -3,8 +3,10 @@ import { useEvents } from '../../context/EventContext';
 import ActionableCard from '../Activities/ActionableCard';
 import PriorityAlerts from './PriorityAlerts';
 import useTypewriter from '../../lib/useTypewriter';
+import useNow from '../../lib/useNow';
 import { buildMessage } from '../../lib/homeMessage';
 import { buildSmartMessage } from '../../lib/smartMessage';
+import { isHourWithinSchedule } from '../../lib/advisorOnboarding';
 import DailyGoalBar from './DailyGoalBar';
 
 /*
@@ -26,16 +28,33 @@ const SMART_MESSAGE_DELAY_MS = 6500;
  *
  * Pasado `SMART_MESSAGE_DELAY_MS` desde que la fase 2 ya asentó, el mensaje
  * central se sustituye por uno inteligente que lee la carga de trabajo del
- * día y los puntos acumulados — también con máquina de escribir, no con un
- * fundido de opacidad: cualquier texto que hable "en voz del asistente" en
- * esta pantalla se escribe letra por letra, es la misma convención en toda
- * la app (`lib/useTypewriter`). Ninguna de las dos fases originales cambia:
- * esto ocurre después, y por completo aparte.
+ * día, los puntos acumulados y si la hora actual cae dentro del `horario`
+ * que el asesor marcó en el Onboarding (Paso 7) — también con máquina de
+ * escribir, no con un fundido de opacidad: cualquier texto que hable "en voz
+ * del asistente" en esta pantalla se escribe letra por letra, es la misma
+ * convención en toda la app (`lib/useTypewriter`). Ninguna de las dos fases
+ * originales cambia: esto ocurre después, y por completo aparte.
+ *
+ * El filtro de horario sólo aplica a esta sugerencia de la propia app. Los
+ * Avisos del promotor (`PriorityAlerts`, más abajo) son comunicación de la
+ * promotoría, no una sugerencia de productividad: se siguen mostrando sin
+ * importar la hora, decisión explícita para no esconder algo que alguien
+ * más consideró importante avisar.
  */
-export default function AISequence({ header, children, puntosActuales = 0 }) {
+export default function AISequence({ header, children, puntosActuales = 0, horario = [] }) {
   const { highPriorityToday, activeToday } = useEvents();
 
   const text = buildMessage(highPriorityToday.length);
+
+  /*
+    Reloj vivo para el mensaje inteligente: sin él, alguien que abre la app
+    dos minutos antes del corte de su horario vería el mismo mensaje
+    "dentro de horario" durante todo el rato que se queda en la pantalla,
+    en vez de que el mensaje respete el instante real en que se dispara
+    (pasado `SMART_MESSAGE_DELAY_MS`). El mismo hook que ya usan
+    `PriorityAlerts.jsx` y `ActionableCard.jsx`.
+  */
+  const now = useNow();
 
   /*
     La máquina de escribir vive en `lib/useTypewriter`: la comparten esta pantalla y
@@ -75,12 +94,14 @@ export default function AISequence({ header, children, puntosActuales = 0 }) {
   useEffect(() => {
     if (isTyping) return undefined;
     const timer = setTimeout(() => {
-      setSmartText(buildSmartMessage(activeToday.length, puntosActuales));
+      const isWithinSchedule = isHourWithinSchedule(horario, now);
+      setSmartText(buildSmartMessage(activeToday.length, puntosActuales, isWithinSchedule));
     }, SMART_MESSAGE_DELAY_MS);
     return () => clearTimeout(timer);
-    // Sólo reacciona a `isTyping`: `activeToday`/`puntosActuales` se leen en
-    // el instante en que el temporizador se cumple, no deben reprogramarlo
-    // cada vez que la agenda cambia mientras se espera.
+    // Sólo reacciona a `isTyping`: `activeToday`/`puntosActuales`/`horario`/`now`
+    // se leen en el instante en que el temporizador se cumple, no deben
+    // reprogramarlo cada vez que la agenda cambia o el reloj avanza
+    // mientras se espera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTyping]);
 

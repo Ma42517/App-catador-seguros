@@ -10,8 +10,12 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  * El día y el saludo viven arriba; el centro lo ocupa la secuencia de inicio.
  * El saludo entra palabra por palabra, sin vibración: el golpe al tacto se
  * reserva para los botones y los avisos del cronómetro.
+ *
+ * `horario` viaja hasta `AISequence` sin usarse aquí: es la única parada
+ * intermedia entre `Gate` (que lo lee de `identity.advisorProfileData`) y
+ * el mensaje inteligente que sí lo necesita.
  */
-export default function TodayView({ name, puntosActuales = 0 }) {
+export default function TodayView({ name, puntosActuales = 0, horario = [] }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
 
@@ -25,6 +29,7 @@ export default function TodayView({ name, puntosActuales = 0 }) {
   return (
     <AISequence
       puntosActuales={puntosActuales}
+      horario={horario}
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
           {/*

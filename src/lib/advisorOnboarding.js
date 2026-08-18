@@ -117,6 +117,24 @@ export function formatHourLabel(hour) {
   return `${formatHour(hour)}:00 ${period}`;
 }
 
+/**
+ * ¿La hora de `now` cae dentro del `horario` que el asesor marcó en el
+ * Onboarding?
+ *
+ * `horario` vacío o ausente (cuenta vieja, columna sin migrar, o Onboarding
+ * todavía no completado) se trata como "sin restricción" — devuelve
+ * `true`— y no como "nunca disponible": un dato que no existe no debe
+ * silenciar sugerencias para nadie, sólo quien de verdad marcó sus horas
+ * debe verlas respetadas.
+ *
+ * @param {number[]} horario - Horas (0-23) marcadas libres. Ver `EMPTY_ADVISOR_DATA`.
+ * @param {Date} [now] - Reloj a usar; se inyecta para poder probarlo.
+ */
+export function isHourWithinSchedule(horario, now = new Date()) {
+  if (!Array.isArray(horario) || horario.length === 0) return true;
+  return horario.includes(now.getHours());
+}
+
 /** Paso 8 — Motor: el objetivo principal detrás de la carrera. */
 export const MOTIVATION_OPTIONS = [
   { value: 'independence', label: 'Independencia y libertad financiera' },
