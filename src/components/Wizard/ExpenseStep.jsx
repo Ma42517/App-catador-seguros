@@ -195,7 +195,25 @@ export default function ExpenseStep() {
         </Field>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-          <Field label="Frecuencia">
+          {/*
+            Con frecuencia semanal se muestra la cuenta, no sólo el resultado.
+
+            El equivalente mensual de un gasto semanal sorprende a todo el mundo: la cabeza
+            multiplica por 4 y el mes promedia 4.33 semanas. Sin la explicación, un asesor
+            captura 500 a la semana, ve 2,167 y da por hecho que la app se equivocó —justo lo
+            que pasó al probarla—. Delante de un prospecto, esa duda cuesta más que el gasto.
+
+            Se dice en semanas del año y no en el factor, porque "52 semanas" se puede
+            verificar mentalmente y "4.3333" hay que creerlo.
+          */}
+          <Field
+            label="Frecuencia"
+            hint={draft.frequency === 'weekly'
+              ? (draft.amount > 0
+                ? `Un mes promedia 4.33 semanas, no 4: ${fmtMXN(draft.amount)} por 52 semanas son ${fmtMXN(draft.amount * 52)} al año, o ${fmtMXN(draftMonthly)} al mes.`
+                : 'Un mes promedia 4.33 semanas, no 4: el equivalente mensual se calcula con las 52 semanas del año.')
+              : undefined}
+          >
             <Select
               value={draft.frequency}
               onChange={(v) => sheet.patch({ frequency: v })}
