@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, ArrowLeft, Sparkles, FlaskConical } from 'lucide-react';
+import {
+  ArrowRight, ArrowLeft, Sparkles, FlaskConical,
+  Wallet, Briefcase, Percent, Building2, MoreHorizontal, ChevronDown, Flame,
+} from 'lucide-react';
 import useTypewriter from '../../lib/useTypewriter';
 import { useFinance } from '../../context/FinanceContext';
 import { createEmptyState, createIncome } from '../../data/defaults';
+import { fmtMXN } from '../../engine/finance';
 
 /*
   El perfil en blanco, para saber a qué volver al reiniciar.
@@ -94,6 +98,40 @@ const YES_NO = [
   { value: false, label: 'No' },
 ];
 
+/*
+  Categorías de ingreso del Paso "Ingresos", mapeadas a combinaciones
+  group/type YA VÁLIDAS del motor (src/engine/income.js) — nada inventado.
+  'stability' sigue el mismo criterio que usa la captura clásica: comisiones
+  y bonos son el ingreso menos predecible del grupo laboral, así que se
+  capturan como 'variable' (se usan al variabilityFactor, no al 100%).
+*/
+const INCOME_CATEGORIES = [
+  { key: 'salary', label: 'Sueldo Fijo', icon: Wallet, group: 'labor', type: 'salary', stability: 'stable' },
+  { key: 'business', label: 'Negocio / Honorarios', icon: Briefcase, group: 'labor', type: 'business', stability: 'stable' },
+  { key: 'commissions', label: 'Comisiones / Bonos', icon: Percent, group: 'labor', type: 'commissions', stability: 'variable' },
+  { key: 'rent', label: 'Rentas', icon: Building2, group: 'passive', type: 'rent', stability: 'stable' },
+  { key: 'other', label: 'Otros', icon: MoreHorizontal, group: 'other', type: 'other', stability: 'stable' },
+];
+
+/*
+  Frase de anclaje emocional para el título del paso de Ingresos, derivada de
+  la meta elegida en el Paso 2. Vive separada de `GOALS` (que sólo etiqueta
+  los botones) porque el título necesita una frase gramatical distinta
+  ("para lograr comprar una casa" suena mal; "para comprar tu casa" sí).
+*/
+const GOAL_ANCHOR = {
+  home: 'comprar tu casa',
+  retirement: 'alcanzar tu libertad financiera',
+  family: 'proteger a tu familia',
+  debt: 'salir de tus deudas',
+  other: 'lograr tu meta',
+};
+
+/** Moneda con centavos, sólo para el totalizador ("Poder de fuego"). */
+const fmtMXNCents = (v) => new Intl.NumberFormat('es-MX', {
+  style: 'currency', currency: 'MXN',
+}).format(Number(v) || 0);
+
 const QUESTION = {
   name: () => 'Hola. Para comenzar a diseñar tu estrategia, '
     + '¿cómo te gusta que te llamen?',
@@ -102,8 +140,8 @@ const QUESTION = {
   age: () => '¿Cuántos años tienes?',
   city: (name) => `${name}, ¿en qué ciudad vives?`,
   dependents: () => '¿Alguien más depende de ti hoy?',
-  income: () => 'Hablemos de números. ¿Cuál es tu ingreso mensual neto '
-    + '—lo que recibes ya sin impuestos—?',
+  income: (goalValue) => `Excelente. Para ${GOAL_ANCHOR[goalValue] || GOAL_ANCHOR.other}, `
+    + 'veamos qué tan fuerte es tu motor financiero. ¿De dónde provienen tus ingresos?',
   retirementAge: () => '¿A qué edad te gustaría retirarte?',
   medicalInsurance: () => '¿Cuentas con un seguro de Gastos Médicos Mayores (GMM)?',
   lifeInsurance: () => '¿Cuentas con un seguro de vida?',
@@ -295,6 +333,119 @@ function WelcomeStep({ onStart }) {
 }
 
 /**
+ * Tarjeta de categoría de ingreso. Al tocarla se expande con una transición de
+ * grid-template-rows (0fr -> 1fr): a diferencia de max-height, anima al valor
+ * exacto de contenido sin adivinar un tope fijo, y sin el salto que da un
+ * `hidden`/`block` a secas.
+ */
+function IncomeCard({ category, amount, isOpen, onToggle, onAmountChange }) {
+  const Icon = category.icon;
+  const hasAmount = Number(amount) > 0;
+
+  return (
+    <div
+      className={`overflow-hidden rounded-2xl border transition-colors duration-300 ${
+        isOpen || hasAmount
+          ? 'border-indigo-500/50 bg-indigo-500/[0.06]'
+          : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-transform
+                   active:scale-[0.98]"
+      >
+        <span
+          className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors ${
+            hasAmount ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-white/50'
+          }`}
+          aria-hidden="true"
+        >
+          <Icon size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-white">
+            {category.label}
+          </span>
+          {hasAmount && (
+            <span className="block truncate text-[11px] font-medium text-indigo-300">
+              {fmtMXN(amount)}/mes
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+          className={`shrink-0 text-white/30 transition-transform duration-300 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {/*
+        `grid-rows-[0fr]` / `grid-rows-[1fr]` es lo que permite animar hacia un
+        alto que no se conoce de antemano. La fila interior lleva `min-h-0`:
+        sin él, una celda de grid no se encoge por debajo del alto de su
+        contenido y la transición no tendría nada que animar.
+      */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+          isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pb-4 pt-1">
+            <span className="text-lg text-white/40" aria-hidden="true">$</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={amount}
+              onChange={(event) => onAmountChange(toDigitsDraft(event.target.value))}
+              placeholder="0"
+              aria-label={`Monto mensual de ${category.label}`}
+              className="w-full border-b border-white/20 bg-transparent pb-1.5 text-lg
+                         text-white caret-indigo-400 transition-colors
+                         placeholder:text-white/25 focus:border-indigo-500 focus:outline-none"
+            />
+            <span className="shrink-0 text-[11px] text-white/30">al mes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Barra flotante con la suma en vivo de las categorías de ingreso.
+ *
+ * Fija y no dentro del flujo de scroll: en el paso de Ingresos las tarjetas se
+ * expanden y contraen, y una barra que se desplazara con ellas cambiaría de
+ * sitio justo cuando el número que muestra acaba de cambiar — el peor momento
+ * para que algo se mueva por debajo del dedo.
+ */
+function IncomeTotalBar({ total }) {
+  return (
+    <div
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex justify-center
+                 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+    >
+      <div
+        className="animate-rise pointer-events-auto flex items-center gap-2.5 rounded-full
+                   border border-indigo-500/30 bg-zinc-900/90 px-5 py-3 shadow-2xl
+                   shadow-indigo-950/50 backdrop-blur-xl"
+      >
+        <Flame size={16} className="shrink-0 text-amber-400" aria-hidden="true" />
+        <span className="text-xs font-medium text-white/60">Poder de fuego mensual:</span>
+        <span className="text-sm font-bold tabular-nums text-white">{fmtMXNCents(total)}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Captura V2: el diagnóstico como conversación.
  *
  * La versión clásica presenta ocho pasos con sus rejillas de campos, y funciona,
@@ -347,20 +498,24 @@ export default function ConversationalWizard({ onUseClassic, onExit }) {
   const [dependentsChoice, setDependentsChoice] = useState(null);
 
   /*
-    Ingreso mensual neto: no existe como campo simple en el perfil del V1 — se
-    modela como una fila dentro de `incomes[]` (nombre, categoría, tipo, monto,
-    frecuencia, estabilidad), la misma colección que llena el paso de Ingresos
-    de la captura clásica. La fila que crea este paso usa 'stable'/'monthly'
-    porque es justo lo que se preguntó: "tu ingreso mensual neto", sin
-    variabilidad declarada. Se guarda el id de esa fila para poder actualizarla
-    en vez de duplicarla si la persona vuelve atrás a corregir el monto.
+    Ingresos por categoría: cada tarjeta de `INCOME_CATEGORIES` mapea 1:1 a una
+    fila de `incomes[]` — la misma colección que llena el paso de Ingresos de
+    la captura clásica. Se identifican por un nombre fijo ("V2 · Sueldo Fijo",
+    etc.) para poder localizar y actualizar la fila si la persona vuelve atrás
+    a corregir un monto, en vez de duplicarla cada vez que se re-visita el
+    paso. El prefijo "V2 ·" es lo que distingue estas filas de una que el
+    asesor haya creado a mano con el mismo concepto en la captura clásica.
   */
-  const seedIncomeId = incomes.find((row) => row.name === 'Ingreso principal')?.id || null;
-  const [incomeRowId, setIncomeRowId] = useState(seedIncomeId);
-  const [income, setIncome] = useState(() => {
-    const row = incomes.find((r) => r.id === seedIncomeId);
-    return row && row.amount ? String(row.amount) : '';
+  const incomeRowName = (key) => `V2 · ${INCOME_CATEGORIES.find((c) => c.key === key).label}`;
+  const [incomeAmounts, setIncomeAmounts] = useState(() => {
+    const initial = {};
+    INCOME_CATEGORIES.forEach((cat) => {
+      const row = incomes.find((r) => r.name === incomeRowName(cat.key));
+      initial[cat.key] = row && row.amount ? String(row.amount) : '';
+    });
+    return initial;
   });
+  const [openIncomeCard, setOpenIncomeCard] = useState(null);
 
   const [retirementAge, setRetirementAge] = useState(
     () => (hasAnswered ? String(profile.retirementAge ?? '') : ''),
@@ -378,8 +533,14 @@ export default function ConversationalWizard({ onUseClassic, onExit }) {
   const cleanCity = city.trim();
   const ageNumber = Number(age);
   const isAgeValid = age !== '' && ageNumber >= AGE.min && ageNumber <= AGE.max;
-  const incomeNumber = Number(income);
-  const isIncomeValid = income !== '' && incomeNumber >= 0;
+  /*
+    Total en vivo del "Poder de fuego": suma de las categorías con monto
+    capturado. No valida nada — igual que el resto de la captura clásica
+    (ver docs/DIAGNOSTICO-360.md: "No hay validación que bloquee el avance"),
+    así que se puede continuar con el total en $0.
+  */
+  const incomeTotal = Object.values(incomeAmounts)
+    .reduce((sum, v) => sum + (Number(v) || 0), 0);
   const retirementAgeNumber = Number(retirementAge);
   const retirementMin = (isAgeValid ? ageNumber : profile.age) + 1;
   const isRetirementAgeValid = retirementAge !== ''
@@ -462,24 +623,54 @@ export default function ConversationalWizard({ onUseClassic, onExit }) {
     goTo('income');
   };
 
+  /**
+   * Alterna la tarjeta de categoría abierta/cerrada.
+   *
+   * Sólo una tarjeta expandida a la vez: dos campos numéricos abiertos al
+   * mismo tiempo, en una pantalla que ya reserva espacio para el totalizador
+   * flotante, competirían por el mismo teclado numérico en el teléfono.
+   */
+  const toggleIncomeCard = (key) => {
+    setOpenIncomeCard((current) => (current === key ? null : key));
+  };
+
+  const setIncomeAmount = (key, value) => {
+    setIncomeAmounts((current) => ({ ...current, [key]: value }));
+  };
+
+  /**
+   * Escribe cada categoría con monto al contexto compartido, una fila por
+   * categoría — igual que si el asesor las hubiera tecleado una por una en
+   * el paso de Ingresos de la captura clásica.
+   */
   const submitIncome = (event) => {
     event.preventDefault();
-    if (!isIncomeValid) return;
 
-    if (incomeRowId) {
-      update('incomes', incomeRowId, { amount: incomeNumber });
-    } else {
-      const row = createIncome({
-        name: 'Ingreso principal',
-        group: 'labor',
-        type: 'salary',
-        amount: incomeNumber,
-        frequency: 'monthly',
-        stability: 'stable',
-      });
-      add('incomes', row);
-      setIncomeRowId(row.id);
-    }
+    INCOME_CATEGORIES.forEach((cat) => {
+      const amountNumber = Number(incomeAmounts[cat.key]) || 0;
+      const name = incomeRowName(cat.key);
+      const existing = incomes.find((r) => r.name === name);
+
+      if (amountNumber > 0) {
+        if (existing) {
+          update('incomes', existing.id, { amount: amountNumber });
+        } else {
+          add('incomes', createIncome({
+            name,
+            group: cat.group,
+            type: cat.type,
+            amount: amountNumber,
+            frequency: 'monthly',
+            stability: cat.stability,
+          }));
+        }
+      } else if (existing) {
+        // Categoría que se había llenado y se vació al volver atrás: se
+        // retira la fila en vez de dejar un ingreso de $0 en el diagnóstico.
+        remove('incomes', existing.id);
+      }
+    });
+
     goTo('retirementAge');
   };
 
@@ -545,15 +736,20 @@ export default function ConversationalWizard({ onUseClassic, onExit }) {
     setAge('');
     setCity('');
     setDependentsChoice(null);
-    setIncome('');
     setRetirementAge('');
     setHasMedicalInsurance(null);
     setHasLifeInsurance(null);
 
-    if (incomeRowId) {
-      remove('incomes', incomeRowId);
-      setIncomeRowId(null);
-    }
+    INCOME_CATEGORIES.forEach((cat) => {
+      const existing = incomes.find((r) => r.name === incomeRowName(cat.key));
+      if (existing) remove('incomes', existing.id);
+    });
+    setIncomeAmounts(() => {
+      const reset = {};
+      INCOME_CATEGORIES.forEach((cat) => { reset[cat.key] = ''; });
+      return reset;
+    });
+    setOpenIncomeCard(null);
 
     patchSection('profile', {
       name: '',
@@ -770,36 +966,58 @@ export default function ConversationalWizard({ onUseClassic, onExit }) {
         )}
 
         {step === 'income' && (
-          <Ask
-            text={QUESTION.income()}
-            isReady={isReady}
-            onReady={() => setReady(true)}
-            isValid={isIncomeValid}
-            onSubmit={submitIncome}
-            onBack={() => goTo('dependents')}
-          >
-            <label className="sr-only" htmlFor="conversational-income">
-              Ingreso mensual neto
-            </label>
+          /*
+            Este paso no usa <Ask>: esa coreografía centra una sola pregunta
+            con un único input, y aquí hay un grid de tarjetas más un
+            totalizador flotante — un layout distinto, no una variación del
+            mismo. Se reutiliza sólo <Question> para mantener el efecto de
+            escritura del título, igual que en el resto del flujo.
+          */
+          <form onSubmit={submitIncome} className="flex w-full flex-col items-center">
+            <Question text={QUESTION.income(goal)} onDone={() => setReady(true)} />
 
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-xl text-white/40" aria-hidden="true">$</span>
-              <input
-                id="conversational-income"
-                ref={inputRef}
-                value={income}
-                onChange={(event) => setIncome(toDigitsDraft(event.target.value))}
-                placeholder="0"
-                inputMode="numeric"
-                autoComplete="off"
-                enterKeyHint="go"
-                className={FIELD_CLASS}
-              />
+            <div
+              className={`mt-10 w-full max-w-md transition-opacity duration-700
+                          ${isReady ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+              aria-hidden={!isReady}
+            >
+              <div className="grid grid-cols-1 gap-2.5 pb-24 sm:grid-cols-2">
+                {INCOME_CATEGORIES.map((cat) => (
+                  <IncomeCard
+                    key={cat.key}
+                    category={cat}
+                    amount={incomeAmounts[cat.key]}
+                    isOpen={openIncomeCard === cat.key}
+                    onToggle={() => toggleIncomeCard(cat.key)}
+                    onAmountChange={(value) => setIncomeAmount(cat.key, value)}
+                  />
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                className="flex w-full items-center justify-center gap-2 rounded-xl
+                           bg-indigo-600 py-3.5 text-base font-semibold text-white
+                           shadow-lg shadow-indigo-600/25 transition-all
+                           hover:bg-indigo-500 active:scale-[0.98]"
+              >
+                Continuar
+                <ArrowRight size={16} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => goTo('dependents')}
+                className="mx-auto mt-5 flex items-center gap-1.5 text-[11px] font-semibold
+                           text-white/30 transition-colors hover:text-white/70"
+              >
+                <ArrowLeft size={12} aria-hidden="true" />
+                Atrás
+              </button>
             </div>
-            <p className="mt-3 text-center text-[11px] text-white/30">
-              Lo que recibes ya sin impuestos, en pesos al mes
-            </p>
-          </Ask>
+
+            {isReady && <IncomeTotalBar total={incomeTotal} />}
+          </form>
         )}
 
         {step === 'retirementAge' && (

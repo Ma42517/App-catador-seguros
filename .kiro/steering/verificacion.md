@@ -1,21 +1,57 @@
 # Verificar antes de decir que está hecho
 
 Que un comando termine sin error no prueba que la función sirva. Compilar no es
-funcionar.
+funcionar. Dicho esto, la verificación misma tiene un costo — de tiempo y de
+contexto — y las reglas de abajo existen para gastarlo donde rinde, no en cada
+cambio por igual.
 
-## Todo cambio visible se prueba en el navegador
+## Cambios de UI, componentes o estado local: sin E2E por defecto
 
-Si el cambio se ve o se toca, hay que abrirlo y comprobarlo. La prueba se escribe
-como una lista de comprobaciones que imprimen su resultado, para poder leerlas
-después.
+Regla operativa vigente desde 2026-08-18. Para este tipo de cambio, **no**
+correr flujos completos de Playwright/`agent-browser` ni inyectar el arnés de
+sesión simulada como paso rutinario. Basta con:
 
-Una comprobación tiene que poder fallar. Si pasa igual con el código roto, no
-está comprobando nada: hay que hacerla fallar a propósito una vez para confiar
-en ella.
+- Verificación estática del código (lectura, revisión de que el mapeo de datos
+  sea correcto contra el motor y el V1).
+- El linter (ver regla de abajo).
+- Una prueba de aislamiento rápida si hace falta ver el renderizado: una ruta
+  `/dev/sandbox` libre de autenticación es preferible a montar el arnés de
+  sesión completo para un vistazo.
+
+El arnés de sesión simulada (documentado más abajo) sigue existiendo para
+cuando sí haga falta —cambios que tocan el flujo de autenticación mismo, o
+cuando el usuario pide explícitamente ver el resultado en el navegador—, pero
+deja de ser el paso obligatorio de cada tarea de UI.
+
+## Sólo *lint* iterativo mientras se desarrolla
+
+Mientras se construye o ajusta un componente: `npx oxlint`, no
+`npx vite build`. El build completo de producción se reserva para cuando el
+usuario pida explícitamente preparar un pase a producción — no antes de cada
+commit intermedio.
+
+## Decisiones de arquitectura ágiles
+
+Con luz verde para decidir sin detener el flujo cuando la decisión protege la
+integridad de los datos compartidos (el mismo criterio ya aplicado con la meta
+principal del Asistente Interactivo: vive como hilo narrativo local, nunca se
+escribe al contexto compartido para no ensuciarlo con un dato sin sustento
+numérico). Se documenta brevemente en el reporte al usuario — motivo y
+consecuencia — y se avanza; no se pausa a pedir confirmación para decisiones
+de este tipo.
+
+## Cuando sí se prueba en el navegador
+
+Si el cambio afecta autenticación, un flujo crítico de varios pasos, o el
+usuario pide explícitamente verlo correr, la prueba se escribe como una lista
+de comprobaciones que imprimen su resultado, para poder leerlas después. Una
+comprobación tiene que poder fallar: si pasa igual con el código roto, no está
+comprobando nada.
 
 ## Arnés de sesión simulada
 
-Para entrar sin credenciales reales:
+Para entrar sin credenciales reales, cuando la verificación sí lo amerita
+(ver regla de arriba):
 
 1. Copiar `src/context/SessionContext.jsx` a un respaldo fuera del repo.
 2. Inyectar una rama que lea `mockSession` de los parámetros de la URL, justo
