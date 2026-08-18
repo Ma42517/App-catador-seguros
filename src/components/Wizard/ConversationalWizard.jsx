@@ -99,8 +99,7 @@ const QUESTION = {
     + '¿cómo te gusta que te llamen?',
   goal: (name) => `Mucho gusto, ${name}. Todos tenemos un motor financiero. `
     + '¿Cuál es tu meta principal?',
-  age: () => 'Para calcular tu línea de tiempo financiero, '
-    + '¿cuántos años tienes hoy?',
+  age: () => '¿Cuántos años tienes?',
   city: (name) => `${name}, ¿en qué ciudad vives?`,
   dependents: () => '¿Alguien más depende de ti hoy?',
   income: () => 'Hablemos de números. ¿Cuál es tu ingreso mensual neto '
