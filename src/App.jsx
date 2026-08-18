@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  PlayCircle, RotateCcw, Download, FileJson, FileSpreadsheet, X, Gauge,
+  PlayCircle, RotateCcw, Download, FileJson, X, Gauge,
   LayoutList, LineChart as LineChartIcon, FlaskConical, ArrowLeft,
 } from 'lucide-react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
@@ -40,7 +40,7 @@ const CAPTURE_MODES = [
 import PublicCardView from './pages/PublicCardView';
 import { publicCardIdFromPath } from './lib/publicRoute';
 import { Button, SegmentedControl } from './components/ui';
-import { exportJSON, exportCSV } from './data/exporters';
+import { exportJSON } from './data/exporters';
 
 /** Clave de sessionStorage para saber si el intro ya se mostró en esta pestaña/sesión. */
 const INTRO_KEY = 'hasSeenIntro';
@@ -110,7 +110,7 @@ function NavPill({ step, onNavigate }) {
 }
 
 function Header({ step, onNavigate, onExit }) {
-  const { loadDemoData, resetAll, data, diagnosis, isDemo } = useFinance();
+  const { loadDemoData, resetAll, data, isDemo } = useFinance();
   const [menuOpen, setMenuOpen] = useState(false);
 
   /*
@@ -241,14 +241,15 @@ function Header({ step, onNavigate, onExit }) {
 
           {menuOpen && (
             <div className="animate-rise absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/95 shadow-2xl shadow-zinc-950/70 backdrop-blur-xl">
-              <button
-                type="button"
-                onClick={() => { exportCSV(data, diagnosis); setMenuOpen(false); }}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-zinc-300 hover:bg-zinc-900/50"
-              >
-                <FileSpreadsheet size={14} className="text-zinc-500" />
-                Exportar diagnóstico (CSV)
-              </button>
+              {/*
+                Aquí estaba "Exportar diagnóstico (CSV)". El reporte para el cliente —PDF y
+                Excel— se fue al último paso, donde el diagnóstico ya está completo: desde la
+                cabecera se podía descargar el reporte de una captura a medias, que es un
+                documento que desprestigia a quien lo entrega.
+
+                Se conserva el respaldo en JSON porque no es un reporte: es la copia
+                reimportable de los datos, una herramienta del asesor y no un entregable.
+              */}
               <button
                 type="button"
                 onClick={() => { exportJSON(data); setMenuOpen(false); }}

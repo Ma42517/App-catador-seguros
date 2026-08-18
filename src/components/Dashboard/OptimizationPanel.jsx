@@ -1,8 +1,12 @@
-import { useMemo } from 'react';
-import { SlidersHorizontal, RotateCcw, Columns3, Zap } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  SlidersHorizontal, RotateCcw, Columns3, Zap, FileText, Sheet,
+} from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useSession } from '../../context/SessionContext';
 import { resolveAdvisorPhone, whatsAppLink } from '../../lib/advisorPhone';
+import { exportPDF } from '../../data/reportPdf';
+import { exportXLSX } from '../../data/reportXlsx';
 import {
   Card, CardTitle, SectionTitle, Slider, Button, Badge, Checkbox, Tooltip,
 } from '../ui';
@@ -467,6 +471,89 @@ function AdvisorCTA({ advisorPhone }) {
 }
 
 
+/**
+ * Descarga del reporte. Vive sólo en esta pantalla, y a propósito.
+ *
+ * Antes era un menú "Exportar" en la cabecera, visible desde el primer paso: se podía
+ * descargar un reporte de un diagnóstico con tres campos llenos, que es un documento que
+ * desprestigia a quien lo entrega. Aquí abajo, el archivo sólo existe cuando el diagnóstico
+ * ya está completo y el motor recalculó todo.
+ */
+function ReportDownloads() {
+  const { data, diagnosis } = useFinance();
+
+  /*
+    Un estado por formato y no uno compartido: las dos librerías tardan en cargarse la primera
+    vez, y con una sola bandera pulsar PDF dejaría también el botón de Excel en "generando",
+    como si estuviera haciendo algo que nadie pidió.
+  */
+  const [busy, setBusy] = useState('');
+  const [failed, setFailed] = useState('');
+
+  /**
+   * Corre el generador avisando en el botón.
+   *
+   * El error se muestra en pantalla en lugar de quedarse en la consola. Estas dos librerías
+   * se descargan en el momento de pulsar, así que la falla más probable es de red —y pasa
+   * justo cuando el asesor está frente al prospecto—. Un botón que no responde y no explica
+   * nada es lo peor que puede ocurrir en ese instante.
+   */
+  const run = async (kind, generate) => {
+    setBusy(kind);
+    setFailed('');
+    try {
+      await generate(data, diagnosis);
+    } catch {
+      setFailed(kind);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <Card>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <p className="text-[11px] leading-relaxed text-zinc-400">
+          Llévate tu diagnóstico completo, con el resumen, el detalle y tu plan de acción.
+        </p>
+
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {/*
+            Contorno y no relleno: el botón de WhatsApp de arriba es la acción que se quiere,
+            y dos botones sólidos compitiendo se anulan. Este se ve, pero va segundo.
+          */}
+          <Button
+            variant="outline"
+            icon={FileText}
+            onClick={() => run('pdf', exportPDF)}
+            disabled={busy !== ''}
+            className="border-indigo-500/40 text-indigo-200 hover:border-indigo-400
+                       hover:bg-indigo-500/10 hover:text-indigo-100"
+          >
+            {busy === 'pdf' ? 'Generando PDF…' : 'Descargar Reporte (PDF)'}
+          </Button>
+
+          <Button
+            variant="ghost"
+            icon={Sheet}
+            onClick={() => run('xlsx', exportXLSX)}
+            disabled={busy !== ''}
+          >
+            {busy === 'xlsx' ? 'Generando Excel…' : 'Excel (.xlsx)'}
+          </Button>
+        </div>
+
+        {failed && (
+          <p className="text-[11px] text-rose-300">
+            No se pudo generar el archivo. Revisa tu conexión y vuelve a intentarlo.
+          </p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+
 export default function OptimizationPanel({ advisorPhone }) {
   const { recommendations } = useFinance();
 
@@ -490,6 +577,7 @@ export default function OptimizationPanel({ advisorPhone }) {
           <Recommendations recommendations={recommendations} />
 
           <AdvisorCTA advisorPhone={advisorPhone} />
+          <ReportDownloads />
         </div>
       </ReferralGate>
     </div>
