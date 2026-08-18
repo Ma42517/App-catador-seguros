@@ -1,10 +1,6 @@
-import { useState, useEffect } from 'react';
 import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
 import { priorityByKey } from '../Activities/priorities';
 import { tapFeedback } from '../../lib/haptics';
-
-/** Meta del Tracker de 25 Puntos. Mismo umbral que usaba PointsPill.jsx. */
-const POINTS_GOAL = 25;
 
 /** Clases compartidas por cada destino de la barra. */
 const TAB =
@@ -16,111 +12,6 @@ const TAB =
 
 const LABEL = 'text-[10px] font-medium leading-none';
 
-/*
-  Cuánto tarda el botón en mutar, contado desde que la barra se monta. El
-  fundido de cruce en sí (`duration-300` en las clases de abajo) es fijo y
-  corto a propósito: no necesita su propia constante porque Tailwind no
-  interpola una duración arbitraria en tiempo de ejecución sin un valor
-  inline, y 300ms es un fundido de UI estándar que no hace falta parametrizar.
-*/
-const MUTATION_DELAY_MS = 4000;
-
-/**
- * Botón "Productividad": ancla del Tracker de 25 Puntos. Muta a los 4
- * segundos de que la barra aparece — el ícono de gráfica y la palabra
- * "Productividad" se desvanecen y en su lugar aparece "N/25", con un haz de
- * luz recorriéndolo por dentro (texto transparente sobre un degradado
- * animado, no un borde ni un anillo).
- *
- * Sin bordes circulares, anillos exteriores ni `border-radius` en el efecto:
- * a diferencia del diseño anterior de este botón (LED girando por el borde),
- * aquí el brillo vive *dentro* de los caracteres del número, recortado por
- * `bg-clip-text` — es la misma técnica de `animate-shimmer` que ya usa el
- * cristal de "About Me" en otra parte de la app, reutilizada tal cual.
- */
-function ProductivityButton({ onClick, puntosActuales = 0 }) {
-  const points = Math.max(0, Math.min(puntosActuales, POINTS_GOAL));
-  const metaCumplida = points >= POINTS_GOAL;
-
-  /*
-    Arranca mostrando el ícono normal. `mutated` en `false` durante los
-    primeros `MUTATION_DELAY_MS`, y sólo entonces empieza la propia
-    transición de fundido — dos estados y no uno, porque el pedido distingue
-    "cuándo empieza a mutar" (el temporizador) de "qué tan visible está cada
-    cara en este instante" (la opacidad), y colapsarlos en un solo booleano
-    no deja sitio para el cruce de un fade-out con un fade-in.
-  */
-  const [mutated, setMutated] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setMutated(true), MUTATION_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, []);
-
-  /*
-    El degradado del shimmer recorre tres paradas: el color base, un tono
-    claro en medio y de vuelta al color base. Es lo que hace que el barrido
-    se lea como una luz que cruza y no como un color que simplemente cambia
-    de tono — con sólo dos paradas, el "haz" nunca se distinguiría del resto
-    del número. Naranja mientras no se cumple la meta; verde al llegar a 25,
-    mismo criterio binario que ya usaba el diseño anterior de este botón: la
-    meta es un umbral, no una escala.
-  */
-  const shimmerGradient = metaCumplida
-    ? 'from-emerald-600 via-lime-300 to-emerald-600'
-    : 'from-orange-600 via-yellow-300 to-orange-600';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`Productividad, ${points} de ${POINTS_GOAL} puntos del día${metaCumplida ? ', meta cumplida' : ''}`}
-      className="relative flex-1 rounded-2xl active:scale-95 transition-transform
-                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-    >
-      {/*
-        Las dos caras ocupan el mismo lugar (`absolute inset-0`, apiladas) en
-        vez de una detrás de otra en el flujo normal: así el fundido de una
-        no empuja a la otra durante la transición, y el botón no cambia de
-        alto ni de ancho al mutar.
-      */}
-      <span
-        aria-hidden={mutated}
-        className={`absolute inset-0 flex flex-col items-center justify-center gap-0.5
-                    px-1 py-1.5 transition-opacity duration-300
-                    ${mutated ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
-      >
-        <TrendingUp size={22} strokeWidth={1.8} className="text-zinc-600 dark:text-zinc-300" aria-hidden="true" />
-        <span className={`${LABEL} text-zinc-600 dark:text-zinc-300`}>Productividad</span>
-      </span>
-
-      <span
-        aria-hidden={!mutated}
-        className={`absolute inset-0 flex flex-col items-center justify-center gap-0.5
-                    px-1 py-1.5 transition-opacity duration-300
-                    ${mutated ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
-      >
-        {/*
-          El haz de luz: texto transparente sobre un degradado animado de
-          fondo, recortado a la forma de los caracteres con `bg-clip-text`.
-          `bg-[length:200%_auto]` es lo que le da al degradado más ancho que
-          recorrer del que ocupa el texto — sin eso, `animate-shimmer` movería
-          un degradado que ya cubre las cuatro cifras enteras y el barrido no
-          se vería, porque no habría "sobrante" de color por donde desplazarse.
-        */}
-        <span
-          className={`bg-gradient-to-r ${shimmerGradient} bg-[length:200%_auto]
-                      bg-clip-text text-lg font-black leading-none tabular-nums
-                      text-transparent animate-shimmer`}
-        >
-          {points}/{POINTS_GOAL}
-        </span>
-        <span className={`${LABEL} text-zinc-600 dark:text-zinc-300`}>Productividad</span>
-      </span>
-    </button>
-  );
-}
-
 /**
  * Barra de navegación inferior optimizada para iOS.
  * - Usa backdrop-blur-md (no xl/2xl) para evitar saturar la GPU.
@@ -129,7 +20,7 @@ function ProductivityButton({ onClick, puntosActuales = 0 }) {
  */
 export default function BottomTabBar({
   onToday, onProductivity, onAgenda, onAdd, onMore,
-  agendaCount = 0, agendaPriority = null, puntosActuales = 0,
+  agendaCount = 0, agendaPriority = null,
 }) {
   const today = new Date().getDate();
 
@@ -187,8 +78,11 @@ export default function BottomTabBar({
             <span className={LABEL}>Hoy</span>
           </button>
 
-          {/* Productividad — ancla del Tracker de 25 Puntos, muta a "N/25" con shimmer */}
-          <ProductivityButton onClick={withTap(onProductivity)} puntosActuales={puntosActuales} />
+          {/* Productividad */}
+          <button type="button" onClick={withTap(onProductivity)} className={TAB}>
+            <TrendingUp size={22} strokeWidth={1.8} aria-hidden="true" />
+            <span className={LABEL}>Productividad</span>
+          </button>
 
           {/* Agregar — botón central destacado */}
           <div className="flex-1 flex justify-center">
