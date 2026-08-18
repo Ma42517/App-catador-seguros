@@ -196,22 +196,24 @@ export default function ExpenseStep() {
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           {/*
-            Con frecuencia semanal se muestra la cuenta, no sólo el resultado.
+            Con frecuencia semanal se explica el porqué, contando pagos y no factores.
 
             El equivalente mensual de un gasto semanal sorprende a todo el mundo: la cabeza
-            multiplica por 4 y el mes promedia 4.33 semanas. Sin la explicación, un asesor
-            captura 500 a la semana, ve 2,167 y da por hecho que la app se equivocó —justo lo
-            que pasó al probarla—. Delante de un prospecto, esa duda cuesta más que el gasto.
+            cuenta cuatro domingos y la app muestra 4.33. Sin explicación, un asesor captura
+            500 a la semana, ve 2,167 y da por hecho que la app se equivocó —pasó al
+            probarla—. Delante de un prospecto, esa duda cuesta más que el gasto.
 
-            Se dice en semanas del año y no en el factor, porque "52 semanas" se puede
-            verificar mentalmente y "4.3333" hay que creerlo.
+            Se cuentan PAGOS AL AÑO y no semanas por mes, porque ahí está el malentendido: el
+            .33 no es un ajuste inventado, son los cuatro meses del año que traen un quinto
+            domingo. Un año tiene 52, no 48. Eso se puede verificar mirando un calendario, y
+            "4.3333" sólo se puede creer.
           */}
           <Field
             label="Frecuencia"
             hint={draft.frequency === 'weekly'
               ? (draft.amount > 0
-                ? `Un mes promedia 4.33 semanas, no 4: ${fmtMXN(draft.amount)} por 52 semanas son ${fmtMXN(draft.amount * 52)} al año, o ${fmtMXN(draftMonthly)} al mes.`
-                : 'Un mes promedia 4.33 semanas, no 4: el equivalente mensual se calcula con las 52 semanas del año.')
+                ? `Son 52 pagos al año, no 48: cuatro meses traen una quinta semana. ${fmtMXN(draft.amount)} × 52 = ${fmtMXN(draft.amount * 52)} al año, o ${fmtMXN(draftMonthly)} al mes.`
+                : 'Son 52 pagos al año, no 48: cuatro meses del año traen una quinta semana.')
               : undefined}
           >
             <Select
