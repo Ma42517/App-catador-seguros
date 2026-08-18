@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { SlidersHorizontal, RotateCcw, Columns3, Zap, MessageCircle } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import {
@@ -6,14 +7,63 @@ import {
 import { StackedBar } from '../charts';
 import Recommendations from './Recommendations';
 import ReferralGate from './ReferralGate';
-import { fmtMXN, fmtPct, safeDiv } from '../../engine/finance';
+import {
+  fmtMXN, fmtPct, safeDiv, buildMatrix, NEUTRAL_SCENARIO,
+} from '../../engine/finance';
 
 const pctFmt = (v) => `${v > 0 ? '+' : ''}${Math.round(v * 100)}%`;
 const ptFmt = (v) => `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)} pp`;
 
 /** Palancas del Scenario Engine. Cada movimiento recalcula todo el modelo. */
 function Levers() {
-  const { scenario, setScenario, resetScenario, debts, matrix } = useFinance();
+  const { scenario, setScenario, resetScenario, debts, matrix, data } = useFinance();
+
+  /*
+    Cuánto mueve cada palanca, EN PESOS Y POR SEPARADO.
+
+    Se calcula corriendo el motor con esa palanca sola y comparando contra el mismo motor sin
+    ninguna. No con una regla de tres sobre el total, y ahí está el punto: el recorte de
+    gasto no es proporcional —el motor lo absorbe primero en lujo, luego en discrecional y
+    nunca toca lo esencial—, así que un 20 % de reducción casi nunca son el 20 % de los
+    gastos. Multiplicar habría mostrado una cifra redonda y falsa, que es peor que no mostrar
+    nada en la pantalla donde el prospecto decide qué recortar.
+
+    Aislar también es lo que hace que los números sumen: el aplazamiento de metas, la
+    inflación y el rendimiento mueven todos el costo de las metas, así que leer el total
+    atribuiría a cada palanca el efecto de las otras dos.
+
+    Sólo se corre el motor para las palancas movidas. Quietas cuestan una sola pasada, y en
+    movimiento una o dos: lo normal es tocar una palanca a la vez.
+  */
+  const impact = useMemo(() => {
+    const only = (patch) => buildMatrix(data, {
+      mode: 'optimized',
+      scenario: { ...NEUTRAL_SCENARIO, ...patch },
+    });
+
+    /*
+      La base se calcula con la MISMA forma de llamada, en modo 'optimized' y con el escenario
+      neutro, en lugar de reutilizar el escenario "Realidad Actual" que ya trae el contexto.
+      Los dos deberían coincidir, y comparar contra una llamada distinta dejaría cualquier
+      diferencia futura entre modos disfrazada de efecto de la palanca.
+    */
+    const base = only({});
+
+    const delta = (patch, key) => only(patch)[key] - base[key];
+
+    return {
+      income: scenario.incomeIncreasePct
+        ? delta({ incomeIncreasePct: scenario.incomeIncreasePct }, 'INCOME_SUSTAINABLE') : 0,
+      expense: scenario.expenseReductionPct
+        ? delta({ expenseReductionPct: scenario.expenseReductionPct }, 'EXPENSES_TOTAL') : 0,
+      goals: scenario.goalPostponeYears
+        ? delta({ goalPostponeYears: scenario.goalPostponeYears }, 'GOALS_COST') : 0,
+      inflation: scenario.inflationDelta
+        ? delta({ inflationDelta: scenario.inflationDelta }, 'REQUIRED_INCOME') : 0,
+      returns: scenario.returnDelta
+        ? delta({ returnDelta: scenario.returnDelta }, 'REQUIRED_INCOME') : 0,
+    };
+  }, [data, scenario]);
 
   return (
     <Card>
@@ -36,6 +86,9 @@ function Levers() {
           onChange={(v) => setScenario({ incomeIncreasePct: v })}
           min={0} max={1} step={0.01} format={pctFmt}
           help="Simula un aumento, un ascenso o una segunda fuente de ingreso."
+          money={impact.income}
+          moneyGood={impact.income >= 0}
+          moneyNote="de ingreso sostenible al mes"
         />
         <Slider
           label="Reducción de gasto"
@@ -43,6 +96,9 @@ function Levers() {
           onChange={(v) => setScenario({ expenseReductionPct: v })}
           min={0} max={0.5} step={0.01} format={pctFmt}
           help="El recorte se absorbe primero en lujo, luego discrecional y por último importante. Nunca toca lo esencial."
+          money={impact.expense}
+          moneyGood={impact.expense <= 0}
+          moneyNote="de gasto al mes"
         />
         <Slider
           label="Aplazamiento de metas"
@@ -51,15 +107,26 @@ function Levers() {
           min={0} max={10} step={1}
           format={(v) => (v === 0 ? 'Sin cambio' : `+${v} año${v > 1 ? 's' : ''}`)}
           help="Dar más tiempo a una meta reduce la aportación mensual, aunque el costo final crece por inflación."
+          money={impact.goals}
+          moneyGood={impact.goals <= 0}
+          moneyNote="de aportación a metas al mes"
         />
 
 
+        {/*
+          Estas dos no mueven lo que se gana ni lo que se gasta: mueven lo que HACE FALTA
+          ganar. Por eso su monto se mide sobre el ingreso requerido, que es donde aparece el
+          efecto de una inflación distinta o de un rendimiento mejor.
+        */}
         <Slider
           label="Ajuste de inflación"
           value={scenario.inflationDelta}
           onChange={(v) => setScenario({ inflationDelta: v })}
           min={-0.03} max={0.06} step={0.005} format={ptFmt}
           help="Prueba qué pasa con tus metas y tu retiro si la inflación es mayor o menor a la esperada."
+          money={impact.inflation}
+          moneyGood={impact.inflation <= 0}
+          moneyNote="de ingreso requerido al mes"
         />
         <Slider
           label="Ajuste de rendimiento"
@@ -67,6 +134,9 @@ function Levers() {
           onChange={(v) => setScenario({ returnDelta: v })}
           min={-0.05} max={0.05} step={0.005} format={ptFmt}
           help="Prueba la sensibilidad de tu plan a rendimientos mejores o peores."
+          money={impact.returns}
+          moneyGood={impact.returns <= 0}
+          moneyNote="de ingreso requerido al mes"
         />
       </div>
 
