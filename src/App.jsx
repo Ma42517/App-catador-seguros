@@ -22,7 +22,7 @@ import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
 import { SessionProvider, useSession, SESSION_STATUS } from './context/SessionContext';
-import { canRunPromotoria, PROFILE_ROLES } from './data/profilesRepo';
+import { canRunPromotoria } from './data/profilesRepo';
 import {
   DashboardVersionContext, readVersion, writeVersion,
 } from './context/dashboardVersion';
@@ -66,15 +66,17 @@ function isPreviewFrame() {
 }
 
 /**
- * `?onboardingPreview=1`: entorno para probar el resto de la app —agenda,
- * metas, horario— con un asesor ya aprobado, sin crear ni abrir ninguna
- * cuenta real.
+ * `?onboardingPreview=1`: entorno para probar `OnboardingFlow` de punta a
+ * punta —incluida la app que hay al otro lado, una vez "aprobado"— sin
+ * crear ni abrir ninguna cuenta real.
  *
  * Se resuelve en `App()`, antes de montar `SessionProvider` — misma idea que
  * la tarjeta pública (`publicCardIdFromPath`) un poco más abajo—: así el
- * acceso no depende de que exista una sesión, ni de Supabase, ni de ningún
- * registro aprobado de verdad. Es sólo para desarrollo; no se enlaza desde
- * ningún sitio de la app y desaparece si se quita el parámetro de la URL.
+ * flujo no depende de que exista una sesión, ni de Supabase, ni de ningún
+ * registro con estado `pending` de verdad. Es sólo para desarrollo; no se
+ * enlaza desde ningún sitio de la app y desaparece si se quita el parámetro
+ * de la URL. Ver `OnboardingPreview` para el detalle de la simulación de
+ * aprobación.
  */
 function isOnboardingPreview() {
   if (typeof window === 'undefined') return false;
@@ -82,45 +84,13 @@ function isOnboardingPreview() {
 }
 
 /**
- * Ficha ficticia para `?onboardingPreview=1`: un asesor ya aprobado, con la
- * radiografía completa del Onboarding ya contestada, para poder ver el resto
- * de la app (agenda, metas, horario) sin crear ni abrir ninguna cuenta real.
- *
- * `key` no es un UUID real de Supabase, así que todo lo que se guarda por
- * usuario (agenda, metas, bloques de tiempo, marca de agua) usa esta clave
- * fija: entrar dos veces a la vista previa encuentra los mismos datos de
- * prueba, en vez de arrancar en blanco cada vez.
- *
- * `horario` trae mañana y tarde marcados (ver `HOUR_BLOCKS` en
- * `advisorOnboarding.js`) a propósito, y no las 24 horas: así el filtro de
- * horario del mensaje inteligente (`smartMessage.js`) tiene algo real que
- * mostrar — de noche, la vista previa se ve exactamente como la vería este
- * asesor ficticio fuera de su horario declarado.
+ * Clave fija para la vista previa: no es un UUID real de Supabase, así que
+ * todo lo que se guarda por usuario (agenda, metas, bloques de tiempo)
+ * queda bajo este identificador — entrar varias veces a la vista previa
+ * encuentra los mismos datos de prueba, en vez de arrancar en blanco cada
+ * vez.
  */
-const PREVIEW_IDENTITY = {
-  key: 'preview-sin-cuenta',
-  name: 'Sofía Ramírez',
-  email: 'sofia.preview@ejemplo.com',
-  avatarUrl: '',
-  role: PROFILE_ROLES.ADVISOR,
-  promotorId: null,
-  promotoriaStatus: null,
-  promotoriaCode: '',
-  company: '',
-  phone: '',
-  whatsapp: '',
-  experienceLevel: 'new_professional',
-  advisorProfileData: {
-    nombre: 'Sofía',
-    perfil: 'new_professional',
-    fortaleza: 'people',
-    inquietud: 'organization',
-    mercado: 'between_20_50',
-    disponibilidad: 'full_time',
-    horario: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-    motor: 'independence',
-  },
-};
+const PREVIEW_KEY = 'preview-sin-cuenta';
 
 /**
  * Conmutador tipo pill entre las dos grandes fases de la app: captura
@@ -729,32 +699,51 @@ export default function App() {
   const [publicCardId] = useState(publicCardIdFromPath);
   if (publicCardId) return <PublicCardView advisorId={publicCardId} />;
 
-  /*
-    Vista previa de acceso, resuelta por la misma razón que la tarjeta
-    pública: entorno de prueba, sin `SessionProvider` ni ninguna cuenta real
-    detrás. Monta la app completa —agenda, metas, horario— con la ficha
-    ficticia `PREVIEW_IDENTITY`, ya aprobada, en vez de recorrer el
-    Onboarding: es un atajo para probar el resto de la app, no el propio
-    flujo de bienvenida (ese se prueba sin `?onboardingPreview=1`, contestando
-    el cuestionario en el Login real o entrando aquí con las herramientas de
-    desarrollo si se necesita ver esa pantalla en particular).
-  */
   if (isOnboardingPreview()) {
+    return <OnboardingPreview isPreview={isPreview} />;
+  }
+
+  return (
+    <SessionProvider>
+      <Gate isPreview={isPreview} />
+    </SessionProvider>
+  );
+}
+
+/**
+ * `?onboardingPreview=1`: entorno de prueba, sin `SessionProvider` ni
+ * ninguna cuenta real detrás, para el flujo completo de un registro nuevo:
+ * el Onboarding tal como lo ve la persona, y —simulando la aprobación del
+ * administrador con un botón que sólo existe aquí— el resto de la app tal
+ * como la vería justo después de que la aceptan.
+ *
+ * `approvedData` es `null` mientras se recorre el cuestionario; se llena al
+ * terminarlo con la radiografía real que la persona contestó
+ * (`advisorProfileData`), y sólo entonces aparece el botón de "Simular
+ * aprobación" sobre la Sala de Análisis. No hay ningún perfil inventado de
+ * antemano: lo que se ve después de aprobar es la app calibrada con las
+ * respuestas que de verdad se dieron en esta corrida —el mismo nombre, el
+ * mismo horario—, tal como pasaría con una cuenta real.
+ */
+function OnboardingPreview({ isPreview }) {
+  const [approvedData, setApprovedData] = useState(null);
+
+  if (approvedData) {
     return (
       <div className="relative min-h-screen">
         <FinanceProvider>
           <ReferralProvider>
-            <EventProvider username={PREVIEW_IDENTITY.key}>
-              <AccessProvider username={PREVIEW_IDENTITY.key} forcedPromoter={false}>
-                <GoalsProvider username={PREVIEW_IDENTITY.key}>
+            <EventProvider username={PREVIEW_KEY}>
+              <AccessProvider username={PREVIEW_KEY} forcedPromoter={false}>
+                <GoalsProvider username={PREVIEW_KEY}>
                   <Shell
                     onLogout={() => window.location.reload()}
                     isPreview={isPreview}
                     isAdmin={false}
                     isPromoterUser={false}
-                    storageKey={PREVIEW_IDENTITY.key}
-                    displayName={PREVIEW_IDENTITY.name}
-                    horario={PREVIEW_IDENTITY.advisorProfileData.horario}
+                    storageKey={PREVIEW_KEY}
+                    displayName={approvedData.nombre || 'Asesor'}
+                    horario={approvedData.horario ?? []}
                   />
                 </GoalsProvider>
               </AccessProvider>
@@ -769,15 +758,35 @@ export default function App() {
                      backdrop-blur-md"
         >
           <FlaskConical size={11} aria-hidden="true" />
-          Vista previa · {PREVIEW_IDENTITY.name}
+          Vista previa · ya aprobado
         </span>
       </div>
     );
   }
 
   return (
-    <SessionProvider>
-      <Gate isPreview={isPreview} />
-    </SessionProvider>
+    <div className="relative min-h-screen">
+      <OnboardingFlow
+        userId={PREVIEW_KEY}
+        onProfileSaved={async () => {}}
+        /*
+          El resto de esta pantalla no cambia por este prop: sólo lo usa la
+          Sala de Análisis, para ofrecer el botón que simula la aprobación
+          con la radiografía que se acaba de contestar.
+        */
+        onSimulateApproval={setApprovedData}
+      />
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="fixed left-3 top-3 z-50 flex items-center gap-1.5 rounded-full
+                   border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
+                   font-bold uppercase tracking-widest text-amber-300/90
+                   backdrop-blur-md transition-colors hover:bg-amber-500/20"
+      >
+        <FlaskConical size={11} aria-hidden="true" />
+        Vista previa · Reiniciar
+      </button>
+    </div>
   );
 }

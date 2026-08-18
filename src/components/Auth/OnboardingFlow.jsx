@@ -521,8 +521,17 @@ function HourGridStep({ initialHours, onContinue }) {
  * un fundido de opacidad simple, gobernado por el mismo `isTyping` del
  * mensaje principal: cuando el texto de arriba termina de escribirse, el de
  * abajo entra.
+ *
+ * `onSimulateApproval` sólo lo pasa `OnboardingPreview` (`App.jsx`, entorno
+ * de `?onboardingPreview=1`): en un registro real esta prop no existe, y el
+ * botón no se dibuja — la vista terminal se queda exactamente como es en
+ * producción, sin nada que la distinga de antes de este cambio. Cuando sí
+ * existe, aparece tras el fundido del subtexto (no antes: sería un control
+ * asomando a mitad de una vista que se anuncia como terminal) y deja ver,
+ * de un vistazo, qué vería este mismo asesor en el instante justo después
+ * de que lo aprueban.
  */
-function AnalysisRoomStep() {
+function AnalysisRoomStep({ onSimulateApproval }) {
   const { typed, isTyping } = useTypewriter(CONFIRM_TEXT);
 
   return (
@@ -552,6 +561,19 @@ function AnalysisRoomStep() {
       >
         {SECONDARY_TEXT}
       </p>
+
+      {onSimulateApproval && (
+        <button
+          type="button"
+          onClick={onSimulateApproval}
+          className={`mt-8 rounded-full border border-amber-500/30 bg-amber-500/10
+                     px-5 py-2 text-xs font-semibold text-amber-300
+                     transition-opacity duration-1000 hover:bg-amber-500/20
+                     ${isTyping ? 'opacity-0' : 'opacity-100'}`}
+        >
+          Simular aprobación · Continuar a la app
+        </button>
+      )}
     </div>
   );
 }
@@ -586,7 +608,7 @@ function AnalysisRoomStep() {
  * y no debe cargar los controles de "revisar de nuevo" que sí tienen
  * sentido en una vista a la que se puede volver muchas veces.
  */
-export default function OnboardingFlow({ userId, onProfileSaved }) {
+export default function OnboardingFlow({ userId, onProfileSaved, onSimulateApproval }) {
   const [step, setStep] = useState(1);
   const [busyValue, setBusyValue] = useState(null);
 
@@ -724,7 +746,13 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
         />
       )}
 
-      {step === 10 && <AnalysisRoomStep />}
+      {step === 10 && (
+        <AnalysisRoomStep
+          onSimulateApproval={
+            onSimulateApproval ? () => onSimulateApproval(advisorData) : undefined
+          }
+        />
+      )}
     </div>
   );
 }
