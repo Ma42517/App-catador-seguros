@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sun, Moon, Sunrise, Sunset } from 'lucide-react';
 import useTypewriter from '../../lib/useTypewriter';
 import { EXPERIENCE_LEVELS } from '../../lib/experienceLevels';
 import {
-  STRENGTH_OPTIONS, CONCERN_OPTIONS, MARKET_OPTIONS,
-  AVAILABILITY_OPTIONS, SCHEDULE_OPTIONS, MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
+  STRENGTH_OPTIONS, CONCERN_OPTIONS, MARKET_OPTIONS, AVAILABILITY_OPTIONS,
+  HOUR_BLOCKS, ALL_DAY_HOURS, formatHour, MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
 } from '../../lib/advisorOnboarding';
 import { saveExperienceLevel, saveAdvisorProfile } from '../../data/profilesRepo';
 
 /** Mínimo de letras para dar por contestado el nombre del Paso 1. */
 const MIN_NAME = 2;
+
+/** Un icono por bloque del mapa de horas, sólo decorativo junto al título. */
+const BLOCK_ICONS = { dawn: Moon, morning: Sunrise, afternoon: Sun, evening: Sunset };
 
 const CONCERN_TEXT = 'Para que podamos guiarte con precisión, ¿qué es lo que más '
   + 'te inquieta o te impone en esta etapa inicial?';
@@ -17,9 +20,9 @@ const MARKET_TEXT = 'Todo gran negocio arranca con un mercado cálido (tus famil
   + 'amigos y conocidos). Si revisas tus contactos hoy, ¿a cuántas personas podrías '
   + 'llamarles cómodamente para platicarles de tu nueva etapa?';
 const AVAILABILITY_TEXT = 'El éxito requiere constancia. ¿Cómo planeas gestionar tu tiempo?';
-const SCHEDULE_TEXT = 'Para que tu asistente se adapte a tu vida y no te interrumpa en '
-  + 'tus otras actividades, ¿en qué bloques de horario tienes pensado dedicarle tiempo '
-  + 'a este negocio?';
+const SCHEDULE_TEXT = 'Para que tu asistente se adapte a tu vida y no te interrumpa en tus '
+  + 'otras actividades, toca las horas del día que sí puedes dedicarle al negocio. Deja '
+  + 'sin marcar lo que ya usas para otra cosa, aunque sea sólo una hora suelta.';
 const MOTIVATION_TEXT = 'Finalmente, ¿cuál es tu objetivo principal al desarrollar esta carrera?';
 const CONFIRM_TEXT = 'Excelente. Tu perfil ha sido registrado con éxito.';
 const SECONDARY_TEXT = 'Estamos analizando tus respuestas para estructurar tu plan de '
@@ -194,6 +197,190 @@ function NameStep({ initialValue, onContinue }) {
 }
 
 /**
+ * Una hora del mapa: una celda pequeña que alterna entre libre y ocupada
+ * con un toque. No lleva ningún texto además de la hora —ni "libre" ni
+ * "ocupada"— porque con 24 celdas en pantalla cualquier palabra de más
+ * las volvería ilegibles; el color y el check son toda la explicación que
+ * necesita una grilla de este tamaño.
+ */
+function HourCell({ hour, isSelected, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(hour)}
+      aria-pressed={isSelected}
+      aria-label={`${formatHour(hour)}: ${isSelected ? 'disponible' : 'ocupado'}`}
+      className={`aspect-square rounded-lg text-[11px] font-semibold transition-all
+                 active:scale-90 ${
+        isSelected
+          ? 'bg-amber-500 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+          : 'bg-white/[0.04] text-white/30 hover:bg-white/[0.08] hover:text-white/50'
+      }`}
+    >
+      {formatHour(hour)}
+    </button>
+  );
+}
+
+/**
+ * Un bloque del mapa (Madrugada, Mañana, Tarde, Noche): su título con
+ * icono, un atajo para marcar o vaciar las seis horas de golpe, y la fila
+ * de celdas.
+ *
+ * El atajo por bloque existe porque tocar seis celdas una por una para
+ * decir "toda la tarde libre" es fricción que un asesor con la agenda
+ * simple no debería pagar — y sigue permitiendo que alguien con esa misma
+ * tarde libre, salvo la hora de la comida, toque el atajo y luego
+ * destoque sólo esa celda, en vez de tener que armar el bloque hora por
+ * hora desde cero.
+ */
+function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
+  const Icon = BLOCK_ICONS[block.key];
+  const selectedCount = block.hours.filter((h) => selectedHours.includes(h)).length;
+  const allSelected = selectedCount === block.hours.length;
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase
+                         tracking-wider text-white/40"
+        >
+          <Icon size={13} aria-hidden="true" />
+          {block.label}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => onToggleBlock(block.hours, !allSelected)}
+          className="text-[11px] font-semibold text-indigo-400 transition-colors
+                     hover:text-indigo-300"
+        >
+          {allSelected ? 'Vaciar' : 'Todo libre'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-6 gap-1.5">
+        {block.hours.map((hour) => (
+          <HourCell
+            key={hour}
+            hour={hour}
+            isSelected={selectedHours.includes(hour)}
+            onToggle={onToggleHour}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Paso 7 — Mapa de horas. Reemplaza la lista de cuatro franjas fijas
+ * ("Por las mañanas"...) por un cuadro de 24 celdas, una por hora,
+ * agrupadas en cuatro bloques sólo para que se lean como jornada.
+ *
+ * `selected` vive en el propio paso y no en `advisorData` directamente
+ * (a diferencia del resto de los pasos, que escriben en cada toque):
+ * marcar una hora no es "responder y avanzar" como elegir una tarjeta —es
+ * un lienzo que se sigue tocando muchas veces antes de estar conforme—,
+ * así que hace falta un botón "Continuar" explícito, y por eso este es el
+ * único paso de opción (fuera del nombre) que no avanza solo.
+ */
+function HourGridStep({ initialHours, onContinue }) {
+  const { typed, isTyping } = useTypewriter(SCHEDULE_TEXT);
+  const [selected, setSelected] = useState(initialHours);
+
+  const toggleHour = (hour) => {
+    setSelected((current) => (
+      current.includes(hour) ? current.filter((h) => h !== hour) : [...current, hour]
+    ));
+  };
+
+  const toggleBlock = (hours, makeSelected) => {
+    setSelected((current) => {
+      const withoutBlock = current.filter((h) => !hours.includes(h));
+      return makeSelected ? [...withoutBlock, ...hours] : withoutBlock;
+    });
+  };
+
+  const toggleAllDay = () => {
+    setSelected((current) => (
+      current.length === ALL_DAY_HOURS.length ? [] : [...ALL_DAY_HOURS]
+    ));
+  };
+
+  const isFreelanceAllDay = selected.length === ALL_DAY_HOURS.length;
+
+  return (
+    <div className="flex w-full flex-col items-center px-6 text-center">
+      <p className="sr-only">{SCHEDULE_TEXT}</p>
+      <p
+        className="max-w-md text-xl font-light leading-snug text-white sm:text-2xl"
+        aria-hidden="true"
+      >
+        {typed}
+        <Caret show={isTyping} />
+      </p>
+
+      <div
+        className={`mt-8 w-full max-w-sm transition-opacity duration-700
+                    ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        aria-hidden={isTyping}
+      >
+        {/*
+          Atajo para quien de verdad tiene el día entero libre (el caso del
+          freelance del pedido): marca las 24 horas de una vez, y el propio
+          mapa que se enciende abajo es lo que le permite, en el siguiente
+          toque, vaciar sólo la hora de la comida sin perder el resto.
+        */}
+        <button
+          type="button"
+          onClick={toggleAllDay}
+          className={`mb-6 w-full rounded-xl border px-4 py-2.5 text-xs font-semibold
+                     transition-colors ${
+            isFreelanceAllDay
+              ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+              : 'border-white/15 text-white/50 hover:border-white/30 hover:text-white'
+          }`}
+        >
+          {isFreelanceAllDay ? 'Todo el día está marcado libre' : 'Tengo todo el día libre'}
+        </button>
+
+        <div className="flex flex-col gap-5 text-left">
+          {HOUR_BLOCKS.map((block) => (
+            <HourBlockRow
+              key={block.key}
+              block={block}
+              selectedHours={selected}
+              onToggleHour={toggleHour}
+              onToggleBlock={toggleBlock}
+            />
+          ))}
+        </div>
+
+        <p className="mt-5 text-xs text-zinc-500">
+          {selected.length === 0
+            ? 'Todavía no marcas ninguna hora.'
+            : `${selected.length} ${selected.length === 1 ? 'hora libre' : 'horas libres'} marcadas.`}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => onContinue(selected)}
+          disabled={selected.length === 0}
+          className="mt-6 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
+                     font-semibold text-white shadow-lg shadow-indigo-600/30
+                     transition-all hover:bg-indigo-500 active:scale-95
+                     disabled:cursor-not-allowed disabled:bg-white/[0.06]
+                     disabled:text-white/25 disabled:shadow-none"
+        >
+          Continuar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Paso final — Sala de Análisis. Vista terminal: sin botón de salida ni de
  * revisar, a propósito (ver la nota junto a `OnboardingFlow` más abajo).
  *
@@ -320,8 +507,8 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
     setStep(7);
   };
 
-  const chooseSchedule = (value) => {
-    answer('horario')(value);
+  const submitSchedule = (hours) => {
+    answer('horario')(hours);
     setStep(8);
   };
 
@@ -393,7 +580,7 @@ export default function OnboardingFlow({ userId, onProfileSaved }) {
       )}
 
       {step === 7 && (
-        <ChoiceStep text={SCHEDULE_TEXT} options={SCHEDULE_OPTIONS} onSelect={chooseSchedule} />
+        <HourGridStep initialHours={advisorData.horario} onContinue={submitSchedule} />
       )}
 
       {step === 8 && (

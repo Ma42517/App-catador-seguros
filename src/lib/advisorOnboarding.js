@@ -18,9 +18,9 @@
  * Cada `value` es lo que viaja dentro de `advisorProfileData` — el objeto
  * estructurado que se guarda al terminar el Paso 8, pensado para calibrar en
  * el futuro las notificaciones y tareas diarias (por ejemplo, dosificar
- * prospección según el tamaño de mercado declarado aquí, o respetar el
- * horario elegido en el Paso 7). No cambia aunque el texto del botón se
- * reformule, para no dejar radiografías antiguas con un valor que ya no
+ * prospección según el tamaño de mercado declarado aquí, o respetar las
+ * horas exactas marcadas en el Paso 7). No cambia aunque el texto del botón
+ * se reformule, para no dejar radiografías antiguas con un valor que ya no
  * corresponde a nada visible en pantalla.
  */
 
@@ -53,21 +53,44 @@ export const AVAILABILITY_OPTIONS = [
 ];
 
 /**
- * Paso 7 — Horario operativo: en qué bloques del día la persona piensa
- * dedicarle tiempo al negocio.
+ * Paso 7 — Horario operativo: EXACTAMENTE qué horas del día la persona
+ * marca como disponibles para el negocio, tocadas una por una en un mapa
+ * de 24 horas y no elegidas de una lista de cuatro franjas.
  *
  * Es distinto de `disponibilidad` (Paso 6, tiempo completo/medio tiempo):
- * ese paso dice CUÁNTO tiempo tiene, éste dice CUÁNDO. Un asesor de medio
- * tiempo que sólo puede "por las noches" necesita que las tareas y
- * notificaciones respeten justo esa ventana; sin este dato, el algoritmo de
- * tareas sólo sabría que tiene poco tiempo, no cuál es.
+ * ese paso dice CUÁNTO tiempo tiene, éste dice CUÁNDO exactamente. Cuatro
+ * botones ("Por las mañanas"...) obligaban a todo o nada dentro de un
+ * bloque de seis horas — un freelance con la mañana libre salvo la hora de
+ * la comida no podía decirlo sin, o bien marcar la mañana entera (y que la
+ * app le sugiera prospectar mientras come), o bien no marcar nada (y
+ * perder las otras cinco horas libres). El mapa hora por hora deja hueca
+ * justo esa hora, sin sacrificar el resto.
+ *
+ * `HOUR_BLOCKS` sólo AGRUPA visualmente esas 24 horas bajo un título —
+ * Madrugada, Mañana, Tarde, Noche— para que el mapa se lea como jornada y
+ * no como una fila plana de 24 botones idénticos; no es una opción
+ * seleccionable en sí misma, así que no tiene `value` propio.
  */
-export const SCHEDULE_OPTIONS = [
-  { value: 'mornings', label: 'Por las mañanas' },
-  { value: 'afternoons', label: 'Por las tardes' },
-  { value: 'evenings', label: 'Por las noches' },
-  { value: 'weekends', label: 'Fines de semana' },
+export const HOUR_BLOCKS = [
+  { key: 'dawn', label: 'Madrugada', hours: [0, 1, 2, 3, 4, 5] },
+  { key: 'morning', label: 'Mañana', hours: [6, 7, 8, 9, 10, 11] },
+  { key: 'afternoon', label: 'Tarde', hours: [12, 13, 14, 15, 16, 17] },
+  { key: 'evening', label: 'Noche', hours: [18, 19, 20, 21, 22, 23] },
 ];
+
+/** Las 24 horas en orden, para el atajo "Todo el día libre". */
+export const ALL_DAY_HOURS = HOUR_BLOCKS.flatMap((block) => block.hours);
+
+/**
+ * Una hora en formato corto de 12 —"6a", "12p", "11p"— para que quepa en
+ * una celda pequeña del mapa sin ambigüedad entre las 6 de la mañana y las
+ * 6 de la tarde, que un simple "6" no distinguiría.
+ */
+export function formatHour(hour) {
+  const period = hour < 12 ? 'a' : 'p';
+  const twelveHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${twelveHour}${period}`;
+}
 
 /** Paso 8 — Motor: el objetivo principal detrás de la carrera. */
 export const MOTIVATION_OPTIONS = [
@@ -83,6 +106,10 @@ export const MOTIVATION_OPTIONS = [
  * aquí no hay un dato razonable que inventar por alguien que todavía no
  * contestó: un mercado o un horario puestos por el sistema calibrarían el
  * algoritmo de tareas con una respuesta que nadie dio.
+ *
+ * `horario` es un arreglo de horas (0 a 23, ver `HOUR_BLOCKS`) y no un
+ * texto único: puede tener una hora, doce o las veinticuatro, según lo que
+ * la persona marque en el mapa del Paso 7.
  */
 export const EMPTY_ADVISOR_DATA = {
   nombre: '',
@@ -91,6 +118,6 @@ export const EMPTY_ADVISOR_DATA = {
   inquietud: '',
   mercado: '',
   disponibilidad: '',
-  horario: '',
+  horario: [],
   motor: '',
 };

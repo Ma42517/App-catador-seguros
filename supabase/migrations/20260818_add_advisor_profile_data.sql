@@ -22,5 +22,7 @@ alter table public.profiles
 
 comment on column public.profiles.advisor_profile_data is
   'Radiografía del Onboarding (pasos 3-8): { nombre, perfil, fortaleza, '
-  'inquietud, mercado, disponibilidad, horario, motor }. Null = todavía no '
-  'completó el cuestionario. Ver src/lib/advisorOnboarding.js.';
+  'inquietud, mercado, disponibilidad, horario, motor }. "horario" es un '
+  'arreglo de horas (0-23) marcadas libres en el mapa del Paso 7, no un '
+  'texto único. Null = todavía no completó el cuestionario. Ver '
+  'src/lib/advisorOnboarding.js.';
