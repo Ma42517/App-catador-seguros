@@ -8,6 +8,7 @@ import { ProgressBar, LineChart } from '../charts';
 import { RowGrid } from './RowShell';
 import AssetCapture from './AssetCapture';
 import { SAVINGS_TYPES, isSavingsAsset } from '../../data/assetGroups';
+import RetirementInstruments from './RetirementInstruments';
 import { DEFAULT_ASSUMPTIONS } from '../../data/defaults';
 import { isSuggestedRate } from '../../data/historicalRates';
 import RateField from './RateField';
@@ -288,6 +289,7 @@ export default function SavingsStep() {
           Tasa real de acumulación: {fmtPct(r.preRealRate)}.
         </p>
       </Card>
+      <RetirementInstruments />
     </div>
   );
 }
