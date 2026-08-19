@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2, Sun, Moon, Sunrise, Sunset, ChevronDown } from 'lucide-react';
-import useTypewriter from '../../lib/useTypewriter';
+import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { EXPERIENCE_LEVELS } from '../../lib/experienceLevels';
 import {
   STRENGTH_OPTIONS, CONCERN_OPTIONS, MARKET_OPTIONS, AVAILABILITY_OPTIONS,
@@ -613,6 +613,16 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
   const [busyValue, setBusyValue] = useState(null);
 
   /*
+    Tocar en cualquier parte de la pantalla acelera un 50% la máquina de
+    escribir (ver `TypewriterSpeedContext`, `useTypewriter.js`): el primer
+    toque enciende el modo rápido para el resto del recorrido, sin volver a
+    apagarse. No se reinicia por paso porque el objetivo es "deja de
+    esperar tanto" de aquí en adelante, no "acelera esta frase y vuelve a
+    la normalidad en la siguiente".
+  */
+  const [fastTyping, setFastTyping] = useState(false);
+
+  /*
     La radiografía completa del recorrido. Vive en un solo objeto —y no en
     ocho variables sueltas— porque así es como se guarda al final (ver
     `saveAdvisorProfile`): mantenerla ya con esa forma evita traducirla en el
@@ -693,7 +703,11 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-4 py-10">
+    <div
+      className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-4 py-10"
+      onClick={() => setFastTyping(true)}
+    >
+      <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
       {step === 1 && <NameStep initialValue={advisorData.nombre} onContinue={submitName} />}
 
       {step === 2 && (
@@ -753,6 +767,7 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
           }
         />
       )}
+      </TypewriterSpeedContext.Provider>
     </div>
   );
 }

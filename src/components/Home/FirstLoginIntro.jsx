@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight,
 } from 'lucide-react';
-import useTypewriter from '../../lib/useTypewriter';
+import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
 import { useSession } from '../../context/SessionContext';
 import { joinPromotoriaByCode, describeError } from '../../data/promotoriaRepo';
@@ -807,6 +807,16 @@ export default function FirstLoginIntro({ name, username, inquietud, mercado, on
   const [capturedCount, setCapturedCount] = useState(0);
   const [closing, setClosing] = useState(false);
 
+  /*
+    Tocar en cualquier parte de la pantalla acelera un 50% la máquina de
+    escribir (ver `TypewriterSpeedContext`, `useTypewriter.js`): el primer
+    toque enciende el modo rápido para el resto del recorrido, sin volver a
+    apagarse. Mismo mecanismo que ya usa `OnboardingFlow.jsx` (la parte
+    pre-aprobación) — se repite aquí, y no se comparte un estado entre los
+    dos, porque son dos componentes con ciclos de vida distintos.
+  */
+  const [fastTyping, setFastTyping] = useState(false);
+
   // Resueltos una sola vez: ni la inquietud ni el mercado cambian mientras
   // esta pantalla está montada.
   const [step2Text] = useState(() => step2TextFor(inquietud));
@@ -837,21 +847,24 @@ export default function FirstLoginIntro({ name, username, inquietud, mercado, on
       role="dialog"
       aria-modal="true"
       aria-label="Bienvenida a tu primer punto"
+      onClick={() => setFastTyping(true)}
     >
-      {step === 1 && <GreetingStep name={name} onContinue={() => setStep(2)} />}
-      {step === 2 && <EmpowermentStep text={step2Text} onContinue={() => setStep(3)} />}
-      {step === 3 && (
-        <ProspectCaptureStep
-          slotCount={slotCount}
-          onContinue={continueCapture}
-          onSkip={skipCapture}
-        />
-      )}
-      {step === 4 && (
-        <RewardStep capturedCount={capturedCount} onDone={() => setStep(5)} />
-      )}
-      {step === 5 && <JoinTeamStep onContinue={() => setStep(6)} />}
-      {step === 6 && <StartStep onStart={handleStart} />}
+      <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
+        {step === 1 && <GreetingStep name={name} onContinue={() => setStep(2)} />}
+        {step === 2 && <EmpowermentStep text={step2Text} onContinue={() => setStep(3)} />}
+        {step === 3 && (
+          <ProspectCaptureStep
+            slotCount={slotCount}
+            onContinue={continueCapture}
+            onSkip={skipCapture}
+          />
+        )}
+        {step === 4 && (
+          <RewardStep capturedCount={capturedCount} onDone={() => setStep(5)} />
+        )}
+        {step === 5 && <JoinTeamStep onContinue={() => setStep(6)} />}
+        {step === 6 && <StartStep onStart={handleStart} />}
+      </TypewriterSpeedContext.Provider>
     </div>
   );
 }
