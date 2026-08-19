@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import useTypewriter from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
 
-/** Cuánto tarda el fundido de salida del Paso 4, en ms — usado tanto en la clase de Tailwind como en el temporizador que espera a que termine antes de desmontar. */
+/** Cuánto tarda el fundido de salida de todo el overlay, en ms — usado tanto en la clase de Tailwind como en el temporizador que espera a que termine antes de avisar al padre. */
 const FADE_OUT_MS = 700;
-/** Cuánto se queda en pantalla "+ 1 Punto" antes de empezar a desvanecerse. */
-const REWARD_HOLD_MS = 2000;
+/** Cuánto se queda en pantalla "+ 1 Punto" antes de empezar a desvanecerse hacia "Hoy". */
+const REWARD_HOLD_MS = 1800;
 /** Mínimo de nombres para poder guardar la Zona Segura: basta con uno. */
 const MIN_NAMES = 1;
 
@@ -196,10 +196,46 @@ function SafeZoneStep({ onSave }) {
 }
 
 /**
- * Paso 4 — La recompensa. Sin máquina de escribir —es un logro que se
- * anuncia, no una pregunta que se lee—: aparece con un fundido simple y se
- * queda `REWARD_HOLD_MS` en pantalla antes de que el propio componente
- * inicie su fundido de salida (ver `closing` en `FirstLoginIntro`).
+ * Paso 4a — El punto de control. Justo después de guardar la Zona Segura,
+ * antes de que exista ningún punto todavía: sólo el botón "Iniciar",
+ * flotante, con el mismo resplandor que el resto de los botones de avance.
+ * Es la persona quien decide cruzar hacia la app —no un temporizador—, y
+ * recién al presionarlo (`onStart`) se dispara la recompensa del siguiente
+ * paso: el pedido explícito fue que "+1 Punto" saliera después de apretar
+ * Iniciar, no antes.
+ */
+function StartStep({ onStart }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div
+      className={`flex flex-col items-center px-6 text-center transition-opacity duration-700
+                  ${visible ? 'opacity-100' : 'opacity-0'}`}
+    >
+      <button
+        type="button"
+        onClick={onStart}
+        className={`rounded-full bg-indigo-600 px-10 py-3.5 text-base font-semibold text-white
+                    transition-colors hover:bg-indigo-500 active:scale-95 ${GLOW_BUTTON_CLASS}`}
+      >
+        Iniciar
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Paso 4b — La recompensa. Se monta sólo después de presionar "Iniciar"
+ * (ver `started` en `FirstLoginIntro`), nunca antes: sin máquina de
+ * escribir —es un logro que se anuncia, no una pregunta que se lee—,
+ * aparece con un fundido simple, se queda `REWARD_HOLD_MS` en pantalla y
+ * luego el propio `FirstLoginIntro` arranca el fundido de todo el overlay
+ * hacia "Hoy".
  */
 function RewardStep({ visible }) {
   return (
@@ -229,16 +265,21 @@ function RewardStep({ visible }) {
  * cruzar el primer bloqueo emocional en un solo sentido, no dar vueltas
  * sobre él.
  *
- * `onComplete` se llama una vez, al terminar el fundido de salida del Paso
- * 4 —no antes—: quien llama a este componente (`TodayView`) usa esa señal
- * para sumar el punto de verdad (`useAdvisorPoints`), y hacerlo antes de que
- * la pantalla termine de desvanecerse no cambiaría nada visible, pero sí
- * arriesgaría a que un componente que reaccione a los puntos (como
- * `DailyGoalBar`, montado detrás de este overlay) se actualice mientras
- * todavía se ve la recompensa, duplicando el aviso de "ya tienes 1 punto".
+ * El Paso 4 tiene dos momentos, no uno solo, y por eso vive detrás de un
+ * segundo estado (`started`) y no de otro número de `step`: primero
+ * `StartStep` —sólo el botón "Iniciar", sin ningún punto todavía—, y sólo
+ * al presionarlo aparece `RewardStep` con "+1 Punto". El orden es a
+ * propósito, corregido tras el pedido explícito: el punto debe salir
+ * *después* de apretar Iniciar, no antes.
+ *
+ * `onComplete` se llama cuando termina el fundido de salida de todo el
+ * overlay, ya con la recompensa vista: quien llama a este componente
+ * (`TodayView`) usa esa señal para sumar el punto de verdad
+ * (`useAdvisorPoints`) y sólo entonces monta "Hoy" por detrás.
  */
 export default function FirstLoginIntro({ name, username, onComplete }) {
   const [step, setStep] = useState(1);
+  const [started, setStarted] = useState(false);
   const [rewardVisible, setRewardVisible] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -247,26 +288,28 @@ export default function FirstLoginIntro({ name, username, onComplete }) {
     setStep(4);
   };
 
-  // Paso 4: entra con fundido, se queda un rato, y luego arranca su propio
-  // fundido de salida antes de avisar al padre que ya puede sumar el punto.
+  // Se dispara al presionar "Iniciar" (`started` pasa a `true`), no al
+  // llegar al Paso 4: la recompensa entra con fundido, se queda
+  // `REWARD_HOLD_MS` en pantalla, y luego el overlay completo empieza su
+  // propio fundido de salida antes de avisar al padre.
   useEffect(() => {
-    if (step !== 4) return undefined;
+    if (!started) return undefined;
 
-    const showTimer = setTimeout(() => setRewardVisible(true), 50);
+    const showRewardTimer = setTimeout(() => setRewardVisible(true), 50);
     const closeTimer = setTimeout(() => setClosing(true), REWARD_HOLD_MS);
     const completeTimer = setTimeout(onComplete, REWARD_HOLD_MS + FADE_OUT_MS);
 
     return () => {
-      clearTimeout(showTimer);
+      clearTimeout(showRewardTimer);
       clearTimeout(closeTimer);
       clearTimeout(completeTimer);
     };
     // `onComplete` es estable en la única llamada real (`useAdvisorPoints`
     // devuelve una función memoizada con `useCallback`); no hace falta
-    // reprogramar los temporizadores si el padre se re-renderiza por otra
-    // razón mientras este paso ya está en curso.
+    // reprogramarlo si el padre se re-renderiza por otra razón mientras
+    // esta secuencia ya está en curso.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [started]);
 
   return (
     <div
@@ -280,7 +323,8 @@ export default function FirstLoginIntro({ name, username, onComplete }) {
       {step === 1 && <GreetingStep name={name} onContinue={() => setStep(2)} />}
       {step === 2 && <EmpowermentStep onContinue={() => setStep(3)} />}
       {step === 3 && <SafeZoneStep onSave={saveSafeZone} />}
-      {step === 4 && <RewardStep visible={rewardVisible} />}
+      {step === 4 && !started && <StartStep onStart={() => setStarted(true)} />}
+      {step === 4 && started && <RewardStep visible={rewardVisible} />}
     </div>
   );
 }
