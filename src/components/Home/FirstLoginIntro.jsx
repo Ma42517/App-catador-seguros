@@ -186,7 +186,7 @@ function ProspectFields({ index, value, onChange }) {
           id={`prospect-phone-${index}`}
           value={value.telefono}
           onChange={setField('telefono')}
-          placeholder="Teléfono (opcional)"
+          placeholder="Teléfono"
           type="tel"
           inputMode="tel"
           autoComplete="off"
