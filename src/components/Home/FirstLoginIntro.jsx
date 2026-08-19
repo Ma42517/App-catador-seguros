@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle,
+  Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 import useTypewriter from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
@@ -730,12 +730,21 @@ function JoinTeamStep({ onContinue }) {
 }
 
 /**
- * Paso 6 — El botón final. Aparece solo, sin confeti ni texto de logro
- * —esos ya se desvanecieron con `RewardStep`—, con el mismo resplandor del
- * resto de los botones de avance. Al presionarlo arranca el fundido de
- * todo el overlay (`closing`, en `FirstLoginIntro`) y sólo cuando ese
- * fundido termina se avisa al padre (`onComplete`) para sumar el punto de
- * verdad y montar "Hoy" por detrás.
+ * Paso 6 — El botón final, con estética de CTA de app nativa premium en
+ * vez del botón flotante genérico que compartía forma con el resto de
+ * botones de avance del recorrido (`GLOW_BUTTON_CLASS`, índigo, angosto).
+ * Éste es deliberadamente distinto: ancho (`w-[85%] max-w-sm`), en ámbar
+ * —el mismo color que ya usa `RewardStep` para "+1 Punto", así el último
+ * gesto de la introducción se siente como continuación de la recompensa,
+ * no como un botón de avance más— y con un texto de ancla arriba
+ * ("Tu entorno de trabajo está listo.") para que la pantalla no se lea
+ * como un botón perdido en el centro de un fondo negro.
+ *
+ * Aparece solo, sin confeti ni texto de logro —esos ya se desvanecieron
+ * con `RewardStep`—. Al presionarlo arranca el fundido de todo el overlay
+ * (`closing`, en `FirstLoginIntro`) y sólo cuando ese fundido termina se
+ * avisa al padre (`onComplete`) para sumar el punto de verdad y montar
+ * "Hoy" por detrás.
  */
 function StartStep({ onStart }) {
   const [visible, setVisible] = useState(false);
@@ -750,13 +759,18 @@ function StartStep({ onStart }) {
       className={`flex flex-col items-center px-6 text-center transition-opacity duration-700
                   ${visible ? 'opacity-100' : 'opacity-0'}`}
     >
+      <p className="mb-6 text-sm text-slate-400">Tu entorno de trabajo está listo.</p>
+
       <button
         type="button"
         onClick={onStart}
-        className={`rounded-full bg-indigo-600 px-10 py-3.5 text-base font-semibold text-white
-                    transition-colors hover:bg-indigo-500 active:scale-95 ${GLOW_BUTTON_CLASS}`}
+        className="flex w-[85%] max-w-sm items-center justify-center gap-3 rounded-xl
+                   border border-amber-400/50 bg-amber-500 py-4 text-lg font-bold
+                   tracking-wide text-slate-950 shadow-[0_0_30px_rgba(245,158,11,0.3)]
+                   transition-all hover:bg-amber-400 active:scale-95"
       >
-        Iniciar
+        INICIAR
+        <ArrowRight size={20} aria-hidden="true" />
       </button>
     </div>
   );
