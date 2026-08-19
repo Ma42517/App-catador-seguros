@@ -154,37 +154,78 @@ const TASK_STEP_SUBTEXT = 'Agilicemos tu horario. Escribe tus próximas acciones
 
 /**
  * Tarea vacía: la forma exacta de cada slot del Paso 3 en la rama de carga
- * administrativa. `telefono` es lo que hace posible, más adelante, que un
- * recordatorio ofrezca "Llamar" o "Mandar WhatsApp" en vez de sólo avisar —
- * ese enganche no se construye todavía aquí, pero sin capturar el número
- * en este mismo paso no habría nada que enganchar después. `detalle` sólo
- * aplica a la categoría "Trámite" (ver `TaskSlot`): el resto de categorías
- * lo deja vacío y nunca se les pregunta por él.
+ * administrativa.
+ *
+ * `hora` no arranca vacía en la práctica: `TaskCaptureStep` la llena con
+ * `defaultTaskTime(index)` al crear cada slot —una sugerencia editable, no
+ * una casilla en blanco—, así la persona siempre ve a qué hora quedaría su
+ * pendiente sin tener que pensarlo, y puede corregirla si ya sabe cuándo es
+ * de verdad.
+ *
+ * `telefono` es lo que hace posible, más adelante, que un recordatorio
+ * ofrezca "Llamar" o "Mandar WhatsApp" en vez de sólo avisar — ese enganche
+ * no se construye todavía aquí, pero sin capturar el número en este mismo
+ * paso no habría nada que enganchar después.
+ *
+ * `detalle` sólo aplica a la categoría "Trámite" y `horasEstudio` sólo a
+ * "Capacitación/estudio" (ver `TaskEditorSheet`): el resto de categorías
+ * los deja vacíos y nunca se les pregunta por ellos.
  */
-const EMPTY_TASK = { tipo: 'initial_meeting', descripcion: '', telefono: '', detalle: '' };
+const EMPTY_TASK = {
+  tipo: 'call', descripcion: '', telefono: '', detalle: '', horasEstudio: '', hora: '',
+};
+
+/** Hora de respaldo si `hora` llega vacía al guardar (no debería pasar: ver `EMPTY_TASK`). */
+const DEFAULT_TASK_HOUR = '09:00';
 
 /*
-  Categorías de actividad — ampliadas más allá de las cuatro originales
-  para cubrir lo que de verdad ocupa el día de un asesor con cartera
-  (cobros, prospección, cierres), no sólo el arranque de una relación
-  nueva. No es un catálogo exhaustivo a propósito: el Paso 3 es para
-  vaciar la memoria rápido, no para clasificar con precisión de manual —
-  siete categorías ya cubren la mayoría sin obligar a nadie a detenerse a
-  pensar cuál de quince aplica.
+  Catálogo de actividades — el que el propio usuario dio como ejemplo real
+  de lo que ocupa el día de un asesor de seguros, cada una con los puntos
+  que vale ejecutarla. Reemplaza el catálogo genérico anterior: ya no hay
+  un valor fijo por tarea capturada (antes 0.5 para todas por igual) —
+  cada categoría pesa lo que de verdad cuesta hacerla, desde una llamada
+  (1 punto) hasta emitir una póliza (5 puntos).
+
+  `perHour: true` marca la única categoría cuyo valor no es fijo por
+  actividad sino por hora invertida ("Capacitación/estudio"): `points` ahí
+  es la tarifa por hora, no el total — `pointsForEntry` es quien multiplica
+  por `horasEstudio` antes de sumar.
+
+  "Trámite" y "Cobro" no vinieron en la lista que dio el usuario, pero se
+  conservan porque ya se habían pedido antes explícitamente para esta
+  misma pantalla (la carga administrativa es justo el cuello de botella de
+  este perfil) — se les asigna un valor conservador (2 puntos), a mitad de
+  la escala que sí definió el usuario, en vez de inventar un número sin
+  referencia.
 */
 const TASK_TYPE_OPTIONS = [
-  { value: 'initial_meeting', label: 'Cita Inicial' },
-  { value: 'closing_meeting', label: 'Cita de Cierre' },
-  { value: 'call', label: 'Llamada' },
-  { value: 'followup', label: 'Seguimiento' },
-  { value: 'collection', label: 'Cobro' },
-  { value: 'prospecting', label: 'Prospección' },
-  { value: 'paperwork', label: 'Trámite' },
+  { value: 'call', label: 'Llamada', points: 1 },
+  { value: 'initial_meeting', label: 'Cita Inicial', points: 3 },
+  { value: 'closing_meeting', label: 'Cita de Cierre', points: 5 },
+  { value: 'referral_requested', label: 'Referido solicitado', points: 2 },
+  { value: 'referral_obtained', label: 'Referido obtenido', points: 3 },
+  { value: 'followup_message', label: 'Mensaje de seguimiento', points: 1 },
+  { value: 'followup_client', label: 'Seguimiento a cliente', points: 1 },
+  { value: 'policy_presented', label: 'Póliza presentada', points: 4 },
+  { value: 'policy_issued', label: 'Póliza emitida', points: 5 },
+  { value: 'training', label: 'Capacitación/estudio', points: 2, perHour: true },
+  { value: 'social_post', label: 'Publicación en redes sociales', points: 1 },
+  { value: 'new_prospect', label: 'Prospecto nuevo', points: 3 },
+  { value: 'paperwork', label: 'Trámite', points: 2 },
+  { value: 'collection', label: 'Cobro', points: 2 },
 ];
+
+/** Puntos por defecto si `tipo` no coincide con ninguna categoría conocida (dato viejo o corrupto). */
+const DEFAULT_TASK_POINTS = 1;
+
+/** La categoría completa (con sus puntos), o `undefined` si `value` no coincide con ninguna. */
+function taskTypeOption(value) {
+  return TASK_TYPE_OPTIONS.find((option) => option.value === value);
+}
 
 /** Etiqueta legible de una categoría de tarea; respaldo al valor crudo si alguna vez llega uno fuera de la lista. */
 function taskTypeLabel(value) {
-  return TASK_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+  return taskTypeOption(value)?.label ?? value;
 }
 
 /*
@@ -194,27 +235,35 @@ function taskTypeLabel(value) {
   qué tipo de trámite es. Es un campo de texto libre y no un segundo
   catálogo cerrado: la variedad real de trámites no cabe en una lista
   corta, y una lista larga sería justo la fricción que este paso evita en
-  las otras seis categorías.
+  el resto de categorías.
 */
 const TRAMITE_DETAIL_LABEL = '¿Qué tipo de trámite es?';
 const TRAMITE_DETAIL_PLACEHOLDER = 'Ej. Cambio de beneficiario, pago, entrega de póliza…';
 
-/*
-  Puntos por cada tarea válida capturada — la mitad de lo que vale un
-  prospecto en la otra rama (`+1 Punto` en `RewardStep`): aquí el "primer
-  apoyo" no es una persona nueva a la que apenas se conoce, es un pendiente
-  que la persona ya tenía resuelto en su cabeza, así que la especificación
-  lo tasa distinto.
-*/
-const POINTS_PER_TASK = 0.5;
+/** Sólo "Capacitación/estudio" pregunta cuántas horas —es la única categoría con tarifa por hora, no por actividad. */
+const TRAINING_HOURS_LABEL = '¿Cuántas horas?';
 
 /**
- * Hora por defecto de la tarea número `index` (0-indexado): 9:00 a. m. y
+ * Puntos que vale una tarea capturada, según su categoría — el valor fijo
+ * de `TASK_TYPE_OPTIONS`, o `points × horasEstudio` en la única categoría
+ * por hora ("Capacitación/estudio"). Una tarea sin horas capturadas ahí no
+ * vale cero: se cuenta como una hora, el mínimo que tiene sentido pensar
+ * que alguien invirtió si de verdad marcó esa categoría.
+ */
+function pointsForEntry(entry) {
+  const option = taskTypeOption(entry.tipo);
+  if (!option) return DEFAULT_TASK_POINTS;
+  if (!option.perHour) return option.points;
+  const hours = Number(entry.horasEstudio) || 1;
+  return Math.round(option.points * hours * 10) / 10;
+}
+
+/**
+ * Hora sugerida de la tarea número `index` (0-indexado): 9:00 a. m. y
  * media hora más por cada una, para que las tareas capturadas de golpe no
- * queden todas apiladas a la misma hora en la agenda — es la app
- * "acomodándolas", como promete `TASK_STEP_SUBTEXT`, no la persona
- * eligiendo cuándo (la especificación pide justo no preguntar fecha ni
- * hora en este paso).
+ * queden todas apiladas a la misma hora en la agenda — es apenas un punto
+ * de partida editable en `TaskEditorSheet`, no la hora final: quien ya
+ * sabe a qué hora es su pendiente la corrige ahí mismo.
  */
 function defaultTaskTime(index) {
   const totalMinutes = 9 * 60 + index * 30;
@@ -225,12 +274,13 @@ function defaultTaskTime(index) {
 }
 
 /**
- * Total de puntos que vale una captura de `count` tareas — redondeado a un
- * decimal por seguridad de punto flotante, aunque los múltiplos de 0.5 ya
- * se representan exactos en binario.
+ * Total de puntos que vale una captura de tareas — la suma de
+ * `pointsForEntry` de cada una, redondeada a un decimal por seguridad de
+ * punto flotante.
  */
-function taskPointsFor(count) {
-  return Math.round(count * POINTS_PER_TASK * 10) / 10;
+function taskPointsFor(entries) {
+  const total = entries.reduce((sum, entry) => sum + pointsForEntry(entry), 0);
+  return Math.round(total * 10) / 10;
 }
 
 /** "+ 1 Punto", "+ 2.5 Puntos": entero sin decimales, fracción con uno solo; singular sólo cuando vale exactamente 1. */
@@ -632,11 +682,12 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
 /**
  * Una fila del Paso 3 en la rama de carga administrativa: vacía (borde
  * punteado, invita a tocarla) o llena (tarjeta sólida con el nombre, la
- * categoría y, si lo trae, el teléfono debajo) — mismo criterio de dos
- * estados que `ProspectSlot`, pero aquí tocar el slot nunca lo convierte
- * en inputs sueltos: siempre abre `TaskEditorSheet`, porque una tarea trae
- * más datos que un prospecto (categoría, a veces el detalle del trámite, y
- * el teléfono) y meterlos todos en una fila de 56px sería ilegible.
+ * hora, la categoría, los puntos que vale y, si lo trae, el teléfono
+ * debajo) — mismo criterio de dos estados que `ProspectSlot`, pero aquí
+ * tocar el slot nunca lo convierte en inputs sueltos: siempre abre
+ * `TaskEditorSheet`, porque una tarea trae más datos que un prospecto
+ * (hora, categoría, puntos, a veces el detalle del trámite, y el teléfono)
+ * y meterlos todos en una fila de 56px sería ilegible.
  */
 function TaskSlot({ index, value, onOpen }) {
   const isFilled = Boolean(value.descripcion.trim());
@@ -654,9 +705,15 @@ function TaskSlot({ index, value, onOpen }) {
             {value.descripcion}
           </span>
           <span className="block truncate text-xs text-slate-500">
-            {taskTypeLabel(value.tipo)}
+            {value.hora || DEFAULT_TASK_HOUR} · {taskTypeLabel(value.tipo)}
             {value.telefono && ` · ${value.telefono}`}
           </span>
+        </span>
+        <span
+          className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px]
+                     font-bold text-amber-400"
+        >
+          {pointsForEntry(value)} pts
         </span>
         <ChevronRight size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
       </button>
@@ -704,6 +761,8 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
 
   const [contactPickerSupported] = useState(isContactPickerSupported);
   const isPaperwork = draft.tipo === 'paperwork';
+  const isTraining = draft.tipo === 'training';
+  const selectedOption = taskTypeOption(draft.tipo);
 
   const handleOpenContacts = async () => {
     try {
@@ -727,8 +786,15 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
       descripcion: draft.descripcion.trim(),
       telefono: draft.telefono.trim(),
       detalle: isPaperwork ? draft.detalle.trim() : '',
+      horasEstudio: isTraining ? draft.horasEstudio : '',
+      hora: draft.hora || DEFAULT_TASK_HOUR,
     });
   };
+
+  // Vista previa de los puntos, con el borrador actual — para que la
+  // persona vea de inmediato cómo cambia el valor al cambiar de categoría
+  // o, en "Capacitación/estudio", al ajustar las horas.
+  const previewPoints = pointsForEntry(draft);
 
   return (
     /*
@@ -749,11 +815,17 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
 
       <div className="flex flex-col gap-4 pb-2">
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
-                             text-slate-500" htmlFor="task-sheet-type"
-          >
-            Tipo de Acción
-          </label>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="block text-[11px] font-semibold uppercase tracking-wider
+                               text-slate-500" htmlFor="task-sheet-type"
+            >
+              Tipo de Acción
+            </label>
+            <span className="text-[11px] font-bold text-amber-400">
+              {previewPoints} {previewPoints === 1 ? 'punto' : 'puntos'}
+              {selectedOption?.perHour ? '/hora' : ''}
+            </span>
+          </div>
           <select
             id="task-sheet-type"
             value={draft.tipo}
@@ -795,6 +867,38 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
           </div>
         )}
 
+        {/*
+          Sólo "Capacitación/estudio" pregunta esto: es la única categoría
+          que no vale lo mismo por actividad, sino por hora invertida
+          (`perHour` en `TASK_TYPE_OPTIONS`) — sin este número no hay nada
+          que multiplicar, y `pointsForEntry` cae a asumir una hora.
+        */}
+        {isTraining && (
+          <div>
+            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
+                               text-slate-500" htmlFor="task-sheet-hours"
+            >
+              {TRAINING_HOURS_LABEL}
+            </label>
+            <input
+              id="task-sheet-hours"
+              value={draft.horasEstudio}
+              onChange={(event) => setDraft((current) => (
+                { ...current, horasEstudio: event.target.value }
+              ))}
+              placeholder="Ej. 2"
+              type="number"
+              min="0"
+              step="0.5"
+              inputMode="decimal"
+              autoComplete="off"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+                         text-sm text-white placeholder:text-slate-500 focus:border-indigo-500
+                         focus:outline-none"
+            />
+          </div>
+        )}
+
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
                              text-slate-500" htmlFor="task-sheet-name"
@@ -811,6 +915,33 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
             autoComplete="off"
             className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
                        text-sm text-white placeholder:text-slate-500 focus:border-indigo-500
+                       focus:outline-none"
+          />
+        </div>
+
+        {/*
+          La hora: llega pre-llenada con `defaultTaskTime(index)` desde
+          `TaskCaptureStep` (una sugerencia, no una casilla en blanco), y
+          aquí se puede corregir a la hora real del pendiente — es la
+          pieza que le faltaba a esta hoja: sin ella, la Agenda mostraba
+          horas escalonadas sin sentido (9:00, 9:30, 10:00...) en vez de la
+          hora en que la persona de verdad tiene esa actividad.
+        */}
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
+                             text-slate-500" htmlFor="task-sheet-time"
+          >
+            Hora
+          </label>
+          <input
+            id="task-sheet-time"
+            value={draft.hora}
+            onChange={(event) => setDraft((current) => (
+              { ...current, hora: event.target.value }
+            ))}
+            type="time"
+            className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+                       text-sm text-white [color-scheme:dark] focus:border-indigo-500
                        focus:outline-none"
           />
         </div>
@@ -887,8 +1018,14 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
  * filas (`taskSlotCountFor(mercado)`, según la cartera declarada en el
  * Onboarding). Cada fila se llena abriendo `TaskEditorSheet`, no
  * escribiendo directo sobre la fila: hay más que capturar por tarea
- * (categoría, a veces el detalle del trámite, teléfono) de lo que cabe en
- * una fila compacta.
+ * (categoría, hora, puntos, a veces el detalle del trámite, teléfono) de
+ * lo que cabe en una fila compacta.
+ *
+ * Cada slot arranca ya con una hora sugerida (`defaultTaskTime(index)`,
+ * escalonada de media hora en media hora desde las 9:00) para que la
+ * Agenda nunca reciba un pendiente sin horario — la persona puede
+ * corregirla en `TaskEditorSheet` si ya sabe cuándo es de verdad, pero
+ * nunca la deja vacía sin darse cuenta.
  *
  * "CONTINUAR" exige llenar al menos `MIN_FILLED_TASKS` de las filas, no
  * todas — regla anti-fricción de la especificación: quien tiene 10 slots
@@ -896,14 +1033,16 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
  * quedarse atorado inventando los siete que faltan.
  *
  * `onContinue` recibe las tareas limpias (descripción no vacía) para que
- * `FirstLoginIntro` calcule los puntos (`POINTS_PER_TASK` por cada una) y
- * las mande a la Agenda real.
+ * `FirstLoginIntro` calcule los puntos (`taskPointsFor`, según la
+ * categoría de cada una) y las mande a la Agenda real.
  */
 function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
   const { typed, isTyping } = useTypewriter(TASK_STEP_TEXT);
   const [showSubtext, setShowSubtext] = useState(false);
   const [tasks, setTasks] = useState(
-    () => Array.from({ length: slotCount }, () => ({ ...EMPTY_TASK })),
+    () => Array.from({ length: slotCount }, (_, index) => (
+      { ...EMPTY_TASK, hora: defaultTaskTime(index) }
+    )),
   );
   const [openIndex, setOpenIndex] = useState(null);
 
@@ -921,7 +1060,8 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
   const cleanEntries = tasks
     .map((t) => ({
       tipo: t.tipo, descripcion: t.descripcion.trim(), telefono: t.telefono.trim(),
-      detalle: t.detalle.trim(),
+      detalle: t.detalle.trim(), horasEstudio: t.horasEstudio,
+      hora: t.hora || DEFAULT_TASK_HOUR,
     }))
     .filter((t) => t.descripcion);
   const isValid = cleanEntries.length >= MIN_FILLED_TASKS;
@@ -1344,8 +1484,9 @@ function StartStep({ onStart }) {
  *      Ambas ofrecen "Continuar" o "Saltar paso".
  *   4. Recompensa automática (`RewardStep`) — confeti + logro, `REWARD_AUTO_MS`.
  *      Puntos y logro dependen de la misma rama del Paso 3: 1 punto fijo y
- *      "Proyecto 200" para prospectos, 0.5 por tarea capturada y "Agenda
- *      Optimizada" para tareas.
+ *      "Proyecto 200" para prospectos, la suma de lo que vale cada tarea
+ *      capturada (`taskPointsFor`, según su categoría en
+ *      `TASK_TYPE_OPTIONS`) y "Agenda Optimizada" para tareas.
  *   5. Unirse a un equipo de trabajo (`JoinTeamStep`) — código real de
  *      promotoría, o "Hacerlo después"
  *   6. Botón final (`StartStep`) — la persona decide cuándo cruzar
@@ -1355,7 +1496,7 @@ function StartStep({ onStart }) {
  * por un temporizador: quien llama a este componente (`TodayView`) usa esa
  * señal para sumar los puntos de verdad (`useAdvisorPoints`) y sólo
  * entonces monta "Hoy" por detrás. `pointsEarned` es `1` en la rama de
- * prospectos (comportamiento sin cambios) y `taskPointsFor(count)` en la
+ * prospectos (comportamiento sin cambios) y `taskPointsFor(entries)` en la
  * de tareas.
  */
 export default function FirstLoginIntro({
@@ -1406,14 +1547,16 @@ export default function FirstLoginIntro({
     aparece con los pendientes que la persona acaba de vaciar de su
     libreta — la promesa exacta de `TASK_STEP_SUBTEXT` ("nosotros nos
     encargamos de acomodarlas en tu agenda"). Todas quedan programadas para
-    hoy, en horas separadas por media hora (`defaultTaskTime`) y con la
-    prioridad por omisión del resto de la app (`DEFAULT_PRIORITY`): este
-    paso no pregunta fecha, hora ni prioridad a propósito (ver
-    `TaskCaptureStep`), así que no hay ningún dato real que perder al
-    completarlos por ella.
+    hoy, a la hora que cada una trae capturada (`entry.hora`, editada en
+    `TaskEditorSheet` — ya no la hora escalonada y genérica de
+    `defaultTaskTime` que traía cada slot al nacer) y con la prioridad por
+    omisión del resto de la app (`DEFAULT_PRIORITY`): este paso no pregunta
+    fecha ni prioridad a propósito (ver `TaskCaptureStep`), pero la hora sí
+    se pregunta —y se corrige—, así que no hay ningún dato real que perder
+    al completarlos por ella.
   */
   const continueTaskCapture = (entries) => {
-    entries.forEach((entry, index) => {
+    entries.forEach((entry) => {
       /*
         `telefono` viaja hasta el evento real de la Agenda —no sólo hasta
         el título— porque es el dato que en el futuro va a permitir que un
@@ -1428,13 +1571,13 @@ export default function FirstLoginIntro({
         type: 'actividad',
         title: `${taskTypeLabel(entry.tipo)}: ${entry.descripcion}${detailSuffix}`,
         date: todayKey(),
-        time: defaultTaskTime(index),
+        time: entry.hora,
         priority: DEFAULT_PRIORITY,
         telefono: entry.telefono,
       });
     });
     setCapturedCount(entries.length);
-    setPointsEarned(taskPointsFor(entries.length));
+    setPointsEarned(taskPointsFor(entries));
     setStep(4);
   };
 
