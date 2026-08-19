@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Trophy } from 'lucide-react';
+import { Trophy, User, BookUser } from 'lucide-react';
 import useTypewriter from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
 
@@ -11,7 +11,7 @@ const FADE_OUT_MS = 700;
   exacto de la especificación (4.5s), no un número redondeado a ojo.
 */
 const REWARD_AUTO_MS = 4500;
-/** Cuántos prospectos pide el Paso 3. "Saltar paso" no exige ninguno. */
+/** Cuántos prospectos pide el Paso 3 (y cuántos slots se dibujan). "Saltar paso" no exige ninguno. */
 const PROSPECT_COUNT = 3;
 /*
   Tamaño de la meta que anuncia el logro tipo consola ("N / 200 · Proyecto
@@ -69,6 +69,21 @@ const CONFETTI_COLORS = [
 ];
 const CONFETTI_PIECES = 50;
 
+/** Prospecto vacío: la forma exacta de cada slot antes de llenarse, a mano o desde la agenda del teléfono. */
+const EMPTY_PROSPECT = { nombre: '', telefono: '' };
+
+/**
+ * ¿El navegador soporta el selector nativo de contactos (Contact Picker
+ * API)? Sólo Chrome/Edge en Android la implementan hoy — en cualquier otro
+ * navegador `navigator.contacts` no existe, y el botón "Elegir desde mi
+ * agenda" simplemente no se dibuja (ver `ProspectCaptureStep`): el Slot
+ * manual sigue siendo el único camino, no una alternativa degradada.
+ */
+function isContactPickerSupported() {
+  return typeof navigator !== 'undefined' && 'contacts' in navigator
+    && typeof window !== 'undefined' && 'ContactsManager' in window;
+}
+
 /**
  * Cursor parpadeante compartido por los pasos con máquina de escribir,
  * igual que el de `OnboardingFlow.jsx` — se repite aquí, y no se importa de
@@ -79,11 +94,6 @@ function Caret({ show }) {
   if (!show) return null;
   return <span className="animate-pulse text-indigo-400">|</span>;
 }
-
-/** Campo de una sola línea, subrayado sutil — mismo criterio visual que el resto del Onboarding, sin caja ni fondo propio. */
-const FIELD_CLASS = 'w-full border-b border-slate-700 bg-transparent pb-2 text-sm text-white '
-  + 'caret-indigo-400 transition-colors placeholder:text-slate-500 focus:border-indigo-500 '
-  + 'focus:outline-none';
 
 /** Paso 1 — Saludo neutral, sin ninguna referencia todavía a la inquietud declarada. */
 function GreetingStep({ name, onContinue }) {
@@ -152,67 +162,124 @@ function EmpowermentStep({ onContinue }) {
 }
 
 /**
- * Un bloque de captura: nombre y teléfono de un prospecto. Ambos campos van
- * uno junto al otro en pantallas anchas (`sm:flex-row`) y uno sobre el otro
- * en el teléfono — es la única forma de que quepan cómodos sin encoger el
- * campo de nombre a un tamaño donde ya no se lee lo que se escribe.
+ * Un slot del Paso 3: vacío (borde punteado, invita a tocarlo), en edición
+ * (dos campos compactos, uno al lado del otro) o lleno (tarjeta sólida con
+ * el nombre y, si lo trae, el teléfono debajo en gris). Los tres estados
+ * son el mismo componente y no tres — nunca hay que sincronizar por
+ * separado "cómo se ve vacío" y "cómo se ve editándose".
+ *
+ * El cierre de la edición va en el contenedor, no en cada input: un
+ * `onBlur` en el campo de teléfono nada más se dispararía también al
+ * tabular del nombre al teléfono *dentro del mismo slot*, cerrando la
+ * edición a medio llenar. Comprobando `relatedTarget` contra el propio
+ * contenedor, sólo se cierra cuando el foco de verdad sale del slot —click
+ * afuera, Tab hacia el siguiente, o el botón "Continuar".
  */
-function ProspectFields({ index, value, onChange }) {
-  const setField = (field) => (event) => {
-    onChange(index, { ...value, [field]: event.target.value });
-  };
+function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
+  const isFilled = Boolean(value.nombre.trim());
 
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-      <div className="flex-1">
+  if (isEditing) {
+    return (
+      <div
+        className="flex h-14 items-center gap-2 rounded-xl border border-indigo-500/50
+                   bg-slate-800/50 px-3"
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) onEdit(null);
+        }}
+      >
+        <User size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+
         <label className="sr-only" htmlFor={`prospect-name-${index}`}>
           {`Nombre del prospecto ${index + 1}`}
         </label>
         <input
           id={`prospect-name-${index}`}
+          autoFocus
           value={value.nombre}
-          onChange={setField('nombre')}
+          onChange={(event) => onChange(index, { ...value, nombre: event.target.value })}
           placeholder="Nombre"
           autoComplete="off"
           enterKeyHint="next"
-          className={FIELD_CLASS}
+          className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-slate-500
+                     focus:outline-none"
         />
-      </div>
-      <div className="flex-1">
+
         <label className="sr-only" htmlFor={`prospect-phone-${index}`}>
           {`Teléfono del prospecto ${index + 1}`}
         </label>
         <input
           id={`prospect-phone-${index}`}
           value={value.telefono}
-          onChange={setField('telefono')}
+          onChange={(event) => onChange(index, { ...value, telefono: event.target.value })}
           placeholder="Teléfono"
           type="tel"
           inputMode="tel"
           autoComplete="off"
-          enterKeyHint="next"
-          className={FIELD_CLASS}
+          enterKeyHint="done"
+          className="w-24 shrink-0 border-l border-slate-700 bg-transparent pl-2 text-sm
+                     text-white placeholder:text-slate-500 focus:outline-none"
         />
       </div>
-    </div>
+    );
+  }
+
+  if (isFilled) {
+    return (
+      <button
+        type="button"
+        onClick={() => onEdit(index)}
+        className="flex h-14 w-full items-center gap-3 rounded-xl border border-slate-700
+                   bg-slate-800/50 px-4 text-left transition-colors hover:border-slate-600"
+      >
+        <User size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-white">
+            {value.nombre}
+          </span>
+          {value.telefono && (
+            <span className="block truncate text-xs text-slate-500">{value.telefono}</span>
+          )}
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onEdit(index)}
+      className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2
+                 border-dashed border-slate-700 text-sm text-slate-500 transition-colors
+                 hover:border-slate-600 hover:text-slate-400"
+    >
+      <User size={16} aria-hidden="true" />
+      Agregar contacto
+    </button>
   );
 }
 
 /**
- * Paso 3 — Captura de los primeros prospectos: 3 bloques de Nombre +
- * Teléfono, con la promesa explícita de que nada se hace con ellos todavía
- * (`STEP3_SUBTEXT`). "CONTINUAR" exige al menos un nombre; "Saltar paso"
- * no exige nada — es la fuga para quien prefiere no llenar el formulario
- * en este momento, y sigue otorgando el punto igual que si lo hubiera
- * llenado (la recompensa no es por los datos, es por haber cruzado el
- * paso).
+ * Paso 3 — Captura de los primeros prospectos, ahora como 3 "slots" en vez
+ * de un formulario apilado: cada uno se llena tocándolo (`ProspectSlot`,
+ * edición manual compacta) o de una sola vez con el selector nativo de
+ * contactos del teléfono, si el navegador lo soporta.
+ *
+ * "CONTINUAR" exige al menos un nombre entre los tres slots; "Saltar paso"
+ * no exige nada — es la fuga para quien prefiere no capturar a nadie en
+ * este momento, y sigue otorgando el punto igual que si los hubiera
+ * llenado (la recompensa es por haber cruzado el paso, no por los datos).
  */
 function ProspectCaptureStep({ onContinue, onSkip }) {
   const { typed, isTyping } = useTypewriter(STEP3_TEXT);
   const [showSubtext, setShowSubtext] = useState(false);
   const [prospects, setProspects] = useState(
-    () => Array.from({ length: PROSPECT_COUNT }, () => ({ nombre: '', telefono: '' })),
+    () => Array.from({ length: PROSPECT_COUNT }, () => ({ ...EMPTY_PROSPECT })),
   );
+  const [editingIndex, setEditingIndex] = useState(null);
+
+  // Se calcula una sola vez: el soporte del navegador no cambia mientras
+  // esta pantalla está montada.
+  const [contactPickerSupported] = useState(isContactPickerSupported);
 
   useEffect(() => {
     if (isTyping) return undefined;
@@ -224,19 +291,46 @@ function ProspectCaptureStep({ onContinue, onSkip }) {
     setProspects((current) => current.map((p, i) => (i === index ? next : p)));
   };
 
+  /**
+   * Abre el selector nativo de contactos y coloca los primeros
+   * `PROSPECT_COUNT` elegidos en los slots, en el orden en que la persona
+   * los seleccionó. Cada contacto puede traer varios teléfonos o ninguno
+   * nombre —se toma el primero de cada arreglo, con respaldo a cadena
+   * vacía— porque el slot ya sabe mostrarse "lleno" con sólo el nombre.
+   *
+   * Cancelar el selector, o negar el permiso, lanza `AbortError`/`NotAllowedError`
+   * — se ignora en silencio, igual que cancelar cualquier diálogo nativo del
+   * sistema: no es un error de la app, es la persona decidiendo no elegir a
+   * nadie por ahora.
+   */
+  const handleOpenContacts = async () => {
+    try {
+      const picked = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+      if (!picked.length) return;
+
+      setProspects((current) => {
+        const next = [...current];
+        picked.slice(0, PROSPECT_COUNT).forEach((contact, index) => {
+          next[index] = {
+            nombre: contact.name?.[0] ?? '',
+            telefono: contact.tel?.[0] ?? '',
+          };
+        });
+        return next;
+      });
+      setEditingIndex(null);
+    } catch {
+      // Selector cancelado o permiso negado: no hay nada que capturar.
+    }
+  };
+
   const cleanEntries = prospects
     .map((p) => ({ nombre: p.nombre.trim(), telefono: p.telefono.trim() }))
     .filter((p) => p.nombre);
   const isValid = cleanEntries.length > 0;
 
-  const submit = (event) => {
-    event.preventDefault();
-    if (!isValid) return;
-    onContinue(cleanEntries);
-  };
-
   return (
-    <form onSubmit={submit} className="flex w-full flex-col items-center px-6 text-center">
+    <div className="flex w-full flex-col items-center px-6 text-center">
       <p className="sr-only">{`${STEP3_TEXT} ${STEP3_SUBTEXT}`}</p>
       <p
         className="max-w-md text-lg leading-snug text-white sm:text-xl"
@@ -256,18 +350,46 @@ function ProspectCaptureStep({ onContinue, onSkip }) {
       </p>
 
       <div
-        className={`mt-6 w-full max-w-md space-y-5 transition-opacity duration-700
+        className={`mt-6 w-full max-w-md transition-opacity duration-700
                     ${showSubtext ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         aria-hidden={!showSubtext}
       >
-        {prospects.map((value, index) => (
-          <ProspectFields key={index} index={index} value={value} onChange={updateProspect} />
-        ))}
+        <div className="space-y-3">
+          {prospects.map((value, index) => (
+            <ProspectSlot
+              key={index}
+              index={index}
+              value={value}
+              isEditing={editingIndex === index}
+              onEdit={setEditingIndex}
+              onChange={updateProspect}
+            />
+          ))}
+        </div>
+
+        {/*
+          Sólo se dibuja donde el navegador de verdad puede abrir el
+          selector nativo — en el resto, el slot manual sigue siendo el
+          único camino, no un botón que promete algo que va a fallar.
+        */}
+        {contactPickerSupported && (
+          <button
+            type="button"
+            onClick={handleOpenContacts}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
+                       border border-slate-700 py-2.5 text-xs font-semibold text-slate-300
+                       transition-colors hover:border-slate-600 hover:text-white"
+          >
+            <BookUser size={14} aria-hidden="true" />
+            Elegir desde mi agenda
+          </button>
+        )}
 
         <button
-          type="submit"
+          type="button"
+          onClick={() => onContinue(cleanEntries)}
           disabled={!isValid}
-          className={`w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
+          className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
                      uppercase tracking-wide text-white transition-all hover:bg-indigo-500
                      active:scale-95 disabled:cursor-not-allowed disabled:bg-white/[0.06]
                      disabled:text-white/25 disabled:shadow-none
@@ -284,7 +406,7 @@ function ProspectCaptureStep({ onContinue, onSkip }) {
           Saltar paso
         </button>
       </div>
-    </form>
+    </div>
   );
 }
 
@@ -443,7 +565,7 @@ function StartStep({ onStart }) {
  *
  *   1. Saludo (`GreetingStep`)
  *   2. Enfoque empoderador (`EmpowermentStep`)
- *   3. Captura de prospectos (`ProspectCaptureStep`) — "Continuar" o "Saltar paso"
+ *   3. Captura de prospectos por slots (`ProspectCaptureStep`) — "Continuar" o "Saltar paso"
  *   4. Recompensa automática (`RewardStep`) — confeti + logro, `REWARD_AUTO_MS`
  *   5. Botón final (`StartStep`) — la persona decide cuándo cruzar
  *
