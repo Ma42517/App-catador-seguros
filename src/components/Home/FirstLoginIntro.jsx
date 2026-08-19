@@ -197,6 +197,15 @@ const DEFAULT_TASK_HOUR = '09:00';
   este perfil) — se les asigna un valor conservador (2 puntos), a mitad de
   la escala que sí definió el usuario, en vez de inventar un número sin
   referencia.
+
+  "Otro" cierra la lista a propósito, no la abre: es la salida para quien
+  no encuentra su actividad en ninguna de las categorías anteriores —igual
+  que "Trámite" pregunta cuál trámite es, "Otro" pregunta qué actividad es
+  (`OTHER_DETAIL_LABEL`), y ese texto libre es justo lo que evita que la
+  persona fuerce su pendiente real dentro de una categoría que no le
+  corresponde. Vale lo mismo que una `Llamada` (`DEFAULT_TASK_POINTS`): sin
+  ninguna categoría de referencia que la respalde, no hay base para
+  tasarla ni más alto ni más bajo que el punto mínimo del catálogo.
 */
 const TASK_TYPE_OPTIONS = [
   { value: 'call', label: 'Llamada', points: 1 },
@@ -213,6 +222,7 @@ const TASK_TYPE_OPTIONS = [
   { value: 'new_prospect', label: 'Prospecto nuevo', points: 3 },
   { value: 'paperwork', label: 'Trámite', points: 2 },
   { value: 'collection', label: 'Cobro', points: 2 },
+  { value: 'other', label: 'Otro', points: 1 },
 ];
 
 /** Puntos por defecto si `tipo` no coincide con ninguna categoría conocida (dato viejo o corrupto). */
@@ -239,6 +249,15 @@ function taskTypeLabel(value) {
 */
 const TRAMITE_DETAIL_LABEL = '¿Qué tipo de trámite es?';
 const TRAMITE_DETAIL_PLACEHOLDER = 'Ej. Cambio de beneficiario, pago, entrega de póliza…';
+
+/*
+  Mismo criterio que "Trámite": "Otro" tampoco se queda con la pregunta a
+  medias — pide qué actividad es de verdad, en texto libre, en vez de
+  dejar ese dato perdido dentro de una categoría que sólo dice "no
+  encontré la mía".
+*/
+const OTHER_DETAIL_LABEL = '¿Qué actividad es?';
+const OTHER_DETAIL_PLACEHOLDER = 'Describe brevemente de qué se trata…';
 
 /** Sólo "Capacitación/estudio" pregunta cuántas horas —es la única categoría con tarifa por hora, no por actividad. */
 const TRAINING_HOURS_LABEL = '¿Cuántas horas?';
@@ -761,6 +780,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
 
   const [contactPickerSupported] = useState(isContactPickerSupported);
   const isPaperwork = draft.tipo === 'paperwork';
+  const isOther = draft.tipo === 'other';
   const isTraining = draft.tipo === 'training';
   const selectedOption = taskTypeOption(draft.tipo);
 
@@ -785,7 +805,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
       ...draft,
       descripcion: draft.descripcion.trim(),
       telefono: draft.telefono.trim(),
-      detalle: isPaperwork ? draft.detalle.trim() : '',
+      detalle: (isPaperwork || isOther) ? draft.detalle.trim() : '',
       horasEstudio: isTraining ? draft.horasEstudio : '',
       hora: draft.hora || DEFAULT_TASK_HOUR,
     });
@@ -841,15 +861,19 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
         </div>
 
         {/*
-          Sólo "Trámite" pregunta esto: el resto de categorías ya se
-          describen solas con su nombre y la descripción de abajo.
+          "Trámite" y "Otro" son las dos categorías que no se explican
+          solas con su nombre —el resto ya lo hace, junto con la
+          descripción de abajo— así que cada una pregunta, con su propia
+          etiqueta, qué es exactamente. Comparten el mismo campo del
+          borrador (`detalle`): nunca están activas a la vez, porque
+          `draft.tipo` sólo puede ser una categoría a la vez.
         */}
-        {isPaperwork && (
+        {(isPaperwork || isOther) && (
           <div>
             <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
                                text-slate-500" htmlFor="task-sheet-detail"
             >
-              {TRAMITE_DETAIL_LABEL}
+              {isPaperwork ? TRAMITE_DETAIL_LABEL : OTHER_DETAIL_LABEL}
             </label>
             <input
               id="task-sheet-detail"
@@ -857,7 +881,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
               onChange={(event) => setDraft((current) => (
                 { ...current, detalle: event.target.value }
               ))}
-              placeholder={TRAMITE_DETAIL_PLACEHOLDER}
+              placeholder={isPaperwork ? TRAMITE_DETAIL_PLACEHOLDER : OTHER_DETAIL_PLACEHOLDER}
               autoComplete="off"
               className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
                          text-sm text-white placeholder:text-slate-500 focus:border-indigo-500
