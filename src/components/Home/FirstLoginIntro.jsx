@@ -823,7 +823,6 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
             </label>
             <span className="text-[11px] font-bold text-amber-400">
               {previewPoints} {previewPoints === 1 ? 'punto' : 'puntos'}
-              {selectedOption?.perHour ? '/hora' : ''}
             </span>
           </div>
           <select
@@ -896,6 +895,16 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
                          text-sm text-white placeholder:text-slate-500 focus:border-indigo-500
                          focus:outline-none"
             />
+            {/*
+              El total de arriba ("Tipo de Acción" · N puntos) ya es el
+              producto de esta tarifa por las horas — esta línea aclara de
+              dónde sale ese número, para que no se lea como si "N puntos"
+              fuera la tarifa por hora en sí.
+            */}
+            <p className="mt-1.5 text-[11px] text-slate-500">
+              A {selectedOption.points} {selectedOption.points === 1 ? 'punto' : 'puntos'} por
+              hora.
+            </p>
           </div>
         )}
 
