@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight,
+  Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight, ListChecks,
 } from 'lucide-react';
 import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
 import { useSession } from '../../context/SessionContext';
+import { useEvents, todayKey } from '../../context/EventContext';
 import { joinPromotoriaByCode, describeError } from '../../data/promotoriaRepo';
 import { normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCode';
+import { DEFAULT_PRIORITY } from '../Activities/priorities';
 
 /** Cuánto tarda cada fundido de esta pantalla (el de la recompensa hacia "Iniciar", y el del overlay completo al presionarlo), en ms — usado tanto en las clases de Tailwind como en los temporizadores que esperan a que termine antes de avanzar. */
 const FADE_OUT_MS = 700;
@@ -87,6 +89,124 @@ function slotCountFor(mercado) {
 
 const step3Text = (slotCount) => 'Comencemos por tus primeros apoyos. Para desbloquear tu '
   + `agenda, ingresa a ${slotCount} personas cercanas a ti.`;
+
+/*
+  ── Rama "Nuevo Profesional" con carga administrativa ──
+
+  Quien en el Onboarding marcó el perfil "Nuevo Profesional"
+  (`advisorProfileData.perfil === 'new_professional'`) y, como su cuello de
+  botella, "Me consume la carga administrativa y el servicio"
+  (`advisorProfileData.inquietud === 'admin_overload'`, ver
+  `PROFESSIONAL_BOTTLENECK_OPTIONS` en `advisorOnboarding.js`) no necesita
+  otros tres prospectos: ya tiene cartera. Lo que le falta es vaciar la
+  libreta de pendientes que trae encima, así que el Paso 3 cambia entero de
+  propósito — de "consigue tus primeros apoyos" a "descarga tu mente" — sin
+  tocar la posición del paso ni el resto del recorrido (Recompensa, Unirse
+  a un equipo, Iniciar siguen en el mismo orden para las dos ramas).
+
+  Reutiliza las mismas claves de `advisorData` que ya usa el resto de esta
+  pantalla (`inquietud`, `mercado`) en vez de columnas nuevas — mismo
+  criterio que ya se aplicó en la ramificación del Onboarding
+  (`OnboardingFlow.jsx`): para el perfil profesional, `mercado` no guarda
+  un tamaño de mercado sino el tamaño de cartera declarado en el Paso 5
+  (`PORTFOLIO_SIZE_OPTIONS`), con sus propias claves (`under_50`,
+  `between_50_150`, `over_150`) — no confundir con `SLOT_COUNT_BY_MARKET`
+  de arriba, que usa las claves del mercado del "Nuevo Asesor"
+  (`under_20`...). Son dos mapas separados a propósito, aunque ambos
+  respondan "cuántos slots" a partir de una misma prop (`mercado`): las
+  claves de un perfil nunca coinciden con las del otro, así que no hay
+  riesgo real de choque, pero conviene un nombre y un mapa distintos para
+  que quede claro de un vistazo cuál pertenece a cuál rama.
+*/
+function isAdminOverloadBranch(perfil, inquietud) {
+  return perfil === 'new_professional' && inquietud === 'admin_overload';
+}
+
+/** Cuántos slots de tareas pide el Paso 3, según la cartera declarada (Paso 5, perfil profesional). */
+const SLOT_COUNT_BY_PORTFOLIO = {
+  under_50: 5,
+  between_50_150: 8,
+  over_150: 10,
+};
+const DEFAULT_TASK_SLOT_COUNT = SLOT_COUNT_BY_PORTFOLIO.under_50;
+
+/** Cuántos slots de tareas pide el Paso 3 según la cartera declarada — 5 por defecto si `mercado` no coincide con ninguna opción conocida. */
+function taskSlotCountFor(mercado) {
+  return SLOT_COUNT_BY_PORTFOLIO[mercado] ?? DEFAULT_TASK_SLOT_COUNT;
+}
+
+/*
+  Regla anti-fricción: aunque se dibujen 5, 8 o 10 slots según la cartera,
+  no hace falta llenarlos todos para avanzar — sólo los primeros que la
+  persona recuerde de memoria en el momento. Pedir la lista completa
+  convertiría un paso pensado para "vaciar la mente rápido" en un
+  formulario largo, justo lo que este perfil ya dijo que le sobra.
+*/
+const MIN_FILLED_TASKS = 3;
+
+const TASK_STEP_TITLE = 'Descarga tu mente';
+const TASK_STEP_TEXT = 'Vamos a ganar tus primeros puntos. Vacía esos pendientes que tienes '
+  + 'en tu libreta y pásalos a tu nuevo asistente.';
+const TASK_STEP_SUBTEXT = 'Agilicemos tu horario. Escribe tus próximas acciones y nosotros '
+  + 'nos encargamos de acomodarlas en tu agenda.';
+
+/** Tarea vacía: la forma exacta de cada slot del Paso 3 en la rama de carga administrativa. */
+const EMPTY_TASK = { tipo: 'initial_meeting', descripcion: '' };
+
+/** Las cuatro categorías fijas del "Tipo de Acción" — mismo orden en que las pidió la especificación. */
+const TASK_TYPE_OPTIONS = [
+  { value: 'initial_meeting', label: 'Cita Inicial' },
+  { value: 'call', label: 'Llamada' },
+  { value: 'followup', label: 'Seguimiento' },
+  { value: 'paperwork', label: 'Trámite' },
+];
+
+/** Etiqueta legible de una categoría de tarea; respaldo al valor crudo si alguna vez llega uno fuera de la lista. */
+function taskTypeLabel(value) {
+  return TASK_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+
+/*
+  Puntos por cada tarea válida capturada — la mitad de lo que vale un
+  prospecto en la otra rama (`+1 Punto` en `RewardStep`): aquí el "primer
+  apoyo" no es una persona nueva a la que apenas se conoce, es un pendiente
+  que la persona ya tenía resuelto en su cabeza, así que la especificación
+  lo tasa distinto.
+*/
+const POINTS_PER_TASK = 0.5;
+
+/**
+ * Hora por defecto de la tarea número `index` (0-indexado): 9:00 a. m. y
+ * media hora más por cada una, para que las tareas capturadas de golpe no
+ * queden todas apiladas a la misma hora en la agenda — es la app
+ * "acomodándolas", como promete `TASK_STEP_SUBTEXT`, no la persona
+ * eligiendo cuándo (la especificación pide justo no preguntar fecha ni
+ * hora en este paso).
+ */
+function defaultTaskTime(index) {
+  const totalMinutes = 9 * 60 + index * 30;
+  const hours = Math.floor(totalMinutes / 60) % 24;
+  const minutes = totalMinutes % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(hours)}:${pad(minutes)}`;
+}
+
+/**
+ * Total de puntos que vale una captura de `count` tareas — redondeado a un
+ * decimal por seguridad de punto flotante, aunque los múltiplos de 0.5 ya
+ * se representan exactos en binario.
+ */
+function taskPointsFor(count) {
+  return Math.round(count * POINTS_PER_TASK * 10) / 10;
+}
+
+/** "+ 1 Punto", "+ 2.5 Puntos": entero sin decimales, fracción con uno solo; singular sólo cuando vale exactamente 1. */
+function formatPoints(amount) {
+  const value = Number.isInteger(amount) ? String(amount) : amount.toFixed(1);
+  const label = amount === 1 ? 'Punto' : 'Puntos';
+  return `+ ${value} ${label}`;
+}
+
 /*
   Aclaración secundaria, no la instrucción principal — mismo criterio que
   `SCHEDULE_HINT_TEXT` en `OnboardingFlow.jsx`: entra con fade-in aparte, sin
@@ -477,6 +597,160 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
 }
 
 /**
+ * Una fila del Paso 3 en la rama de carga administrativa: un `<select>`
+ * nativo minimalista para el "Tipo de Acción" y un input de texto para la
+ * "Descripción / Nombre del cliente" — sin los tres estados de
+ * `ProspectSlot` (vacío/editando/lleno), porque aquí la fila siempre está
+ * lista para escribirse: no hace falta tocarla primero para que se
+ * convierta en inputs, ya lo es desde que aparece. `isFilled` sólo cambia
+ * el borde, para que sea visible de un vistazo cuáles de los `slotCount`
+ * ya cuentan para el mínimo de `MIN_FILLED_TASKS`.
+ */
+function TaskSlot({ index, value, onChange }) {
+  const isFilled = Boolean(value.descripcion.trim());
+
+  return (
+    <div
+      className={`flex h-14 items-center gap-2 rounded-xl border bg-slate-800/50 px-3
+                  transition-colors ${isFilled ? 'border-slate-600' : 'border-slate-700'}`}
+    >
+      <label className="sr-only" htmlFor={`task-type-${index}`}>
+        {`Tipo de acción de la tarea ${index + 1}`}
+      </label>
+      <select
+        id={`task-type-${index}`}
+        value={value.tipo}
+        onChange={(event) => onChange(index, { ...value, tipo: event.target.value })}
+        className="shrink-0 rounded-lg border-none bg-slate-900/70 px-2 py-1.5 text-[11px]
+                   font-semibold text-slate-300 focus:outline-none focus:ring-1
+                   focus:ring-indigo-500"
+      >
+        {TASK_TYPE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+
+      <label className="sr-only" htmlFor={`task-description-${index}`}>
+        {`Descripción de la tarea ${index + 1}`}
+      </label>
+      <input
+        id={`task-description-${index}`}
+        value={value.descripcion}
+        onChange={(event) => onChange(index, { ...value, descripcion: event.target.value })}
+        placeholder="Descripción / Nombre del cliente"
+        autoComplete="off"
+        enterKeyHint="next"
+        className="min-w-0 flex-1 border-l border-slate-700 bg-transparent pl-2 text-sm
+                   text-white placeholder:text-slate-500 focus:outline-none"
+      />
+    </div>
+  );
+}
+
+/**
+ * Paso 3 en la rama de carga administrativa — "Descarga tu mente": en vez
+ * de capturar prospectos, la persona vacía sus pendientes en `slotCount`
+ * filas (`taskSlotCountFor(mercado)`, según la cartera declarada en el
+ * Onboarding). "CONTINUAR" exige llenar al menos `MIN_FILLED_TASKS` de
+ * ellas, no todas — regla anti-fricción de la especificación: quien tiene
+ * 10 slots pero sólo recuerda 3 pendientes de memoria en este momento no
+ * debe quedarse atorado inventando los siete que faltan.
+ *
+ * `onContinue` recibe las tareas limpias (descripción no vacía, sin
+ * espacios de sobra) para que `FirstLoginIntro` calcule los puntos
+ * (`POINTS_PER_TASK` por cada una) y las mande a la Agenda real.
+ */
+function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
+  const { typed, isTyping } = useTypewriter(TASK_STEP_TEXT);
+  const [showSubtext, setShowSubtext] = useState(false);
+  const [tasks, setTasks] = useState(
+    () => Array.from({ length: slotCount }, () => ({ ...EMPTY_TASK })),
+  );
+
+  useEffect(() => {
+    if (isTyping) return undefined;
+    const timer = setTimeout(() => setShowSubtext(true), 300);
+    return () => clearTimeout(timer);
+  }, [isTyping]);
+
+  const updateTask = (index, next) => {
+    setTasks((current) => current.map((t, i) => (i === index ? next : t)));
+  };
+
+  const cleanEntries = tasks
+    .map((t) => ({ tipo: t.tipo, descripcion: t.descripcion.trim() }))
+    .filter((t) => t.descripcion);
+  const isValid = cleanEntries.length >= MIN_FILLED_TASKS;
+
+  return (
+    <div className="flex w-full flex-col items-center px-6 text-center">
+      <p className="sr-only">{`${TASK_STEP_TITLE}. ${TASK_STEP_TEXT} ${TASK_STEP_SUBTEXT}`}</p>
+
+      <p
+        className="text-xs font-bold uppercase tracking-widest text-indigo-400"
+        aria-hidden="true"
+      >
+        {TASK_STEP_TITLE}
+      </p>
+
+      <p
+        className="mt-2 max-w-md text-lg leading-snug text-white sm:text-xl"
+        aria-hidden="true"
+      >
+        {typed}
+        <Caret show={isTyping} />
+      </p>
+
+      <p
+        className={`mt-2 max-w-sm text-[11px] leading-snug text-white/40
+                    transition-opacity duration-700
+                    ${showSubtext ? 'opacity-100' : 'opacity-0'}`}
+        aria-hidden="true"
+      >
+        {TASK_STEP_SUBTEXT}
+      </p>
+
+      <div
+        className={`mt-6 w-full max-w-md transition-opacity duration-700
+                    ${showSubtext ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        aria-hidden={!showSubtext}
+      >
+        <div className="max-h-[46vh] space-y-3 overflow-y-auto pr-1">
+          {tasks.map((value, index) => (
+            <TaskSlot key={index} index={index} value={value} onChange={updateTask} />
+          ))}
+        </div>
+
+        <p className="mt-3 text-[11px] text-slate-500">
+          {cleanEntries.length} / {MIN_FILLED_TASKS} pendientes mínimos para continuar
+        </p>
+
+        <button
+          type="button"
+          onClick={() => onContinue(cleanEntries)}
+          disabled={!isValid}
+          className={`mt-3 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
+                     uppercase tracking-wide text-white transition-all hover:bg-indigo-500
+                     active:scale-95 disabled:cursor-not-allowed disabled:bg-white/[0.06]
+                     disabled:text-white/25 disabled:shadow-none
+                     ${isValid ? GLOW_BUTTON_CLASS : ''}`}
+        >
+          Continuar
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSkip()}
+          className="mt-4 block w-full text-sm text-slate-500 transition-colors hover:text-white"
+        >
+          Saltar paso
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Piezas de confeti con CSS puro, mismo criterio que ya usa
  * `Celebration.jsx` (metas cumplidas): nada de `react-confetti` ni canvas
  * para un efecto de unos segundos que en esta pantalla ocurre una sola vez
@@ -528,16 +802,35 @@ function ConfettiBurst() {
 }
 
 /**
- * Paso 4a — La recompensa: confeti, "+1 Punto" y el logro estilo consola
- * ("Achievement Unlocked"). Se monta directo al terminar el Paso 3 —sin
- * esperar ningún toque— y se desvanece sola a los `REWARD_AUTO_MS`,
- * avisando a `onDone` para que el padre revele el botón "Iniciar". El
- * numerador del logro es el conteo real de prospectos capturados (0 si se
- * saltó el paso), nunca un número inventado — sólo el denominador (la meta
- * de "Proyecto 200") es una etiqueta fija del propio logro.
+ * Paso 4a — La recompensa: confeti, el total de puntos ganados y el logro
+ * estilo consola ("Achievement Unlocked"). Se monta directo al terminar el
+ * Paso 3 —sin esperar ningún toque— y se desvanece sola a los
+ * `REWARD_AUTO_MS`, avisando a `onDone` para que el padre revele el botón
+ * "Iniciar".
+ *
+ * Dos logros posibles, uno por rama del Paso 3 (`achievement`, resuelto
+ * por `FirstLoginIntro` según `isAdminOverloadBranch`, no aquí adentro):
+ *
+ *  - Prospectos ("Proyecto 200"): el numerador es el conteo real de
+ *    prospectos capturados (0 si se saltó el paso), nunca un número
+ *    inventado — sólo el denominador es una etiqueta fija del logro.
+ *  - Tareas ("Agenda Optimizada"): no hay meta que perseguir, así que el
+ *    logro no muestra fracción, sólo el nombre — el número que sí importa
+ *    en esta rama (cuántas tareas se capturaron) ya se lee en el propio
+ *    "+ N Puntos" de arriba.
  */
-function RewardStep({ capturedCount, onDone }) {
+const PROSPECT_ACHIEVEMENT = {
+  icon: Trophy,
+  label: (count) => `${count} / ${PROJECT_GOAL} · Proyecto ${PROJECT_GOAL}`,
+};
+const TASK_ACHIEVEMENT = {
+  icon: ListChecks,
+  label: () => 'Agenda Optimizada',
+};
+
+function RewardStep({ capturedCount, pointsEarned, achievement, onDone }) {
   const [visible, setVisible] = useState(false);
+  const AchievementIcon = achievement.icon;
 
   useEffect(() => {
     const showTimer = setTimeout(() => setVisible(true), 50);
@@ -564,20 +857,20 @@ function RewardStep({ capturedCount, onDone }) {
           className="text-3xl font-bold text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]
                      sm:text-4xl"
         >
-          + 1 Punto
+          {formatPoints(pointsEarned)}
         </p>
 
         <div
           className="mt-6 flex items-center gap-3 rounded-2xl border border-amber-400/30
                      bg-white/[0.04] px-4 py-3 shadow-[0_0_20px_rgba(245,158,11,0.15)]"
         >
-          <Trophy size={20} className="shrink-0 text-amber-400" aria-hidden="true" />
+          <AchievementIcon size={20} className="shrink-0 text-amber-400" aria-hidden="true" />
           <div className="text-left">
             <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">
               Logro desbloqueado
             </p>
             <p className="text-sm font-semibold text-white">
-              {capturedCount} / {PROJECT_GOAL} · Proyecto {PROJECT_GOAL}
+              {achievement.label(capturedCount)}
             </p>
           </div>
         </div>
@@ -781,31 +1074,47 @@ function StartStep({ onStart }) {
  * declaró alguna inquietud en el Onboarding (ver `advisorOnboarding.js`) y
  * sólo mientras sus puntos sigan en 0 — es `TodayView.jsx` quien decide esa
  * condición antes de montar este componente, no algo que se compruebe aquí
- * adentro. `inquietud` y `mercado` sí se usan aquí, para calibrar el tono
- * del Paso 2 y la cantidad de slots del Paso 3, respectivamente.
+ * adentro. `inquietud`, `mercado` y `perfil` sí se usan aquí, para calibrar
+ * el tono del Paso 2 y qué se captura y cuánto en el Paso 3.
  *
  * Seis momentos en un único estado local (`step`), sin enrutador ni pila
  * de historial: es un recorrido lineal, sin "Atrás".
  *
  *   1. Saludo (`GreetingStep`)
  *   2. Enfoque empoderador (`EmpowermentStep`) — texto según `inquietud`
- *   3. Captura de prospectos por slots (`ProspectCaptureStep`) — cantidad
- *      de slots según `mercado`; "Continuar" o "Saltar paso"
- *   4. Recompensa automática (`RewardStep`) — confeti + logro, `REWARD_AUTO_MS`
+ *   3. Captura por slots — dos variantes posibles, decididas por
+ *      `isAdminOverloadBranch(perfil, inquietud)`:
+ *        - Prospectos (`ProspectCaptureStep`), cantidad según `mercado`.
+ *        - Tareas/pendientes (`TaskCaptureStep`, perfil "Nuevo
+ *          Profesional" con cuello de botella "carga administrativa"),
+ *          cantidad de slots según la cartera (`mercado`, reutilizada como
+ *          `PORTFOLIO_SIZE_OPTIONS` para este perfil), mínimo
+ *          `MIN_FILLED_TASKS` llenos para continuar.
+ *      Ambas ofrecen "Continuar" o "Saltar paso".
+ *   4. Recompensa automática (`RewardStep`) — confeti + logro, `REWARD_AUTO_MS`.
+ *      Puntos y logro dependen de la misma rama del Paso 3: 1 punto fijo y
+ *      "Proyecto 200" para prospectos, 0.5 por tarea capturada y "Agenda
+ *      Optimizada" para tareas.
  *   5. Unirse a un equipo de trabajo (`JoinTeamStep`) — código real de
  *      promotoría, o "Hacerlo después"
  *   6. Botón final (`StartStep`) — la persona decide cuándo cruzar
  *
- * `onComplete` se llama cuando termina el fundido de salida de todo el
- * overlay, disparado por el toque en "Iniciar" — no antes, y no por un
- * temporizador: quien llama a este componente (`TodayView`) usa esa señal
- * para sumar el punto de verdad (`useAdvisorPoints`) y sólo entonces monta
- * "Hoy" por detrás.
+ * `onComplete(pointsEarned)` se llama cuando termina el fundido de salida
+ * de todo el overlay, disparado por el toque en "Iniciar" — no antes, y no
+ * por un temporizador: quien llama a este componente (`TodayView`) usa esa
+ * señal para sumar los puntos de verdad (`useAdvisorPoints`) y sólo
+ * entonces monta "Hoy" por detrás. `pointsEarned` es `1` en la rama de
+ * prospectos (comportamiento sin cambios) y `taskPointsFor(count)` en la
+ * de tareas.
  */
-export default function FirstLoginIntro({ name, username, inquietud, mercado, onComplete }) {
+export default function FirstLoginIntro({
+  name, username, inquietud, mercado, perfil, onComplete,
+}) {
   const [step, setStep] = useState(1);
   const [capturedCount, setCapturedCount] = useState(0);
+  const [pointsEarned, setPointsEarned] = useState(1);
   const [closing, setClosing] = useState(false);
+  const { addEvent } = useEvents();
 
   /*
     Tocar en cualquier parte de la pantalla acelera un 50% la máquina de
@@ -817,26 +1126,65 @@ export default function FirstLoginIntro({ name, username, inquietud, mercado, on
   */
   const [fastTyping, setFastTyping] = useState(false);
 
-  // Resueltos una sola vez: ni la inquietud ni el mercado cambian mientras
-  // esta pantalla está montada.
+  // Resueltos una sola vez: ni la inquietud, ni el mercado ni el perfil
+  // cambian mientras esta pantalla está montada.
   const [step2Text] = useState(() => step2TextFor(inquietud));
-  const [slotCount] = useState(() => slotCountFor(mercado));
+  const [isTaskBranch] = useState(() => isAdminOverloadBranch(perfil, inquietud));
+  const [slotCount] = useState(() => (
+    isTaskBranch ? taskSlotCountFor(mercado) : slotCountFor(mercado)
+  ));
 
-  const continueCapture = (entries) => {
+  const continueProspectCapture = (entries) => {
     writeSafeZone(username, entries);
     setCapturedCount(entries.length);
+    setPointsEarned(1);
     setStep(4);
   };
 
-  const skipCapture = () => {
+  const skipProspectCapture = () => {
     writeSafeZone(username, []);
     setCapturedCount(0);
+    setPointsEarned(1);
+    setStep(4);
+  };
+
+  /*
+    Cada tarea válida se manda de una vez a la Agenda real
+    (`useEvents().addEvent`, el mismo contrato que ya usa
+    `ActivityForm.jsx`): así, al abrir "Hoy" por primera vez, la lista ya
+    aparece con los pendientes que la persona acaba de vaciar de su
+    libreta — la promesa exacta de `TASK_STEP_SUBTEXT` ("nosotros nos
+    encargamos de acomodarlas en tu agenda"). Todas quedan programadas para
+    hoy, en horas separadas por media hora (`defaultTaskTime`) y con la
+    prioridad por omisión del resto de la app (`DEFAULT_PRIORITY`): este
+    paso no pregunta fecha, hora ni prioridad a propósito (ver
+    `TaskCaptureStep`), así que no hay ningún dato real que perder al
+    completarlos por ella.
+  */
+  const continueTaskCapture = (entries) => {
+    entries.forEach((entry, index) => {
+      addEvent({
+        type: 'actividad',
+        title: `${taskTypeLabel(entry.tipo)}: ${entry.descripcion}`,
+        date: todayKey(),
+        time: defaultTaskTime(index),
+        priority: DEFAULT_PRIORITY,
+      });
+    });
+    setCapturedCount(entries.length);
+    setPointsEarned(taskPointsFor(entries.length));
+    setStep(4);
+  };
+
+  const skipTaskCapture = () => {
+    setCapturedCount(0);
+    setPointsEarned(0);
     setStep(4);
   };
 
   const handleStart = () => {
     setClosing(true);
-    setTimeout(onComplete, FADE_OUT_MS);
+    setTimeout(() => onComplete(pointsEarned), FADE_OUT_MS);
   };
 
   return (
@@ -853,14 +1201,27 @@ export default function FirstLoginIntro({ name, username, inquietud, mercado, on
         {step === 1 && <GreetingStep name={name} onContinue={() => setStep(2)} />}
         {step === 2 && <EmpowermentStep text={step2Text} onContinue={() => setStep(3)} />}
         {step === 3 && (
-          <ProspectCaptureStep
-            slotCount={slotCount}
-            onContinue={continueCapture}
-            onSkip={skipCapture}
-          />
+          isTaskBranch ? (
+            <TaskCaptureStep
+              slotCount={slotCount}
+              onContinue={continueTaskCapture}
+              onSkip={skipTaskCapture}
+            />
+          ) : (
+            <ProspectCaptureStep
+              slotCount={slotCount}
+              onContinue={continueProspectCapture}
+              onSkip={skipProspectCapture}
+            />
+          )
         )}
         {step === 4 && (
-          <RewardStep capturedCount={capturedCount} onDone={() => setStep(5)} />
+          <RewardStep
+            capturedCount={capturedCount}
+            pointsEarned={pointsEarned}
+            achievement={isTaskBranch ? TASK_ACHIEVEMENT : PROSPECT_ACHIEVEMENT}
+            onDone={() => setStep(5)}
+          />
         )}
         {step === 5 && <JoinTeamStep onContinue={() => setStep(6)} />}
         {step === 6 && <StartStep onStart={handleStart} />}

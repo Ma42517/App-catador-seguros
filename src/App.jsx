@@ -411,7 +411,7 @@ function stepFromHash() {
 */
 function Shell({
   onLogout, isPreview, isAdmin, isPromoterUser, storageKey, displayName, horario, inquietud,
-  mercado,
+  mercado, perfil,
 }) {
   /*
     No hay estado de tema. La app es oscura de forma permanente y la clase `dark`
@@ -558,6 +558,7 @@ function Shell({
           horario={horario}
           inquietud={inquietud}
           mercado={mercado}
+          perfil={perfil}
           username={storageKey}
         />
       ) : activeSection === 'productivity' ? (
@@ -774,6 +775,7 @@ function Gate({ isPreview }) {
                 horario={identity.advisorProfileData?.horario ?? []}
                 inquietud={identity.advisorProfileData?.inquietud ?? ''}
                 mercado={identity.advisorProfileData?.mercado ?? ''}
+                perfil={identity.advisorProfileData?.perfil ?? ''}
               />
             </GoalsProvider>
           </AccessProvider>
@@ -855,6 +857,7 @@ function OnboardingPreview({ isPreview }) {
                       horario={approvedData.horario ?? []}
                       inquietud={approvedData.inquietud ?? ''}
                       mercado={approvedData.mercado ?? ''}
+                      perfil={approvedData.perfil ?? ''}
                     />
                   </GoalsProvider>
                 </AccessProvider>
