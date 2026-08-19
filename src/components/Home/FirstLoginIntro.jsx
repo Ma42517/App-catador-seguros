@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight, ListChecks,
+  Phone, Plus, ChevronRight,
 } from 'lucide-react';
 import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
@@ -9,6 +10,7 @@ import { useEvents, todayKey } from '../../context/EventContext';
 import { joinPromotoriaByCode, describeError } from '../../data/promotoriaRepo';
 import { normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCode';
 import { DEFAULT_PRIORITY } from '../Activities/priorities';
+import BottomSheet from '../Layout/BottomSheet';
 
 /** Cuánto tarda cada fundido de esta pantalla (el de la recompensa hacia "Iniciar", y el del overlay completo al presionarlo), en ms — usado tanto en las clases de Tailwind como en los temporizadores que esperan a que termine antes de avanzar. */
 const FADE_OUT_MS = 700;
@@ -150,14 +152,33 @@ const TASK_STEP_TEXT = 'Vamos a ganar tus primeros puntos. Vacía esos pendiente
 const TASK_STEP_SUBTEXT = 'Agilicemos tu horario. Escribe tus próximas acciones y nosotros '
   + 'nos encargamos de acomodarlas en tu agenda.';
 
-/** Tarea vacía: la forma exacta de cada slot del Paso 3 en la rama de carga administrativa. */
-const EMPTY_TASK = { tipo: 'initial_meeting', descripcion: '' };
+/**
+ * Tarea vacía: la forma exacta de cada slot del Paso 3 en la rama de carga
+ * administrativa. `telefono` es lo que hace posible, más adelante, que un
+ * recordatorio ofrezca "Llamar" o "Mandar WhatsApp" en vez de sólo avisar —
+ * ese enganche no se construye todavía aquí, pero sin capturar el número
+ * en este mismo paso no habría nada que enganchar después. `detalle` sólo
+ * aplica a la categoría "Trámite" (ver `TaskSlot`): el resto de categorías
+ * lo deja vacío y nunca se les pregunta por él.
+ */
+const EMPTY_TASK = { tipo: 'initial_meeting', descripcion: '', telefono: '', detalle: '' };
 
-/** Las cuatro categorías fijas del "Tipo de Acción" — mismo orden en que las pidió la especificación. */
+/*
+  Categorías de actividad — ampliadas más allá de las cuatro originales
+  para cubrir lo que de verdad ocupa el día de un asesor con cartera
+  (cobros, prospección, cierres), no sólo el arranque de una relación
+  nueva. No es un catálogo exhaustivo a propósito: el Paso 3 es para
+  vaciar la memoria rápido, no para clasificar con precisión de manual —
+  siete categorías ya cubren la mayoría sin obligar a nadie a detenerse a
+  pensar cuál de quince aplica.
+*/
 const TASK_TYPE_OPTIONS = [
   { value: 'initial_meeting', label: 'Cita Inicial' },
+  { value: 'closing_meeting', label: 'Cita de Cierre' },
   { value: 'call', label: 'Llamada' },
   { value: 'followup', label: 'Seguimiento' },
+  { value: 'collection', label: 'Cobro' },
+  { value: 'prospecting', label: 'Prospección' },
   { value: 'paperwork', label: 'Trámite' },
 ];
 
@@ -165,6 +186,18 @@ const TASK_TYPE_OPTIONS = [
 function taskTypeLabel(value) {
   return TASK_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
+
+/*
+  "Trámite" agrupa cosas muy distintas entre sí para un asesor de seguros
+  (un cambio de beneficiario no se prepara igual que la entrega de una
+  póliza), así que sólo esa categoría —y ninguna otra— pregunta además
+  qué tipo de trámite es. Es un campo de texto libre y no un segundo
+  catálogo cerrado: la variedad real de trámites no cabe en una lista
+  corta, y una lista larga sería justo la fricción que este paso evita en
+  las otras seis categorías.
+*/
+const TRAMITE_DETAIL_LABEL = '¿Qué tipo de trámite es?';
+const TRAMITE_DETAIL_PLACEHOLDER = 'Ej. Cambio de beneficiario, pago, entrega de póliza…';
 
 /*
   Puntos por cada tarea válida capturada — la mitad de lo que vale un
@@ -597,53 +630,241 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
 }
 
 /**
- * Una fila del Paso 3 en la rama de carga administrativa: un `<select>`
- * nativo minimalista para el "Tipo de Acción" y un input de texto para la
- * "Descripción / Nombre del cliente" — sin los tres estados de
- * `ProspectSlot` (vacío/editando/lleno), porque aquí la fila siempre está
- * lista para escribirse: no hace falta tocarla primero para que se
- * convierta en inputs, ya lo es desde que aparece. `isFilled` sólo cambia
- * el borde, para que sea visible de un vistazo cuáles de los `slotCount`
- * ya cuentan para el mínimo de `MIN_FILLED_TASKS`.
+ * Una fila del Paso 3 en la rama de carga administrativa: vacía (borde
+ * punteado, invita a tocarla) o llena (tarjeta sólida con el nombre, la
+ * categoría y, si lo trae, el teléfono debajo) — mismo criterio de dos
+ * estados que `ProspectSlot`, pero aquí tocar el slot nunca lo convierte
+ * en inputs sueltos: siempre abre `TaskEditorSheet`, porque una tarea trae
+ * más datos que un prospecto (categoría, a veces el detalle del trámite, y
+ * el teléfono) y meterlos todos en una fila de 56px sería ilegible.
  */
-function TaskSlot({ index, value, onChange }) {
+function TaskSlot({ index, value, onOpen }) {
   const isFilled = Boolean(value.descripcion.trim());
 
-  return (
-    <div
-      className={`flex h-14 items-center gap-2 rounded-xl border bg-slate-800/50 px-3
-                  transition-colors ${isFilled ? 'border-slate-600' : 'border-slate-700'}`}
-    >
-      <label className="sr-only" htmlFor={`task-type-${index}`}>
-        {`Tipo de acción de la tarea ${index + 1}`}
-      </label>
-      <select
-        id={`task-type-${index}`}
-        value={value.tipo}
-        onChange={(event) => onChange(index, { ...value, tipo: event.target.value })}
-        className="shrink-0 rounded-lg border-none bg-slate-900/70 px-2 py-1.5 text-[11px]
-                   font-semibold text-slate-300 focus:outline-none focus:ring-1
-                   focus:ring-indigo-500"
+  if (isFilled) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen(index)}
+        className="flex h-14 w-full items-center gap-3 rounded-xl border border-slate-700
+                   bg-slate-800/50 px-4 text-left transition-colors hover:border-slate-600"
       >
-        {TASK_TYPE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-white">
+            {value.descripcion}
+          </span>
+          <span className="block truncate text-xs text-slate-500">
+            {taskTypeLabel(value.tipo)}
+            {value.telefono && ` · ${value.telefono}`}
+          </span>
+        </span>
+        <ChevronRight size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+      </button>
+    );
+  }
 
-      <label className="sr-only" htmlFor={`task-description-${index}`}>
-        {`Descripción de la tarea ${index + 1}`}
-      </label>
-      <input
-        id={`task-description-${index}`}
-        value={value.descripcion}
-        onChange={(event) => onChange(index, { ...value, descripcion: event.target.value })}
-        placeholder="Descripción / Nombre del cliente"
-        autoComplete="off"
-        enterKeyHint="next"
-        className="min-w-0 flex-1 border-l border-slate-700 bg-transparent pl-2 text-sm
-                   text-white placeholder:text-slate-500 focus:outline-none"
-      />
-    </div>
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(index)}
+      className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2
+                 border-dashed border-slate-700 text-sm text-slate-500 transition-colors
+                 hover:border-slate-600 hover:text-slate-400"
+    >
+      <Plus size={16} aria-hidden="true" />
+      Agregar actividad
+    </button>
+  );
+}
+
+/**
+ * Hoja de edición de una tarea: nombre/descripción, categoría (con la
+ * pregunta extra de "¿Qué tipo de trámite es?" sólo cuando la categoría es
+ * "Trámite"), y el teléfono de la persona — a mano, o de un golpe con el
+ * selector nativo de contactos si el navegador lo soporta.
+ *
+ * El teléfono no es un dato decorativo: es lo que en el futuro deja que un
+ * recordatorio de esta tarea ofrezca "Llamar" o "Mandar WhatsApp" en vez de
+ * sólo avisar que existe — ese enganche vive en otra pantalla (los avisos
+ * de la agenda), pero nace aquí, en el único momento en que la persona ya
+ * tiene el número a la mano y no le cuesta nada dárselo a su asistente.
+ *
+ * Trabaja sobre un borrador local (`draft`) y no sobre `value` directo:
+ * "Cancelar" debe dejar el slot exactamente como estaba, y confirmar cada
+ * tecleo contra el estado del padre habría hecho imposible deshacerlo.
+ */
+function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
+  const [draft, setDraft] = useState(initialValue);
+
+  // Cada apertura arranca desde el valor real del slot, no desde lo que
+  // haya quedado de una edición cancelada la vez anterior.
+  useEffect(() => {
+    if (isOpen) setDraft(initialValue);
+  }, [isOpen, initialValue]);
+
+  const [contactPickerSupported] = useState(isContactPickerSupported);
+  const isPaperwork = draft.tipo === 'paperwork';
+
+  const handleOpenContacts = async () => {
+    try {
+      const [picked] = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if (!picked) return;
+      setDraft((current) => ({
+        ...current,
+        descripcion: picked.name?.[0] ?? current.descripcion,
+        telefono: picked.tel?.[0] ?? current.telefono,
+      }));
+    } catch {
+      // Selector cancelado o permiso negado: no hay nada que capturar.
+    }
+  };
+
+  const canSave = Boolean(draft.descripcion.trim());
+
+  const handleSave = () => {
+    onSave({
+      ...draft,
+      descripcion: draft.descripcion.trim(),
+      telefono: draft.telefono.trim(),
+      detalle: isPaperwork ? draft.detalle.trim() : '',
+    });
+  };
+
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} label="Nueva actividad">
+      <h2 className="mb-5 text-lg font-bold text-white">Nueva actividad</h2>
+
+      <div className="flex flex-col gap-4 pb-2">
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
+                             text-slate-500" htmlFor="task-sheet-type"
+          >
+            Tipo de Acción
+          </label>
+          <select
+            id="task-sheet-type"
+            value={draft.tipo}
+            onChange={(event) => setDraft((current) => (
+              { ...current, tipo: event.target.value }
+            ))}
+            className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+                       text-sm text-white focus:border-indigo-500 focus:outline-none"
+          >
+            {TASK_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/*
+          Sólo "Trámite" pregunta esto: el resto de categorías ya se
+          describen solas con su nombre y la descripción de abajo.
+        */}
+        {isPaperwork && (
+          <div>
+            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
+                               text-slate-500" htmlFor="task-sheet-detail"
+            >
+              {TRAMITE_DETAIL_LABEL}
+            </label>
+            <input
+              id="task-sheet-detail"
+              value={draft.detalle}
+              onChange={(event) => setDraft((current) => (
+                { ...current, detalle: event.target.value }
+              ))}
+              placeholder={TRAMITE_DETAIL_PLACEHOLDER}
+              autoComplete="off"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+                         text-sm text-white placeholder:text-slate-500 focus:border-indigo-500
+                         focus:outline-none"
+            />
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
+                             text-slate-500" htmlFor="task-sheet-name"
+          >
+            Descripción / Nombre del cliente
+          </label>
+          <input
+            id="task-sheet-name"
+            value={draft.descripcion}
+            onChange={(event) => setDraft((current) => (
+              { ...current, descripcion: event.target.value }
+            ))}
+            placeholder="Ej. Laura Gómez"
+            autoComplete="off"
+            className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+                       text-sm text-white placeholder:text-slate-500 focus:border-indigo-500
+                       focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
+                             text-slate-500" htmlFor="task-sheet-phone"
+          >
+            Teléfono
+          </label>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-700
+                          bg-slate-800/60 px-3"
+          >
+            <Phone size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
+            <input
+              id="task-sheet-phone"
+              value={draft.telefono}
+              onChange={(event) => setDraft((current) => (
+                { ...current, telefono: event.target.value }
+              ))}
+              placeholder="10 dígitos"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white
+                         placeholder:text-slate-500 focus:outline-none"
+            />
+          </div>
+
+          {/*
+            Vincular el contacto llena el nombre y el teléfono de un golpe.
+            Sólo se dibuja donde el navegador de verdad puede abrir el
+            selector nativo — en el resto, capturar el número a mano sigue
+            siendo el único camino.
+          */}
+          {contactPickerSupported && (
+            <button
+              type="button"
+              onClick={handleOpenContacts}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full
+                         border border-slate-700 py-2.5 text-xs font-semibold text-slate-300
+                         transition-colors hover:border-slate-600 hover:text-white"
+            >
+              <BookUser size={14} aria-hidden="true" />
+              Vincular contacto de mi agenda
+            </button>
+          )}
+
+          <p className="mt-2 text-[11px] leading-snug text-slate-500">
+            Guardar su número aquí es lo que en el futuro te va a permitir llamarle o
+            mandarle un WhatsApp directo desde el aviso de esta actividad.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!canSave}
+          className={`mt-1 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
+                     text-white transition-all hover:bg-indigo-500 active:scale-95
+                     disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30
+                     ${canSave ? GLOW_BUTTON_CLASS : ''}`}
+        >
+          Guardar
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
 
@@ -651,14 +872,19 @@ function TaskSlot({ index, value, onChange }) {
  * Paso 3 en la rama de carga administrativa — "Descarga tu mente": en vez
  * de capturar prospectos, la persona vacía sus pendientes en `slotCount`
  * filas (`taskSlotCountFor(mercado)`, según la cartera declarada en el
- * Onboarding). "CONTINUAR" exige llenar al menos `MIN_FILLED_TASKS` de
- * ellas, no todas — regla anti-fricción de la especificación: quien tiene
- * 10 slots pero sólo recuerda 3 pendientes de memoria en este momento no
- * debe quedarse atorado inventando los siete que faltan.
+ * Onboarding). Cada fila se llena abriendo `TaskEditorSheet`, no
+ * escribiendo directo sobre la fila: hay más que capturar por tarea
+ * (categoría, a veces el detalle del trámite, teléfono) de lo que cabe en
+ * una fila compacta.
  *
- * `onContinue` recibe las tareas limpias (descripción no vacía, sin
- * espacios de sobra) para que `FirstLoginIntro` calcule los puntos
- * (`POINTS_PER_TASK` por cada una) y las mande a la Agenda real.
+ * "CONTINUAR" exige llenar al menos `MIN_FILLED_TASKS` de las filas, no
+ * todas — regla anti-fricción de la especificación: quien tiene 10 slots
+ * pero sólo recuerda 3 pendientes de memoria en este momento no debe
+ * quedarse atorado inventando los siete que faltan.
+ *
+ * `onContinue` recibe las tareas limpias (descripción no vacía) para que
+ * `FirstLoginIntro` calcule los puntos (`POINTS_PER_TASK` por cada una) y
+ * las mande a la Agenda real.
  */
 function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
   const { typed, isTyping } = useTypewriter(TASK_STEP_TEXT);
@@ -666,6 +892,7 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
   const [tasks, setTasks] = useState(
     () => Array.from({ length: slotCount }, () => ({ ...EMPTY_TASK })),
   );
+  const [openIndex, setOpenIndex] = useState(null);
 
   useEffect(() => {
     if (isTyping) return undefined;
@@ -673,12 +900,16 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
     return () => clearTimeout(timer);
   }, [isTyping]);
 
-  const updateTask = (index, next) => {
-    setTasks((current) => current.map((t, i) => (i === index ? next : t)));
+  const saveTask = (next) => {
+    setTasks((current) => current.map((t, i) => (i === openIndex ? next : t)));
+    setOpenIndex(null);
   };
 
   const cleanEntries = tasks
-    .map((t) => ({ tipo: t.tipo, descripcion: t.descripcion.trim() }))
+    .map((t) => ({
+      tipo: t.tipo, descripcion: t.descripcion.trim(), telefono: t.telefono.trim(),
+      detalle: t.detalle.trim(),
+    }))
     .filter((t) => t.descripcion);
   const isValid = cleanEntries.length >= MIN_FILLED_TASKS;
 
@@ -717,7 +948,7 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
       >
         <div className="max-h-[46vh] space-y-3 overflow-y-auto pr-1">
           {tasks.map((value, index) => (
-            <TaskSlot key={index} index={index} value={value} onChange={updateTask} />
+            <TaskSlot key={index} index={index} value={value} onOpen={setOpenIndex} />
           ))}
         </div>
 
@@ -746,6 +977,13 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
           Saltar paso
         </button>
       </div>
+
+      <TaskEditorSheet
+        isOpen={openIndex !== null}
+        initialValue={openIndex !== null ? tasks[openIndex] : EMPTY_TASK}
+        onSave={saveTask}
+        onClose={() => setOpenIndex(null)}
+      />
     </div>
   );
 }
@@ -1163,12 +1401,23 @@ export default function FirstLoginIntro({
   */
   const continueTaskCapture = (entries) => {
     entries.forEach((entry, index) => {
+      /*
+        `telefono` viaja hasta el evento real de la Agenda —no sólo hasta
+        el título— porque es el dato que en el futuro va a permitir que un
+        aviso de esta actividad ofrezca "Llamar" o "Mandar WhatsApp" en vez
+        de sólo notificar que existe. `detalle` (el tipo de trámite, si
+        aplica) se anexa al título entre paréntesis: es información que
+        vale la pena ver de un vistazo en la Agenda, no un campo aparte que
+        el resto de la app todavía no sabe leer.
+      */
+      const detailSuffix = entry.detalle ? ` (${entry.detalle})` : '';
       addEvent({
         type: 'actividad',
-        title: `${taskTypeLabel(entry.tipo)}: ${entry.descripcion}`,
+        title: `${taskTypeLabel(entry.tipo)}: ${entry.descripcion}${detailSuffix}`,
         date: todayKey(),
         time: defaultTaskTime(index),
         priority: DEFAULT_PRIORITY,
+        telefono: entry.telefono,
       });
     });
     setCapturedCount(entries.length);
