@@ -52,14 +52,24 @@ export default function TodayView({
   const effectivePoints = puntosActuales ?? points;
 
   /*
-    Sólo se muestra la primera vez: inquietud declarada como "miedo al
-    rechazo" (ver `CONCERN_OPTIONS` en `advisorOnboarding.js`) y puntos en
-    0. En cuanto `addPoints(1)` corre, `effectivePoints` deja de ser 0 y esta
-    pantalla no vuelve a montarse jamás para esa persona — es justo la
-    condición que pide la especificación ("tener 1 punto o más es la
-    condición para que esta pantalla no vuelva a aparecer").
+    Sólo se muestra la primera vez: alguna inquietud declarada en el
+    Onboarding (cualquiera de las cuatro de `CONCERN_OPTIONS` en
+    `advisorOnboarding.js` — `FirstLoginIntro` ya trae un mensaje del Paso 2
+    calibrado para cada una) y puntos en 0. En cuanto `addPoints(1)` corre,
+    `effectivePoints` deja de ser 0 y esta pantalla no vuelve a montarse
+    jamás para esa persona — es justo la condición que pide la
+    especificación ("tener 1 punto o más es la condición para que esta
+    pantalla no vuelva a aparecer").
+
+    No se compara contra `'rejection'` a secas: eso dejaba fuera a quien
+    eligió "Falta de dominio técnico", "La falta de organización" o "Por el
+    momento, ninguna" — las tres inquietudes que también tienen su propio
+    mensaje en `STEP2_TEXT_BY_CONCERN` (`FirstLoginIntro.jsx`) y nunca
+    llegaban a mostrarlo. Basta con que `inquietud` no esté vacía: un
+    Onboarding sin completar (columna vacía) sigue sin disparar esta
+    pantalla, como antes.
   */
-  const showFirstLoginIntro = inquietud === 'rejection' && effectivePoints === 0;
+  const showFirstLoginIntro = Boolean(inquietud) && effectivePoints === 0;
 
   if (showFirstLoginIntro) {
     return (
