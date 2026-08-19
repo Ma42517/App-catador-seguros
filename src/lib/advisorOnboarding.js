@@ -24,14 +24,14 @@
  * corresponde a nada visible en pantalla.
  */
 
-/** Paso 3 — Fortaleza declarada al arrancar el negocio. */
+/** Paso 3 — Fortaleza declarada al arrancar el negocio (perfil "Nuevo Asesor" o "Consolidado"). */
 export const STRENGTH_OPTIONS = [
   { value: 'people', label: 'Facilidad para conectar con la gente' },
   { value: 'discipline', label: 'Disciplina y constancia' },
   { value: 'analytics', label: 'Habilidad para analizar datos complejos' },
 ];
 
-/** Paso 4 — Lo que más inquieta o impone en la etapa inicial. */
+/** Paso 4 — Lo que más inquieta o impone en la etapa inicial (perfil "Nuevo Asesor" o "Consolidado"). */
 export const CONCERN_OPTIONS = [
   { value: 'rejection', label: 'El miedo al rechazo o a contactar conocidos' },
   { value: 'technical', label: 'Falta de dominio técnico o qué decir' },
@@ -39,11 +39,49 @@ export const CONCERN_OPTIONS = [
   { value: 'none', label: 'Por el momento, ninguna' },
 ];
 
-/** Paso 5 — Termómetro de mercado natural. */
+/** Paso 5 — Termómetro de mercado natural (perfil "Nuevo Asesor" o "Consolidado"). */
 export const MARKET_OPTIONS = [
   { value: 'under_20', label: 'A menos de 20' },
   { value: 'between_20_50', label: 'Entre 20 y 50' },
   { value: 'over_50', label: 'A más de 50' },
+];
+
+/*
+  Ramificación por perfil (Paso 2, `EXPERIENCE_LEVELS`): quien ya eligió
+  "Nuevo Profesional" (`value === 'new_professional'`) contesta los mismos
+  tres pasos —fortaleza, inquietud, mercado— pero con preguntas y opciones
+  distintas, adaptadas a alguien que ya superó el arranque y busca
+  estructurar lo que ya tiene, no construirlo desde cero. La respuesta se
+  guarda en los mismos campos de `advisorData` (`fortaleza`, `inquietud`,
+  `mercado`): no hay columnas nuevas ni una segunda forma del dato, sólo un
+  segundo cuestionario que escribe en el mismo sitio. `OnboardingFlow.jsx`
+  es quien decide cuál de los dos mostrar, comparando `advisorData.perfil`
+  — este módulo sólo declara las preguntas y opciones de cada rama.
+*/
+
+/** Paso 3 (perfil "Nuevo Profesional") — área donde necesita construir más estructura hoy. */
+export const PROFESSIONAL_FOCUS_OPTIONS = [
+  { value: 'prospecting', label: 'Generación constante de prospectos.' },
+  { value: 'systematize_followup', label: 'Sistematizar mi seguimiento y cierres.' },
+  { value: 'time_shield', label: 'Organización y blindaje de mi tiempo.' },
+];
+
+/** Paso 4 (perfil "Nuevo Profesional") — el "cuello de botella" que impide duplicar productividad. */
+export const PROFESSIONAL_BOTTLENECK_OPTIONS = [
+  { value: 'admin_overload', label: 'Me consume la carga administrativa y el servicio.' },
+  {
+    value: 'low_ticket_market',
+    label: 'Trabajo con un mercado de bajo perfil o primas pequeñas.',
+  },
+  { value: 'referral_dependent', label: 'Dependo de referidos; no prospecto activamente.' },
+  { value: 'none_scale', label: 'Por el momento, ninguno. Solo busco escalar.' },
+];
+
+/** Paso 5 (perfil "Nuevo Profesional") — tamaño de la cartera activa. */
+export const PORTFOLIO_SIZE_OPTIONS = [
+  { value: 'under_50', label: 'Menos de 50 clientes.' },
+  { value: 'between_50_150', label: 'Entre 50 y 150 clientes.' },
+  { value: 'over_150', label: 'Más de 150 clientes.' },
 ];
 
 /** Paso 6 — Disponibilidad de tiempo para el negocio. */

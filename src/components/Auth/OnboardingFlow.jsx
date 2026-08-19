@@ -6,6 +6,7 @@ import {
   STRENGTH_OPTIONS, CONCERN_OPTIONS, MARKET_OPTIONS, AVAILABILITY_OPTIONS,
   HOUR_BLOCKS, ALL_DAY_HOURS, formatHour, formatHourLabel,
   MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
+  PROFESSIONAL_FOCUS_OPTIONS, PROFESSIONAL_BOTTLENECK_OPTIONS, PORTFOLIO_SIZE_OPTIONS,
 } from '../../lib/advisorOnboarding';
 import { saveExperienceLevel, saveAdvisorProfile } from '../../data/profilesRepo';
 
@@ -30,6 +31,21 @@ const CONCERN_TEXT = 'Para que podamos guiarte con precisión, ¿qué es lo que 
 const MARKET_TEXT = 'Todo gran negocio arranca con un mercado cálido (tus familiares, '
   + 'amigos y conocidos). Si revisas tus contactos hoy, ¿a cuántas personas podrías '
   + 'llamar para platicarles de tu nueva etapa?';
+
+/*
+  Rama "Nuevo Profesional" de los Pasos 3 a 5 (fortaleza, inquietud,
+  mercado en la rama de siempre): mismo lugar en el recorrido, mismas
+  claves en `advisorData`, preguntas y opciones distintas — quien ya
+  superó el arranque no necesita que se le pregunte por su "mercado
+  cálido", sino por la estructura de lo que ya construyó. `PROFESSIONAL_*`
+  vive en `advisorOnboarding.js`; aquí sólo el texto de cada pregunta,
+  igual criterio que las constantes `*_TEXT` de la rama "Nuevo Asesor".
+*/
+const PROFESSIONAL_BOTTLENECK_TEXT = 'Para que tu asistente optimice tus procesos, ¿cuál '
+  + 'consideras que es el mayor "cuello de botella" que te impide duplicar tu '
+  + 'productividad actual?';
+const PORTFOLIO_SIZE_TEXT = 'El verdadero crecimiento está en la retención y la venta '
+  + 'cruzada. ¿Aproximadamente cuántos clientes conforman tu cartera activa actualmente?';
 const AVAILABILITY_TEXT = 'El éxito requiere constancia. ¿Cómo planeas gestionar tu tiempo?';
 const SCHEDULE_TEXT = 'Toca las horas que le dedicarás al negocio. Deja en blanco el resto.';
 /*
@@ -588,6 +604,15 @@ function AnalysisRoomStep({ onSimulateApproval }) {
  * el otro se contesta) y por eso viven en pasos separados, aunque antes
  * compartieran uno con la primera pregunta (etapa profesional, Paso 3).
  *
+ * Los Pasos 4 a 6 se ramifican según la etapa elegida en el Paso 3: quien
+ * marca "Nuevo Profesional" contesta un cuestionario distinto de quien
+ * marca "Nuevo Asesor" o "Consolidado" (ver `isProfessional` más abajo, y
+ * `PROFESSIONAL_*` en `advisorOnboarding.js`) — misma posición en el
+ * recorrido, mismas claves de `advisorData`, preguntas y opciones
+ * distintas. Los Pasos 7 a 9 (disponibilidad, horario, motor) y la Sala de
+ * Análisis son un único camino para los dos perfiles: la ramificación
+ * termina justo después del Paso 6.
+ *
  * Sólo se le muestra a quien todavía no eligió su etapa profesional
  * (`identity.experienceLevel` vacío) — es `Gate`, en `App.jsx`, quien decide
  * si monta esto o `PendingApproval` directamente, comparando esa misma
@@ -629,6 +654,15 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
     último paso.
   */
   const [advisorData, setAdvisorData] = useState(EMPTY_ADVISOR_DATA);
+
+  /*
+    Ramificación de los Pasos 4 a 6: `'new_professional'` es el `value`
+    exacto de la tarjeta "Nuevo Profesional" en `EXPERIENCE_LEVELS`
+    (`experienceLevels.js`) — comparado tal cual, sin traducir, porque es
+    el mismo texto que ya se guarda en `advisorData.perfil` y en la
+    columna `experience_level` de la base.
+  */
+  const isProfessional = advisorData.perfil === 'new_professional';
 
   // Evita seguir aceptando toques o navegación si el componente se
   // desmontara a media escritura (cambio de sesión, por ejemplo).
@@ -722,21 +756,55 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
         />
       )}
 
+      {/*
+        Pasos 4 a 6: mismo lugar en el recorrido y mismas claves de
+        `advisorData` (`fortaleza`, `inquietud`, `mercado`) para los dos
+        perfiles, pero la pregunta y las opciones cambian según lo elegido
+        en el Paso 3 (`isProfessional`). Después del Paso 6 ambas ramas
+        convergen de vuelta a un único camino (disponibilidad, horario,
+        motor, Sala de Análisis) — no hay bifurcación más allá de aquí.
+      */}
       {step === 4 && (
-        <ChoiceStep
-          text={`${advisorData.nombre}, el autoconocimiento es tu mejor herramienta. `
-            + 'Al arrancar este negocio, ¿cuál consideras que es tu mayor ventaja?'}
-          options={STRENGTH_OPTIONS}
-          onSelect={chooseStrength}
-        />
+        isProfessional ? (
+          <ChoiceStep
+            text={`${advisorData.nombre}, ya superaste la curva de aprendizaje. Para llevar `
+              + 'tu negocio al siguiente nivel, ¿en qué área necesitas construir más '
+              + 'estructura hoy?'}
+            options={PROFESSIONAL_FOCUS_OPTIONS}
+            onSelect={chooseStrength}
+          />
+        ) : (
+          <ChoiceStep
+            text={`${advisorData.nombre}, el autoconocimiento es tu mejor herramienta. `
+              + 'Al arrancar este negocio, ¿cuál consideras que es tu mayor ventaja?'}
+            options={STRENGTH_OPTIONS}
+            onSelect={chooseStrength}
+          />
+        )
       )}
 
       {step === 5 && (
-        <ChoiceStep text={CONCERN_TEXT} options={CONCERN_OPTIONS} onSelect={chooseConcern} />
+        isProfessional ? (
+          <ChoiceStep
+            text={PROFESSIONAL_BOTTLENECK_TEXT}
+            options={PROFESSIONAL_BOTTLENECK_OPTIONS}
+            onSelect={chooseConcern}
+          />
+        ) : (
+          <ChoiceStep text={CONCERN_TEXT} options={CONCERN_OPTIONS} onSelect={chooseConcern} />
+        )
       )}
 
       {step === 6 && (
-        <ChoiceStep text={MARKET_TEXT} options={MARKET_OPTIONS} onSelect={chooseMarket} />
+        isProfessional ? (
+          <ChoiceStep
+            text={PORTFOLIO_SIZE_TEXT}
+            options={PORTFOLIO_SIZE_OPTIONS}
+            onSelect={chooseMarket}
+          />
+        ) : (
+          <ChoiceStep text={MARKET_TEXT} options={MARKET_OPTIONS} onSelect={chooseMarket} />
+        )
       )}
 
       {step === 7 && (
