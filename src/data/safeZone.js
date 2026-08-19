@@ -1,14 +1,16 @@
 /**
  * src/data/safeZone.js
  *
- * Los 3 nombres que la persona escribe en el Paso 3 de `FirstLoginIntro.jsx`
- * ("Tu Zona Segura"): la gente con la que se tomaría un café mañana mismo sin
- * pensarlo. Se guarda para que, el día que el algoritmo de tareas diarias
- * necesite un primer contacto sugerido, no tenga que volver a preguntarlo —
- * la persona ya lo dijo una vez, al ganar su primer punto.
+ * Los primeros apoyos que la persona captura en `FirstLoginIntro.jsx` (Paso
+ * 3): a quién le avisaría que está arrancando esta nueva etapa. Cada
+ * entrada es `{ nombre, telefono }` —el teléfono es opcional, "saltar paso"
+ * puede dejar el arreglo vacío del todo— y se guarda para que, el día que
+ * el algoritmo de tareas diarias necesite un primer contacto sugerido, no
+ * tenga que volver a preguntarlo: la persona ya lo dijo una vez, al ganar
+ * su primer punto.
  *
  * Mismo patrón de persistencia que `goals.js`/`advisorPoints.js`: una sola
- * clave de localStorage con un objeto `{ [username]: nombres }`.
+ * clave de localStorage con un objeto `{ [username]: entradas }`.
  */
 const KEY = 'df360:safeZone:v1';
 
@@ -22,17 +24,18 @@ function readAll() {
   }
 }
 
-/** Nombres guardados de una persona, o un arreglo vacío si nunca los llenó. */
+/** Entradas guardadas de una persona, o un arreglo vacío si nunca las llenó (o saltó el paso). */
 export function readSafeZone(username) {
   if (!username) return [];
   const value = readAll()[username];
   return Array.isArray(value) ? value : [];
 }
 
-export function writeSafeZone(username, names) {
+/** @param {{ nombre: string, telefono: string }[]} entries */
+export function writeSafeZone(username, entries) {
   if (!username) return;
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...readAll(), [username]: names }));
+    localStorage.setItem(KEY, JSON.stringify({ ...readAll(), [username]: entries }));
   } catch {
     // Sin persistencia, la Zona Segura vive sólo en esta sesión.
   }
