@@ -744,7 +744,17 @@ function Gate({ isPreview }) {
                 */
                 isPromoterUser={canRunPromotoria(role)}
                 storageKey={identity.key}
-                displayName={identity.name}
+                /*
+                  El saludo de "Hoy" usa el nombre que la persona escribió en
+                  el Paso 1 del Onboarding, no el de su cuenta de Google —
+                  `identity.name` cae al correo cuando Google no trae un
+                  nombre de perfil (`friendlyNameFrom`, en
+                  `SessionContext.jsx`), y sin este respaldo el saludo diría
+                  "Hola, smnyl.clientes.22" en vez de "Hola, Marco". El
+                  Onboarding es la única vez que se le pregunta directamente
+                  cómo quiere que le llamen, así que ese dato manda.
+                */
+                displayName={identity.advisorProfileData?.nombre || identity.name}
                 horario={identity.advisorProfileData?.horario ?? []}
                 inquietud={identity.advisorProfileData?.inquietud ?? ''}
               />
