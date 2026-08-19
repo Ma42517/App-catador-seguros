@@ -97,6 +97,20 @@ function isOnboardingPreview() {
  */
 const PREVIEW_KEY = 'preview-sin-cuenta';
 
+/*
+  Mismas claves de localStorage que `data/advisorPoints.js` y
+  `data/safeZone.js` (no se importan de ahí porque son constantes internas
+  de esos módulos, no exportadas): el botón "Reiniciar puntos de prueba" de
+  más abajo necesita borrar justo esas dos entradas, y sólo la parte de
+  `PREVIEW_KEY` dentro de ellas —pero como ambos módulos guardan todo bajo
+  una sola clave compartida por todos los usuarios (`{ [username]: valor
+  }`), borrar la clave completa es seguro aquí: en este entorno de vista
+  previa nunca hay otro usuario real compartiendo la misma clave de
+  localStorage.
+*/
+const PREVIEW_POINTS_KEY = 'df360:advisorPoints:v1';
+const PREVIEW_SAFE_ZONE_KEY = 'df360:safeZone:v1';
+
 /**
  * Valor simulado de `useSession()` para la vista previa.
  *
@@ -858,6 +872,34 @@ function OnboardingPreview({ isPreview }) {
           <FlaskConical size={11} aria-hidden="true" />
           Vista previa · ya aprobado
         </span>
+
+        {/*
+          Botón aparte del badge de arriba, y no fundido con él: éste hace
+          algo (borra los puntos de prueba) mientras el otro sólo informa.
+          Existe porque `useAdvisorPoints` persiste bajo la misma
+          `PREVIEW_KEY` fija entre visitas —a propósito, para que la agenda
+          de prueba no se resetee sola— y ese mismo acierto es lo que
+          esconde `FirstLoginIntro` en la segunda vuelta: una vez ganado el
+          punto la primera vez, "Simular aprobación" ya no vuelve a
+          mostrarlo, porque la condición real (`puntos === 0`) ya no se
+          cumple. Sin este botón, la única forma de volver a verlo era
+          borrar la clave a mano desde la consola del navegador.
+        */}
+        <button
+          type="button"
+          onClick={() => {
+            localStorage.removeItem(PREVIEW_POINTS_KEY);
+            localStorage.removeItem(PREVIEW_SAFE_ZONE_KEY);
+            window.location.reload();
+          }}
+          className="fixed left-3 top-9 z-50 flex items-center gap-1.5 rounded-full
+                     border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
+                     font-bold uppercase tracking-widest text-amber-300/90
+                     backdrop-blur-md transition-colors hover:bg-amber-500/20"
+        >
+          <FlaskConical size={11} aria-hidden="true" />
+          Reiniciar puntos de prueba
+        </button>
       </div>
     );
   }
