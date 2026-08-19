@@ -6,19 +6,38 @@ import { writeSafeZone } from '../../data/safeZone';
 const FADE_OUT_MS = 700;
 /** Cuánto se queda en pantalla "+ 1 Punto" antes de empezar a desvanecerse. */
 const REWARD_HOLD_MS = 2000;
-/** Retraso del subtexto del Paso 2, medido desde que el texto principal termina de escribirse. */
-const SUBTEXT_DELAY_MS = 2000;
 /** Mínimo de nombres para poder guardar la Zona Segura: basta con uno. */
 const MIN_NAMES = 1;
 
 const STEP1_TEXT_TEMPLATE = (name) => `Hola, ${name}. Todo está configurado y listo para que inicies tu camino.`;
-const STEP2_TEXT = 'Para asegurar que tu arranque sea fluido, vamos a ir paso a paso. Sabemos '
-  + 'que dar el primer salto con tus conocidos puede imponer respeto.';
-const STEP2_SUBTEXT = 'Aquí la regla de oro es simple: en esta etapa inicial tu objetivo no es '
-  + 'vender nada. Tu única meta es avisarles en qué te estás profesionalizando y compartir tu '
-  + 'nueva etapa.';
+/*
+  Un solo mensaje, sin subtexto: la versión anterior nombraba la inquietud
+  ("dar el primer salto con tus conocidos puede imponer respeto") y luego
+  explicaba la regla de oro en un segundo bloque. Se reemplaza por una frase
+  más sutil que habla del sistema, no del miedo — sigue siendo la pantalla
+  que ve quien declaró "miedo al rechazo", pero ya no se lo recuerda de
+  frente.
+*/
+const STEP2_TEXT = 'El secreto del éxito es el sistema. Te guiaremos paso a paso para que '
+  + 'conectar con tu entorno sea una experiencia fluida y sin fricción.';
 const STEP3_TEXT = 'Vamos a desbloquear tu agenda ganando tu primer punto. Piensa en 3 personas '
   + 'con las que te tomarías un café mañana mismo sin pensarlo. Tu Zona Segura.';
+
+/*
+  Resplandor compartido por los tres botones de avance (Continuar,
+  Entendido, Guardar mi Zona Segura): sobre el fondo `bg-slate-950`, un
+  botón sólo con `shadow-lg` se pierde entre el resto del contraste oscuro
+  de la pantalla — el glow es lo que le dice a la vista "aquí es donde se
+  toca" sin depender de que el color del botón ya destaque por sí solo.
+  Índigo, y no el ámbar de `RewardStep`: ámbar es el color de la
+  recompensa (el punto que se gana), índigo es el de la acción que avanza
+  el recorrido — colores duplicados confundirían cuál de los dos significa
+  qué. El rgba es el mismo `indigo-600` que ya pinta el fondo del botón
+  (`#4f46e5` → `rgb(79,70,229)`), sólo con más opacidad en el resplandor
+  del `hover` para reforzar la respuesta al tacto.
+*/
+const GLOW_BUTTON_CLASS = 'shadow-[0_0_15px_rgba(79,70,229,0.6)] '
+  + 'hover:shadow-[0_0_25px_rgba(79,70,229,0.8)] transition-shadow duration-300';
 
 /**
  * Cursor parpadeante compartido por los tres pasos con máquina de escribir,
@@ -57,8 +76,8 @@ function GreetingStep({ name, onContinue }) {
         aria-hidden={isTyping}
         tabIndex={isTyping ? -1 : 0}
         className={`mt-10 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-white
-                    shadow-lg shadow-indigo-600/30 transition-opacity duration-700
-                    hover:bg-indigo-500 active:scale-95
+                    transition-opacity duration-700 hover:bg-indigo-500 active:scale-95
+                    ${GLOW_BUTTON_CLASS}
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       >
         Continuar
@@ -68,25 +87,18 @@ function GreetingStep({ name, onContinue }) {
 }
 
 /**
- * Paso 2 — Enfoque empoderador: nombra la inquietud sin insistir en ella
- * (tono de apoyo, no de diagnóstico), y aclara la única regla que importa
- * en esta etapa. El subtexto entra 2 segundos después de que el texto
- * principal termina de escribirse, con un fundido simple — no letra por
- * letra, para no alargar un paso que ya trae dos bloques de texto.
+ * Paso 2 — Enfoque empoderador, ahora en un solo mensaje (sin subtexto):
+ * habla del sistema que va a guiar el arranque, sin nombrar de frente la
+ * inquietud declarada. El botón se enciende al terminar de escribirse,
+ * igual que en el Paso 1 — ya no hay un segundo bloque de texto que
+ * esperar.
  */
 function EmpowermentStep({ onContinue }) {
   const { typed, isTyping } = useTypewriter(STEP2_TEXT);
-  const [showSubtext, setShowSubtext] = useState(false);
-
-  useEffect(() => {
-    if (isTyping) return undefined;
-    const timer = setTimeout(() => setShowSubtext(true), SUBTEXT_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [isTyping]);
 
   return (
     <div className="flex flex-col items-center px-6 text-center">
-      <p className="sr-only">{`${STEP2_TEXT} ${STEP2_SUBTEXT}`}</p>
+      <p className="sr-only">{STEP2_TEXT}</p>
       <p
         className="max-w-lg text-xl font-light leading-snug text-white sm:text-2xl"
         aria-hidden="true"
@@ -95,23 +107,15 @@ function EmpowermentStep({ onContinue }) {
         <Caret show={isTyping} />
       </p>
 
-      <p
-        className={`mt-5 max-w-md text-sm leading-relaxed text-zinc-400
-                    transition-opacity duration-1000 ${showSubtext ? 'opacity-100' : 'opacity-0'}`}
-        aria-hidden={!showSubtext}
-      >
-        {STEP2_SUBTEXT}
-      </p>
-
       <button
         type="button"
         onClick={onContinue}
-        aria-hidden={!showSubtext}
-        tabIndex={showSubtext ? 0 : -1}
+        aria-hidden={isTyping}
+        tabIndex={isTyping ? -1 : 0}
         className={`mt-8 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-white
-                    shadow-lg shadow-indigo-600/30 transition-opacity duration-700
-                    hover:bg-indigo-500 active:scale-95
-                    ${showSubtext ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+                    transition-opacity duration-700 hover:bg-indigo-500 active:scale-95
+                    ${GLOW_BUTTON_CLASS}
+                    ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       >
         Entendido
       </button>
@@ -178,11 +182,11 @@ function SafeZoneStep({ onSave }) {
         <button
           type="submit"
           disabled={!isValid}
-          className="w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     text-white shadow-lg shadow-indigo-600/30 transition-all
-                     hover:bg-indigo-500 active:scale-95
+          className={`w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
+                     text-white transition-all hover:bg-indigo-500 active:scale-95
                      disabled:cursor-not-allowed disabled:bg-white/[0.06]
-                     disabled:text-white/25 disabled:shadow-none"
+                     disabled:text-white/25 disabled:shadow-none
+                     ${isValid ? GLOW_BUTTON_CLASS : ''}`}
         >
           Guardar mi Zona Segura
         </button>
