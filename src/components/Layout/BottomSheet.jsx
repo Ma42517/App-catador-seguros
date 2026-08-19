@@ -14,6 +14,17 @@ const ANIM_MS = 300;
  *
  * SE DIBUJA EN UN PORTAL A `document.body`, Y ES LO QUE HACE QUE FUNCIONE.
  *
+ * `zIndexClass` (por omisión `z-[60]`, la capa normal de una hoja) existe
+ * para el único caso en que esta hoja se abre por encima de otra capa
+ * `fixed` que ya vive más arriba en la escala de la app —por ejemplo,
+ * `TaskEditorSheet` dentro de `FirstLoginIntro.jsx`, que corre sobre un
+ * overlay `z-[95]`—: sin subir también la hoja, quedaría dibujada por
+ * debajo de ese overlay y sus botones serían inalcanzables al tacto aunque
+ * se vieran en pantalla. Mismo criterio que ya usa `LeadCaptureModal.jsx`
+ * (`z-[80]` sobre `DigitalCardScreen`, que es `z-[75]`): quien anida una
+ * hoja dentro de otra capa fixed es quien decide cuánto subirla, no un
+ * número fijo aquí adentro.
+ *
  * `position: fixed` no siempre se mide contra la ventana: cualquier antepasado con
  * `transform`, `filter` o `backdrop-filter` distinto de `none` se convierte en su
  * bloque contenedor. En esta app pasaba de verdad: `.animate-rise` —la entrada de
@@ -24,7 +35,9 @@ const ANIM_MS = 300;
  * tampoco había scroll interno. Desde el portal ya no hay antepasado que la
  * contenga, ni ahora ni el día que alguien añada otra animación.
  */
-export default function BottomSheet({ isOpen, onClose, label, children }) {
+export default function BottomSheet({
+  isOpen, onClose, label, children, zIndexClass = 'z-[60]',
+}) {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isShown, setIsShown] = useState(false);
 
@@ -80,7 +93,7 @@ export default function BottomSheet({ isOpen, onClose, label, children }) {
       {anchor}
       {createPortal(
         <div className={isDarkContext ? 'dark' : undefined}>
-          <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={label}>
+          <div className={`fixed inset-0 ${zIndexClass}`} role="dialog" aria-modal="true" aria-label={label}>
             <button
               type="button"
               aria-label="Cerrar"

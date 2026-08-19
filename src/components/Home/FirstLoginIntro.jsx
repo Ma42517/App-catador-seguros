@@ -731,7 +731,20 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} label="Nueva actividad">
+    /*
+      `zIndexClass="z-[100]"`: esta hoja se abre por encima del overlay de
+      `FirstLoginIntro` (`z-[95]`), no de la app normal — con el `z-[60]`
+      por omisión de `BottomSheet`, la hoja se dibujaría detrás de ese
+      overlay y "Guardar" quedaría inalcanzable al tacto aunque se viera en
+      pantalla (mismo patrón que ya resuelve `LeadCaptureModal.jsx` para su
+      propio caso de anidamiento).
+    */
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      label="Nueva actividad"
+      zIndexClass="z-[100]"
+    >
       <h2 className="mb-5 text-lg font-bold text-white">Nueva actividad</h2>
 
       <div className="flex flex-col gap-4 pb-2">
