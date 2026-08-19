@@ -17,15 +17,17 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  * intermedia entre `Gate` (que lo lee de `identity.advisorProfileData`) y
  * el mensaje inteligente que sí lo necesita.
  *
- * `inquietud` y `username` sí se usan aquí, y sólo aquí: decidir si toca
- * mostrar `FirstLoginIntro` es la razón por la que este componente deja de
- * ser una simple parada intermedia como con `horario`. La condición exacta
- * —inquietud declarada como "miedo al rechazo" Y puntos todavía en 0— vive
- * en este único lugar para que no haya dos sitios de la app que puedan
- * discrepar sobre cuándo le toca a alguien ver esta introducción.
+ * `inquietud`, `mercado` y `username` sí se usan aquí, y sólo aquí: decidir
+ * si toca mostrar `FirstLoginIntro` es la razón por la que este componente
+ * deja de ser una simple parada intermedia como con `horario`. La condición
+ * exacta —inquietud declarada como "miedo al rechazo" Y puntos todavía en
+ * 0— vive en este único lugar para que no haya dos sitios de la app que
+ * puedan discrepar sobre cuándo le toca a alguien ver esta introducción.
+ * `mercado` viaja hasta `FirstLoginIntro` sin decidir nada aquí: sólo
+ * calibra cuántos slots de contacto pide el Paso 3 de esa introducción.
  */
 export default function TodayView({
-  name, puntosActuales, horario = [], inquietud = '', username,
+  name, puntosActuales, horario = [], inquietud = '', mercado = '', username,
 }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
@@ -64,6 +66,8 @@ export default function TodayView({
       <FirstLoginIntro
         name={saludo || 'Asesor'}
         username={username}
+        inquietud={inquietud}
+        mercado={mercado}
         onComplete={() => addPoints(1)}
       />
     );

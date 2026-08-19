@@ -11,8 +11,6 @@ const FADE_OUT_MS = 700;
   exacto de la especificación (4.5s), no un número redondeado a ojo.
 */
 const REWARD_AUTO_MS = 4500;
-/** Cuántos prospectos pide el Paso 3 (y cuántos slots se dibujan). "Saltar paso" no exige ninguno. */
-const PROSPECT_COUNT = 3;
 /*
   Tamaño de la meta que anuncia el logro tipo consola ("N / 200 · Proyecto
   200"). Es un número fijo del propio logro —el nombre de la campaña de
@@ -24,18 +22,66 @@ const PROSPECT_COUNT = 3;
 const PROJECT_GOAL = 200;
 
 const STEP1_TEXT_TEMPLATE = (name) => `Hola, ${name}. Todo está configurado y listo para que inicies tu camino.`;
+
 /*
-  Un solo mensaje, sin subtexto: la versión anterior nombraba la inquietud
-  ("dar el primer salto con tus conocidos puede imponer respeto") y luego
-  explicaba la regla de oro en un segundo bloque. Se reemplaza por una frase
-  más sutil que habla del sistema, no del miedo — sigue siendo la pantalla
-  que ve quien declaró "miedo al rechazo", pero ya no se lo recuerda de
-  frente.
+  Mensaje del Paso 2, uno por cada inquietud declarada en el Onboarding
+  (`CONCERN_OPTIONS`, `advisorOnboarding.js`) — cada tono responde a la
+  preocupación exacta que esa persona nombró, sin repetirla de frente
+  (ninguno dice "tienes miedo al rechazo" ni "no sabes organizarte"), igual
+  criterio que ya se aplicó al mensaje de "rejection". `DEFAULT` es el
+  respaldo si `inquietud` llega vacía o con un valor que no está en el
+  mapa (cuenta vieja, sin `advisor_profile_data` migrado) — nunca se deja
+  a alguien sin Paso 2 por un dato ausente.
 */
-const STEP2_TEXT = 'El secreto del éxito es el sistema. Te guiaremos paso a paso para que '
-  + 'conectar con tu entorno sea una experiencia fluida y sin fricción.';
-const STEP3_TEXT = 'Comencemos por tus primeros apoyos. Para desbloquear tu agenda, ingresa '
-  + `a ${PROSPECT_COUNT} personas cercanas a ti.`;
+const STEP2_TEXT_BY_CONCERN = {
+  rejection: 'El secreto del éxito es el sistema. Te guiaremos paso a paso para que '
+    + 'conectar con tu entorno sea una experiencia fluida y sin fricción.',
+  technical: 'El secreto de los grandes asesores no es saberlo todo de memoria, es tener '
+    + 'las herramientas correctas. Tu asistente está equipado con los guiones, cálculos y '
+    + 'estrategias que necesitas. Tú pon la empatía, nosotros ponemos la técnica.',
+  organization: 'A partir de hoy, olvídate de pensar qué hacer a continuación. Tu asistente '
+    + 'estructurará tu día de forma automática. Te diremos a quién contactar, cuándo darle '
+    + 'seguimiento y qué paso sigue. Solo tienes que ejecutar.',
+  none: 'Excelente actitud. Sabemos que vienes listo para romperla. Este espacio está '
+    + 'diseñado para acelerar tus resultados y escalar tus ventas sin burocracia. Vamos '
+    + 'directo a la acción.',
+};
+const DEFAULT_STEP2_TEXT = STEP2_TEXT_BY_CONCERN.rejection;
+
+/**
+ * Texto del Paso 2 según la inquietud declarada — nunca `undefined`: cae al
+ * mensaje de "rejection" (el más neutro de los cuatro) si `inquietud` no
+ * coincide con ninguna clave conocida.
+ */
+function step2TextFor(inquietud) {
+  return STEP2_TEXT_BY_CONCERN[inquietud] ?? DEFAULT_STEP2_TEXT;
+}
+
+/*
+  Cuántos slots pide el Paso 3, según el tamaño de mercado declarado
+  (`MARKET_OPTIONS`, `advisorOnboarding.js`): a quien apenas tiene un
+  mercado cálido pequeño no se le exige la misma lista que a quien ya
+  declaró más de 50 contactos — pedirle 5 nombres a alguien con menos de
+  20 sería fricción sin sentido, y pedirle sólo 3 a alguien con más de 50
+  desaprovecharía la ventaja que esa persona ya tiene. El respaldo
+  (`DEFAULT_SLOT_COUNT`) es el mínimo de los tres, no el máximo: un dato
+  ausente no debe exigir más de lo que se exigiría con la opción más
+  conservadora.
+*/
+const SLOT_COUNT_BY_MARKET = {
+  under_20: 3,
+  between_20_50: 4,
+  over_50: 5,
+};
+const DEFAULT_SLOT_COUNT = SLOT_COUNT_BY_MARKET.under_20;
+
+/** Cuántos slots pide el Paso 3 según el mercado declarado — 3 por defecto si `mercado` no coincide con ninguna opción conocida. */
+function slotCountFor(mercado) {
+  return SLOT_COUNT_BY_MARKET[mercado] ?? DEFAULT_SLOT_COUNT;
+}
+
+const step3Text = (slotCount) => 'Comencemos por tus primeros apoyos. Para desbloquear tu '
+  + `agenda, ingresa a ${slotCount} personas cercanas a ti.`;
 /*
   Aclaración secundaria, no la instrucción principal — mismo criterio que
   `SCHEDULE_HINT_TEXT` en `OnboardingFlow.jsx`: entra con fade-in aparte, sin
@@ -128,15 +174,17 @@ function GreetingStep({ name, onContinue }) {
 
 /**
  * Paso 2 — Enfoque empoderador, en un solo mensaje: habla del sistema que
- * va a guiar el arranque, sin nombrar de frente la inquietud declarada. El
+ * va a guiar el arranque, sin nombrar de frente la inquietud declarada.
+ * `text` ya viene resuelto por `step2TextFor(inquietud)` desde
+ * `FirstLoginIntro` — este componente no decide el tono, sólo lo dibuja. El
  * botón se enciende al terminar de escribirse, igual que en el Paso 1.
  */
-function EmpowermentStep({ onContinue }) {
-  const { typed, isTyping } = useTypewriter(STEP2_TEXT);
+function EmpowermentStep({ text, onContinue }) {
+  const { typed, isTyping } = useTypewriter(text);
 
   return (
     <div className="flex flex-col items-center px-6 text-center">
-      <p className="sr-only">{STEP2_TEXT}</p>
+      <p className="sr-only">{text}</p>
       <p
         className="max-w-lg text-xl font-light leading-snug text-white sm:text-2xl"
         aria-hidden="true"
@@ -264,16 +312,20 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
  * edición manual compacta) o de una sola vez con el selector nativo de
  * contactos del teléfono, si el navegador lo soporta.
  *
- * "CONTINUAR" exige al menos un nombre entre los tres slots; "Saltar paso"
+ * "CONTINUAR" exige al menos un nombre entre los slots; "Saltar paso"
  * no exige nada — es la fuga para quien prefiere no capturar a nadie en
  * este momento, y sigue otorgando el punto igual que si los hubiera
  * llenado (la recompensa es por haber cruzado el paso, no por los datos).
+ *
+ * `slotCount` ya viene resuelto por `slotCountFor(mercado)` desde
+ * `FirstLoginIntro` — este componente no decide cuántos slots dibujar,
+ * sólo los dibuja.
  */
-function ProspectCaptureStep({ onContinue, onSkip }) {
-  const { typed, isTyping } = useTypewriter(STEP3_TEXT);
+function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
+  const { typed, isTyping } = useTypewriter(step3Text(slotCount));
   const [showSubtext, setShowSubtext] = useState(false);
   const [prospects, setProspects] = useState(
-    () => Array.from({ length: PROSPECT_COUNT }, () => ({ ...EMPTY_PROSPECT })),
+    () => Array.from({ length: slotCount }, () => ({ ...EMPTY_PROSPECT })),
   );
   const [editingIndex, setEditingIndex] = useState(null);
 
@@ -293,7 +345,7 @@ function ProspectCaptureStep({ onContinue, onSkip }) {
 
   /**
    * Abre el selector nativo de contactos y coloca los primeros
-   * `PROSPECT_COUNT` elegidos en los slots, en el orden en que la persona
+   * `slotCount` elegidos en los slots, en el orden en que la persona
    * los seleccionó. Cada contacto puede traer varios teléfonos o ninguno
    * nombre —se toma el primero de cada arreglo, con respaldo a cadena
    * vacía— porque el slot ya sabe mostrarse "lleno" con sólo el nombre.
@@ -310,7 +362,7 @@ function ProspectCaptureStep({ onContinue, onSkip }) {
 
       setProspects((current) => {
         const next = [...current];
-        picked.slice(0, PROSPECT_COUNT).forEach((contact, index) => {
+        picked.slice(0, slotCount).forEach((contact, index) => {
           next[index] = {
             nombre: contact.name?.[0] ?? '',
             telefono: contact.tel?.[0] ?? '',
@@ -331,7 +383,7 @@ function ProspectCaptureStep({ onContinue, onSkip }) {
 
   return (
     <div className="flex w-full flex-col items-center px-6 text-center">
-      <p className="sr-only">{`${STEP3_TEXT} ${STEP3_SUBTEXT}`}</p>
+      <p className="sr-only">{`${step3Text(slotCount)} ${STEP3_SUBTEXT}`}</p>
       <p
         className="max-w-md text-lg leading-snug text-white sm:text-xl"
         aria-hidden="true"
@@ -554,18 +606,20 @@ function StartStep({ onStart }) {
 }
 
 /**
- * Introducción de la primera entrada a la app, sólo para quien declaró
- * "El miedo al rechazo o a contactar conocidos" (`inquietud === 'rejection'`,
- * ver `advisorOnboarding.js`) en el Onboarding, y sólo mientras sus puntos
- * sigan en 0 — es `TodayView.jsx` quien decide esas dos condiciones antes de
- * montar este componente, no algo que se compruebe aquí adentro.
+ * Introducción de la primera entrada a la app. Se muestra sólo para quien
+ * declaró alguna inquietud en el Onboarding (ver `advisorOnboarding.js`) y
+ * sólo mientras sus puntos sigan en 0 — es `TodayView.jsx` quien decide esa
+ * condición antes de montar este componente, no algo que se compruebe aquí
+ * adentro. `inquietud` y `mercado` sí se usan aquí, para calibrar el tono
+ * del Paso 2 y la cantidad de slots del Paso 3, respectivamente.
  *
  * Cinco momentos en un único estado local (`step`), sin enrutador ni pila
  * de historial: es un recorrido lineal, sin "Atrás".
  *
  *   1. Saludo (`GreetingStep`)
- *   2. Enfoque empoderador (`EmpowermentStep`)
- *   3. Captura de prospectos por slots (`ProspectCaptureStep`) — "Continuar" o "Saltar paso"
+ *   2. Enfoque empoderador (`EmpowermentStep`) — texto según `inquietud`
+ *   3. Captura de prospectos por slots (`ProspectCaptureStep`) — cantidad
+ *      de slots según `mercado`; "Continuar" o "Saltar paso"
  *   4. Recompensa automática (`RewardStep`) — confeti + logro, `REWARD_AUTO_MS`
  *   5. Botón final (`StartStep`) — la persona decide cuándo cruzar
  *
@@ -575,10 +629,15 @@ function StartStep({ onStart }) {
  * para sumar el punto de verdad (`useAdvisorPoints`) y sólo entonces monta
  * "Hoy" por detrás.
  */
-export default function FirstLoginIntro({ name, username, onComplete }) {
+export default function FirstLoginIntro({ name, username, inquietud, mercado, onComplete }) {
   const [step, setStep] = useState(1);
   const [capturedCount, setCapturedCount] = useState(0);
   const [closing, setClosing] = useState(false);
+
+  // Resueltos una sola vez: ni la inquietud ni el mercado cambian mientras
+  // esta pantalla está montada.
+  const [step2Text] = useState(() => step2TextFor(inquietud));
+  const [slotCount] = useState(() => slotCountFor(mercado));
 
   const continueCapture = (entries) => {
     writeSafeZone(username, entries);
@@ -607,9 +666,13 @@ export default function FirstLoginIntro({ name, username, onComplete }) {
       aria-label="Bienvenida a tu primer punto"
     >
       {step === 1 && <GreetingStep name={name} onContinue={() => setStep(2)} />}
-      {step === 2 && <EmpowermentStep onContinue={() => setStep(3)} />}
+      {step === 2 && <EmpowermentStep text={step2Text} onContinue={() => setStep(3)} />}
       {step === 3 && (
-        <ProspectCaptureStep onContinue={continueCapture} onSkip={skipCapture} />
+        <ProspectCaptureStep
+          slotCount={slotCount}
+          onContinue={continueCapture}
+          onSkip={skipCapture}
+        />
       )}
       {step === 4 && (
         <RewardStep capturedCount={capturedCount} onDone={() => setStep(5)} />
