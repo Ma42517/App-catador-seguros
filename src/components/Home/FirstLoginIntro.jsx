@@ -1,7 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Trophy, User, BookUser } from 'lucide-react';
+import {
+  Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle,
+} from 'lucide-react';
 import useTypewriter from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
+import { useSession } from '../../context/SessionContext';
+import { joinPromotoriaByCode, describeError } from '../../data/promotoriaRepo';
+import { normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCode';
 
 /** Cuánto tarda cada fundido de esta pantalla (el de la recompensa hacia "Iniciar", y el del overlay completo al presionarlo), en ms — usado tanto en las clases de Tailwind como en los temporizadores que esperan a que termine antes de avanzar. */
 const FADE_OUT_MS = 700;
@@ -91,6 +96,15 @@ const step3Text = (slotCount) => 'Comencemos por tus primeros apoyos. Para desbl
 */
 const STEP3_SUBTEXT = 'No haremos nada con ellos hoy ni te pediremos que les llames. Solo '
   + 'estamos preparando el terreno.';
+
+/*
+  Paso 5 — Unirse a un equipo de trabajo. Vive después de la recompensa y
+  antes de "Iniciar": ya se ganó el punto, así que este paso no condiciona
+  nada de eso — es una invitación aparte, con su propia salida ("Saltar por
+  ahora"), para quien ya tiene el código de su promotoría a la mano.
+*/
+const STEP5_TEXT = '¿Ya tienes el código de tu promotoría? Únete a tu equipo de trabajo.';
+const STEP5_SUBTEXT = 'Si no lo tienes a la mano, puedes hacerlo después desde tu perfil.';
 
 /*
   Resplandor compartido por los botones de avance (Continuar, Entendido,
@@ -573,7 +587,150 @@ function RewardStep({ capturedCount, onDone }) {
 }
 
 /**
- * Paso 4b — El botón final. Aparece solo, sin confeti ni texto de logro
+ * Paso 5 — Unirse a un equipo de trabajo, justo antes de "Iniciar".
+ *
+ * Reutiliza la misma escritura real que ya usan `JoinPromotoria.jsx` y
+ * `AccessBar.jsx` (`joinPromotoriaByCode`, con el mismo formato y mensajes
+ * de `promotoriaCode.js`) — no una copia simplificada: el código que se
+ * teclea aquí deja a la persona en `pending` de la misma promotoría, tal
+ * cual como si lo hubiera hecho desde el panel de "Ver más" más adelante.
+ *
+ * "Saltar por ahora" existe porque unirse a un equipo no es parte de la
+ * condición que hace aparecer esta introducción —a diferencia de la
+ * captura de prospectos, aquí no hay ningún punto en juego—: quien no
+ * tiene el código a la mano sigue su camino sin perder nada, y puede
+ * hacerlo después desde su perfil.
+ */
+function JoinTeamStep({ onContinue }) {
+  const { refreshIdentity } = useSession();
+  const [code, setCode] = useState('');
+  const [isBusy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [joined, setJoined] = useState('');
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError('');
+
+    const normalized = normalizeCode(code);
+    if (!isValidCode(normalized)) {
+      setError(explainCode(code));
+      return;
+    }
+
+    setBusy(true);
+    const { data, error: joinError } = await joinPromotoriaByCode(normalized);
+    setBusy(false);
+
+    if (joinError) {
+      setError(describeError(joinError));
+      return;
+    }
+
+    setJoined(data?.promotoria || 'tu promotoría');
+    // Se relee la identidad ahora, no al presionar "Iniciar" más abajo: así
+    // "Hoy" ya sabe que hay una promotoría en espera desde el primer
+    // instante en que aparece, en vez de un segundo después.
+    await refreshIdentity?.();
+  };
+
+  if (joined) {
+    return (
+      <div className="flex flex-col items-center px-6 text-center">
+        <span
+          className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border
+                     border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+          aria-hidden="true"
+        >
+          <CheckCircle2 size={24} strokeWidth={1.8} aria-hidden="true" />
+        </span>
+
+        <p className="text-lg font-semibold text-white">Solicitud enviada</p>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-400">
+          Pediste unirte a <span className="font-semibold text-slate-200">{joined}</span>.
+          Falta que tu promotor apruebe tu acceso.
+        </p>
+
+        <button
+          type="button"
+          onClick={onContinue}
+          className={`mt-8 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
+                     text-white transition-colors hover:bg-indigo-500 active:scale-95
+                     ${GLOW_BUTTON_CLASS}`}
+        >
+          Continuar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="flex w-full flex-col items-center px-6 text-center">
+      <span
+        className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border
+                   border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+        aria-hidden="true"
+      >
+        <Users size={24} strokeWidth={1.8} aria-hidden="true" />
+      </span>
+
+      <p className="max-w-sm text-lg leading-snug text-white sm:text-xl">{STEP5_TEXT}</p>
+      <p className="mt-2 max-w-xs text-[11px] leading-snug text-white/40">{STEP5_SUBTEXT}</p>
+
+      <div className="mt-6 w-full max-w-xs">
+        <label className="sr-only" htmlFor="join-team-code">Código de promotoría</label>
+        <input
+          id="join-team-code"
+          value={code}
+          onChange={(event) => { setCode(normalizeCode(event.target.value)); setError(''); }}
+          placeholder="PROMO-866-01"
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck="false"
+          maxLength={15}
+          className="w-full rounded-xl border border-slate-700 bg-transparent px-3 py-3
+                     text-center font-mono text-lg tracking-[0.15em] text-white
+                     placeholder:text-slate-600 transition-colors focus:border-indigo-500
+                     focus:outline-none"
+        />
+
+        {error && (
+          <p
+            role="alert"
+            className="mt-2.5 flex items-start gap-2 rounded-xl border border-rose-500/30
+                       bg-rose-500/10 p-3 text-left text-[11px] leading-relaxed text-rose-300"
+          >
+            <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={isBusy}
+          className={`mt-4 flex w-full items-center justify-center gap-2 rounded-full
+                     bg-indigo-600 px-8 py-3 text-sm font-semibold text-white
+                     transition-all hover:bg-indigo-500 active:scale-95
+                     disabled:cursor-wait disabled:opacity-70 ${GLOW_BUTTON_CLASS}`}
+        >
+          {isBusy && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+          {isBusy ? 'Enviando…' : 'Unirme al equipo'}
+        </button>
+
+        <button
+          type="button"
+          onClick={onContinue}
+          className="mt-4 block w-full text-sm text-slate-500 transition-colors hover:text-white"
+        >
+          Hacerlo después
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Paso 6 — El botón final. Aparece solo, sin confeti ni texto de logro
  * —esos ya se desvanecieron con `RewardStep`—, con el mismo resplandor del
  * resto de los botones de avance. Al presionarlo arranca el fundido de
  * todo el overlay (`closing`, en `FirstLoginIntro`) y sólo cuando ese
@@ -613,7 +770,7 @@ function StartStep({ onStart }) {
  * adentro. `inquietud` y `mercado` sí se usan aquí, para calibrar el tono
  * del Paso 2 y la cantidad de slots del Paso 3, respectivamente.
  *
- * Cinco momentos en un único estado local (`step`), sin enrutador ni pila
+ * Seis momentos en un único estado local (`step`), sin enrutador ni pila
  * de historial: es un recorrido lineal, sin "Atrás".
  *
  *   1. Saludo (`GreetingStep`)
@@ -621,7 +778,9 @@ function StartStep({ onStart }) {
  *   3. Captura de prospectos por slots (`ProspectCaptureStep`) — cantidad
  *      de slots según `mercado`; "Continuar" o "Saltar paso"
  *   4. Recompensa automática (`RewardStep`) — confeti + logro, `REWARD_AUTO_MS`
- *   5. Botón final (`StartStep`) — la persona decide cuándo cruzar
+ *   5. Unirse a un equipo de trabajo (`JoinTeamStep`) — código real de
+ *      promotoría, o "Hacerlo después"
+ *   6. Botón final (`StartStep`) — la persona decide cuándo cruzar
  *
  * `onComplete` se llama cuando termina el fundido de salida de todo el
  * overlay, disparado por el toque en "Iniciar" — no antes, y no por un
@@ -677,7 +836,8 @@ export default function FirstLoginIntro({ name, username, inquietud, mercado, on
       {step === 4 && (
         <RewardStep capturedCount={capturedCount} onDone={() => setStep(5)} />
       )}
-      {step === 5 && <StartStep onStart={handleStart} />}
+      {step === 5 && <JoinTeamStep onContinue={() => setStep(6)} />}
+      {step === 6 && <StartStep onStart={handleStart} />}
     </div>
   );
 }
