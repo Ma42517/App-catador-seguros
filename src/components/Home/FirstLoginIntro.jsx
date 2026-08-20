@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight, ListChecks,
-  Plus, ChevronRight,
+  Plus, ChevronRight, Phone,
 } from 'lucide-react';
 import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
@@ -153,12 +153,20 @@ const TASK_STEP_SUBTEXT = 'Agilicemos tu horario. Escribe tus próximas acciones
 
 /**
  * Tarea vacía: la forma exacta de cada slot del Paso 3 en la rama de carga
- * administrativa — sólo la categoría y el nombre. Nada de teléfono, hora
- * editable ni detalle por categoría: la especificación pide que este paso
- * capture rápido y sin fricción, y que ningún dato adicional se le pida
- * aquí — sólo "qué es" y "de quién es".
+ * administrativa: categoría, nombre, teléfono y hora.
+ *
+ * `hora` no arranca vacía en la práctica: `TaskCaptureStep` la llena con
+ * `defaultTaskTime(index)` al crear cada slot —una sugerencia editable, no
+ * una casilla en blanco—, así la persona siempre ve a qué hora quedaría su
+ * pendiente en el calendario sin tener que pensarlo, y puede corregirla si
+ * ya sabe cuándo es de verdad. `telefono` es opcional: no todas las
+ * actividades tienen a alguien a quien llamar (por ejemplo, un trámite
+ * interno), así que no bloquea el guardado.
  */
-const EMPTY_TASK = { tipo: 'call', descripcion: '' };
+const EMPTY_TASK = { tipo: 'call', descripcion: '', telefono: '', hora: '' };
+
+/** Hora de respaldo si `hora` llega vacía al guardar (no debería pasar: cada slot nace con `defaultTaskTime`). */
+const DEFAULT_TASK_HOUR = '09:00';
 
 /*
   Catálogo de acciones agendables — lista corta y cerrada, sin puntos: cada
@@ -611,12 +619,9 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
 
 /**
  * Una fila del Paso 3 en la rama de carga administrativa: vacía (borde
- * punteado, invita a tocarla) o llena (tarjeta sólida con el nombre y la
- * categoría) — mismo criterio de dos estados que `ProspectSlot`. Sin
- * badge de puntos ni datos extra (hora, teléfono, detalle): la
- * especificación reduce el slot a sólo lo que se ve en `TaskEditorSheet`
- * — categoría y nombre — así que la fila no puede mostrar más de lo que
- * en verdad se captura.
+ * punteado, invita a tocarla) o llena (tarjeta sólida con el nombre, la
+ * hora, la categoría y, si lo trae, el teléfono) — mismo criterio de dos
+ * estados que `ProspectSlot`.
  */
 function TaskSlot({ index, value, onOpen }) {
   const isFilled = Boolean(value.descripcion.trim());
@@ -634,7 +639,8 @@ function TaskSlot({ index, value, onOpen }) {
             {value.descripcion}
           </span>
           <span className="block truncate text-xs text-slate-500">
-            {taskTypeLabel(value.tipo)}
+            {value.hora || DEFAULT_TASK_HOUR} · {taskTypeLabel(value.tipo)}
+            {value.telefono && ` · ${value.telefono}`}
           </span>
         </span>
         <ChevronRight size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
@@ -657,13 +663,16 @@ function TaskSlot({ index, value, onOpen }) {
 }
 
 /**
- * Hoja de edición de una tarea — reducida a lo estrictamente pedido: un
- * `<select>` de "Tipo de Acción" (`TASK_TYPE_OPTIONS`, sin ningún texto de
- * puntos junto a él) y un `input` para "Nombre del cliente o prospecto".
- * Ni teléfono, ni hora editable, ni preguntas extra por categoría
- * (trámite, capacitación...): agendar una acción no otorga nada por sí
- * misma — el resultado real, y los puntos que le correspondan, se
- * reportan en otro flujo una vez que la acción ya ocurrió.
+ * Hoja de edición de una tarea: "Tipo de Acción" (`TASK_TYPE_OPTIONS`, sin
+ * ningún texto de puntos junto a él — agendar no otorga nada por sí
+ * misma, el resultado real se reporta en otro flujo), nombre del cliente
+ * o prospecto, teléfono y hora.
+ *
+ * `hora` viaja hasta la Agenda real como el horario exacto de esa
+ * actividad —no la hora escalonada y genérica que traía cada slot al
+ * nacer, ver `defaultTaskTime`—, y `telefono` es lo que en el futuro deja
+ * que un recordatorio de esta tarea ofrezca "Llamar" o "Mandar WhatsApp"
+ * en vez de sólo notificar que existe.
  *
  * Trabaja sobre un borrador local (`draft`) y no sobre `value` directo:
  * "Cancelar" debe dejar el slot exactamente como estaba, y confirmar cada
@@ -681,7 +690,12 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
   const canSave = Boolean(draft.descripcion.trim());
 
   const handleSave = () => {
-    onSave({ ...draft, descripcion: draft.descripcion.trim() });
+    onSave({
+      ...draft,
+      descripcion: draft.descripcion.trim(),
+      telefono: draft.telefono.trim(),
+      hora: draft.hora || DEFAULT_TASK_HOUR,
+    });
   };
 
   return (
@@ -743,6 +757,58 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
           />
         </div>
 
+        {/*
+          La hora: llega pre-llenada con `defaultTaskTime(index)` desde
+          `TaskCaptureStep` (una sugerencia, no una casilla en blanco), y
+          aquí se puede corregir a la hora real del pendiente — es lo que
+          hace que la Agenda muestre la hora en que la persona de verdad
+          tiene esa actividad, y no una hora escalonada sin sentido.
+        */}
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
+                             text-slate-500" htmlFor="task-sheet-time"
+          >
+            Hora
+          </label>
+          <input
+            id="task-sheet-time"
+            value={draft.hora}
+            onChange={(event) => setDraft((current) => (
+              { ...current, hora: event.target.value }
+            ))}
+            type="time"
+            className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+                       text-sm text-white [color-scheme:dark] focus:border-indigo-500
+                       focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
+                             text-slate-500" htmlFor="task-sheet-phone"
+          >
+            Teléfono
+          </label>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-700
+                          bg-slate-800/60 px-3"
+          >
+            <Phone size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
+            <input
+              id="task-sheet-phone"
+              value={draft.telefono}
+              onChange={(event) => setDraft((current) => (
+                { ...current, telefono: event.target.value }
+              ))}
+              placeholder="10 dígitos"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white
+                         placeholder:text-slate-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={handleSave}
@@ -763,18 +829,17 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
  * Paso 3 en la rama de carga administrativa — "Descarga tu mente": en vez
  * de capturar prospectos, la persona vacía sus pendientes en `slotCount`
  * filas (`taskSlotCountFor(mercado)`, según la cartera declarada en el
- * Onboarding). Cada fila se llena abriendo `TaskEditorSheet`, que sólo
- * pide categoría y nombre — nada de hora, teléfono ni preguntas por
- * categoría: agendar la acción es rápido a propósito, y no otorga puntos
- * por sí sola (el punto de esta introducción se otorga en
+ * Onboarding). Cada fila se llena abriendo `TaskEditorSheet` (categoría,
+ * nombre, teléfono y hora) — agendar la acción no otorga puntos por sí
+ * sola (el punto de esta introducción se otorga en
  * `continueTaskCapture`/`skipTaskCapture`, siempre fijo en 1, sin
  * depender de cuántas tareas se hayan capturado aquí).
  *
- * La hora que cada tarea recibe al mandarse a la Agenda real
- * (`defaultTaskTime(index)`, escalonada de media hora en media hora desde
- * las 9:00) se asigna después, en `continueTaskCapture`
- * (`FirstLoginIntro`) — aquí, en la captura, la persona nunca la ve ni la
- * edita.
+ * Cada slot arranca ya con una hora sugerida (`defaultTaskTime(index)`,
+ * escalonada de media hora en media hora desde las 9:00) para que la
+ * Agenda nunca reciba un pendiente sin horario — la persona puede
+ * corregirla en `TaskEditorSheet` si ya sabe cuándo es de verdad, pero
+ * nunca la deja vacía sin darse cuenta.
  *
  * "CONTINUAR" exige llenar al menos `MIN_FILLED_TASKS` de las filas, no
  * todas — regla anti-fricción de la especificación: quien tiene 10 slots
@@ -782,13 +847,16 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
  * quedarse atorado inventando los siete que faltan.
  *
  * `onContinue` recibe las tareas limpias (descripción no vacía) para que
- * `FirstLoginIntro` las mande a la Agenda real.
+ * `FirstLoginIntro` las mande a la Agenda real, siempre con prioridad
+ * máxima (ver `continueTaskCapture`).
  */
 function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
   const { typed, isTyping } = useTypewriter(TASK_STEP_TEXT);
   const [showSubtext, setShowSubtext] = useState(false);
   const [tasks, setTasks] = useState(
-    () => Array.from({ length: slotCount }, () => ({ ...EMPTY_TASK })),
+    () => Array.from({ length: slotCount }, (_, index) => (
+      { ...EMPTY_TASK, hora: defaultTaskTime(index) }
+    )),
   );
   const [openIndex, setOpenIndex] = useState(null);
 
@@ -804,7 +872,12 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
   };
 
   const cleanEntries = tasks
-    .map((t) => ({ tipo: t.tipo, descripcion: t.descripcion.trim() }))
+    .map((t) => ({
+      tipo: t.tipo,
+      descripcion: t.descripcion.trim(),
+      telefono: t.telefono.trim(),
+      hora: t.hora || DEFAULT_TASK_HOUR,
+    }))
     .filter((t) => t.descripcion);
   const isValid = cleanEntries.length >= MIN_FILLED_TASKS;
 
@@ -1293,9 +1366,14 @@ export default function FirstLoginIntro({
     aparece con los pendientes que la persona acaba de vaciar de su
     libreta — la promesa exacta de `TASK_STEP_SUBTEXT` ("nosotros nos
     encargamos de acomodarlas en tu agenda"). Todas quedan programadas para
-    hoy, con la hora escalonada de media hora en media hora
-    (`defaultTaskTime`): este paso no pregunta fecha ni hora a propósito
-    (ver `TaskCaptureStep`).
+    hoy, a la hora que cada una trae capturada (`entry.hora`, editada en
+    `TaskEditorSheet` — ya no la hora escalonada y genérica de
+    `defaultTaskTime` que traía cada slot al nacer). `telefono` viaja hasta
+    el evento real de la Agenda —no sólo hasta el título— porque es el
+    dato que en el futuro va a permitir que un aviso de esta actividad
+    ofrezca "Llamar" o "Mandar WhatsApp" en vez de sólo notificar que
+    existe: este paso no pregunta fecha a propósito (ver `TaskCaptureStep`),
+    pero la hora y el teléfono sí se preguntan.
 
     La prioridad SIEMPRE es "máxima", no `DEFAULT_PRIORITY` ("importante")
     como el resto de la app: esto no es una actividad cualquiera capturada
@@ -1316,13 +1394,14 @@ export default function FirstLoginIntro({
     arreglo).
   */
   const continueTaskCapture = (entries) => {
-    entries.forEach((entry, index) => {
+    entries.forEach((entry) => {
       addEvent({
         type: 'actividad',
         title: `${taskTypeLabel(entry.tipo)}: ${entry.descripcion}`,
         date: todayKey(),
-        time: defaultTaskTime(index),
+        time: entry.hora,
         priority: 'maxima',
+        telefono: entry.telefono,
       });
     });
     setCapturedCount(entries.length);
