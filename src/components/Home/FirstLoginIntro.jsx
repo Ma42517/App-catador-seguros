@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight, ListChecks,
-  Plus, ChevronRight, Phone, Briefcase,
+  Plus, ChevronRight, Phone, Briefcase, Share2, TrendingUp,
 } from 'lucide-react';
 import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
@@ -69,6 +69,22 @@ const STEP2_TEXT_BY_CONCERN = {
 STEP2_TEXT_BY_CONCERN.low_ticket_market = 'Para elevar tu nivel de ingresos, no necesitas '
   + 'trabajar el doble, necesitas la llave correcta. No puedes llegar a un mercado de alto '
   + 'perfil vendiendo; tienes que llegar aportando valor.';
+/*
+  Dos claves más del mismo cuestionario de "Nuevo Profesional",
+  correspondientes a las ramas de agendamiento secuencial (ver
+  `isReferralDependentBranch`/`isScaleOnlyBranch` más abajo). A diferencia
+  de `low_ticket_market`, ninguna de las dos trae un subtexto resaltado
+  aparte — el mensaje completo de la especificación es un solo bloque, así
+  que `step2HighlightFor` sigue devolviendo `null` para ambas.
+*/
+STEP2_TEXT_BY_CONCERN.referral_dependent = 'Vivir de referidos espontáneos es dejar tu '
+  + 'negocio a la suerte. Vamos a sistematizarlo. Hemos depositado 3 Diagnósticos '
+  + 'Financieros de cortesía en tu cuenta. Tu misión no es usarlos tú, es regalárselos a tus '
+  + 'mejores clientes para que ellos los compartan con la gente que más quieren.';
+STEP2_TEXT_BY_CONCERN.none_scale = 'Excelente actitud. Si vienes a romper récords, te '
+  + 'daremos la tecnología para lograrlo. Hemos habilitado el Diagnóstico Financiero 360 en '
+  + 'tu arsenal. Úsalo como diferenciador premium en tus reuniones para fulminar objeciones y '
+  + 'acelerar el cierre.';
 const DEFAULT_STEP2_TEXT = STEP2_TEXT_BY_CONCERN.rejection;
 
 /**
@@ -220,6 +236,78 @@ const HYBRID_ACHIEVEMENT = {
   label: () => 'Armería Desbloqueada',
 };
 
+/*
+  ── Ramas "Nuevo Profesional" con agendamiento secuencial ──
+
+  Dos cuellos de botella más del mismo cuestionario
+  (`PROFESSIONAL_BOTTLENECK_OPTIONS`): "Dependo de referidos; no prospecto
+  activamente" (`referral_dependent`) y "Por el momento, ninguno. Solo
+  busco escalar" (`none_scale`). A diferencia de la rama de mercado de
+  bajo perfil (`isLowTicketMarketBranch`, Paso 3 híbrido con dos secciones
+  visibles a la vez), estas dos usan un Paso 3 en **dos fases
+  secuenciales**: primero se capturan los contactos (Fase A) y sólo al
+  tocar "Continuar" aparece la Fase B, que pide acción y fecha/hora para
+  *esos mismos contactos* — nunca dos listas independientes en pantalla al
+  mismo tiempo.
+
+  Comparten un mismo componente (`SequentialCaptureStep`) porque la
+  mecánica es idéntica entre las dos; sólo cambian los textos, la cantidad
+  de contactos y las opciones de acción — por eso viven en un único mapa
+  de configuración (`SEQUENTIAL_BRANCH_CONFIG`) en vez de duplicar el
+  componente.
+*/
+function isSequentialBranch(perfil, inquietud) {
+  return perfil === 'new_professional'
+    && (inquietud === 'referral_dependent' || inquietud === 'none_scale');
+}
+
+/** Configuración de cada rama secuencial: cuántos contactos pide, los textos de cada fase y el logro que otorga. */
+const SEQUENTIAL_BRANCH_CONFIG = {
+  referral_dependent: {
+    slotCount: 3,
+    phaseAMain: 'Selecciona a 3 de tus clientes más leales para darles este regalo.',
+    phaseAPrivacy: 'Tranquilo, esta información es estrictamente confidencial y se guarda '
+      + 'solo en tu dispositivo.',
+    phaseBMain: 'Excelente. Ahora, ¿cuándo les entregarás este obsequio?',
+    actionOptions: [
+      { value: 'call', label: 'Llamada' },
+      { value: 'message', label: 'Mensaje' },
+      { value: 'visit_event', label: 'Visita/Evento' },
+    ],
+    achievement: { icon: Share2, label: () => 'Motor de Referidos' },
+  },
+  none_scale: {
+    slotCount: 2,
+    phaseAMain: 'Para desbloquear tu herramienta, selecciona a quién quieres regalárselo.',
+    phaseAPrivacy: 'Tu información está blindada y es exclusiva para tu agenda.',
+    phaseBMain: 'Aseguremos esas firmas. Programa el contacto para utilizar tu nuevo '
+      + 'diagnóstico:',
+    actionOptions: [
+      { value: 'call', label: 'Llamada' },
+      { value: 'message', label: 'Mensaje' },
+      { value: 'visit', label: 'Visitar' },
+    ],
+    achievement: { icon: TrendingUp, label: () => 'Modo Escala' },
+  },
+};
+
+/** Configuración de la rama secuencial activa, o `undefined` si `inquietud` no es una de las dos. */
+function sequentialConfigFor(inquietud) {
+  return SEQUENTIAL_BRANCH_CONFIG[inquietud];
+}
+
+/*
+  Fecha y hora sugeridas de la fila de agendamiento número `index`
+  (0-indexado), en el formato exacto que espera un `<input
+  type="datetime-local">`: hoy (`todayKey`), a la misma hora escalonada que
+  ya usa `defaultTaskTime` — mismo criterio de "nunca dejar un pendiente
+  sin horario", ahora también con fecha explícita porque esta rama sí la
+  pide (a diferencia de las otras dos, que no preguntan fecha).
+*/
+function defaultDateTime(index) {
+  return `${todayKey()}T${defaultTaskTime(index)}`;
+}
+
 /** Cuántos slots de tareas pide el Paso 3, según la cartera declarada (Paso 5, perfil profesional). */
 const SLOT_COUNT_BY_PORTFOLIO = {
   under_50: 5,
@@ -289,6 +377,11 @@ const TASK_TYPE_OPTIONS = [
 /** Etiqueta legible de una categoría de tarea; respaldo al valor crudo si alguna vez llega uno fuera de la lista (dato viejo o corrupto). */
 function taskTypeLabel(value) {
   return TASK_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+
+/** Etiqueta legible de una acción de las ramas secuenciales, según el catálogo corto propio de esa rama (`config.actionOptions`). */
+function sequentialActionLabel(config, value) {
+  return config.actionOptions.find((option) => option.value === value)?.label ?? value;
 }
 
 /*
@@ -1257,6 +1350,263 @@ function HybridCaptureStep({ onContinue, onSkip }) {
 }
 
 /**
+ * Paso 3 en las ramas de agendamiento secuencial (referidos / sólo
+ * escalar): dos fases dentro de un mismo paso, nunca ambas visibles a la
+ * vez —a diferencia del Paso 3 híbrido de `low_ticket_market`, que sí
+ * muestra las dos secciones juntas—.
+ *
+ *   Fase A — Captura: `config.slotCount` contactos (`ProspectSlot`,
+ *     mismo componente y mismo selector nativo de contactos que ya usan
+ *     las otras ramas). "Continuar" exige al menos un nombre para poder
+ *     pasar a la Fase B —no tiene sentido programar la entrega de un
+ *     regalo a nadie—; "Saltar paso" sale del Paso 3 entero sin pasar por
+ *     la Fase B, misma fuga que ya ofrecen las otras ramas.
+ *
+ *   Fase B — Agendamiento obligatorio: por cada contacto confirmado en la
+ *     Fase A (ya no editable aquí, sólo de lectura) se pide una acción
+ *     (`config.actionOptions`, corta y propia de cada rama) y una fecha y
+ *     hora (`datetime-local`, ambas pre-llenadas con `defaultDateTime` —
+ *     igual criterio que `defaultTaskTime`: nunca vacías por accidente).
+ *     "Guardar en mi Agenda" siempre queda habilitado en esta fase: cada
+ *     fila ya nace con una acción y una fecha válidas, así que no hay
+ *     nada que deba corregirse antes de poder continuar.
+ *
+ * El cambio de fase se anima con la misma transición de opacidad que el
+ * resto del recorrido (`transition-opacity duration-700`), no con
+ * `framer-motion`: la librería no está instalada en el proyecto y esta
+ * pantalla no necesita más que un cruce simple de opacidad.
+ */
+function SequentialCaptureStep({ config, onContinue, onSkip }) {
+  const [phase, setPhase] = useState('A');
+  const mainText = phase === 'A' ? config.phaseAMain : config.phaseBMain;
+  const { typed, isTyping } = useTypewriter(mainText);
+  const [showRest, setShowRest] = useState(false);
+
+  const [contacts, setContacts] = useState(
+    () => Array.from({ length: config.slotCount }, () => ({ ...EMPTY_PROSPECT })),
+  );
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [contactPickerSupported] = useState(isContactPickerSupported);
+
+  const [confirmedContacts, setConfirmedContacts] = useState([]);
+  const [actions, setActions] = useState([]);
+
+  useEffect(() => {
+    setShowRest(false);
+    if (isTyping) return undefined;
+    const timer = setTimeout(() => setShowRest(true), 300);
+    return () => clearTimeout(timer);
+    // `phase` también dispara el fade-in del bloque de abajo, no sólo `isTyping`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTyping, phase]);
+
+  const updateContact = (index, next) => {
+    setContacts((current) => current.map((c, i) => (i === index ? next : c)));
+  };
+
+  /** Ver `ProspectCaptureStep.handleOpenContacts` — mismo comportamiento, fijo a `config.slotCount`. */
+  const handleOpenContacts = async () => {
+    try {
+      const picked = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+      if (!picked.length) return;
+
+      setContacts((current) => {
+        const next = [...current];
+        picked.slice(0, config.slotCount).forEach((contact, index) => {
+          next[index] = {
+            nombre: contact.name?.[0] ?? '',
+            telefono: contact.tel?.[0] ?? '',
+          };
+        });
+        return next;
+      });
+      setEditingIndex(null);
+    } catch {
+      // Selector cancelado o permiso negado: no hay nada que capturar.
+    }
+  };
+
+  const cleanContacts = contacts
+    .map((c) => ({ nombre: c.nombre.trim(), telefono: c.telefono.trim() }))
+    .filter((c) => c.nombre);
+  const canAdvanceToPhaseB = cleanContacts.length > 0;
+
+  const advanceToPhaseB = () => {
+    setConfirmedContacts(cleanContacts);
+    setActions(cleanContacts.map((_, index) => (
+      { tipo: config.actionOptions[0].value, fechaHora: defaultDateTime(index) }
+    )));
+    setPhase('B');
+  };
+
+  const updateAction = (index, patch) => {
+    setActions((current) => current.map((a, i) => (i === index ? { ...a, ...patch } : a)));
+  };
+
+  const handleSaveAgenda = () => {
+    onContinue(confirmedContacts.map((contact, index) => ({ ...contact, ...actions[index] })));
+  };
+
+  return (
+    <div className="flex w-full flex-col items-center px-6 text-center">
+      <p className="sr-only">
+        {phase === 'A' ? `${config.phaseAMain} ${config.phaseAPrivacy}` : config.phaseBMain}
+      </p>
+
+      <p
+        className="max-w-md text-lg leading-snug text-white sm:text-xl"
+        aria-hidden="true"
+      >
+        {typed}
+        <Caret show={isTyping} />
+      </p>
+
+      {phase === 'A' && (
+        <p
+          className={`mt-2 max-w-sm text-[11px] leading-snug text-slate-500
+                      transition-opacity duration-700
+                      ${showRest ? 'opacity-100' : 'opacity-0'}`}
+          aria-hidden="true"
+        >
+          {config.phaseAPrivacy}
+        </p>
+      )}
+
+      <div
+        className={`mt-6 w-full max-w-md transition-opacity duration-700
+                    ${showRest ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        aria-hidden={!showRest}
+      >
+        {phase === 'A' ? (
+          <>
+            <div className="space-y-3">
+              {contacts.map((value, index) => (
+                <ProspectSlot
+                  key={index}
+                  index={index}
+                  value={value}
+                  isEditing={editingIndex === index}
+                  onEdit={setEditingIndex}
+                  onChange={updateContact}
+                />
+              ))}
+            </div>
+
+            {contactPickerSupported && (
+              <button
+                type="button"
+                onClick={handleOpenContacts}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
+                           border border-slate-700 py-2.5 text-xs font-semibold text-slate-300
+                           transition-colors hover:border-slate-600 hover:text-white"
+              >
+                <BookUser size={14} aria-hidden="true" />
+                Elegir desde mi agenda
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={advanceToPhaseB}
+              disabled={!canAdvanceToPhaseB}
+              className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
+                         uppercase tracking-wide text-white transition-all hover:bg-indigo-500
+                         active:scale-95 disabled:cursor-not-allowed disabled:bg-white/[0.06]
+                         disabled:text-white/25 disabled:shadow-none
+                         ${canAdvanceToPhaseB ? GLOW_BUTTON_CLASS : ''}`}
+            >
+              Continuar
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSkip()}
+              className="mt-4 block w-full text-sm text-slate-500 transition-colors
+                         hover:text-white"
+            >
+              Saltar paso
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="space-y-3">
+              {confirmedContacts.map((contact, index) => (
+                <div
+                  key={index}
+                  className="rounded-xl border border-slate-700 bg-slate-800/50 p-4 text-left"
+                >
+                  <p className="flex items-center gap-2 text-sm font-semibold text-white">
+                    <User size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
+                    {contact.nombre}
+                  </p>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <div>
+                      <label
+                        className="mb-1 block text-[10px] font-semibold uppercase
+                                   tracking-wider text-slate-500"
+                        htmlFor={`sequential-action-${index}`}
+                      >
+                        Acción
+                      </label>
+                      <select
+                        id={`sequential-action-${index}`}
+                        value={actions[index]?.tipo ?? config.actionOptions[0].value}
+                        onChange={(event) => updateAction(index, { tipo: event.target.value })}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900/60
+                                   px-2.5 py-2 text-sm text-white focus:border-indigo-500
+                                   focus:outline-none"
+                      >
+                        {config.actionOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        className="mb-1 block text-[10px] font-semibold uppercase
+                                   tracking-wider text-slate-500"
+                        htmlFor={`sequential-datetime-${index}`}
+                      >
+                        Fecha y hora
+                      </label>
+                      <input
+                        id={`sequential-datetime-${index}`}
+                        type="datetime-local"
+                        value={actions[index]?.fechaHora ?? defaultDateTime(index)}
+                        onChange={(event) => (
+                          updateAction(index, { fechaHora: event.target.value })
+                        )}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900/60
+                                   px-2.5 py-2 text-sm text-white [color-scheme:dark]
+                                   focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSaveAgenda}
+              className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
+                         font-semibold uppercase tracking-wide text-white transition-all
+                         hover:bg-indigo-500 active:scale-95 ${GLOW_BUTTON_CLASS}`}
+            >
+              Guardar en mi Agenda
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Piezas de confeti con CSS puro, mismo criterio que ya usa
  * `Celebration.jsx` (metas cumplidas): nada de `react-confetti` ni canvas
  * para un efecto de unos segundos que en esta pantalla ocurre una sola vez
@@ -1590,8 +1940,9 @@ function StartStep({ onStart }) {
  *   2. Enfoque empoderador (`EmpowermentStep`) — texto según `inquietud`,
  *      con un subtexto resaltado extra sólo para `low_ticket_market`
  *      (`step2HighlightFor`).
- *   3. Captura por slots — tres variantes posibles, decididas por
- *      `isLowTicketMarketBranch`/`isAdminOverloadBranch(perfil, inquietud)`:
+ *   3. Captura por slots — cuatro variantes posibles, decididas por
+ *      `isSequentialBranch`/`isLowTicketMarketBranch`/
+ *      `isAdminOverloadBranch(perfil, inquietud)`:
  *        - Prospectos (`ProspectCaptureStep`), cantidad según `mercado`.
  *        - Tareas/pendientes (`TaskCaptureStep`, perfil "Nuevo
  *          Profesional" con cuello de botella "carga administrativa"),
@@ -1600,17 +1951,25 @@ function StartStep({ onStart }) {
  *          `MIN_FILLED_TASKS` llenos para continuar.
  *        - Híbrida (`HybridCaptureStep`, perfil "Nuevo Profesional" con
  *          cuello de botella "mercado de bajo perfil o primas pequeñas"):
- *          2 prospectos de alto perfil + 3 acciones concretas, fijos
- *          — alimenta a la vez la Zona Segura y la Agenda real.
- *      Las tres ofrecen "Continuar" o "Saltar paso".
+ *          2 prospectos de alto perfil + 3 acciones concretas, fijos y
+ *          visibles a la vez — alimenta a la vez la Zona Segura y la
+ *          Agenda real.
+ *        - Secuencial (`SequentialCaptureStep`, perfil "Nuevo Profesional"
+ *          con cuello de botella "referidos" o "sólo busco escalar"): dos
+ *          fases dentro del mismo paso, nunca ambas a la vez — primero se
+ *          capturan los contactos (Fase A), y sólo al continuar aparece
+ *          la Fase B, que pide acción y fecha/hora para esos mismos
+ *          contactos.
+ *      Las cuatro ofrecen "Continuar"/"Guardar en mi Agenda" o "Saltar paso".
  *   4. Recompensa automática (`RewardStep`) — confeti + logro,
  *      `REWARD_AUTO_MS`. El logro cambia según la rama ("Proyecto 200",
- *      "Agenda Optimizada" o "Armería Desbloqueada"), pero el punto es
- *      siempre "+1 Punto", igual en las tres ramas y sin importar si se
- *      llenó, se saltó o se agendaron varias tareas: es el premio de
- *      bienvenida por completar el Onboarding, no un cálculo sobre lo
- *      capturado en el Paso 3 (agendar una acción no otorga puntos por sí
- *      sola: el resultado real se reporta después, en otro flujo).
+ *      "Agenda Optimizada", "Armería Desbloqueada", "Motor de Referidos"
+ *      o "Modo Escala"), pero el punto es siempre "+1 Punto", igual en
+ *      todas las ramas y sin importar si se llenó, se saltó o se
+ *      agendaron varias tareas: es el premio de bienvenida por completar
+ *      el Onboarding, no un cálculo sobre lo capturado en el Paso 3
+ *      (agendar una acción no otorga puntos por sí sola: el resultado
+ *      real se reporta después, en otro flujo).
  *   5. Unirse a un equipo de trabajo (`JoinTeamStep`) — código real de
  *      promotoría, o "Hacerlo después"
  *   6. Botón final (`StartStep`) — la persona decide cuándo cruzar
@@ -1649,6 +2008,8 @@ export default function FirstLoginIntro({
   const [step2Highlight] = useState(() => step2HighlightFor(inquietud));
   const [isTaskBranch] = useState(() => isAdminOverloadBranch(perfil, inquietud));
   const [isHybridBranch] = useState(() => isLowTicketMarketBranch(perfil, inquietud));
+  const [isSequential] = useState(() => isSequentialBranch(perfil, inquietud));
+  const [sequentialConfig] = useState(() => sequentialConfigFor(inquietud));
   const [slotCount] = useState(() => (
     isTaskBranch ? taskSlotCountFor(mercado) : slotCountFor(mercado)
   ));
@@ -1771,6 +2132,45 @@ export default function FirstLoginIntro({
     setStep(4);
   };
 
+  /*
+    Ramas secuenciales (referidos / sólo escalar): cada entrada ya trae
+    nombre, teléfono, la acción elegida y la fecha/hora exacta —resultado
+    de la Fase B de `SequentialCaptureStep`—, así que va completa a los dos
+    destinos a la vez: el contacto a la Zona Segura (`writeSafeZone`,
+    mismo criterio que las otras ramas con prospectos) y la acción
+    agendada a la Agenda real (`addEvent`), separando la fecha y la hora
+    del valor combinado `datetime-local` porque `addEvent` espera esos dos
+    campos por separado (`date`, `time`), igual que el resto de la app.
+    Prioridad fija "máxima": es lo mismo que ya se decidió para las otras
+    ramas de este perfil — lo que la persona elige agendar aquí para
+    concretar un referido o una firma no es una actividad cualquiera.
+  */
+  const continueSequentialCapture = (entries) => {
+    writeSafeZone(username, entries.map(({ nombre, telefono }) => ({ nombre, telefono })));
+    entries.forEach((entry) => {
+      const [date, time] = entry.fechaHora.split('T');
+      addEvent({
+        type: 'actividad',
+        title: `${sequentialActionLabel(sequentialConfig, entry.tipo)}: ${entry.nombre}`,
+        date,
+        time,
+        priority: 'maxima',
+        telefono: entry.telefono,
+      });
+    });
+    setCapturedCount(entries.length);
+    setPointsEarned(1);
+    setStep(4);
+  };
+
+  /** "Saltar paso" de las ramas secuenciales — mismo criterio: nunca deja el punto de bienvenida en 0. */
+  const skipSequentialCapture = () => {
+    writeSafeZone(username, []);
+    setCapturedCount(0);
+    setPointsEarned(1);
+    setStep(4);
+  };
+
   const handleStart = () => {
     setClosing(true);
     setTimeout(() => onComplete(pointsEarned), FADE_OUT_MS);
@@ -1796,7 +2196,13 @@ export default function FirstLoginIntro({
           />
         )}
         {step === 3 && (
-          isHybridBranch ? (
+          isSequential ? (
+            <SequentialCaptureStep
+              config={sequentialConfig}
+              onContinue={continueSequentialCapture}
+              onSkip={skipSequentialCapture}
+            />
+          ) : isHybridBranch ? (
             <HybridCaptureStep
               onContinue={continueHybridCapture}
               onSkip={skipHybridCapture}
@@ -1820,9 +2226,10 @@ export default function FirstLoginIntro({
             capturedCount={capturedCount}
             pointsEarned={pointsEarned}
             achievement={
-              isHybridBranch ? HYBRID_ACHIEVEMENT
-                : isTaskBranch ? TASK_ACHIEVEMENT
-                  : PROSPECT_ACHIEVEMENT
+              isSequential ? sequentialConfig.achievement
+                : isHybridBranch ? HYBRID_ACHIEVEMENT
+                  : isTaskBranch ? TASK_ACHIEVEMENT
+                    : PROSPECT_ACHIEVEMENT
             }
             onDone={() => setStep(5)}
           />
