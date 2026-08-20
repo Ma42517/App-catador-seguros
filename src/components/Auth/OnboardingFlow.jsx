@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Sun, Moon, Sunrise, Sunset, ChevronDown } from 'lucide-react';
+import { Loader2, Sun, Moon, Sunrise, Sunset, ChevronDown, ArrowLeft } from 'lucide-react';
 import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { EXPERIENCE_LEVELS } from '../../lib/experienceLevels';
 import {
@@ -70,6 +70,41 @@ const SECONDARY_TEXT = 'Estamos analizando tus respuestas para estructurar tu pl
 function Caret({ show }) {
   if (!show) return null;
   return <span className="animate-pulse text-indigo-400">|</span>;
+}
+
+/**
+ * Flecha para volver a la pregunta anterior. Vive fija en la esquina
+ * superior izquierda de todo el recorrido —no dentro de cada paso— para
+ * no repetirla nueve veces ni para que cada paso tenga que saber en qué
+ * posición del recorrido está: quien la usa (`OnboardingFlow`) es el único
+ * que sabe cuál es el paso anterior.
+ *
+ * Sólo se dibuja del Paso 2 en adelante y desaparece en la Sala de
+ * Análisis (Paso 10, ver `onBack` más abajo): el Paso 1 no tiene nada
+ * detrás a donde volver, y el paso final es una vista terminal a
+ * propósito (misma nota que ya explica por qué `AnalysisRoomStep` no
+ * lleva controles de salida) — permitir "Atrás" ahí dejaría a la persona
+ * reabriendo un cuestionario que ya se guardó en la base.
+ *
+ * `stopPropagation` evita que el toque también dispare el acelerador de la
+ * máquina de escribir (el `onClick` del contenedor raíz, ver
+ * `OnboardingFlow`): no haría daño que lo hiciera, pero retroceder no
+ * debería, de paso, cambiar la velocidad de lectura del paso al que se
+ * vuelve.
+ */
+function BackArrow({ onBack }) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => { event.stopPropagation(); onBack(); }}
+      aria-label="Regresar a la pregunta anterior"
+      className="fixed left-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-full
+                 text-white/40 transition-colors hover:bg-white/5 hover:text-white/80
+                 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+    >
+      <ArrowLeft size={20} aria-hidden="true" />
+    </button>
+  );
 }
 
 /**
@@ -709,6 +744,20 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
   };
 
   /**
+   * Retrocede una pregunta. No hace falta ramificar por `isProfessional`
+   * aquí: los Pasos 4 a 6 comparten el mismo número de paso entre los dos
+   * perfiles (ver la nota junto a esa ramificación, más abajo), así que
+   * "un paso atrás" siempre es `step - 1`, sin importar qué cuestionario
+   * esté contestando la persona en ese momento.
+   *
+   * Nunca se guarda nada al volver —ni se borra la respuesta que ya se
+   * había dado—: `advisorData` conserva el valor elegido la primera vez,
+   * así que si la persona vuelve a avanzar sin cambiar nada, encuentra la
+   * misma opción marcada donde la había dejado.
+   */
+  const goBack = () => setStep((current) => Math.max(1, current - 1));
+
+  /**
    * Cierra el cuestionario: guarda la radiografía completa y la etapa
    * profesional, y sólo entonces avanza a la Sala de Análisis.
    *
@@ -741,6 +790,13 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
       className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-4 py-10"
       onClick={() => setFastTyping(true)}
     >
+      {/*
+        Del Paso 2 al 9: el Paso 1 no tiene pregunta anterior a la que
+        volver, y el Paso 10 (Sala de Análisis) es una vista terminal —ver
+        la nota junto a `BackArrow`.
+      */}
+      {step > 1 && step < 10 && <BackArrow onBack={goBack} />}
+
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
       {step === 1 && <NameStep initialValue={advisorData.nombre} onContinue={submitName} />}
 
