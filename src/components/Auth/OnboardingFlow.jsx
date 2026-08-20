@@ -98,7 +98,16 @@ function BackArrow({ onBack }) {
       type="button"
       onClick={(event) => { event.stopPropagation(); onBack(); }}
       aria-label="Regresar a la pregunta anterior"
-      className="fixed left-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-full
+      /*
+        `z-[60]`, por encima de la insignia "Vista previa · Reiniciar"
+        (`z-50`, `App.jsx`) que ocupa esta misma esquina sólo en el entorno
+        de prueba (`?onboardingPreview=1`): sin esta prioridad, la flecha
+        quedaba dibujada pero inalcanzable al tacto en ese entorno —en un
+        registro real esta insignia no existe, pero la flecha debe seguir
+        respondiendo ahí también, así que se sube en vez de esconderse
+        condicionalmente.
+      */
+      className="fixed left-4 top-4 z-[60] grid h-10 w-10 place-items-center rounded-full
                  text-white/40 transition-colors hover:bg-white/5 hover:text-white/80
                  focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
     >
