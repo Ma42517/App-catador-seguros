@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight, ListChecks,
-  Plus, ChevronRight, Phone,
+  Plus, ChevronRight, Phone, Briefcase,
 } from 'lucide-react';
 import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
@@ -54,6 +54,21 @@ const STEP2_TEXT_BY_CONCERN = {
     + 'diseñado para acelerar tus resultados y escalar tus ventas sin burocracia. Vamos '
     + 'directo a la acción.',
 };
+/*
+  El perfil "Nuevo Profesional" tiene su propio cuestionario de inquietudes
+  (`PROFESSIONAL_BOTTLENECK_OPTIONS`, `advisorOnboarding.js`), con claves
+  que nunca chocan con las de `CONCERN_OPTIONS` arriba — por eso su mensaje
+  del Paso 2 puede vivir en el mismo mapa, sin arriesgar que una clave de un
+  perfil pise por accidente la del otro. Sólo `low_ticket_market` (mercado
+  de bajo perfil o primas pequeñas) tiene mensaje propio hoy: es la única
+  rama de este perfil con un Paso 3 distinto al genérico (ver
+  `isLowTicketMarketBranch` más abajo) — el resto de las inquietudes de
+  "Nuevo Profesional" (`admin_overload` aparte, que tiene su propio Paso 3
+  de tareas) todavía usa el respaldo genérico de "rejection".
+*/
+STEP2_TEXT_BY_CONCERN.low_ticket_market = 'Para elevar tu nivel de ingresos, no necesitas '
+  + 'trabajar el doble, necesitas la llave correcta. No puedes llegar a un mercado de alto '
+  + 'perfil vendiendo; tienes que llegar aportando valor.';
 const DEFAULT_STEP2_TEXT = STEP2_TEXT_BY_CONCERN.rejection;
 
 /**
@@ -63,6 +78,28 @@ const DEFAULT_STEP2_TEXT = STEP2_TEXT_BY_CONCERN.rejection;
  */
 function step2TextFor(inquietud) {
   return STEP2_TEXT_BY_CONCERN[inquietud] ?? DEFAULT_STEP2_TEXT;
+}
+
+/*
+  Subtexto resaltado del Paso 2, sólo para quien lo tiene: a diferencia del
+  texto principal (`STEP2_TEXT_BY_CONCERN`, siempre presente con un
+  respaldo), este segundo bloque es la excepción, no la regla — hoy sólo
+  existe para `low_ticket_market`, el anuncio de que ya tiene 3 Diagnósticos
+  Financieros 360 de cortesía desbloqueados, la herramienta que va a usar
+  para acercarse a los prospectos de alto perfil del Paso 3. El resto de
+  las inquietudes no tienen nada que resaltar aquí, así que
+  `step2HighlightFor` devuelve `null` para ellas y `EmpowermentStep` no
+  dibuja el bloque en absoluto.
+*/
+const STEP2_HIGHLIGHT_BY_CONCERN = {
+  low_ticket_market: 'Por eso, hemos desbloqueado 3 Diagnósticos Financieros 360 de cortesía '
+    + 'en tu cuenta. Esta herramienta será tu excusa perfecta para acercarte a prospectos de '
+    + 'alto nivel regalándoles una consultoría.',
+};
+
+/** Subtexto resaltado del Paso 2 para esta inquietud, o `null` si no tiene uno declarado. */
+function step2HighlightFor(inquietud) {
+  return STEP2_HIGHLIGHT_BY_CONCERN[inquietud] ?? null;
 }
 
 /*
@@ -122,6 +159,66 @@ const step3Text = (slotCount) => 'Comencemos por tus primeros apoyos. Para desbl
 function isAdminOverloadBranch(perfil, inquietud) {
   return perfil === 'new_professional' && inquietud === 'admin_overload';
 }
+
+/*
+  ── Rama "Nuevo Profesional" con mercado de bajo perfil ──
+
+  Quien marcó "Trabajo con un mercado de bajo perfil o primas pequeñas"
+  (`advisorProfileData.inquietud === 'low_ticket_market'`, ver
+  `PROFESSIONAL_BOTTLENECK_OPTIONS`) no necesita vaciar pendientes ni
+  juntar apoyos cercanos: ya tiene cartera, pero de tickets pequeños — lo
+  que le falta es la llave para llegar a un mercado de mayor nivel. El
+  Paso 3 se vuelve híbrido: 2 prospectos de alto perfil (para la lista de
+  Prospectos/Zona Segura, mismo destino que `ProspectCaptureStep`) y 3
+  acciones concretas para agendar (para la Agenda real, mismo destino que
+  `TaskCaptureStep`) — un único paso que alimenta los dos lugares a la
+  vez, en vez de elegir entre uno u otro como las dos ramas anteriores.
+
+  Esta rama es exclusiva de "Nuevo Profesional" + "mercado de bajo perfil
+  o primas pequeñas": ningún otro perfil ni ninguna otra inquietud debe
+  activarla, por eso compara ambos valores exactos y no sólo la
+  inquietud — la misma clave `low_ticket_market` no existe en el
+  cuestionario de "Nuevo Asesor" (`CONCERN_OPTIONS`), pero la comparación
+  explícita del perfil deja la regla a prueba de futuros cuestionarios que
+  reciclen nombres de clave.
+*/
+function isLowTicketMarketBranch(perfil, inquietud) {
+  return perfil === 'new_professional' && inquietud === 'low_ticket_market';
+}
+
+/** Cuántos prospectos de alto perfil pide la Sección A del Paso 3 híbrido — fijo, no depende de `mercado`. */
+const HYBRID_PROSPECT_SLOT_COUNT = 2;
+/** Cuántas acciones concretas pide la Sección B del Paso 3 híbrido — fijo, no depende de `mercado`. */
+const HYBRID_TASK_SLOT_COUNT = 3;
+
+const HYBRID_STEP3_TEXT = 'Comencemos. Para desbloquear tu herramienta, selecciona a 2 '
+  + 'prospectos de alto perfil.';
+/*
+  Aviso de privacidad, no aclaración menor: la especificación lo pide en
+  `text-slate-500` (más visible que el subtexto tenue del resto de la
+  pantalla, ver `STEP3_SUBTEXT`) porque aquí se está pidiendo el contacto
+  de gente ajena a la cuenta, no apoyos cercanos de quien se está
+  registrando — la promesa de "no los contactaremos" necesita leerse con
+  claridad, no perderse como una nota al pie.
+*/
+const HYBRID_PRIVACY_NOTICE = 'Tranquilo, tu información es estrictamente confidencial y se '
+  + 'guarda de forma local para tu agenda. Nosotros no los contactaremos.';
+const HYBRID_BRIDGE_TEXT = 'Ahora, agenda 3 acciones concretas:';
+
+/*
+  Logro de esta rama: "Armería Desbloqueada" con el ícono `Briefcase`, una
+  de las dos combinaciones que ofrecía la especificación ("Armería
+  Desbloqueada"/"Mercado Elevado", `Diamond`/`Briefcase`). Se elige
+  `Briefcase` porque ya es el ícono de "trabajo/cartera" en el resto de la
+  app (coherente con "elevar tu mercado"), y no `Diamond`, que no se usa en
+  ningún otro logro — mantener un solo vocabulario de íconos entre los tres
+  logros de esta pantalla (`Trophy`, `ListChecks`, `Briefcase`) evita que
+  cada rama nueva introduzca una familia visual distinta sin motivo.
+*/
+const HYBRID_ACHIEVEMENT = {
+  icon: Briefcase,
+  label: () => 'Armería Desbloqueada',
+};
 
 /** Cuántos slots de tareas pide el Paso 3, según la cartera declarada (Paso 5, perfil profesional). */
 const SLOT_COUNT_BY_PORTFOLIO = {
@@ -334,12 +431,19 @@ function GreetingStep({ name, onContinue }) {
  * `FirstLoginIntro` — este componente no decide el tono, sólo lo dibuja. El
  * botón se enciende al terminar de escribirse, igual que en el Paso 1.
  */
-function EmpowermentStep({ text, onContinue }) {
+function EmpowermentStep({ text, highlight, onContinue }) {
   const { typed, isTyping } = useTypewriter(text);
+  const [showHighlight, setShowHighlight] = useState(false);
+
+  useEffect(() => {
+    if (isTyping || !highlight) return undefined;
+    const timer = setTimeout(() => setShowHighlight(true), 300);
+    return () => clearTimeout(timer);
+  }, [isTyping, highlight]);
 
   return (
     <div className="flex flex-col items-center px-6 text-center">
-      <p className="sr-only">{text}</p>
+      <p className="sr-only">{highlight ? `${text} ${highlight}` : text}</p>
       <p
         className="max-w-lg text-xl font-light leading-snug text-white sm:text-2xl"
         aria-hidden="true"
@@ -347,6 +451,23 @@ function EmpowermentStep({ text, onContinue }) {
         {typed}
         <Caret show={isTyping} />
       </p>
+
+      {/*
+        Sólo existe para la inquietud que declara un `highlight`
+        (ver `step2HighlightFor`) — el resto de las ramas del Paso 2 no
+        dibuja nada aquí, ni siquiera un contenedor vacío.
+      */}
+      {highlight && (
+        <p
+          aria-hidden="true"
+          className={`mt-4 max-w-md rounded-xl border border-amber-400/30 bg-amber-500/[0.06]
+                      px-4 py-3 text-sm font-medium leading-relaxed text-amber-200
+                      transition-opacity duration-700
+                      ${showHighlight ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {highlight}
+        </p>
+      )}
 
       <button
         type="button"
@@ -957,6 +1078,185 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
 }
 
 /**
+ * Paso 3 en la rama de mercado de bajo perfil — captura híbrida: Sección A
+ * (2 prospectos de alto perfil, mismo `ProspectSlot` que ya usa
+ * `ProspectCaptureStep`) y Sección B (3 acciones concretas, mismo
+ * `TaskSlot`/`TaskEditorSheet` que ya usa `TaskCaptureStep`), en un único
+ * paso que alimenta los dos destinos a la vez — no hay que elegir entre
+ * "junta apoyos" o "vacía pendientes", esta rama pide ambos.
+ *
+ * Los slots de ambas secciones son fijos (`HYBRID_PROSPECT_SLOT_COUNT`,
+ * `HYBRID_TASK_SLOT_COUNT`): a diferencia de las otras dos ramas, esta
+ * cantidad no depende de `mercado`/cartera declarada — la especificación
+ * pide exactamente 2 y exactamente 3, sin escalar.
+ *
+ * "CONTINUAR" se habilita con cualquier interacción real en la pantalla
+ * —al menos un prospecto o una acción con datos—, y "Saltar paso" queda
+ * siempre libre para quien prefiere no capturar nada ahora: mismo criterio
+ * de las otras dos ramas, el punto de bienvenida no depende de lo que se
+ * haya llenado aquí (ver `continueHybridCapture`/`skipHybridCapture`).
+ */
+function HybridCaptureStep({ onContinue, onSkip }) {
+  const { typed, isTyping } = useTypewriter(HYBRID_STEP3_TEXT);
+  const [showRest, setShowRest] = useState(false);
+  const [prospects, setProspects] = useState(
+    () => Array.from({ length: HYBRID_PROSPECT_SLOT_COUNT }, () => ({ ...EMPTY_PROSPECT })),
+  );
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [tasks, setTasks] = useState(
+    () => Array.from({ length: HYBRID_TASK_SLOT_COUNT }, (_, index) => (
+      { ...EMPTY_TASK, hora: defaultTaskTime(index) }
+    )),
+  );
+  const [openIndex, setOpenIndex] = useState(null);
+
+  const [contactPickerSupported] = useState(isContactPickerSupported);
+
+  useEffect(() => {
+    if (isTyping) return undefined;
+    const timer = setTimeout(() => setShowRest(true), 300);
+    return () => clearTimeout(timer);
+  }, [isTyping]);
+
+  const updateProspect = (index, next) => {
+    setProspects((current) => current.map((p, i) => (i === index ? next : p)));
+  };
+
+  const saveTask = (next) => {
+    setTasks((current) => current.map((t, i) => (i === openIndex ? next : t)));
+    setOpenIndex(null);
+  };
+
+  /** Ver `ProspectCaptureStep.handleOpenContacts` — mismo comportamiento, fijo a 2 slots. */
+  const handleOpenContacts = async () => {
+    try {
+      const picked = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+      if (!picked.length) return;
+
+      setProspects((current) => {
+        const next = [...current];
+        picked.slice(0, HYBRID_PROSPECT_SLOT_COUNT).forEach((contact, index) => {
+          next[index] = {
+            nombre: contact.name?.[0] ?? '',
+            telefono: contact.tel?.[0] ?? '',
+          };
+        });
+        return next;
+      });
+      setEditingIndex(null);
+    } catch {
+      // Selector cancelado o permiso negado: no hay nada que capturar.
+    }
+  };
+
+  const cleanProspects = prospects
+    .map((p) => ({ nombre: p.nombre.trim(), telefono: p.telefono.trim() }))
+    .filter((p) => p.nombre);
+  const cleanTasks = tasks
+    .map((t) => ({
+      tipo: t.tipo,
+      descripcion: t.descripcion.trim(),
+      telefono: t.telefono.trim(),
+      hora: t.hora || DEFAULT_TASK_HOUR,
+    }))
+    .filter((t) => t.descripcion);
+  const isValid = cleanProspects.length > 0 || cleanTasks.length > 0;
+
+  return (
+    <div className="flex w-full flex-col items-center px-6 text-center">
+      <p className="sr-only">
+        {`${HYBRID_STEP3_TEXT} ${HYBRID_PRIVACY_NOTICE} ${HYBRID_BRIDGE_TEXT}`}
+      </p>
+
+      <p
+        className="max-w-md text-lg leading-snug text-white sm:text-xl"
+        aria-hidden="true"
+      >
+        {typed}
+        <Caret show={isTyping} />
+      </p>
+
+      <p
+        className={`mt-2 max-w-sm text-[11px] leading-snug text-slate-500
+                    transition-opacity duration-700
+                    ${showRest ? 'opacity-100' : 'opacity-0'}`}
+        aria-hidden="true"
+      >
+        {HYBRID_PRIVACY_NOTICE}
+      </p>
+
+      <div
+        className={`mt-6 w-full max-w-md transition-opacity duration-700
+                    ${showRest ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        aria-hidden={!showRest}
+      >
+        <div className="space-y-3">
+          {prospects.map((value, index) => (
+            <ProspectSlot
+              key={index}
+              index={index}
+              value={value}
+              isEditing={editingIndex === index}
+              onEdit={setEditingIndex}
+              onChange={updateProspect}
+            />
+          ))}
+        </div>
+
+        {contactPickerSupported && (
+          <button
+            type="button"
+            onClick={handleOpenContacts}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
+                       border border-slate-700 py-2.5 text-xs font-semibold text-slate-300
+                       transition-colors hover:border-slate-600 hover:text-white"
+          >
+            <BookUser size={14} aria-hidden="true" />
+            Elegir desde mi agenda
+          </button>
+        )}
+
+        <p className="mt-6 text-xs text-slate-500">{HYBRID_BRIDGE_TEXT}</p>
+
+        <div className="mt-3 space-y-3">
+          {tasks.map((value, index) => (
+            <TaskSlot key={index} index={index} value={value} onOpen={setOpenIndex} />
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onContinue(cleanProspects, cleanTasks)}
+          disabled={!isValid}
+          className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
+                     uppercase tracking-wide text-white transition-all hover:bg-indigo-500
+                     active:scale-95 disabled:cursor-not-allowed disabled:bg-white/[0.06]
+                     disabled:text-white/25 disabled:shadow-none
+                     ${isValid ? GLOW_BUTTON_CLASS : ''}`}
+        >
+          Continuar
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSkip()}
+          className="mt-4 block w-full text-sm text-slate-500 transition-colors hover:text-white"
+        >
+          Saltar paso
+        </button>
+      </div>
+
+      <TaskEditorSheet
+        isOpen={openIndex !== null}
+        initialValue={openIndex !== null ? tasks[openIndex] : EMPTY_TASK}
+        onSave={saveTask}
+        onClose={() => setOpenIndex(null)}
+      />
+    </div>
+  );
+}
+
+/**
  * Piezas de confeti con CSS puro, mismo criterio que ya usa
  * `Celebration.jsx` (metas cumplidas): nada de `react-confetti` ni canvas
  * para un efecto de unos segundos que en esta pantalla ocurre una sola vez
@@ -1287,24 +1587,30 @@ function StartStep({ onStart }) {
  * de historial: es un recorrido lineal, sin "Atrás".
  *
  *   1. Saludo (`GreetingStep`)
- *   2. Enfoque empoderador (`EmpowermentStep`) — texto según `inquietud`
- *   3. Captura por slots — dos variantes posibles, decididas por
- *      `isAdminOverloadBranch(perfil, inquietud)`:
+ *   2. Enfoque empoderador (`EmpowermentStep`) — texto según `inquietud`,
+ *      con un subtexto resaltado extra sólo para `low_ticket_market`
+ *      (`step2HighlightFor`).
+ *   3. Captura por slots — tres variantes posibles, decididas por
+ *      `isLowTicketMarketBranch`/`isAdminOverloadBranch(perfil, inquietud)`:
  *        - Prospectos (`ProspectCaptureStep`), cantidad según `mercado`.
  *        - Tareas/pendientes (`TaskCaptureStep`, perfil "Nuevo
  *          Profesional" con cuello de botella "carga administrativa"),
  *          cantidad de slots según la cartera (`mercado`, reutilizada como
  *          `PORTFOLIO_SIZE_OPTIONS` para este perfil), mínimo
  *          `MIN_FILLED_TASKS` llenos para continuar.
- *      Ambas ofrecen "Continuar" o "Saltar paso".
+ *        - Híbrida (`HybridCaptureStep`, perfil "Nuevo Profesional" con
+ *          cuello de botella "mercado de bajo perfil o primas pequeñas"):
+ *          2 prospectos de alto perfil + 3 acciones concretas, fijos
+ *          — alimenta a la vez la Zona Segura y la Agenda real.
+ *      Las tres ofrecen "Continuar" o "Saltar paso".
  *   4. Recompensa automática (`RewardStep`) — confeti + logro,
- *      `REWARD_AUTO_MS`. El logro cambia según la rama ("Proyecto 200" o
- *      "Agenda Optimizada"), pero el punto es siempre "+1 Punto", igual en
- *      las dos ramas y sin importar si se llenó, se saltó o se agendaron
- *      varias tareas: es el premio de bienvenida por completar el
- *      Onboarding, no un cálculo sobre lo capturado en el Paso 3 (agendar
- *      una acción no otorga puntos por sí sola: el resultado real se
- *      reporta después, en otro flujo).
+ *      `REWARD_AUTO_MS`. El logro cambia según la rama ("Proyecto 200",
+ *      "Agenda Optimizada" o "Armería Desbloqueada"), pero el punto es
+ *      siempre "+1 Punto", igual en las tres ramas y sin importar si se
+ *      llenó, se saltó o se agendaron varias tareas: es el premio de
+ *      bienvenida por completar el Onboarding, no un cálculo sobre lo
+ *      capturado en el Paso 3 (agendar una acción no otorga puntos por sí
+ *      sola: el resultado real se reporta después, en otro flujo).
  *   5. Unirse a un equipo de trabajo (`JoinTeamStep`) — código real de
  *      promotoría, o "Hacerlo después"
  *   6. Botón final (`StartStep`) — la persona decide cuándo cruzar
@@ -1340,7 +1646,9 @@ export default function FirstLoginIntro({
   // Resueltos una sola vez: ni la inquietud, ni el mercado ni el perfil
   // cambian mientras esta pantalla está montada.
   const [step2Text] = useState(() => step2TextFor(inquietud));
+  const [step2Highlight] = useState(() => step2HighlightFor(inquietud));
   const [isTaskBranch] = useState(() => isAdminOverloadBranch(perfil, inquietud));
+  const [isHybridBranch] = useState(() => isLowTicketMarketBranch(perfil, inquietud));
   const [slotCount] = useState(() => (
     isTaskBranch ? taskSlotCountFor(mercado) : slotCountFor(mercado)
   ));
@@ -1426,6 +1734,43 @@ export default function FirstLoginIntro({
     setStep(4);
   };
 
+  /*
+    Rama híbrida (mercado de bajo perfil): la Sección A va a la lista de
+    Prospectos/Zona Segura (`writeSafeZone`, igual que
+    `continueProspectCapture`) y la Sección B va a la Agenda real
+    (`addEvent`, igual que `continueTaskCapture` — incluida la prioridad
+    fija "máxima": lo que la persona elige agendar aquí para acercarse a un
+    prospecto de alto perfil merece el mismo peso que cualquier pendiente
+    vaciado en la otra rama, no un trato de segunda). `capturedCount` es la
+    suma de ambas secciones — el logro de esta rama no muestra fracción
+    (`HYBRID_ACHIEVEMENT.label`), así que el número exacto no se lee en
+    pantalla, pero se conserva por si alguna vez se necesita.
+  */
+  const continueHybridCapture = (prospectEntries, taskEntries) => {
+    writeSafeZone(username, prospectEntries);
+    taskEntries.forEach((entry) => {
+      addEvent({
+        type: 'actividad',
+        title: `${taskTypeLabel(entry.tipo)}: ${entry.descripcion}`,
+        date: todayKey(),
+        time: entry.hora,
+        priority: 'maxima',
+        telefono: entry.telefono,
+      });
+    });
+    setCapturedCount(prospectEntries.length + taskEntries.length);
+    setPointsEarned(1);
+    setStep(4);
+  };
+
+  /** "Saltar paso" de la rama híbrida — mismo criterio que las otras dos: nunca deja el punto de bienvenida en 0. */
+  const skipHybridCapture = () => {
+    writeSafeZone(username, []);
+    setCapturedCount(0);
+    setPointsEarned(1);
+    setStep(4);
+  };
+
   const handleStart = () => {
     setClosing(true);
     setTimeout(() => onComplete(pointsEarned), FADE_OUT_MS);
@@ -1443,9 +1788,20 @@ export default function FirstLoginIntro({
     >
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
         {step === 1 && <GreetingStep name={name} onContinue={() => setStep(2)} />}
-        {step === 2 && <EmpowermentStep text={step2Text} onContinue={() => setStep(3)} />}
+        {step === 2 && (
+          <EmpowermentStep
+            text={step2Text}
+            highlight={step2Highlight}
+            onContinue={() => setStep(3)}
+          />
+        )}
         {step === 3 && (
-          isTaskBranch ? (
+          isHybridBranch ? (
+            <HybridCaptureStep
+              onContinue={continueHybridCapture}
+              onSkip={skipHybridCapture}
+            />
+          ) : isTaskBranch ? (
             <TaskCaptureStep
               slotCount={slotCount}
               onContinue={continueTaskCapture}
@@ -1463,7 +1819,11 @@ export default function FirstLoginIntro({
           <RewardStep
             capturedCount={capturedCount}
             pointsEarned={pointsEarned}
-            achievement={isTaskBranch ? TASK_ACHIEVEMENT : PROSPECT_ACHIEVEMENT}
+            achievement={
+              isHybridBranch ? HYBRID_ACHIEVEMENT
+                : isTaskBranch ? TASK_ACHIEVEMENT
+                  : PROSPECT_ACHIEVEMENT
+            }
             onDone={() => setStep(5)}
           />
         )}
