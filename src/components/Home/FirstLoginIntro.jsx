@@ -43,7 +43,7 @@ const STEP1_TEXT_TEMPLATE = (name) => `Hola, ${name}. Todo está configurado y l
 */
 const STEP2_TEXT_BY_CONCERN = {
   rejection: 'El secreto del éxito es el sistema. Te guiaremos paso a paso para que '
-    + 'conectar con tu entorno sea una experiencia fluida y sin fricción.',
+    + 'conectar con tu entorno sea una experiencia fluida y natural.',
   technical: 'El secreto de los grandes asesores no es saberlo todo de memoria, es tener '
     + 'las herramientas correctas. Tu asistente está equipado con los guiones, cálculos y '
     + 'estrategias que necesitas. Tú pon la empatía, nosotros ponemos la técnica.',
