@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   Trophy, User, BookUser, Users, Loader2, CheckCircle2, AlertTriangle, ArrowRight, ListChecks,
-  Plus, ChevronRight, Phone, Briefcase, Share2, TrendingUp,
+  Plus, ChevronRight, Phone, Briefcase, Share2, TrendingUp, Crown, ShieldCheck, Zap, BarChart3,
 } from 'lucide-react';
 import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { writeSafeZone } from '../../data/safeZone';
@@ -235,6 +236,48 @@ const HYBRID_ACHIEVEMENT = {
   icon: Briefcase,
   label: () => 'Armería Desbloqueada',
 };
+
+/*
+  ── Rama "Consolidado" — Alfombra Roja ──
+
+  El asesor veterano con cartera madura no necesita que le pidamos nombres,
+  teléfonos, acciones ni fechas — ya tiene un negocio andando. Pedirle
+  cualquier formulario en este punto es fricción innecesaria que comunica
+  "no sabemos quién eres". Para este perfil el onboarding es puramente
+  informativo e inspiracional: un solo paso con typing, beneficios con
+  efecto stagger (framer-motion) y un CTA que lo lleva directo a la
+  recompensa (confeti + logro "Modo Director Activado"). Sin Paso 3 de
+  captura, sin Paso 5 de equipo — ingresa y trabaja.
+*/
+function isConsolidatedBranch(perfil) {
+  return perfil === 'consolidated';
+}
+
+const CONSOLIDATED_MAIN_TEXT = (name) => `${name}, has construido un negocio sólido. En este `
+  + 'nivel, el objetivo ya no es trabajar más horas, es multiplicar tu tiempo y blindar tu '
+  + 'cartera.';
+
+const CONSOLIDATED_SUBTEXT = 'Tu entorno ejecutivo está listo. Tu nuevo asistente impulsado '
+  + 'por IA se encargará de automatizar tu seguimiento, organizar tu servicio y filtrar el '
+  + 'ruido para que tú te enfoques exclusivamente en la estrategia y las relaciones de alto '
+  + 'valor.';
+
+const CONSOLIDATED_BENEFITS = [
+  { icon: ShieldCheck, text: 'Protección de cartera y control de renovaciones.' },
+  { icon: Zap, text: 'Automatización de seguimiento y servicio a clientes.' },
+  { icon: BarChart3, text: 'Métricas de crecimiento y oportunidades de venta cruzada.' },
+];
+
+const CONSOLIDATED_CTA_TEXT = 'ACCEDER A MI ENTORNO EJECUTIVO';
+
+const CONSOLIDATED_ACHIEVEMENT = {
+  icon: Crown,
+  label: () => 'Modo Director Activado',
+};
+
+/** Glow ámbar premium para el CTA de la rama Consolidado — diferente al índigo de las otras ramas, aquí el botón ES la recompensa visual. */
+const CONSOLIDATED_GLOW = 'shadow-[0_0_20px_rgba(245,158,11,0.6)] '
+  + 'hover:shadow-[0_0_30px_rgba(245,158,11,0.9)] transition-shadow duration-300';
 
 /*
   ── Ramas "Nuevo Profesional" con agendamiento secuencial ──
@@ -1350,6 +1393,125 @@ function HybridCaptureStep({ onContinue, onSkip }) {
 }
 
 /**
+ * Rama "Alfombra Roja" — Paso completo (informativo) para el perfil
+ * Consolidado: typing del mensaje directivo, subtexto ámbar con fade-in,
+ * beneficios con stagger (framer-motion) y CTA directo a la recompensa.
+ *
+ * No hay captura de datos, no hay fases, no hay formulario: el botón
+ * aparece al final de las animaciones y lleva directo a `RewardStep`
+ * (`onContinue`). El paso fusiona lo que en las otras ramas eran los
+ * pasos 1-3 (saludo + empowerment + captura) en un solo bloque
+ * inspiracional: el "Consolidado" no necesita que lo guíen paso a paso.
+ */
+function ConsolidatedWelcomeStep({ name, onContinue }) {
+  const { typed, isTyping } = useTypewriter(CONSOLIDATED_MAIN_TEXT(name));
+  const [showSubtext, setShowSubtext] = useState(false);
+  const [showBenefits, setShowBenefits] = useState(false);
+  const [showCTA, setShowCTA] = useState(false);
+
+  useEffect(() => {
+    if (isTyping) return undefined;
+    const subtextTimer = setTimeout(() => setShowSubtext(true), 400);
+    return () => clearTimeout(subtextTimer);
+  }, [isTyping]);
+
+  useEffect(() => {
+    if (!showSubtext) return undefined;
+    const benefitsTimer = setTimeout(() => setShowBenefits(true), 600);
+    return () => clearTimeout(benefitsTimer);
+  }, [showSubtext]);
+
+  useEffect(() => {
+    if (!showBenefits) return undefined;
+    // El CTA aparece después de que las viñetas terminen de animarse
+    // (3 viñetas × 200ms stagger + 500ms de duración de la última)
+    const ctaTimer = setTimeout(() => setShowCTA(true), 1100);
+    return () => clearTimeout(ctaTimer);
+  }, [showBenefits]);
+
+  return (
+    <div className="flex w-full flex-col items-center px-6 text-center">
+      <p className="sr-only">
+        {`${CONSOLIDATED_MAIN_TEXT(name)} ${CONSOLIDATED_SUBTEXT}`}
+      </p>
+
+      <p
+        className="max-w-lg text-xl font-light leading-snug text-white sm:text-2xl"
+        aria-hidden="true"
+      >
+        {typed}
+        <Caret show={isTyping} />
+      </p>
+
+      <p
+        aria-hidden="true"
+        className={`mt-5 max-w-md text-sm font-medium leading-relaxed text-amber-200
+                    transition-opacity duration-700
+                    ${showSubtext ? 'opacity-100' : 'opacity-0'}`}
+      >
+        {CONSOLIDATED_SUBTEXT}
+      </p>
+
+      {showBenefits && (
+        <motion.ul
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: {},
+            visible: { transition: { staggerChildren: 0.2 } },
+          }}
+          className="mt-8 w-full max-w-md space-y-4"
+          aria-hidden="true"
+        >
+          {CONSOLIDATED_BENEFITS.map((benefit) => {
+            const Icon = benefit.icon;
+            return (
+              <motion.li
+                key={benefit.text}
+                variants={{
+                  hidden: { opacity: 0, y: 16 },
+                  visible: { opacity: 1, y: 0 },
+                }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className="flex items-start gap-3 rounded-xl border border-slate-800
+                           bg-slate-900/60 px-4 py-3 text-left"
+              >
+                <span
+                  className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg
+                             border border-amber-400/20 bg-amber-500/10 text-amber-400"
+                >
+                  <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
+                </span>
+                <span className="text-sm leading-relaxed text-slate-200">
+                  {benefit.text}
+                </span>
+              </motion.li>
+            );
+          })}
+        </motion.ul>
+      )}
+
+      <div
+        className={`mt-10 w-full transition-opacity duration-700
+                    ${showCTA ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+      >
+        <button
+          type="button"
+          onClick={onContinue}
+          className={`mx-auto flex w-[85%] max-w-sm items-center justify-center gap-3
+                     rounded-xl border border-amber-400/50 bg-amber-500 py-4 text-base
+                     font-bold tracking-wide text-slate-950 transition-all hover:bg-amber-400
+                     active:scale-95 ${CONSOLIDATED_GLOW}`}
+        >
+          {CONSOLIDATED_CTA_TEXT}
+          <ArrowRight size={18} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Paso 3 en las ramas de agendamiento secuencial (referidos / sólo
  * escalar): dos fases dentro de un mismo paso, nunca ambas visibles a la
  * vez —a diferencia del Paso 3 híbrido de `low_ticket_market`, que sí
@@ -2010,6 +2172,7 @@ export default function FirstLoginIntro({
   const [isHybridBranch] = useState(() => isLowTicketMarketBranch(perfil, inquietud));
   const [isSequential] = useState(() => isSequentialBranch(perfil, inquietud));
   const [sequentialConfig] = useState(() => sequentialConfigFor(inquietud));
+  const [isConsolidated] = useState(() => isConsolidatedBranch(perfil));
   const [slotCount] = useState(() => (
     isTaskBranch ? taskSlotCountFor(mercado) : slotCountFor(mercado)
   ));
@@ -2171,6 +2334,18 @@ export default function FirstLoginIntro({
     setStep(4);
   };
 
+  /*
+    Rama Consolidado — "Alfombra Roja": no captura nada, sólo informa e
+    inspira. El CTA lleva directo a la recompensa (step 4) sin pasar por
+    el Paso 3 de captura. El punto de bienvenida (+1) se otorga igual:
+    haber completado la lectura ya es el logro, no hay nada que "llenar".
+  */
+  const continueConsolidated = () => {
+    setCapturedCount(0);
+    setPointsEarned(1);
+    setStep(4);
+  };
+
   const handleStart = () => {
     setClosing(true);
     setTimeout(() => onComplete(pointsEarned), FADE_OUT_MS);
@@ -2187,55 +2362,84 @@ export default function FirstLoginIntro({
       onClick={() => setFastTyping(true)}
     >
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
-        {step === 1 && <GreetingStep name={name} onContinue={() => setStep(2)} />}
-        {step === 2 && (
-          <EmpowermentStep
-            text={step2Text}
-            highlight={step2Highlight}
-            onContinue={() => setStep(3)}
-          />
+        {/*
+          Rama Consolidado — "Alfombra Roja": un solo paso informativo
+          (ConsolidatedWelcomeStep) que fusiona saludo + empowerment +
+          beneficios + CTA, sin captura de datos. El CTA dispara directo
+          step 4 (Reward). Los pasos 2, 3 y 5 (JoinTeam) se omiten por
+          completo: su tiempo es valioso, cero fricción.
+        */}
+        {isConsolidated ? (
+          <>
+            {step === 1 && (
+              <ConsolidatedWelcomeStep
+                name={name}
+                onContinue={continueConsolidated}
+              />
+            )}
+            {step === 4 && (
+              <RewardStep
+                capturedCount={capturedCount}
+                pointsEarned={pointsEarned}
+                achievement={CONSOLIDATED_ACHIEVEMENT}
+                onDone={() => setStep(6)}
+              />
+            )}
+            {step === 6 && <StartStep onStart={handleStart} />}
+          </>
+        ) : (
+          <>
+            {step === 1 && <GreetingStep name={name} onContinue={() => setStep(2)} />}
+            {step === 2 && (
+              <EmpowermentStep
+                text={step2Text}
+                highlight={step2Highlight}
+                onContinue={() => setStep(3)}
+              />
+            )}
+            {step === 3 && (
+              isSequential ? (
+                <SequentialCaptureStep
+                  config={sequentialConfig}
+                  onContinue={continueSequentialCapture}
+                  onSkip={skipSequentialCapture}
+                />
+              ) : isHybridBranch ? (
+                <HybridCaptureStep
+                  onContinue={continueHybridCapture}
+                  onSkip={skipHybridCapture}
+                />
+              ) : isTaskBranch ? (
+                <TaskCaptureStep
+                  slotCount={slotCount}
+                  onContinue={continueTaskCapture}
+                  onSkip={skipTaskCapture}
+                />
+              ) : (
+                <ProspectCaptureStep
+                  slotCount={slotCount}
+                  onContinue={continueProspectCapture}
+                  onSkip={skipProspectCapture}
+                />
+              )
+            )}
+            {step === 4 && (
+              <RewardStep
+                capturedCount={capturedCount}
+                pointsEarned={pointsEarned}
+                achievement={
+                  isSequential ? sequentialConfig.achievement
+                    : isHybridBranch ? HYBRID_ACHIEVEMENT
+                      : isTaskBranch ? TASK_ACHIEVEMENT
+                        : PROSPECT_ACHIEVEMENT
+                }
+                onDone={() => setStep(5)}
+              />
+            )}
+            {step === 5 && <JoinTeamStep onContinue={() => setStep(6)} />}
+            {step === 6 && <StartStep onStart={handleStart} />}
+          </>
         )}
-        {step === 3 && (
-          isSequential ? (
-            <SequentialCaptureStep
-              config={sequentialConfig}
-              onContinue={continueSequentialCapture}
-              onSkip={skipSequentialCapture}
-            />
-          ) : isHybridBranch ? (
-            <HybridCaptureStep
-              onContinue={continueHybridCapture}
-              onSkip={skipHybridCapture}
-            />
-          ) : isTaskBranch ? (
-            <TaskCaptureStep
-              slotCount={slotCount}
-              onContinue={continueTaskCapture}
-              onSkip={skipTaskCapture}
-            />
-          ) : (
-            <ProspectCaptureStep
-              slotCount={slotCount}
-              onContinue={continueProspectCapture}
-              onSkip={skipProspectCapture}
-            />
-          )
-        )}
-        {step === 4 && (
-          <RewardStep
-            capturedCount={capturedCount}
-            pointsEarned={pointsEarned}
-            achievement={
-              isSequential ? sequentialConfig.achievement
-                : isHybridBranch ? HYBRID_ACHIEVEMENT
-                  : isTaskBranch ? TASK_ACHIEVEMENT
-                    : PROSPECT_ACHIEVEMENT
-            }
-            onDone={() => setStep(5)}
-          />
-        )}
-        {step === 5 && <JoinTeamStep onContinue={() => setStep(6)} />}
-        {step === 6 && <StartStep onStart={handleStart} />}
       </TypewriterSpeedContext.Provider>
     </div>
   );
