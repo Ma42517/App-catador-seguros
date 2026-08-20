@@ -9,7 +9,6 @@ import { useSession } from '../../context/SessionContext';
 import { useEvents, todayKey } from '../../context/EventContext';
 import { joinPromotoriaByCode, describeError } from '../../data/promotoriaRepo';
 import { normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCode';
-import { DEFAULT_PRIORITY } from '../Activities/priorities';
 import BottomSheet from '../Layout/BottomSheet';
 
 /** Cuánto tarda cada fundido de esta pantalla (el de la recompensa hacia "Iniciar", y el del overlay completo al presionarlo), en ms — usado tanto en las clases de Tailwind como en los temporizadores que esperan a que termine antes de avanzar. */
@@ -1295,9 +1294,15 @@ export default function FirstLoginIntro({
     libreta — la promesa exacta de `TASK_STEP_SUBTEXT` ("nosotros nos
     encargamos de acomodarlas en tu agenda"). Todas quedan programadas para
     hoy, con la hora escalonada de media hora en media hora
-    (`defaultTaskTime`) y la prioridad por omisión del resto de la app
-    (`DEFAULT_PRIORITY`): este paso no pregunta fecha, hora ni prioridad a
-    propósito (ver `TaskCaptureStep`).
+    (`defaultTaskTime`): este paso no pregunta fecha ni hora a propósito
+    (ver `TaskCaptureStep`).
+
+    La prioridad SIEMPRE es "máxima", no `DEFAULT_PRIORITY` ("importante")
+    como el resto de la app: esto no es una actividad cualquiera capturada
+    sin pensar mucho, es lo que la propia persona eligió vaciar de su
+    libreta al arrancar — el pendiente más urgente que trae encima, y el
+    primero que su asistente debe mostrarle. Tratarlo igual que cualquier
+    otra tarea del día a día le restaría el peso que tiene.
 
     `pointsEarned` siempre queda en `1`, sea cual sea el número de tareas
     agendadas: agendar no otorga puntos por sí solo, así que este "+1
@@ -1317,7 +1322,7 @@ export default function FirstLoginIntro({
         title: `${taskTypeLabel(entry.tipo)}: ${entry.descripcion}`,
         date: todayKey(),
         time: defaultTaskTime(index),
-        priority: DEFAULT_PRIORITY,
+        priority: 'maxima',
       });
     });
     setCapturedCount(entries.length);
