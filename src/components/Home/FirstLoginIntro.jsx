@@ -250,7 +250,7 @@ const HYBRID_ACHIEVEMENT = {
   captura, sin Paso 5 de equipo — ingresa y trabaja.
 */
 function isConsolidatedBranch(perfil) {
-  return perfil === 'consolidated';
+  return perfil === 'established';
 }
 
 const CONSOLIDATED_MAIN_TEXT = (name) => `${name}, has construido un negocio sólido. En este `
