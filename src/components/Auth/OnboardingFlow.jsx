@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Sun, Moon, Sunrise, Sunset, ChevronDown, ArrowLeft } from 'lucide-react';
 import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { EXPERIENCE_LEVELS } from '../../lib/experienceLevels';
@@ -7,6 +8,9 @@ import {
   HOUR_BLOCKS, ALL_DAY_HOURS, formatHour, formatHourLabel,
   MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
   PROFESSIONAL_FOCUS_OPTIONS, PROFESSIONAL_BOTTLENECK_OPTIONS, PORTFOLIO_SIZE_OPTIONS,
+  CONSOLIDATED_STRENGTH_OPTIONS, CONSOLIDATED_BOTTLENECK_OPTIONS,
+  CONSOLIDATED_PORTFOLIO_OPTIONS, CONSOLIDATED_FOCUS_SPLIT_OPTIONS,
+  CONSOLIDATED_MOTIVATION_OPTIONS,
 } from '../../lib/advisorOnboarding';
 import { saveExperienceLevel, saveAdvisorProfile } from '../../data/profilesRepo';
 
@@ -48,6 +52,33 @@ const PORTFOLIO_SIZE_TEXT = 'El verdadero crecimiento está en la retención y l
   + 'cruzada. ¿Aproximadamente cuántos clientes conforman tu cartera activa actualmente?';
 const AVAILABILITY_TEXT = 'El éxito requiere constancia. ¿Cómo planeas gestionar tu tiempo?';
 const SCHEDULE_TEXT = 'Toca las horas que le dedicarás al negocio. Deja en blanco el resto.';
+
+/*
+  Rama "Consolidado" de los Pasos 4 a 9: mismo lugar en el recorrido y
+  mismas claves de `advisorData` que las otras dos ramas, pero con un tono
+  directivo — habla de proteger una cartera madura y de infraestructura,
+  no de arrancar ni de estructurar. A diferencia de las ramas "Nuevo
+  Asesor"/"Nuevo Profesional" (que sólo se bifurcan en los Pasos 4 a 6, y
+  convergen de vuelta a un único camino en el 7), esta rama se extiende
+  hasta el Paso 9 completo: también cambia el texto de disponibilidad
+  (Paso 7), el del mapa de horas (Paso 8, sólo el copy, el componente del
+  grid queda intacto) y el de la motivación final (Paso 9) — ver
+  `isConsolidated` más abajo.
+*/
+const CONSOLIDATED_STRENGTH_TEXT = (nombre) => `${nombre}, la experiencia es tu mayor activo. `
+  + 'En este punto de tu carrera, ¿cuál es tu mayor ventaja competitiva?';
+const CONSOLIDATED_BOTTLENECK_TEXT = 'Para que podamos automatizar tu rutina, ¿qué área de '
+  + 'tu negocio te consume más tiempo o energía hoy?';
+const CONSOLIDATED_PORTFOLIO_TEXT = 'Una cartera madura requiere infraestructura. '
+  + '¿Aproximadamente cuántos clientes conforman tu base activa?';
+const CONSOLIDATED_AVAILABILITY_TEXT = 'Como profesional consolidado, ¿cómo distribuyes tu '
+  + 'enfoque operativo?';
+const CONSOLIDATED_SCHEDULE_TEXT = 'Protege tu tiempo. Define los bloques en los que '
+  + 'permitirás que el asistente te programe actividades.';
+const CONSOLIDATED_SCHEDULE_HINT_TEXT = 'Lo que dejes en blanco, será considerado tu tiempo '
+  + 'blindado.';
+const CONSOLIDATED_MOTIVATION_TEXT = 'Finalmente, ¿cuál es tu meta principal al integrar '
+  + 'esta inteligencia a tu proceso?';
 /*
   Aclaración secundaria, no la instrucción principal: por eso vive aparte
   de `SCHEDULE_TEXT` y se dibuja como leyenda pequeña (ver `HourGridStep`)
@@ -420,9 +451,19 @@ function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
  * un lienzo que se sigue tocando muchas veces antes de estar conforme—,
  * así que hace falta un botón "Continuar" explícito, y por eso este es el
  * único paso de opción (fuera del nombre) que no avanza solo.
+ *
+ * `text`/`hintText` son opcionales, con respaldo a los textos de la rama
+ * "Nuevo Asesor"/"Nuevo Profesional" (`SCHEDULE_TEXT`,
+ * `SCHEDULE_HINT_TEXT`): la rama "Consolidado" pasa su propio copy
+ * (`CONSOLIDATED_SCHEDULE_TEXT`, `CONSOLIDATED_SCHEDULE_HINT_TEXT`) sin
+ * tocar nada del componente del grid — sólo cambia lo que se lee arriba,
+ * el mapa de 24 horas sigue siendo exactamente el mismo para las tres
+ * ramas.
  */
-function HourGridStep({ initialHours, onContinue }) {
-  const { typed, isTyping } = useTypewriter(SCHEDULE_TEXT);
+function HourGridStep({
+  initialHours, onContinue, text = SCHEDULE_TEXT, hintText = SCHEDULE_HINT_TEXT,
+}) {
+  const { typed, isTyping } = useTypewriter(text);
   const [selected, setSelected] = useState(initialHours);
 
   /*
@@ -457,7 +498,7 @@ function HourGridStep({ initialHours, onContinue }) {
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center px-6 text-center">
-      <p className="sr-only">{`${SCHEDULE_TEXT} ${SCHEDULE_HINT_TEXT}`}</p>
+      <p className="sr-only">{`${text} ${hintText}`}</p>
       <p
         className="max-w-sm text-lg leading-snug text-white"
         aria-hidden="true"
@@ -478,7 +519,7 @@ function HourGridStep({ initialHours, onContinue }) {
                     ${isTyping ? 'opacity-0' : 'opacity-100'}`}
         aria-hidden="true"
       >
-        {SCHEDULE_HINT_TEXT}
+        {hintText}
       </p>
 
       <div
@@ -648,14 +689,18 @@ function AnalysisRoomStep({ onSimulateApproval }) {
  * el otro se contesta) y por eso viven en pasos separados, aunque antes
  * compartieran uno con la primera pregunta (etapa profesional, Paso 3).
  *
- * Los Pasos 4 a 6 se ramifican según la etapa elegida en el Paso 3: quien
- * marca "Nuevo Profesional" contesta un cuestionario distinto de quien
- * marca "Nuevo Asesor" o "Consolidado" (ver `isProfessional` más abajo, y
- * `PROFESSIONAL_*` en `advisorOnboarding.js`) — misma posición en el
- * recorrido, mismas claves de `advisorData`, preguntas y opciones
- * distintas. Los Pasos 7 a 9 (disponibilidad, horario, motor) y la Sala de
- * Análisis son un único camino para los dos perfiles: la ramificación
- * termina justo después del Paso 6.
+ * Los Pasos 4 a 9 se ramifican según la etapa elegida en el Paso 3: quien
+ * marca "Nuevo Profesional" (`isProfessional`) o "Consolidado"
+ * (`isConsolidated`) contesta un cuestionario distinto de quien marca
+ * "Nuevo Asesor" — misma posición en el recorrido, mismas claves de
+ * `advisorData`, preguntas y opciones distintas (ver `PROFESSIONAL_*` y
+ * `CONSOLIDATED_*` en `advisorOnboarding.js`). "Nuevo Profesional" sólo se
+ * ramifica en los Pasos 4 a 6 y converge de vuelta a un único camino en el
+ * 7 (disponibilidad, horario, motor); "Consolidado" en cambio conserva su
+ * propio tono directivo hasta el Paso 9 completo, incluido el copy del
+ * mapa de horas (Paso 8) — el componente del grid en sí no cambia, sólo el
+ * texto que lo introduce. La Sala de Análisis (Paso 10) es un único camino
+ * para las tres ramas.
  *
  * Sólo se le muestra a quien todavía no eligió su etapa profesional
  * (`identity.experienceLevel` vacío) — es `Gate`, en `App.jsx`, quien decide
@@ -707,6 +752,16 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
     columna `experience_level` de la base.
   */
   const isProfessional = advisorData.perfil === 'new_professional';
+
+  /*
+    Ramificación de los Pasos 4 a 9: `'established'` es el `value` exacto
+    de la tarjeta "Consolidado" en `EXPERIENCE_LEVELS`
+    (`experienceLevels.js`) — mismo criterio que `isProfessional`, sin
+    traducir el valor guardado. A diferencia de `isProfessional` (que sólo
+    ramifica los Pasos 4 a 6, y converge de vuelta a un único camino en el
+    7), esta rama se extiende hasta el Paso 9 completo.
+  */
+  const isConsolidated = advisorData.perfil === 'established';
 
   // Evita seguir aceptando toques o navegación si el componente se
   // desmontara a media escritura (cambio de sesión, por ejemplo).
@@ -829,8 +884,24 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
         convergen de vuelta a un único camino (disponibilidad, horario,
         motor, Sala de Análisis) — no hay bifurcación más allá de aquí.
       */}
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={step}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.35 }}
+        className="flex w-full flex-col items-center"
+      >
+
       {step === 4 && (
-        isProfessional ? (
+        isConsolidated ? (
+          <ChoiceStep
+            text={CONSOLIDATED_STRENGTH_TEXT(advisorData.nombre)}
+            options={CONSOLIDATED_STRENGTH_OPTIONS}
+            onSelect={chooseStrength}
+          />
+        ) : isProfessional ? (
           <ChoiceStep
             text={`${advisorData.nombre}, ya superaste la curva de aprendizaje. Para llevar `
               + 'tu negocio al siguiente nivel, ¿en qué área necesitas construir más '
@@ -849,7 +920,13 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
       )}
 
       {step === 5 && (
-        isProfessional ? (
+        isConsolidated ? (
+          <ChoiceStep
+            text={CONSOLIDATED_BOTTLENECK_TEXT}
+            options={CONSOLIDATED_BOTTLENECK_OPTIONS}
+            onSelect={chooseConcern}
+          />
+        ) : isProfessional ? (
           <ChoiceStep
             text={PROFESSIONAL_BOTTLENECK_TEXT}
             options={PROFESSIONAL_BOTTLENECK_OPTIONS}
@@ -861,7 +938,13 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
       )}
 
       {step === 6 && (
-        isProfessional ? (
+        isConsolidated ? (
+          <ChoiceStep
+            text={CONSOLIDATED_PORTFOLIO_TEXT}
+            options={CONSOLIDATED_PORTFOLIO_OPTIONS}
+            onSelect={chooseMarket}
+          />
+        ) : isProfessional ? (
           <ChoiceStep
             text={PORTFOLIO_SIZE_TEXT}
             options={PORTFOLIO_SIZE_OPTIONS}
@@ -873,24 +956,50 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
       )}
 
       {step === 7 && (
-        <ChoiceStep
-          text={AVAILABILITY_TEXT}
-          options={AVAILABILITY_OPTIONS}
-          onSelect={chooseAvailability}
-        />
+        isConsolidated ? (
+          <ChoiceStep
+            text={CONSOLIDATED_AVAILABILITY_TEXT}
+            options={CONSOLIDATED_FOCUS_SPLIT_OPTIONS}
+            onSelect={chooseAvailability}
+          />
+        ) : (
+          <ChoiceStep
+            text={AVAILABILITY_TEXT}
+            options={AVAILABILITY_OPTIONS}
+            onSelect={chooseAvailability}
+          />
+        )
       )}
 
       {step === 8 && (
-        <HourGridStep initialHours={advisorData.horario} onContinue={submitSchedule} />
+        isConsolidated ? (
+          <HourGridStep
+            initialHours={advisorData.horario}
+            onContinue={submitSchedule}
+            text={CONSOLIDATED_SCHEDULE_TEXT}
+            hintText={CONSOLIDATED_SCHEDULE_HINT_TEXT}
+          />
+        ) : (
+          <HourGridStep initialHours={advisorData.horario} onContinue={submitSchedule} />
+        )
       )}
 
       {step === 9 && (
-        <ChoiceStep
-          text={MOTIVATION_TEXT}
-          options={MOTIVATION_OPTIONS}
-          onSelect={finish}
-          busyValue={busyValue}
-        />
+        isConsolidated ? (
+          <ChoiceStep
+            text={CONSOLIDATED_MOTIVATION_TEXT}
+            options={CONSOLIDATED_MOTIVATION_OPTIONS}
+            onSelect={finish}
+            busyValue={busyValue}
+          />
+        ) : (
+          <ChoiceStep
+            text={MOTIVATION_TEXT}
+            options={MOTIVATION_OPTIONS}
+            onSelect={finish}
+            busyValue={busyValue}
+          />
+        )
       )}
 
       {step === 10 && (
@@ -900,6 +1009,8 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
           }
         />
       )}
+      </motion.div>
+      </AnimatePresence>
       </TypewriterSpeedContext.Provider>
     </div>
   );

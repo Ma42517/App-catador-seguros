@@ -84,6 +84,63 @@ export const PORTFOLIO_SIZE_OPTIONS = [
   { value: 'over_150', label: 'Más de 150 clientes.' },
 ];
 
+/*
+  Ramificación por perfil "Consolidado" (`value === 'established'` en
+  `EXPERIENCE_LEVELS`, `experienceLevels.js`): quien ya tiene una cartera
+  madura no contesta ni el cuestionario de arranque ("Nuevo Asesor") ni el
+  de estructuración ("Nuevo Profesional") — sus Pasos 4 a 9 hablan de
+  proteger lo que ya construyó, no de construirlo. Igual criterio que la
+  rama "Nuevo Profesional": mismas claves de `advisorData` (`fortaleza`,
+  `inquietud`, `mercado`, `disponibilidad`, `motor`), preguntas y opciones
+  propias. `OnboardingFlow.jsx` decide cuál de las tres ramas mostrar
+  comparando `advisorData.perfil` — este módulo sólo declara las
+  preguntas y opciones.
+*/
+
+/** Paso 4 (perfil "Consolidado") — la ventaja competitiva que distingue a un asesor veterano. */
+export const CONSOLIDATED_STRENGTH_OPTIONS = [
+  { value: 'deep_relationships', label: 'Relaciones profundas y alta retención de clientes.' },
+  { value: 'high_level_closing', label: 'Efectividad en cierres de alto nivel.' },
+  { value: 'referral_reputation', label: 'Generación constante de referidos por reputación.' },
+];
+
+/** Paso 5 (perfil "Consolidado") — el área que más consume tiempo o energía hoy, candidata a automatizarse. */
+export const CONSOLIDATED_BOTTLENECK_OPTIONS = [
+  { value: 'admin_claims', label: 'La carga administrativa, trámites y siniestros.' },
+  { value: 'collection_renewals', label: 'El control de cobranza y renovaciones.' },
+  { value: 'prospect_followup', label: 'El seguimiento de prospectos y agendamiento.' },
+  { value: 'none_scale_tools', label: 'Por ahora ninguna, solo busco herramientas de escala.' },
+];
+
+/** Paso 6 (perfil "Consolidado") — tamaño de la cartera activa, en un rango mayor que las otras dos ramas. */
+export const CONSOLIDATED_PORTFOLIO_OPTIONS = [
+  { value: 'between_100_300', label: 'Entre 100 y 300 clientes.' },
+  { value: 'between_300_500', label: 'Entre 300 y 500 clientes.' },
+  { value: 'over_500', label: 'Más de 500 clientes.' },
+];
+
+/** Paso 7 (perfil "Consolidado") — cómo distribuye su enfoque operativo, distinto de "tiempo completo/medio tiempo" del resto. */
+export const CONSOLIDATED_FOCUS_SPLIT_OPTIONS = [
+  { value: 'full_sales', label: '100% enfocado en ventas y crecimiento.' },
+  {
+    value: 'split_team',
+    label: 'Divido mi tiempo entre ventas y administrar mi equipo/despacho.',
+  },
+];
+
+/** Paso 9 (perfil "Consolidado") — meta principal al integrar la inteligencia de la app a su proceso. */
+export const CONSOLIDATED_MOTIVATION_OPTIONS = [
+  { value: 'scale_summits', label: 'Escalar mis ventas y calificar a cumbres (MDRT, Convenciones).' },
+  {
+    value: 'optimize_time',
+    label: 'Optimizar mi tiempo (mantener o subir ingresos, trabajando menos).',
+  },
+  {
+    value: 'maximize_portfolio',
+    label: 'Maximizar la rentabilidad de mi cartera (retención y venta cruzada).',
+  },
+];
+
 /** Paso 6 — Disponibilidad de tiempo para el negocio. */
 export const AVAILABILITY_OPTIONS = [
   { value: 'full_time', label: 'Tiempo completo. Mi enfoque principal está aquí.' },
