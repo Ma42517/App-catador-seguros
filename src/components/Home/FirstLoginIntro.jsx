@@ -180,7 +180,7 @@ const DEFAULT_TASK_HOUR = '09:00';
 */
 const TASK_TYPE_OPTIONS = [
   { value: 'call', label: 'Llamada' },
-  { value: 'message_followup', label: 'Mensaje / Seguimiento' },
+  { value: 'message_followup', label: 'Seguimiento' },
   { value: 'appointment', label: 'Cita' },
   { value: 'initial_meeting', label: 'Cita Inicial' },
   { value: 'closing_meeting', label: 'Cita de Cierre' },
