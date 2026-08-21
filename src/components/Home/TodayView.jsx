@@ -93,6 +93,14 @@ export default function TodayView({
       horario={horario}
       username={username}
       onOpenDiagnostic={onOpenDiagnostic}
+      /*
+        Único punto de entrada real al marcador de puntos del asesor: lo
+        que gana el feedback de una llamada (`CallActivityCard.jsx`, vía
+        `ActionableCard.jsx`) viaja hasta aquí y se suma con el mismo
+        `addPoints` que ya usa `FirstLoginIntro`, nunca con una copia
+        propia del contador.
+      */
+      onEarnPoints={addPoints}
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
           {/*

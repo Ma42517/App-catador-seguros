@@ -46,6 +46,7 @@ const SMART_MESSAGE_DELAY_MS = 6500;
  */
 export default function AISequence({
   header, children, puntosActuales = 0, horario = [], username = '', onOpenDiagnostic,
+  onEarnPoints,
 }) {
   const { highPriorityToday, activeToday } = useEvents();
 
@@ -208,7 +209,7 @@ export default function AISequence({
           <ul className={`mt-10 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
             {highPriorityToday.map((event) => (
               <li key={event.id} className="mb-3">
-                <ActionableCard event={event} />
+                <ActionableCard event={event} onEarnPoints={onEarnPoints} />
               </li>
             ))}
           </ul>

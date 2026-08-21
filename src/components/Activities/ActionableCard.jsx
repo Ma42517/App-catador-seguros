@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Bell, Calendar as CalendarIcon } from 'lucide-react';
 import TaskOptionsSheet from './TaskOptionsSheet';
+import CallActivityCard from './CallActivityCard';
 import { getEventStatus, eventStatusStyles } from './eventStatus';
 import useNow from '../../lib/useNow';
 
@@ -13,14 +14,34 @@ import useNow from '../../lib/useNow';
  * y nunca abre nada por su cuenta. Un evento que se acerca es información, no
  * una orden de atender: interrumpir con un panel al llegar la hora obliga a
  * cerrarlo antes de seguir, justo cuando la persona estaba en otra cosa.
+ *
+ * Excepción: una actividad de tipo "Llamada" (`tipo_actividad === 'llamada'`,
+ * escrito por `ActivityForm.jsx`) no usa esta tarjeta genérica ni su menú de
+ * opciones — cede el lugar entero a `CallActivityCard.jsx`, que reemplaza el
+ * botón de check por el flujo de teléfono/WhatsApp y el feedback automático
+ * al volver de la llamada. Cualquier otro tipo de evento (o uno viejo, de
+ * antes de que existiera `tipo_actividad`) sigue el camino de siempre.
  */
-export default function ActionableCard({ event }) {
+export default function ActionableCard({ event, onEarnPoints }) {
   const [isOpen, setIsOpen] = useState(false);
+
+  /*
+    El reloj entra como dependencia del render para que la tarjeta cambie
+    de estado sola al pasar la hora, sin tener que salir y volver a la
+    pantalla. Se llama siempre, sin importar el tipo de evento —las
+    Reglas de los Hooks prohíben llamarlo sólo cuando la rama de "Llamada"
+    no aplica—: `getEventStatus` de abajo tampoco corre para esa rama, así
+    que el reloj de más no cambia nada visible, sólo evita el error de
+    hooks condicionales.
+  */
+  const now = useNow();
+
+  if (event.tipo_actividad === 'llamada') {
+    return <CallActivityCard event={event} onEarnPoints={onEarnPoints} />;
+  }
+
   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
 
-  // El reloj entra como dependencia del render para que la tarjeta cambie de
-  // estado sola al pasar la hora, sin tener que salir y volver a la pantalla.
-  const now = useNow();
   const status = getEventStatus(event.time, {
     date: event.date,
     completed: event.completed,

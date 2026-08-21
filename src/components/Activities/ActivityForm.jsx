@@ -77,7 +77,17 @@ function todayParts() {
  * justo antes de guardar: es una decisión sobre *este* evento, no un ajuste
  * global del menú de agregar.
  */
-export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSave }) {
+export default function ActivityForm({
+  isOpen, onClose, type = 'actividad', onSave,
+  /*
+    Valores iniciales opcionales, sólo para quien abre este formulario ya
+    sabiendo algo del prospecto —hoy, `CallFeedbackModal.jsx` al agendar
+    una cita a partir de una llamada—: nunca cambian el comportamiento por
+    omisión de "Nueva Actividad" desde el menú "Agregar", donde nadie los
+    pasa y todo arranca vacío como siempre.
+  */
+  initialTipoActividad = null, initialProspectName = '', initialProspectPhone = '',
+}) {
   const isReminder = type === 'recordatorio';
 
   // El recordatorio conserva el texto libre: "Llamar a Laura por su
@@ -89,7 +99,9 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
   // primera opción ya marcada (mismo criterio que un `<select>` nativo,
   // nunca vacío) para que la persona no tenga que tocar nada si de verdad
   // va a registrar justo eso.
-  const [tipoActividad, setTipoActividad] = useState(ACTIVITY_TYPE_OPTIONS[0].value);
+  const [tipoActividad, setTipoActividad] = useState(
+    initialTipoActividad ?? ACTIVITY_TYPE_OPTIONS[0].value,
+  );
 
   // Nombre y teléfono del prospecto, ambos de texto libre y opcionales:
   // reemplaza al selector nativo de contactos (Contact Picker), que en la
@@ -97,8 +109,8 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
   // navegador (el de escritorio incluido) la persona se quedaba sin forma
   // de anotar un teléfono. Escribirlo a mano funciona siempre, en
   // cualquier dispositivo.
-  const [prospectName, setProspectName] = useState('');
-  const [prospectPhone, setProspectPhone] = useState('');
+  const [prospectName, setProspectName] = useState(initialProspectName);
+  const [prospectPhone, setProspectPhone] = useState(initialProspectPhone);
 
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -107,18 +119,23 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
 
   const [contactPickerSupported] = useState(isContactPickerSupported);
 
-  // Cada apertura empieza en limpio, con la fecha y hora actuales.
+  // Cada apertura empieza en limpio, con la fecha y hora actuales —salvo el
+  // tipo y el prospecto, que respetan lo ya sabido si llegó como prop.
   useEffect(() => {
     if (!isOpen) return;
     const parts = todayParts();
     setTitle('');
-    setTipoActividad(ACTIVITY_TYPE_OPTIONS[0].value);
-    setProspectName('');
-    setProspectPhone('');
+    setTipoActividad(initialTipoActividad ?? ACTIVITY_TYPE_OPTIONS[0].value);
+    setProspectName(initialProspectName);
+    setProspectPhone(initialProspectPhone);
     setDate(parts.date);
     setTime(parts.time);
     setPriority(DEFAULT_PRIORITY);
     setError('');
+    // Sólo reacciona a `isOpen`: los valores iniciales se leen en el
+    // instante de abrir, no deben reprogramar la limpieza cada vez que el
+    // padre re-renderice con la misma prop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   /**
