@@ -3,6 +3,29 @@ import { Check, Phone } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import { PRIORITIES, DEFAULT_PRIORITY } from './priorities';
 
+/*
+  Toda "Nueva Actividad" se guarda con prioridad máxima, sin preguntar: es
+  lo que la propia persona eligió registrar en su agenda del embudo de
+  ventas, así que su asistente debe tratarlo como lo más urgente del día,
+  no como una tarea cualquiera. Mismo criterio ya aplicado a las tareas
+  capturadas en el Onboarding (`continueTaskCapture`, `FirstLoginIntro.jsx`).
+  El recordatorio sí conserva el selector de prioridad: es una nota
+  personal ("no olvidar"), no un paso del embudo, y ahí sigue teniendo
+  sentido elegir cuánto pesa.
+*/
+const ACTIVITY_PRIORITY = 'maxima';
+
+/**
+ * ¿El navegador soporta el selector nativo de contactos (Contact Picker
+ * API)? Sólo Chrome/Edge en Android la implementan hoy — en cualquier otro
+ * navegador el ícono del teléfono no abre nada especial, y el campo sigue
+ * siendo un input de texto normal.
+ */
+function isContactPickerSupported() {
+  return typeof navigator !== 'undefined' && 'contacts' in navigator
+    && typeof window !== 'undefined' && 'ContactsManager' in window;
+}
+
 /** Estilo compartido de los campos; adaptativo al tema. */
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
@@ -82,6 +105,8 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
   const [priority, setPriority] = useState(DEFAULT_PRIORITY);
   const [error, setError] = useState('');
 
+  const [contactPickerSupported] = useState(isContactPickerSupported);
+
   // Cada apertura empieza en limpio, con la fecha y hora actuales.
   useEffect(() => {
     if (!isOpen) return;
@@ -95,6 +120,25 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
     setPriority(DEFAULT_PRIORITY);
     setError('');
   }, [isOpen]);
+
+  /**
+   * Abre el selector nativo de contactos del teléfono y llena nombre y
+   * teléfono de una vez, sin que la persona tenga que teclearlos. Cancelar
+   * el selector, o negar el permiso, lanza `AbortError`/`NotAllowedError`
+   * — se ignora en silencio, igual que cancelar cualquier diálogo nativo
+   * del sistema: no es un error de la app, es la persona decidiendo no
+   * elegir a nadie por ahora.
+   */
+  const pickFromContacts = async () => {
+    try {
+      const picked = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if (!picked.length) return;
+      if (picked[0].name?.[0]) setProspectName(picked[0].name[0]);
+      if (picked[0].tel?.[0]) setProspectPhone(picked[0].tel[0]);
+    } catch {
+      // Selector cancelado o permiso negado: no hay nada que llenar.
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -138,7 +182,7 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
       telefono: prospectPhone.trim(),
       date: date || parts.date,
       time: time || parts.time,
-      priority,
+      priority: ACTIVITY_PRIORITY,
     });
     onClose();
   };
@@ -220,11 +264,34 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
                              focus-within:ring-2 focus-within:ring-indigo-500
                              dark:border-zinc-700 dark:bg-zinc-950/60"
                 >
-                  <Phone
-                    size={14}
-                    className="shrink-0 text-zinc-400 dark:text-zinc-500"
-                    aria-hidden="true"
-                  />
+                  {/*
+                    El ícono es tocable sólo donde de verdad puede abrir la
+                    agenda del teléfono (Contact Picker): en cualquier otro
+                    navegador se dibuja igual, pero como adorno fijo del
+                    campo — nunca un botón que promete algo que va a
+                    fallar. Elegir un contacto llena nombre y teléfono de
+                    una vez, sin que la persona tenga que escribir ninguno
+                    de los dos a mano.
+                  */}
+                  {contactPickerSupported ? (
+                    <button
+                      type="button"
+                      onClick={pickFromContacts}
+                      aria-label="Elegir de mi agenda de contactos"
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full
+                                 text-zinc-400 transition-colors hover:bg-indigo-50
+                                 hover:text-indigo-600 dark:text-zinc-500
+                                 dark:hover:bg-white/10 dark:hover:text-indigo-400"
+                    >
+                      <Phone size={14} aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <Phone
+                      size={14}
+                      className="shrink-0 text-zinc-400 dark:text-zinc-500"
+                      aria-hidden="true"
+                    />
+                  )}
                   <input
                     id="entry-prospect-phone"
                     value={prospectPhone}
@@ -266,29 +333,37 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
           </div>
         </div>
 
-        {/* Prioridad: última decisión antes de guardar */}
-        <div>
-          <span className={LABEL}>Prioridad del Evento</span>
-          <div role="radiogroup" aria-label="Prioridad del evento" className="flex gap-2">
-            {PRIORITIES.map(({ key, label, idle, active }) => {
-              const isActive = priority === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="radio"
-                  aria-checked={isActive}
-                  onClick={() => setPriority(key)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all
-                              active:scale-95 focus-visible:outline-none focus-visible:ring-2
-                              focus-visible:ring-indigo-500 ${isActive ? active : idle}`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+        {/*
+          Prioridad: sólo se elige en el recordatorio ("no olvidar"), última
+          decisión antes de guardar. Una "Nueva Actividad" ya no pregunta
+          nada aquí — siempre se guarda con prioridad máxima
+          (`ACTIVITY_PRIORITY`), sin ningún selector que mostrar.
+        */}
+        {isReminder && (
+          <div>
+            <span className={LABEL}>Prioridad del Evento</span>
+            <div role="radiogroup" aria-label="Prioridad del evento" className="flex gap-2">
+              {PRIORITIES.map(({ key, label, idle, active }) => {
+                const isActive = priority === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    onClick={() => setPriority(key)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold
+                                transition-all active:scale-95 focus-visible:outline-none
+                                focus-visible:ring-2 focus-visible:ring-indigo-500
+                                ${isActive ? active : idle}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {error && <p role="alert" className="text-xs font-medium text-rose-500">{error}</p>}
 
