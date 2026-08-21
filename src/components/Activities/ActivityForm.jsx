@@ -259,36 +259,46 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
               <div>
                 <label className={LABEL} htmlFor="entry-prospect-phone">Teléfono</label>
                 <div
-                  className="flex items-center gap-2 rounded-xl border border-zinc-200
-                             bg-white px-3 transition-colors focus-within:border-indigo-500
+                  className="flex items-center gap-1.5 rounded-xl border border-zinc-200
+                             bg-white pl-1.5 pr-3 transition-colors focus-within:border-indigo-500
                              focus-within:ring-2 focus-within:ring-indigo-500
                              dark:border-zinc-700 dark:bg-zinc-950/60"
                 >
                   {/*
-                    El ícono es tocable sólo donde de verdad puede abrir la
-                    agenda del teléfono (Contact Picker): en cualquier otro
-                    navegador se dibuja igual, pero como adorno fijo del
-                    campo — nunca un botón que promete algo que va a
-                    fallar. Elegir un contacto llena nombre y teléfono de
-                    una vez, sin que la persona tenga que escribir ninguno
-                    de los dos a mano.
+                    Fondo y borde propios, visibles todo el tiempo y no
+                    sólo al pasar el cursor: un ícono suelto del mismo gris
+                    que el resto del campo se lee como decoración, no como
+                    algo tocable — nada en su apariencia en reposo avisaba
+                    que hacía algo. Con la píldora de color siempre
+                    encendida, el botón se anuncia solo, igual que ya hace
+                    "Elegir desde mi agenda" en `FirstLoginIntro.jsx` (borde
+                    y texto de color propio, no gris neutro).
+
+                    Sólo se dibuja como botón donde de verdad puede abrir
+                    la agenda del teléfono (Contact Picker): en cualquier
+                    otro navegador el ícono vuelve a ser un adorno fijo del
+                    campo, nunca una promesa que va a fallar. Elegir un
+                    contacto llena nombre y teléfono de una vez, sin que la
+                    persona tenga que escribir ninguno de los dos a mano.
                   */}
                   {contactPickerSupported ? (
                     <button
                       type="button"
                       onClick={pickFromContacts}
+                      title="Elegir de mi agenda de contactos"
                       aria-label="Elegir de mi agenda de contactos"
-                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full
-                                 text-zinc-400 transition-colors hover:bg-indigo-50
-                                 hover:text-indigo-600 dark:text-zinc-500
-                                 dark:hover:bg-white/10 dark:hover:text-indigo-400"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg
+                                 border border-indigo-200 bg-indigo-50 text-indigo-600
+                                 transition-colors hover:border-indigo-300 hover:bg-indigo-100
+                                 active:scale-95 dark:border-indigo-500/30 dark:bg-indigo-500/15
+                                 dark:text-indigo-400 dark:hover:bg-indigo-500/25"
                     >
                       <Phone size={14} aria-hidden="true" />
                     </button>
                   ) : (
                     <Phone
                       size={14}
-                      className="shrink-0 text-zinc-400 dark:text-zinc-500"
+                      className="ml-1.5 shrink-0 text-zinc-400 dark:text-zinc-500"
                       aria-hidden="true"
                     />
                   )}
@@ -305,6 +315,11 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
                                dark:text-zinc-100 dark:placeholder:text-zinc-500"
                   />
                 </div>
+                {contactPickerSupported && (
+                  <p className="mt-1 text-[10px] leading-snug text-zinc-500">
+                    Toca el ícono para elegir desde tu agenda
+                  </p>
+                )}
               </div>
             </div>
           </>
