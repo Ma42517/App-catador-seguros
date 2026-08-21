@@ -7,8 +7,16 @@ import BottomSheet from '../Layout/BottomSheet';
 import { useEvents } from '../../context/EventContext';
 import { CALL_GAMIFICATION } from '../../lib/callGamification';
 
-/** Etiqueta legible de "cita" — mismo valor que usa el catálogo cerrado de `ActivityForm.jsx` (`ACTIVITY_TYPE_OPTIONS`), sin importar ese módulo entero sólo por una constante. */
-const CITA_LABEL = 'Cita';
+/*
+  El resultado de "Agendar Cita" tras una llamada es siempre una Cita
+  Inicial —el primer encuentro con el prospecto, nunca una cita genérica
+  ni de cierre—, con el mismo `value`/etiqueta que ya usa el catálogo
+  cerrado de `ActivityForm.jsx` (`ACTIVITY_TYPE_OPTIONS`): así la Agenda
+  ve el mismo tipo sin importar por cuál de los dos caminos se creó el
+  evento. No se importa ese módulo entero sólo por estas dos constantes.
+*/
+const CITA_INICIAL_VALUE = 'cita_inicial';
+const CITA_INICIAL_LABEL = 'Cita Inicial';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
@@ -62,10 +70,12 @@ function OptionButton({ icon: Icon, label, tone, onClick }) {
  * hasta `CallActivityCard`, que es quien orquesta el toast, el sonido y la
  * vibración de recompensa. Agendar la cita nueva sí lo hace este mismo
  * componente, con `addEvent` de `EventContext`: "Agendar Cita" (Paso 2)
- * abre un mini-paso interno con fecha y hora —mismo patrón que
- * "Reagendar"— en vez de cerrar este flujo y abrir por separado el
- * formulario completo de "Nueva Actividad"; la persona ya dijo a quién y
- * para qué, sólo falta el cuándo, y eso se resuelve sin salir de aquí.
+ * siempre crea una Cita Inicial (`CITA_INICIAL_VALUE`/`CITA_INICIAL_LABEL`,
+ * nunca una cita genérica ni de cierre), y abre un mini-paso interno con
+ * fecha y hora —mismo patrón que "Reagendar"— en vez de cerrar este flujo
+ * y abrir por separado el formulario completo de "Nueva Actividad"; la
+ * persona ya dijo a quién y para qué, sólo falta el cuándo, y eso se
+ * resuelve sin salir de aquí.
  */
 export default function CallFeedbackModal({
   event, prospectName, isOpen, onClose, onEarnPoints,
@@ -127,8 +137,8 @@ export default function CallFeedbackModal({
     onEarnPoints(CALL_GAMIFICATION.CITA_AGENDADA);
     addEvent({
       type: 'actividad',
-      tipo_actividad: 'cita',
-      title: `${CITA_LABEL}: ${prospectName}`,
+      tipo_actividad: CITA_INICIAL_VALUE,
+      title: `${CITA_INICIAL_LABEL}: ${prospectName}`,
       telefono: event.telefono ?? '',
       date: appointmentDate,
       time: appointmentTime,
@@ -226,7 +236,7 @@ export default function CallFeedbackModal({
                           text-zinc-900 dark:text-white"
             >
               <CalendarCheck2 size={18} className="shrink-0 text-indigo-500" aria-hidden="true" />
-              ¿Para cuándo agendamos la cita con {prospectName}?
+              ¿Para cuándo agendamos la Cita Inicial con {prospectName}?
             </h2>
 
             <div className="grid grid-cols-2 gap-3">
@@ -261,7 +271,7 @@ export default function CallFeedbackModal({
                          active:scale-95"
             >
               <Check size={16} aria-hidden="true" />
-              Confirmar Cita
+              Confirmar Cita Inicial
             </button>
           </motion.div>
         )}

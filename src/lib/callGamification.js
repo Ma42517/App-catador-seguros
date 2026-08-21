@@ -18,11 +18,11 @@ export const CALL_GAMIFICATION = {
   LLAMADA_ESFUERZO: 0.5,
 
   /**
-   * Agendar una cita a partir de esta llamada. El pedido original deja
-   * abierta la posibilidad de que una cita de cierre valga más (5 en vez
-   * de 3) — eso depende de un flujo posterior que hoy no existe (este
-   * modal no distingue tipos de cita), así que por ahora es un valor
-   * único y fijo.
+   * "Agendar Cita" tras una llamada siempre crea una Cita Inicial —el
+   * primer encuentro con el prospecto, no una cita de cierre—, y su valor
+   * es fijo: 3 puntos. Una cita de cierre vale más (5 puntos), pero ese
+   * resultado pertenece a un flujo posterior (el feedback de la propia
+   * Cita Inicial, todavía no construido), no al de esta llamada.
    */
   CITA_AGENDADA: 3,
 };
