@@ -50,13 +50,14 @@ export default function AISequence({
   const { highPriorityToday, activeToday } = useEvents();
 
   /*
-    Escenario 1 del "push" de Diagnósticos 360 (`DiagnosticPushNudge.jsx`):
-    agenda de hoy vacía, inventario con existencias y al menos un prospecto
-    de la Zona Segura (los apoyos capturados al entrar por primera vez,
-    `FirstLoginIntro.jsx` → `data/safeZone.js`) todavía sin usar uno con
-    ellos. `readSafeZone` no es reactivo —es una simple lectura de
-    localStorage—, pero aquí basta: la lista sólo cambia en el Paso 3 del
-    primer ingreso, que ya terminó para cualquiera que esté viendo "Hoy".
+    "Push" de Diagnósticos 360 (`DiagnosticPushNudge.jsx`): siempre que la
+    agenda de hoy esté vacía, cruza el inventario con la Zona Segura (los
+    apoyos capturados al entrar por primera vez, `FirstLoginIntro.jsx` →
+    `data/safeZone.js`) para sugerir algo — el propio componente decide qué,
+    según haya o no Diagnósticos y prospectos. `readSafeZone` no es
+    reactivo —es una simple lectura de localStorage—, pero aquí basta: la
+    lista sólo cambia en el Paso 3 del primer ingreso, que ya terminó para
+    cualquiera que esté viendo "Hoy".
   */
   const [diagnosticsCount] = useDiagnosticInventory(username);
   const [safeZoneProspects] = useState(() => readSafeZone(username));
@@ -171,18 +172,16 @@ export default function AISequence({
           El "push" de Diagnósticos 360, justo debajo del Objetivo Diario y
           antes de los Avisos: mismo `revealClass`, mismo fundido de
           Fase 2 que el resto de esta pantalla — no es una animación aparte
-          que compita con la coreografía ya establecida. Sólo se dibuja algo
-          cuando `activeToday.length === 0` (agenda de hoy vacía) y el
-          propio componente decide, según inventario y prospectos, si hay
-          algo que sugerir o si debe quedarse callado (`eligible` dentro de
-          `DiagnosticPushNudge`).
+          que compita con la coreografía ya establecida. Sólo se oculta con
+          `activeToday.length > 0` (ya hay algo agendado hoy); mientras la
+          agenda esté libre, siempre hay algo que sugerir (`resolveState`
+          dentro de `DiagnosticPushNudge`).
         */}
         <div className={`mt-4 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
           <DiagnosticPushNudge
             prospects={safeZoneProspects}
             diagnosticsCount={diagnosticsCount}
             hasAgendaToday={activeToday.length > 0}
-            username={username}
             onUseDiagnostic={onOpenDiagnostic}
           />
         </div>

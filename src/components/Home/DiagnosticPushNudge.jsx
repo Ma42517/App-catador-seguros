@@ -1,38 +1,30 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, X, ArrowRight } from 'lucide-react';
 import {
-  isDiagnosticPushDismissedToday, dismissDiagnosticPushToday,
-} from '../../data/diagnosticPushDismissal';
+  Gift, Target, Inbox, Flame, X, ArrowRight,
+} from 'lucide-react';
 
 /**
  * src/components/Home/DiagnosticPushNudge.jsx
  *
  * "Push" al estilo Duolingo, justo debajo de la barra de Objetivo Diario
- * (`DailyGoalBar.jsx`) en la pantalla "Hoy": cuando la agenda de hoy está
- * vacía, en vez de dejar el espacio en blanco, empuja a la persona hacia
- * la Siguiente Mejor Acción — usar uno de sus Diagnósticos Financieros 360
- * (todo asesor arranca con `DEFAULT_DIAGNOSTICS` de cortesía, ver
- * `data/diagnosticInventory.js`) con alguien de la lista de prospectos que
- * ya capturó al entrar por primera vez a la app (`FirstLoginIntro.jsx`,
- * Paso 3 → `data/safeZone.js`).
+ * (`DailyGoalBar.jsx`) en la pantalla "Hoy": mientras la agenda de hoy esté
+ * vacía, SIEMPRE hay algo que sugerir — nunca se deja el espacio en blanco
+ * ni depende de un único escenario. Cruza el inventario de Diagnósticos
+ * Financieros 360 (todo asesor arranca con `DEFAULT_DIAGNOSTICS` de
+ * cortesía, `data/diagnosticInventory.js`) con la lista de prospectos
+ * capturada al entrar por primera vez (`FirstLoginIntro.jsx`, Paso 3 →
+ * `data/safeZone.js`) en cuatro combinaciones posibles (`resolveState`,
+ * más abajo) — la única condición para que algo se muestre es que la
+ * agenda esté libre, no una combinación específica de inventario/lista.
  *
- * Éste es el **Escenario 1**: tiene Diagnósticos disponibles Y tiene
- * prospectos de esa lista inicial sin haber usado ninguno con ellos
- * todavía. Es un componente aparte de `SmartEmptyState.jsx` —que ya cubre
- * las cuatro combinaciones de inventario/prospectos como un remplazo
- * completo de la pantalla— porque este "push" vive en un lugar fijo del
- * recorrido (siempre debajo del Objetivo Diario, nunca ocupando el centro
- * de la pantalla) y sólo habla de este escenario puntual; los demás
- * escenarios de esta misma familia (sin Diagnósticos, sin prospectos de
- * arranque, agenda ya ocupada...) son ampliaciones futuras de este mismo
- * componente, no de `SmartEmptyState`.
- *
- * Se puede descartar por el resto del día (`dismissDiagnosticPushToday`):
- * es una sugerencia oportuna del momento, no una advertencia permanente —
- * la persona no tiene por qué volver a verla cada vez que abre "Hoy" si ya
- * dijo que no le interesa por ahora, pero tampoco debería desaparecer para
- * siempre por un solo toque.
+ * El descarte (la X) sólo dura lo que dura esta visita a "Hoy": es estado
+ * local, sin persistencia. Cada vez que la persona entra de nuevo —recarga
+ * la página, vuelve de otra pestaña de la app— la sugerencia puede volver
+ * a aparecer si la agenda sigue libre. Es exactamente el mismo espíritu
+ * "push" que Duolingo: una notificación que se repite en cada entrada
+ * mientras la condición se mantenga, no una que se apague para siempre
+ * con un solo toque.
  */
 
 /** Primer nombre del prospecto de la Zona Segura (`{ nombre, telefono }`, ver `data/safeZone.js`). */
@@ -40,39 +32,73 @@ function firstName(prospect) {
   return (prospect?.nombre || 'uno de tus contactos').split(' ')[0];
 }
 
-/*
-  Una sola fila, del mismo tamaño que cualquier otra tarjeta delgada de
-  "Hoy" (`ActionableCard.jsx`) — no un bloque destacado con eyebrow, título
-  y mensaje largo aparte: el pedido explícito fue "más simple y
-  minimalista", del mismo peso visual con el que la app ya empuja
-  cualquier otra sugerencia mientras hay tiempo libre. Todo el mensaje
-  cabe en la propia fila ("Usa un Diagnóstico 360 con {nombre}"), sin
-  eyebrow ni párrafo separado.
-*/
+/**
+ * Cuál de las cuatro combinaciones aplica, y su contenido (mensaje corto de
+ * una línea, ícono y si tiene una acción real de 1 clic o es sólo
+ * informativa). Sólo la combinación "tiene Diagnósticos y tiene
+ * prospectos" abre una pantalla real (`onUseDiagnostic`, ya conectada
+ * hasta el Diagnóstico 360 real vía `Shell`/`TodayView`/`AISequence`); las
+ * otras tres todavía no tienen una pantalla propia a la que saltar, así
+ * que quedan como recordatorio sin acción — mejor un aviso honesto que un
+ * botón que no lleva a ningún lado.
+ */
+function resolveState({ diagnosticsCount, prospect, hasProspects }) {
+  const hasDiagnostics = diagnosticsCount > 0;
+
+  if (hasDiagnostics && hasProspects) {
+    return {
+      icon: Gift,
+      message: `Usa un Diagnóstico 360 con ${firstName(prospect)}`,
+      actionable: true,
+    };
+  }
+  if (!hasDiagnostics && hasProspects) {
+    return {
+      icon: Target,
+      message: `Contacta a ${firstName(prospect)} y suma puntos para tu próximo Diagnóstico`,
+      actionable: false,
+    };
+  }
+  if (hasDiagnostics && !hasProspects) {
+    return {
+      icon: Inbox,
+      message: 'Tu agenda está libre: es buen momento para pedir referidos',
+      actionable: false,
+    };
+  }
+  return {
+    icon: Flame,
+    message: 'Agenda libre y sin prospectos en fila. Hoy es día de prospectar',
+    actionable: false,
+  };
+}
 
 /**
  * @param {{ nombre: string, telefono: string }[]} prospects - Zona Segura (`readSafeZone`), los apoyos capturados en el Paso 3 del primer ingreso.
  * @param {number} diagnosticsCount - Diagnósticos disponibles en el inventario (`useDiagnosticInventory`).
  * @param {boolean} hasAgendaToday - `true` si ya hay algo agendado hoy: el push sólo tiene sentido con la agenda libre.
  * @param {string} username - Clave de la persona, para recordar el descarte del día.
- * @param {(prospect: object) => void} [onUseDiagnostic] - Se dispara al tocar "Usar Diagnóstico 360", con el prospecto sugerido.
+ * @param {(prospect: object) => void} [onUseDiagnostic] - Se dispara al tocar la fila, sólo cuando el estado es "accionable" (hay Diagnósticos y prospectos).
  */
 export default function DiagnosticPushNudge({
-  prospects = [], diagnosticsCount = 0, hasAgendaToday, username, onUseDiagnostic,
+  prospects = [], diagnosticsCount = 0, hasAgendaToday, onUseDiagnostic,
 }) {
-  const [dismissed, setDismissed] = useState(
-    () => isDiagnosticPushDismissedToday(username),
-  );
+  // Sin persistencia a propósito (ver nota de arriba): se reinicia en cada
+  // montaje, así que cada nueva entrada a "Hoy" vuelve a mostrar el push.
+  const [dismissed, setDismissed] = useState(false);
 
-  const eligible = !hasAgendaToday && diagnosticsCount > 0 && prospects.length > 0;
-  if (!eligible || dismissed) return null;
+  // Única condición para mostrar algo: la agenda de hoy está libre. Qué se
+  // sugiere ya lo decide `resolveState` con lo que haya disponible.
+  if (hasAgendaToday || dismissed) return null;
 
-  const prospect = prospects[0];
+  const hasProspects = prospects.length > 0;
+  const prospect = hasProspects ? prospects[0] : null;
+  const state = resolveState({ diagnosticsCount, prospect, hasProspects });
+  const Icon = state.icon;
 
-  const dismiss = () => {
-    dismissDiagnosticPushToday(username);
-    setDismissed(true);
-  };
+  const dismiss = () => setDismissed(true);
+
+  const Row = state.actionable ? 'button' : 'div';
 
   return (
     <AnimatePresence>
@@ -93,9 +119,9 @@ export default function DiagnosticPushNudge({
                    border-slate-800/50 bg-slate-900 p-3 transition-colors
                    hover:border-amber-500/30"
       >
-        <button
-          type="button"
-          onClick={() => onUseDiagnostic?.(prospect)}
+        <Row
+          type={state.actionable ? 'button' : undefined}
+          onClick={state.actionable ? () => onUseDiagnostic?.(prospect) : undefined}
           className="flex min-w-0 flex-1 items-center gap-3 text-left
                      focus-visible:outline-none"
         >
@@ -104,19 +130,21 @@ export default function DiagnosticPushNudge({
                        border-amber-500/30 bg-amber-500/10 text-amber-400"
             aria-hidden="true"
           >
-            <Gift size={14} strokeWidth={1.8} aria-hidden="true" />
+            <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
           </span>
 
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-200">
-            Usa un Diagnóstico 360 con {firstName(prospect)}
+            {state.message}
           </span>
 
-          <ArrowRight
-            size={15}
-            className="shrink-0 text-slate-500 transition-colors group-hover:text-amber-400"
-            aria-hidden="true"
-          />
-        </button>
+          {state.actionable && (
+            <ArrowRight
+              size={15}
+              className="shrink-0 text-slate-500 transition-colors group-hover:text-amber-400"
+              aria-hidden="true"
+            />
+          )}
+        </Row>
 
         <button
           type="button"
