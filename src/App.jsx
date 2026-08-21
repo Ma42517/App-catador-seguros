@@ -1002,6 +1002,15 @@ function OnboardingPreview({ isPreview }) {
           <PromotorSetup
             promoterId={PREVIEW_KEY}
             onComplete={(agencyName) => setPromoterAgency(agencyName || 'Tu Promotoría')}
+            /*
+              `PREVIEW_KEY` no es un UUID real de Supabase: sin esta
+              bandera, la Fase 3 intentaría escribir de verdad
+              (`saveMyCard`/`saveMyCode`) contra una fila que no existe y
+              se quedaría atorada mostrando el error de la base en vez de
+              avanzar — mismo criterio que ya usa `OnboardingFlow` en este
+              mismo entorno (`onProfileSaved={async () => {}}`).
+            */
+            skipPersistence
           />
           <PreviewBadge onClick={reset}>Vista previa · Promotor</PreviewBadge>
         </div>

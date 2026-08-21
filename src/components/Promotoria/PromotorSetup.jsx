@@ -567,7 +567,23 @@ function SuccessStep({ name, agencyName, onDone }) {
  * corresponde mostrarlo, igual que `TodayView` decide cuándo le toca
  * `FirstLoginIntro` a un asesor.
  */
-export default function PromotorSetup({ promoterId, initialName = '', onComplete }) {
+export default function PromotorSetup({
+  promoterId, initialName = '', onComplete,
+  /*
+    Sólo para `?onboardingPreview=1` (`OnboardingPreview`, `App.jsx`): ahí
+    `promoterId` es `'preview-sin-cuenta'`, una clave fija que no es un UUID
+    real de Supabase, y las tres escrituras de `submitAgency` (tarjeta,
+    código, ascenso de asistente) fallarían de verdad contra la base —a
+    diferencia de `OnboardingFlow`, que en ese mismo entorno recibe
+    `onProfileSaved={async () => {}}` y nunca llega a intentar guardar nada.
+    Con esta bandera en `true`, la Fase 3 valida el formulario igual que
+    siempre pero omite las tres llamadas a la base y pasa directo a la Fase
+    4: el recorrido se ve idéntico al de una cuenta real, sólo que no deja
+    ninguna fila a medio crear en `profiles` por una clave que la base
+    jamás podría aceptar.
+  */
+  skipPersistence = false,
+}) {
   const [phase, setPhase] = useState(1);
   const [name, setName] = useState(initialName);
   const [agencyName, setAgencyName] = useState('');
@@ -589,6 +605,13 @@ export default function PromotorSetup({ promoterId, initialName = '', onComplete
   const submitAgency = async ({ agencyName: newAgencyName, assistant, code }) => {
     setBusy(true);
     setError('');
+
+    if (skipPersistence) {
+      setBusy(false);
+      setAgencyName(newAgencyName);
+      setPhase(4);
+      return;
+    }
 
     // 1) Nombre + agencia en la tarjeta digital, conservando el resto de la
     // ficha si ya existía una (evita que este trámite corto borre datos de
