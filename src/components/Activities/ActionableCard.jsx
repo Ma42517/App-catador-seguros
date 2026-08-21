@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Bell, Calendar as CalendarIcon } from 'lucide-react';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import CallActivityCard from './CallActivityCard';
+import InitialMeetingCard from './InitialMeetingCard';
 import { getEventStatus, eventStatusStyles } from './eventStatus';
 import useNow from '../../lib/useNow';
 
@@ -19,10 +20,13 @@ import useNow from '../../lib/useNow';
  * escrito por `ActivityForm.jsx`) no usa esta tarjeta genérica ni su menú de
  * opciones — cede el lugar entero a `CallActivityCard.jsx`, que reemplaza el
  * botón de check por el flujo de teléfono/WhatsApp y el feedback automático
- * al volver de la llamada. Cualquier otro tipo de evento (o uno viejo, de
- * antes de que existiera `tipo_actividad`) sigue el camino de siempre.
+ * al volver de la llamada. Una "Cita Inicial" (`tipo_actividad ===
+ * 'cita_inicial'`) tampoco usa esta tarjeta: cede a `InitialMeetingCard.jsx`,
+ * con sus 3 acciones propias y el "Reloj de Arena" del auto-archivo.
+ * Cualquier otro tipo de evento (o uno viejo, de antes de que existiera
+ * `tipo_actividad`) sigue el camino de siempre.
  */
-export default function ActionableCard({ event, onEarnPoints }) {
+export default function ActionableCard({ event, onEarnPoints, onStartSession }) {
   const [isOpen, setIsOpen] = useState(false);
 
   /*
@@ -38,6 +42,10 @@ export default function ActionableCard({ event, onEarnPoints }) {
 
   if (event.tipo_actividad === 'llamada') {
     return <CallActivityCard event={event} onEarnPoints={onEarnPoints} />;
+  }
+
+  if (event.tipo_actividad === 'cita_inicial') {
+    return <InitialMeetingCard event={event} onStartSession={onStartSession} />;
   }
 
   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;

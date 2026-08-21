@@ -433,6 +433,22 @@ function Shell({
   const [step, setStep] = useState(stepFromHash);
 
   /*
+    Con qué etapa de Prospecta debe abrir "Productividad" la próxima vez que
+    se monte. La pone `handleStartSession` (justo abajo) al presionar
+    "Iniciar Sesión" en `InitialMeetingCard.jsx` —la "ruta del módulo de
+    presentación" del pedido—, y `ProductivityDashboard` la consume una sola
+    vez y avisa (`onAutoOpenConsumed`) para no reabrir Prospecta sola cada
+    vez que la persona vuelva a esta pestaña sin haber vuelto a tocar
+    "Iniciar Sesión".
+  */
+  const [prospectaAutoStage, setProspectaAutoStage] = useState(null);
+
+  const handleStartSession = useCallback(() => {
+    setProspectaAutoStage('cita');
+    setSection('productivity');
+  }, []);
+
+  /*
     Qué versión del diagnóstico se ve. El estado vive aquí, en el Shell, porque es
     el antepasado común de los dos sitios que la deciden: el menú "Ver más", que la
     elige antes de navegar, y el interruptor de pruebas de dentro del tablero.
@@ -580,9 +596,14 @@ function Shell({
             setDashboardVersion(DASHBOARD_VERSIONS[0].value);
             setSection('wizard');
           }}
+          onStartSession={handleStartSession}
         />
       ) : activeSection === 'productivity' ? (
-        <ProductivityDashboard username={storageKey} />
+        <ProductivityDashboard
+          username={storageKey}
+          autoOpenProspectaStage={prospectaAutoStage}
+          onAutoOpenConsumed={() => setProspectaAutoStage(null)}
+        />
       ) : activeSection === 'promotoria' ? (
         <PromotorDashboard />
       ) : activeSection === 'agenda' ? (

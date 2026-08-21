@@ -20,8 +20,20 @@ import { readHistory, statsFor, formatDuration } from '../../data/timeBlocks';
  * La sección se mantiene clara en los dos temas, igual que antes se mantenía
  * oscura: es una decisión de la pieza, no del tema de la app.
  */
-export default function ProductivityDashboard({ username }) {
-  const [isProspectaOpen, setProspectaOpen] = useState(false);
+export default function ProductivityDashboard({
+  username,
+  /*
+    Etapa de Prospecta con la que este hub debe abrir de entrada — la usa
+    `InitialMeetingCard.jsx` (vía `Shell` en `App.jsx`) al presionar
+    "Iniciar Sesión": la persona llega aquí ya con destino, así que
+    Prospecta se abre sola, directo en "Cita Inicial", sin que la persona
+    tenga que tocar el banner y elegir la etapa otra vez. `null` es la
+    entrada normal, la del banner, que sigue abriendo la lista de etapas.
+  */
+  autoOpenProspectaStage = null,
+  onAutoOpenConsumed,
+}) {
+  const [isProspectaOpen, setProspectaOpen] = useState(Boolean(autoOpenProspectaStage));
   const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
   const [isGoalsOpen, setGoalsOpen] = useState(false);
   const [isBlocksOpen, setBlocksOpen] = useState(false);
@@ -112,7 +124,8 @@ export default function ProductivityDashboard({ username }) {
 
       <ProspectaScreen
         isOpen={isProspectaOpen}
-        onClose={() => setProspectaOpen(false)}
+        onClose={() => { setProspectaOpen(false); onAutoOpenConsumed?.(); }}
+        initialStageKey={autoOpenProspectaStage}
       />
 
       <WorkplaceBoard

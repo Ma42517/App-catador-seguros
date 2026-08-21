@@ -121,6 +121,21 @@ export function EventProvider({ username, children }) {
   }, [username, refresh]);
 
   /**
+   * Actualiza cualquier campo suelto de un evento (fusiona, no reemplaza).
+   *
+   * Genérico a propósito: lo usa `InitialMeetingCard.jsx` para marcar
+   * `sessionStarted: true` —el "Seguro de Vida" del Reloj de Arena—, un
+   * campo que no encaja en ninguno de los otros ayudantes específicos de
+   * arriba (`completeEvent`, `rescheduleEvent`...). Cualquier otra pantalla
+   * futura que necesite guardar un dato suelto del evento usa éste, en vez
+   * de sumar un ayudante nuevo por cada campo.
+   */
+  const updateEvent = useCallback((id, patch) => {
+    persistUpdate(username, id, patch);
+    refresh();
+  }, [username, refresh]);
+
+  /**
    * Eventos de hoy con prioridad máxima, ordenados por hora.
    * Los completados salen de la lista: la pantalla de inicio muestra lo que
    * falta por hacer, no un historial.
@@ -153,12 +168,12 @@ export function EventProvider({ username, children }) {
 
   const value = useMemo(() => ({
     events, notes, highPriorityToday, activeToday,
-    addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent,
+    addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent, updateEvent,
     addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   }), [
     events, notes, highPriorityToday, activeToday,
-    addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent,
+    addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent, updateEvent,
     addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   ]);

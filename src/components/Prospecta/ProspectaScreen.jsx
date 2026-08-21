@@ -142,14 +142,21 @@ function StageDetail({ stage, onBack }) {
  *
  * Se monta y desmonta con retardo para poder animar entrada y salida.
  */
-export default function ProspectaScreen({ isOpen, onClose }) {
+export default function ProspectaScreen({ isOpen, onClose, initialStageKey = null }) {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isShown, setIsShown] = useState(false);
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
-      setSelected(null);
+      /*
+        `initialStageKey` deja abrir la pantalla directo en una etapa —lo usa
+        `InitialMeetingCard.jsx` al presionar "Iniciar Sesión": la persona ya
+        sabe que va a una Cita Inicial, así que no debe volver a elegirla en
+        la lista de etapas. Sin ese valor (entrada normal desde
+        `ProspectaHero`), se abre en la lista como siempre.
+      */
+      setSelected(STAGES.find((stage) => stage.key === initialStageKey) ?? null);
       setIsMounted(true);
       const raf = requestAnimationFrame(() => setIsShown(true));
       return () => cancelAnimationFrame(raf);
@@ -157,6 +164,10 @@ export default function ProspectaScreen({ isOpen, onClose }) {
     setIsShown(false);
     const timer = setTimeout(() => setIsMounted(false), ANIM_MS);
     return () => clearTimeout(timer);
+    // Sólo reacciona a `isOpen`: `initialStageKey` se lee en el instante de
+    // abrir, no debe reprogramar la selección si el padre re-renderiza con
+    // el mismo valor de apertura.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Escape cierra, y el fondo no debe poder desplazarse detrás.
