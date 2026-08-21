@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, BookUser, X } from 'lucide-react';
+import { Check, Phone } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import { PRIORITIES, DEFAULT_PRIORITY } from './priorities';
 
@@ -39,18 +39,6 @@ function activityTypeLabel(value) {
   return ACTIVITY_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
-/**
- * ¿El navegador soporta el selector nativo de contactos (Contact Picker
- * API)? Mismo criterio que ya usa `FirstLoginIntro.jsx`: sólo Chrome/Edge en
- * Android la implementan hoy, y en cualquier otro navegador el botón
- * "Vincular a un prospecto" simplemente no se dibuja — no hay alternativa
- * degradada porque no la pide esta fase.
- */
-function isContactPickerSupported() {
-  return typeof navigator !== 'undefined' && 'contacts' in navigator
-    && typeof window !== 'undefined' && 'ContactsManager' in window;
-}
-
 /** Fecha y hora de hoy en el formato que esperan los inputs nativos. */
 function todayParts() {
   const now = new Date();
@@ -75,21 +63,24 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
   const [title, setTitle] = useState('');
 
   // Catálogo cerrado, exclusivo de "Nueva Actividad": arranca con la
-  // primera opción ya marcada (mismo criterio que un grupo de radio, nunca
-  // vacío) para que la persona no tenga que tocar nada si de verdad va a
-  // registrar justo eso.
+  // primera opción ya marcada (mismo criterio que un `<select>` nativo,
+  // nunca vacío) para que la persona no tenga que tocar nada si de verdad
+  // va a registrar justo eso.
   const [tipoActividad, setTipoActividad] = useState(ACTIVITY_TYPE_OPTIONS[0].value);
 
-  // Prospecto vinculado (opcional): nace vacío en cada apertura, se llena
-  // con el selector nativo de contactos si el navegador lo soporta.
-  const [prospecto, setProspecto] = useState(null);
+  // Nombre y teléfono del prospecto, ambos de texto libre y opcionales:
+  // reemplaza al selector nativo de contactos (Contact Picker), que en la
+  // práctica sólo funciona en Chrome/Edge de Android — en cualquier otro
+  // navegador (el de escritorio incluido) la persona se quedaba sin forma
+  // de anotar un teléfono. Escribirlo a mano funciona siempre, en
+  // cualquier dispositivo.
+  const [prospectName, setProspectName] = useState('');
+  const [prospectPhone, setProspectPhone] = useState('');
 
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [priority, setPriority] = useState(DEFAULT_PRIORITY);
   const [error, setError] = useState('');
-
-  const [contactPickerSupported] = useState(isContactPickerSupported);
 
   // Cada apertura empieza en limpio, con la fecha y hora actuales.
   useEffect(() => {
@@ -97,31 +88,13 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
     const parts = todayParts();
     setTitle('');
     setTipoActividad(ACTIVITY_TYPE_OPTIONS[0].value);
-    setProspecto(null);
+    setProspectName('');
+    setProspectPhone('');
     setDate(parts.date);
     setTime(parts.time);
     setPriority(DEFAULT_PRIORITY);
     setError('');
   }, [isOpen]);
-
-  /**
-   * Abre el selector nativo de contactos y vincula el primero elegido.
-   * Cancelar el selector, o negar el permiso, lanza
-   * `AbortError`/`NotAllowedError` — se ignora en silencio, igual que
-   * cancelar cualquier diálogo nativo del sistema.
-   */
-  const linkProspect = async () => {
-    try {
-      const picked = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-      if (!picked.length) return;
-      setProspecto({
-        nombre: picked[0].name?.[0] ?? '',
-        telefono: picked[0].tel?.[0] ?? '',
-      });
-    } catch {
-      // Selector cancelado o permiso negado: no hay nada que vincular.
-    }
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -150,18 +123,19 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
     /*
       El título que ven `CalendarView.jsx`/`ActionableCard.jsx` sigue
       siendo un texto legible —esas pantallas no saben nada de
-      `tipo_actividad`—, pero ya no lo teclea la persona: se deriva de la
-      opción elegida, con el nombre del prospecto vinculado si lo hay
-      (mismo patrón que ya usa `FirstLoginIntro.jsx` para sus tareas:
+      `tipo_actividad`—, pero ya no lo teclea la persona como título
+      libre: se deriva de la opción elegida más el nombre escrito, si lo
+      hay (mismo patrón que ya usa `FirstLoginIntro.jsx` para sus tareas:
       `"${etiqueta}: ${nombre}"`). `tipo_actividad` viaja aparte, como el
       valor estructurado y consistente que este cambio vino a garantizar.
     */
     const label = activityTypeLabel(tipoActividad);
+    const cleanName = prospectName.trim();
     onSave?.({
       type,
       tipo_actividad: tipoActividad,
-      title: prospecto?.nombre ? `${label}: ${prospecto.nombre}` : label,
-      telefono: prospecto?.telefono ?? '',
+      title: cleanName ? `${label}: ${cleanName}` : label,
+      telefono: prospectPhone.trim(),
       date: date || parts.date,
       time: time || parts.time,
       priority,
@@ -195,96 +169,77 @@ export default function ActivityForm({ isOpen, onClose, type = 'actividad', onSa
         ) : (
           <>
             {/*
-              Catálogo cerrado de 8 opciones, en vez del input de texto
-              libre: reemplaza por completo a "¿QUÉ VAS A HACER?" — elegir
-              ya es responder, no hace falta teclear nada para registrar
-              qué tipo de actividad es. `radiogroup` porque es una elección
-              única entre opciones fijas, mismo patrón que ya usa el
-              selector de Prioridad más abajo en este mismo formulario.
+              Catálogo cerrado de 8 opciones, como un `<select>` nativo y no
+              como un bloque de ocho botones: reemplaza a "¿QUÉ VAS A
+              HACER?" sin ocupar más espacio del que ya ocupaba ese campo —
+              un `radiogroup` de ocho chips se veía pesado y desordenado
+              para un solo dato que sólo admite un valor a la vez, que es
+              justo para lo que existe el `<select>`.
             */}
             <div>
-              <span className={LABEL}>¿Qué vas a hacer?</span>
-              <div
-                role="radiogroup"
-                aria-label="Tipo de actividad"
-                className="grid grid-cols-2 gap-2"
+              <label className={LABEL} htmlFor="entry-tipo">Tipo de actividad</label>
+              <select
+                id="entry-tipo"
+                className={INPUT}
+                value={tipoActividad}
+                onChange={(e) => setTipoActividad(e.target.value)}
               >
-                {ACTIVITY_TYPE_OPTIONS.map((option) => {
-                  const isActive = tipoActividad === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={isActive}
-                      onClick={() => setTipoActividad(option.value)}
-                      className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold
-                                 transition-all active:scale-95 focus-visible:outline-none
-                                 focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                        isActive
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 '
-                            + 'dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
+                {ACTIVITY_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
             </div>
 
             {/*
-              Vincular a un prospecto: opcional, y sólo se dibuja donde el
-              navegador de verdad puede abrir el selector nativo de
-              contactos —igual criterio que ya usa `FirstLoginIntro.jsx`—.
-              El nombre vinculado viaja hasta el título del evento
-              (`"${etiqueta}: ${nombre}"`), así que la Agenda sigue
-              mostrando a quién le toca esta actividad sin que la persona
-              tenga que escribir nada.
+              Nombre y teléfono del prospecto: dos campos de texto libre y
+              opcionales, en la misma fila que la fecha/hora de más abajo.
+              Sustituyen al selector nativo de contactos —que sólo abre en
+              Chrome/Edge de Android— por algo que funciona igual en
+              cualquier navegador y dispositivo, sin depender de un permiso
+              del sistema.
             */}
-            {contactPickerSupported && (
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                {prospecto ? (
-                  <div
-                    className="flex items-center gap-2 rounded-xl border border-zinc-200
-                               bg-white px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-950/60"
-                  >
-                    <BookUser
-                      size={15}
-                      className="shrink-0 text-indigo-500 dark:text-indigo-400"
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sm text-zinc-900 dark:text-zinc-100">
-                      {prospecto.nombre}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setProspecto(null)}
-                      aria-label="Quitar prospecto vinculado"
-                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full
-                                 text-zinc-400 transition-colors hover:bg-zinc-100
-                                 hover:text-zinc-600 dark:hover:bg-white/10 dark:hover:text-zinc-200"
-                    >
-                      <X size={13} aria-hidden="true" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={linkProspect}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border
-                               border-dashed border-zinc-300 py-2.5 text-xs font-semibold
-                               text-zinc-500 transition-colors hover:border-indigo-400
-                               hover:text-indigo-600 dark:border-zinc-700 dark:text-zinc-400
-                               dark:hover:border-indigo-500/60 dark:hover:text-indigo-400"
-                  >
-                    <BookUser size={14} aria-hidden="true" />
-                    Vincular a un prospecto
-                  </button>
-                )}
+                <label className={LABEL} htmlFor="entry-prospect-name">
+                  Nombre del prospecto
+                </label>
+                <input
+                  id="entry-prospect-name"
+                  className={INPUT}
+                  value={prospectName}
+                  onChange={(e) => setProspectName(e.target.value)}
+                  placeholder="Laura Gómez"
+                  autoComplete="off"
+                />
               </div>
-            )}
+              <div>
+                <label className={LABEL} htmlFor="entry-prospect-phone">Teléfono</label>
+                <div
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200
+                             bg-white px-3 transition-colors focus-within:border-indigo-500
+                             focus-within:ring-2 focus-within:ring-indigo-500
+                             dark:border-zinc-700 dark:bg-zinc-950/60"
+                >
+                  <Phone
+                    size={14}
+                    className="shrink-0 text-zinc-400 dark:text-zinc-500"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="entry-prospect-phone"
+                    value={prospectPhone}
+                    onChange={(e) => setProspectPhone(e.target.value)}
+                    placeholder="10 dígitos"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="off"
+                    className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-zinc-900
+                               placeholder:text-zinc-400 focus:outline-none
+                               dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                  />
+                </div>
+              </div>
+            </div>
           </>
         )}
 
