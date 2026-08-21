@@ -8,6 +8,9 @@ import { buildMessage } from '../../lib/homeMessage';
 import { buildSmartMessage } from '../../lib/smartMessage';
 import { isHourWithinSchedule } from '../../lib/advisorOnboarding';
 import DailyGoalBar from './DailyGoalBar';
+import DiagnosticPushNudge from './DiagnosticPushNudge';
+import useDiagnosticInventory from '../../lib/useDiagnosticInventory';
+import { readSafeZone } from '../../data/safeZone';
 
 /*
   Cuánto se espera, ya con la interfaz inicial asentada por completo (esto
@@ -41,8 +44,22 @@ const SMART_MESSAGE_DELAY_MS = 6500;
  * importar la hora, decisión explícita para no esconder algo que alguien
  * más consideró importante avisar.
  */
-export default function AISequence({ header, children, puntosActuales = 0, horario = [] }) {
+export default function AISequence({
+  header, children, puntosActuales = 0, horario = [], username = '', onOpenDiagnostic,
+}) {
   const { highPriorityToday, activeToday } = useEvents();
+
+  /*
+    Escenario 1 del "push" de Diagnósticos 360 (`DiagnosticPushNudge.jsx`):
+    agenda de hoy vacía, inventario con existencias y al menos un prospecto
+    de la Zona Segura (los apoyos capturados al entrar por primera vez,
+    `FirstLoginIntro.jsx` → `data/safeZone.js`) todavía sin usar uno con
+    ellos. `readSafeZone` no es reactivo —es una simple lectura de
+    localStorage—, pero aquí basta: la lista sólo cambia en el Paso 3 del
+    primer ingreso, que ya terminó para cualquiera que esté viendo "Hoy".
+  */
+  const [diagnosticsCount] = useDiagnosticInventory(username);
+  const [safeZoneProspects] = useState(() => readSafeZone(username));
 
   const text = buildMessage(highPriorityToday.length);
 
@@ -148,6 +165,26 @@ export default function AISequence({ header, children, puntosActuales = 0, horar
         */}
         <div className={`mt-8 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
           <DailyGoalBar puntosActuales={puntosActuales} />
+        </div>
+
+        {/*
+          El "push" de Diagnósticos 360, justo debajo del Objetivo Diario y
+          antes de los Avisos: mismo `revealClass`, mismo fundido de
+          Fase 2 que el resto de esta pantalla — no es una animación aparte
+          que compita con la coreografía ya establecida. Sólo se dibuja algo
+          cuando `activeToday.length === 0` (agenda de hoy vacía) y el
+          propio componente decide, según inventario y prospectos, si hay
+          algo que sugerir o si debe quedarse callado (`eligible` dentro de
+          `DiagnosticPushNudge`).
+        */}
+        <div className={`mt-4 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
+          <DiagnosticPushNudge
+            prospects={safeZoneProspects}
+            diagnosticsCount={diagnosticsCount}
+            hasAgendaToday={activeToday.length > 0}
+            username={username}
+            onUseDiagnostic={onOpenDiagnostic}
+          />
         </div>
 
         {/*

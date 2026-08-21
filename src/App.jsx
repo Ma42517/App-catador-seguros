@@ -30,7 +30,7 @@ import {
   isPromoterOwner, isAssistantRole, PROFILE_ROLES,
 } from './data/profilesRepo';
 import {
-  DashboardVersionContext, readVersion, writeVersion,
+  DashboardVersionContext, DASHBOARD_VERSIONS, readVersion, writeVersion,
 } from './context/dashboardVersion';
 import { readPreference, writePreference } from './lib/uiPreference';
 import { hasCapturedData } from './data/defaults';
@@ -568,6 +568,18 @@ function Shell({
           mercado={mercado}
           perfil={perfil}
           username={storageKey}
+          /*
+            El botón "Usar Diagnóstico 360" del push (`DiagnosticPushNudge.jsx`,
+            vía `AISequence.jsx`) abre exactamente lo mismo que "Ver más →
+            Diagnóstico" (`onOpenDiagnostico` en `AdminLayout.jsx`): fija la
+            versión del tablero y navega a la sección `wizard`. Mismo destino,
+            dos puertas de entrada — la del push no debe llevar a una copia
+            distinta del Diagnóstico.
+          */
+          onOpenDiagnostic={() => {
+            setDashboardVersion(DASHBOARD_VERSIONS[0].value);
+            setSection('wizard');
+          }}
         />
       ) : activeSection === 'productivity' ? (
         <ProductivityDashboard username={storageKey} />
