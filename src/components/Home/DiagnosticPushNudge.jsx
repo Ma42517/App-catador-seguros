@@ -40,6 +40,16 @@ function firstName(prospect) {
   return (prospect?.nombre || 'uno de tus contactos').split(' ')[0];
 }
 
+/*
+  Una sola fila, del mismo tamaño que cualquier otra tarjeta delgada de
+  "Hoy" (`ActionableCard.jsx`) — no un bloque destacado con eyebrow, título
+  y mensaje largo aparte: el pedido explícito fue "más simple y
+  minimalista", del mismo peso visual con el que la app ya empuja
+  cualquier otra sugerencia mientras hay tiempo libre. Todo el mensaje
+  cabe en la propia fila ("Usa un Diagnóstico 360 con {nombre}"), sin
+  eyebrow ni párrafo separado.
+*/
+
 /**
  * @param {{ nombre: string, telefono: string }[]} prospects - Zona Segura (`readSafeZone`), los apoyos capturados en el Paso 3 del primer ingreso.
  * @param {number} diagnosticsCount - Diagnósticos disponibles en el inventario (`useDiagnosticInventory`).
@@ -67,61 +77,57 @@ export default function DiagnosticPushNudge({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -12 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -12 }}
-        transition={{ duration: 0.35, ease: 'easeOut' }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
         role="status"
-        className="relative flex items-start gap-3 rounded-2xl border border-slate-800/50
-                   bg-slate-900 p-4 pr-9 shadow-lg shadow-black/20 transition-colors
+        /*
+          Misma escala que el resto de tarjetas delgadas de "Hoy"
+          (`ActionableCard.jsx`, `PriorityAlerts.jsx`): una fila, no un
+          bloque — la app "empuja" con el mismo peso visual con el que ya
+          avisa cualquier otra cosa, en vez de reclamar una tarjeta grande
+          para sí misma.
+        */
+        className="group flex w-full items-center gap-2 rounded-xl border
+                   border-slate-800/50 bg-slate-900 p-3 transition-colors
                    hover:border-amber-500/30"
       >
         <button
           type="button"
-          onClick={dismiss}
-          aria-label="Descartar por hoy"
-          className="absolute right-2.5 top-2.5 grid h-6 w-6 place-items-center rounded-full
-                     text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-300
-                     focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+          onClick={() => onUseDiagnostic?.(prospect)}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left
+                     focus-visible:outline-none"
         >
-          <X size={13} aria-hidden="true" />
+          <span
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border
+                       border-amber-500/30 bg-amber-500/10 text-amber-400"
+            aria-hidden="true"
+          >
+            <Gift size={14} strokeWidth={1.8} aria-hidden="true" />
+          </span>
+
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-200">
+            Usa un Diagnóstico 360 con {firstName(prospect)}
+          </span>
+
+          <ArrowRight
+            size={15}
+            className="shrink-0 text-slate-500 transition-colors group-hover:text-amber-400"
+            aria-hidden="true"
+          />
         </button>
 
-        <span
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border
-                     border-amber-500/30 bg-amber-500/10 text-amber-400"
-          aria-hidden="true"
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Descartar por hoy"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-500
+                     transition-colors hover:bg-white/5 hover:text-slate-300
+                     focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
         >
-          <Gift size={18} strokeWidth={1.8} aria-hidden="true" />
-        </span>
-
-        <div className="min-w-0 flex-1 text-left">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-amber-400">
-            Sugerencia de tu Asistente
-          </p>
-
-          <p className="mt-1 text-sm leading-relaxed text-slate-200">
-            No tienes nada en tu agenda hoy. Tienes {diagnosticsCount}{' '}
-            {diagnosticsCount === 1 ? 'Diagnóstico' : 'Diagnósticos'} 360 de cortesía —
-            ¿por qué no lo usas con {firstName(prospect)}, alguien que agregaste al
-            empezar?
-          </p>
-
-          <button
-            type="button"
-            onClick={() => onUseDiagnostic?.(prospect)}
-            className="mt-3 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2
-                       text-xs font-semibold text-white shadow-[0_0_12px_rgba(79,70,229,0.5)]
-                       transition-all hover:bg-indigo-500
-                       hover:shadow-[0_0_18px_rgba(79,70,229,0.7)] active:scale-95
-                       focus-visible:outline-none focus-visible:ring-2
-                       focus-visible:ring-indigo-400"
-          >
-            <Gift size={13} aria-hidden="true" />
-            Usar Diagnóstico 360
-            <ArrowRight size={13} aria-hidden="true" />
-          </button>
-        </div>
+          <X size={12} aria-hidden="true" />
+        </button>
       </motion.div>
     </AnimatePresence>
   );
