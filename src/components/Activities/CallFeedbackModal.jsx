@@ -7,6 +7,9 @@ import BottomSheet from '../Layout/BottomSheet';
 import { useEvents } from '../../context/EventContext';
 import { CALL_GAMIFICATION } from '../../lib/callGamification';
 
+/** Etiqueta legible de "cita" — mismo valor que usa el catálogo cerrado de `ActivityForm.jsx` (`ACTIVITY_TYPE_OPTIONS`), sin importar ese módulo entero sólo por una constante. */
+const CITA_LABEL = 'Cita';
+
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
   + 'transition-colors [color-scheme:light] focus:border-indigo-500 focus:outline-none '
@@ -53,23 +56,38 @@ function OptionButton({ icon: Icon, label, tone, onClick }) {
  * flujo — la única excepción es "Reagendar", que abre un segundo paso
  * interno con dos inputs nativos de fecha/hora, todavía sin texto libre.
  *
- * `onEarnPoints(amount)` y `onOpenNewAppointment(prefill)` son las dos
- * únicas cosas que este componente no puede hacer por sí mismo —sumar al
- * marcador de puntos del asesor (`useAdvisorPoints`, un hook con su propio
- * estado, no un contexto) y abrir `ActivityForm` desde otro componente— y
- * viajan hacia arriba hasta `CallActivityCard`, que es quien orquesta el
- * toast, el sonido y la vibración de recompensa.
+ * `onEarnPoints(amount)` es lo único que este componente no puede hacer
+ * por sí mismo —sumar al marcador de puntos del asesor (`useAdvisorPoints`,
+ * un hook con su propio estado, no un contexto)— y viaja hacia arriba
+ * hasta `CallActivityCard`, que es quien orquesta el toast, el sonido y la
+ * vibración de recompensa. Agendar la cita nueva sí lo hace este mismo
+ * componente, con `addEvent` de `EventContext`: "Agendar Cita" (Paso 2)
+ * abre un mini-paso interno con fecha y hora —mismo patrón que
+ * "Reagendar"— en vez de cerrar este flujo y abrir por separado el
+ * formulario completo de "Nueva Actividad"; la persona ya dijo a quién y
+ * para qué, sólo falta el cuándo, y eso se resuelve sin salir de aquí.
  */
 export default function CallFeedbackModal({
-  event, prospectName, isOpen, onClose, onEarnPoints, onOpenNewAppointment,
+  event, prospectName, isOpen, onClose, onEarnPoints,
 }) {
-  const { completeEvent, removeEvent, rescheduleEvent } = useEvents();
+  const {
+    completeEvent, removeEvent, rescheduleEvent, addEvent,
+  } = useEvents();
 
-  // 'estado' (Paso 1) → 'resultado' (Paso 2, sólo si "Contestó") → 'reagendar'
-  // (mini-paso interno, sólo si se elige esa opción en el Paso 1).
+  /*
+    'estado' (Paso 1) → 'resultado' (Paso 2, sólo si "Contestó") →
+    'reagendar' o 'cita' (dos mini-pasos internos con fecha/hora, cada uno
+    alcanzable sólo desde su paso correspondiente: "Reagendar" desde el
+    Paso 1, "Agendar Cita" desde el Paso 2). Los dos comparten la misma
+    forma de campos, pero nunca el mismo destino: uno mueve la llamada
+    original, el otro crea un evento nuevo aparte y cierra la llamada
+    original como completada.
+  */
   const [step, setStep] = useState('estado');
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
 
   // Cada apertura arranca siempre en el Paso 1: es un flujo nuevo por cada
   // llamada, nunca continúa donde quedó la anterior.
@@ -79,6 +97,8 @@ export default function CallFeedbackModal({
     const parts = todayParts();
     setRescheduleDate(parts.date);
     setRescheduleTime(parts.time);
+    setAppointmentDate(parts.date);
+    setAppointmentTime(parts.time);
   }, [isOpen]);
 
   if (!event) return null;
@@ -95,14 +115,27 @@ export default function CallFeedbackModal({
     onClose();
   };
 
-  const scheduleAppointment = () => {
+  /*
+    Confirma la cita nueva con la fecha y hora elegidas en el mini-paso
+    'cita'. Se crea un evento aparte (`addEvent`, mismo contrato que ya usa
+    `ActivityForm.jsx`: `tipo_actividad`, `title`, `telefono`, `date`,
+    `time`, `priority`) — la llamada original se completa, no se
+    transforma en la cita, porque son dos actividades distintas del
+    embudo: la llamada ya ocurrió, la cita es lo que viene después.
+  */
+  const confirmAppointment = () => {
     onEarnPoints(CALL_GAMIFICATION.CITA_AGENDADA);
+    addEvent({
+      type: 'actividad',
+      tipo_actividad: 'cita',
+      title: `${CITA_LABEL}: ${prospectName}`,
+      telefono: event.telefono ?? '',
+      date: appointmentDate,
+      time: appointmentTime,
+      priority: 'maxima',
+    });
     completeEvent(event.id);
     onClose();
-    // El nuevo `ActivityForm` se abre desde `CallActivityCard`, después de
-    // que esta hoja termine su propia animación de cierre — evita que dos
-    // hojas queden montadas una encima de la otra al mismo tiempo.
-    onOpenNewAppointment({ prospectName, telefono: event.telefono ?? '' });
   };
 
   const dismissNotInterested = () => {
@@ -169,7 +202,7 @@ export default function CallFeedbackModal({
                 icon={CalendarCheck2}
                 label="Agendar Cita"
                 tone="bg-indigo-600 text-white hover:bg-indigo-500"
-                onClick={scheduleAppointment}
+                onClick={() => setStep('cita')}
               />
               <OptionButton
                 icon={UserX}
@@ -178,6 +211,58 @@ export default function CallFeedbackModal({
                 onClick={dismissNotInterested}
               />
             </div>
+          </motion.div>
+        )}
+
+        {step === 'cita' && (
+          <motion.div
+            key="cita"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <h2 className="mb-5 flex items-center gap-2 text-lg font-bold leading-snug
+                          text-zinc-900 dark:text-white"
+            >
+              <CalendarCheck2 size={18} className="shrink-0 text-indigo-500" aria-hidden="true" />
+              ¿Para cuándo agendamos la cita con {prospectName}?
+            </h2>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL} htmlFor="appointment-date">Fecha</label>
+                <input
+                  id="appointment-date"
+                  type="date"
+                  className={INPUT}
+                  value={appointmentDate}
+                  onChange={(e) => setAppointmentDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="appointment-time">Hora</label>
+                <input
+                  id="appointment-time"
+                  type="time"
+                  className={INPUT}
+                  value={appointmentTime}
+                  onChange={(e) => setAppointmentTime(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={confirmAppointment}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl
+                         bg-indigo-600 px-4 py-3 text-sm font-semibold text-white
+                         shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500
+                         active:scale-95"
+            >
+              <Check size={16} aria-hidden="true" />
+              Confirmar Cita
+            </button>
           </motion.div>
         )}
 

@@ -2,16 +2,22 @@ import { useState } from 'react';
 import { Phone, Clock } from 'lucide-react';
 import useCallReturnDetector from '../../lib/useCallReturnDetector';
 import CallFeedbackModal from './CallFeedbackModal';
-import ActivityForm from './ActivityForm';
 import Toast from '../Layout/Toast';
-import { useEvents } from '../../context/EventContext';
 import { playChime, primeAudio } from '../../data/chime';
 import { tapFeedback, SUCCESS_PATTERN } from '../../lib/haptics';
 
-/** Icono de WhatsApp: lucide no lo trae, así que va como trazo propio — mismo criterio ya usado en `ContactDrawer.jsx`/`DigitalCardPreview.jsx`. */
+/**
+ * Logo real de WhatsApp (el glifo oficial: burbuja + auricular): lucide no
+ * lo trae, así que va como trazo propio — mismo trazo de dos `<path>` que ya
+ * usan `ShareSheet.jsx`/`DigitalCardPreview.jsx`/`LeadsList.jsx`, y no la
+ * silueta de un solo `<path>` (sólo la burbuja, sin el auricular) que se
+ * usaba antes aquí — esa versión corta se lee como un globo de chat
+ * genérico, no como el logo reconocible de la app.
+ */
 function WhatsAppMark({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.64.07-.3-.15-1.13-.42-2.15-1.33-.8-.71-1.34-1.6-1.5-1.9-.15-.3-.01-.46.13-.61.16-.16.3-.35.45-.53.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.65-1.57-.89-2.15-.23-.56-.47-.49-.65-.5h-.55c-.2 0-.5.07-.77.37-.27.3-1.02 1-1.02 2.42s1.04 2.8 1.19 3c.15.2 2.05 3.13 4.96 4.27 2.42.95 2.9.76 3.42.71.52-.05 1.68-.68 1.92-1.35.24-.66.24-1.23.17-1.35-.07-.12-.27-.2-.57-.35z" />
       <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38c1.45.79 3.08 1.2 4.79 1.2 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.02c-1.55 0-3.07-.42-4.4-1.2l-.32-.19-3.26.86.87-3.18-.2-.33a8.09 8.09 0 0 1-1.24-4.32c0-4.47 3.64-8.11 8.11-8.11s8.11 3.64 8.11 8.11-3.64 8.11-8.11 8.11z" />
     </svg>
   );
@@ -61,12 +67,12 @@ function formatPoints(amount) {
  * persistirlo. El toast, el sonido (`playChime`) y la vibración
  * (`SUCCESS_PATTERN`) sí son responsabilidad de esta tarjeta: son la
  * recompensa sensorial del momento, no un dato que otro componente deba
- * conocer.
+ * conocer. Agendar la cita nueva (si el feedback termina en "Agendar
+ * Cita") lo resuelve por completo `CallFeedbackModal` — pide fecha y
+ * hora ahí mismo, sin abrir un segundo formulario aparte.
  */
 export default function CallActivityCard({ event, onEarnPoints }) {
-  const { addEvent } = useEvents();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [newAppointmentPrefill, setNewAppointmentPrefill] = useState(null);
   const [toast, setToast] = useState('');
   const arm = useCallReturnDetector(() => setFeedbackOpen(true));
 
@@ -143,23 +149,6 @@ export default function CallActivityCard({ event, onEarnPoints }) {
         isOpen={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
         onEarnPoints={awardPoints}
-        onOpenNewAppointment={setNewAppointmentPrefill}
-      />
-
-      {/*
-        "Agendar Cita" (Paso 2 del feedback) no agenda nada por sí mismo:
-        entrega el nombre y teléfono ya conocidos a `ActivityForm`, el
-        mismo formulario de "Nueva Actividad" de siempre, con el tipo ya
-        puesto en "Cita" — la persona sólo tiene que confirmar fecha y
-        hora, no volver a escribir a quién.
-      */}
-      <ActivityForm
-        isOpen={Boolean(newAppointmentPrefill)}
-        onClose={() => setNewAppointmentPrefill(null)}
-        onSave={(newEvent) => addEvent(newEvent)}
-        initialTipoActividad="cita"
-        initialProspectName={newAppointmentPrefill?.prospectName ?? ''}
-        initialProspectPhone={newAppointmentPrefill?.telefono ?? ''}
       />
 
       <Toast message={toast} onDone={() => setToast('')} />
