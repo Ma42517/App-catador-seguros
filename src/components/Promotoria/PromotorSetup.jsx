@@ -671,7 +671,11 @@ export default function PromotorSetup({ promoterId, initialName = '', onComplete
 
         {phase === 4 && (
           <Phase phaseKey={4}>
-            <SuccessStep name={name} agencyName={agencyName} onDone={() => onComplete?.()} />
+            <SuccessStep
+              name={name}
+              agencyName={agencyName}
+              onDone={() => onComplete?.(agencyName)}
+            />
           </Phase>
         )}
       </LocalTypewriterSpeed.Provider>

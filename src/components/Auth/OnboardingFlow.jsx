@@ -862,6 +862,33 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
       {step > 1 && step < 10 && <BackArrow onBack={goBack} />}
 
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
+      {/*
+        TODOS los pasos —incluidos el 1 al 3— viven dentro del mismo
+        `<motion.div>`, y nunca como hermanos sueltos de él.
+
+        Antes los Pasos 1 a 3 se dibujaban fuera de este contenedor, y el
+        `<motion.div>` de abajo (`className="flex w-full flex-col
+        items-center"`, con `w-full`) igual se montaba vacío junto a ellos
+        —`AnimatePresence`/`motion.div` no dejan de existir sólo porque no
+        haya nada que mostrar en su interior para el paso actual—. El
+        padre de los dos es `flex` en fila (`justify-center`, sin
+        `flex-col`), así que dos hijos pidiendo cada uno el 100% del ancho
+        se repartían el espacio a la mitad: el contenido real quedaba
+        comprimido en la mitad izquierda de la pantalla, con un hueco vacío
+        idéntico a la derecha —el "se me fue la pantalla toda la
+        izquierda" del reporte—. Con un único hijo compartido por los diez
+        pasos, nunca hay un segundo elemento con quien repartir ese ancho.
+      */}
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={step}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.35 }}
+        className="flex w-full flex-col items-center"
+      >
+
       {step === 1 && <NameStep initialValue={advisorData.nombre} onContinue={submitName} />}
 
       {step === 2 && (
@@ -884,15 +911,6 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
         convergen de vuelta a un único camino (disponibilidad, horario,
         motor, Sala de Análisis) — no hay bifurcación más allá de aquí.
       */}
-      <AnimatePresence mode="wait">
-      <motion.div
-        key={step}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.35 }}
-        className="flex w-full flex-col items-center"
-      >
 
       {step === 4 && (
         isConsolidated ? (

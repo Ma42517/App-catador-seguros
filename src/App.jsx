@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   PlayCircle, RotateCcw, Download, FileJson, X, Gauge,
-  LayoutList, LineChart as LineChartIcon, FlaskConical, ArrowLeft,
+  LayoutList, LineChart as LineChartIcon, FlaskConical, ArrowLeft, User, Building2,
 } from 'lucide-react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { ReferralProvider } from './context/ReferralContext';
@@ -18,6 +18,7 @@ import TodayView from './components/Home/TodayView';
 import CalendarView from './components/Calendar/CalendarView';
 import ProductivityDashboard from './components/Productivity/ProductivityDashboard';
 import PromotorDashboard from './components/Promotoria/PromotorDashboard';
+import PromotorSetup from './components/Promotoria/PromotorSetup';
 import { EventProvider } from './context/EventContext';
 import { AccessProvider } from './context/AccessContext';
 import { GoalsProvider } from './context/GoalsContext';
@@ -130,8 +131,7 @@ const PREVIEW_SAFE_ZONE_KEY = 'df360:safeZone:v1';
  * `advisorProfileData` ya resuelto no hace falta simular ningún otro rol
  * para este propósito.
  */
-function buildPreviewSessionValue(advisorProfileData) {
-  const role = PROFILE_ROLES.ADVISOR;
+function buildPreviewSessionValue(advisorProfileData, role = PROFILE_ROLES.ADVISOR) {
   const identity = {
     key: PREVIEW_KEY,
     name: advisorProfileData.nombre || 'Asesor',
@@ -412,6 +412,14 @@ function stepFromHash() {
 function Shell({
   onLogout, isPreview, isAdmin, isPromoterUser, storageKey, displayName, horario, inquietud,
   mercado, perfil,
+  /*
+    Con qué pestaña abre el Shell. Por omisión "Hoy" —lo de siempre para
+    cualquier asesor real, aprobado o en vista previa—; sólo la vista previa
+    del Promotor (`OnboardingPreview`, más abajo) la cambia a `'promotoria'`
+    para aterrizar directo en su propio panel, en vez de en una pestaña
+    "Hoy" que un promotor nunca usa de entrada.
+  */
+  initialSection = 'home',
 }) {
   /*
     No hay estado de tema. La app es oscura de forma permanente y la clase `dark`
@@ -421,7 +429,7 @@ function Shell({
   */
 
   // La app abre en "Hoy": el Diagnóstico 360 se alcanza desde "Ver más".
-  const [section, setSection] = useState('home');
+  const [section, setSection] = useState(initialSection);
   const [step, setStep] = useState(stepFromHash);
 
   /*
@@ -732,6 +740,40 @@ function Gate({ isPreview }) {
       : <OnboardingFlow userId={identity.key} onProfileSaved={refreshIdentity} />;
   }
 
+  /*
+    Detección automática de qué Onboarding le toca a cada rol — sin ningún
+    selector ni botón que preguntar: quien entra ya es promotor o ya es
+    asesor en la base (`role`, escrito por un administrador o por el propio
+    registro), y de eso —no de nada que la persona elija aquí— depende cuál
+    de los dos recorridos ve.
+
+    El asesor pasa por `OnboardingFlow` (arriba) mientras `experienceLevel`
+    esté vacío. El promotor NUNCA pasa por ahí —su ficha nace ya aprobada,
+    directo en `role = 'promoter'`, el día que un administrador lo asciende
+    (`AccessRequests.jsx`, "Hacer Promotor")—, así que sin este bloque
+    aterrizaría de una vez en `Shell` sin haber configurado su agencia ni su
+    código de invitación. Se usa `isPromoterOwner(role)` y no
+    `canRunPromotoria(role)`: el asistente de una promotoría ya existente se
+    vincula con el código de su titular, no crea una agencia propia, así que
+    nunca debe ver esta pantalla.
+
+    "¿Ya configuró su agencia?" no tiene una columna dedicada — se infiere
+    de dos datos que `PromotorSetup` es quien primero llena: el nombre de la
+    agencia (`company`, en la tarjeta digital) y el código de invitación
+    (`promotoriaCode`). Mientras los dos sigan vacíos, la configuración
+    nunca ha corrido y le toca esta pantalla; basta que uno de los dos ya
+    exista para no volver a mostrarla.
+  */
+  if (isPromoterOwner(role) && !identity.company && !identity.promotoriaCode) {
+    return (
+      <PromotorSetup
+        promoterId={identity.key}
+        initialName={identity.name}
+        onComplete={refreshIdentity}
+      />
+    );
+  }
+
   return (
     <FinanceProvider>
       <ReferralProvider>
@@ -828,16 +870,148 @@ export default function App() {
  * respuestas que de verdad se dieron en esta corrida —el mismo nombre, el
  * mismo horario—, tal como pasaría con una cuenta real.
  */
-function OnboardingPreview({ isPreview }) {
-  const [approvedData, setApprovedData] = useState(null);
+/**
+ * Insignia fija de la esquina superior izquierda, compartida por las
+ * cuatro pantallas de `OnboardingPreview` (selector, cuestionario del
+ * asesor, configuración del promotor y app ya aprobada): mismo estilo,
+ * mismo lugar, para que la vista previa siempre se identifique igual sin
+ * importar en qué punto del recorrido está.
+ */
+function PreviewBadge({ onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="fixed left-3 top-3 z-50 flex items-center gap-1.5 rounded-full
+                 border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
+                 font-bold uppercase tracking-widest text-amber-300/90
+                 backdrop-blur-md transition-colors hover:bg-amber-500/20"
+    >
+      <FlaskConical size={11} aria-hidden="true" />
+      {children}
+    </button>
+  );
+}
 
-  if (approvedData) {
-    /*
-      El valor no se memoriza con `useMemo` porque `approvedData` sólo
-      cambia una vez, al terminar el cuestionario: no hay ningún re-render
-      frecuente aquí que memoizar evitaría.
-    */
-    const sessionValue = buildPreviewSessionValue(approvedData);
+/**
+ * Selector de camino a probar, EXCLUSIVO de `?onboardingPreview=1`.
+ *
+ * En la app real nunca existe esta pregunta: el rol de cada cuenta ya está
+ * decidido en la base (`role` de `profiles`, asignado por un administrador
+ * o por el propio flujo de registro), y `Gate` decide en automático —sin
+ * preguntarle nada a nadie— cuál Onboarding le toca a cada quien, comparando
+ * ese rol (ver el bloque `isPromoterOwner(role)` dentro de `Gate`). Este
+ * selector sólo sirve para que, en el entorno de prueba, se pueda recorrer
+ * cualquiera de los dos caminos a voluntad sin tener que crear una cuenta
+ * real de cada tipo en Supabase.
+ */
+function PreviewRoleChooser({ onChoose }) {
+  return (
+    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-8
+                    bg-slate-950 px-6 text-center"
+    >
+      <div>
+        <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
+          Vista previa
+        </p>
+        <p className="mt-2 max-w-sm text-xl font-light leading-snug text-white">
+          ¿Qué camino quieres probar?
+        </p>
+        <p className="mt-2 max-w-xs text-[11px] leading-relaxed text-slate-500">
+          Este paso no existe en la app real: ahí el rol de la cuenta decide
+          esto en automático.
+        </p>
+      </div>
+
+      <div className="flex w-full max-w-sm flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => onChoose(PROFILE_ROLES.ADVISOR)}
+          className="flex items-center gap-3 rounded-2xl border border-slate-700
+                     bg-slate-900/60 p-4 text-left transition-colors hover:border-indigo-500/50
+                     hover:bg-slate-900"
+        >
+          <span
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border
+                       border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+            aria-hidden="true"
+          >
+            <User size={20} strokeWidth={1.8} aria-hidden="true" />
+          </span>
+          <span>
+            <span className="block text-sm font-semibold text-white">Asesor</span>
+            <span className="block text-xs text-slate-500">
+              Cuestionario de nueve pasos y su agenda del día
+            </span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onChoose(PROFILE_ROLES.PROMOTER)}
+          className="flex items-center gap-3 rounded-2xl border border-slate-700
+                     bg-slate-900/60 p-4 text-left transition-colors hover:border-amber-500/50
+                     hover:bg-slate-900"
+        >
+          <span
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border
+                       border-amber-500/30 bg-amber-500/10 text-amber-300"
+            aria-hidden="true"
+          >
+            <Building2 size={20} strokeWidth={1.8} aria-hidden="true" />
+          </span>
+          <span>
+            <span className="block text-sm font-semibold text-white">Promotor</span>
+            <span className="block text-xs text-slate-500">
+              Configuración de agencia y panel de equipo
+            </span>
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * `?onboardingPreview=1`: entorno de prueba, sin `SessionProvider` ni
+ * ninguna cuenta real detrás.
+ *
+ * Dos caminos posibles, elegidos con `PreviewRoleChooser` (ver arriba, y su
+ * nota sobre por qué este paso no existe fuera de la vista previa):
+ *
+ *  - **Asesor**: el cuestionario de nueve pasos (`OnboardingFlow`) tal como
+ *    lo ve la persona, y —simulando la aprobación del administrador con un
+ *    botón que sólo existe aquí— la app ya aprobada, calibrada con las
+ *    respuestas reales de esa corrida.
+ *  - **Promotor**: directo a `PromotorSetup` (la configuración de agencia
+ *    que un promotor real ve la primera vez que entra, sin pasar por
+ *    ningún cuestionario de asesor) y, al terminarla, el panel de
+ *    Promotoría ya con esa agencia creada.
+ */
+function OnboardingPreview({ isPreview }) {
+  const [role, setRole] = useState(null);
+  const [approvedData, setApprovedData] = useState(null);
+  const [promoterAgency, setPromoterAgency] = useState(null);
+
+  const reset = () => window.location.reload();
+
+  if (role === PROFILE_ROLES.PROMOTER) {
+    if (!promoterAgency) {
+      return (
+        <div className="relative min-h-screen">
+          <PromotorSetup
+            promoterId={PREVIEW_KEY}
+            onComplete={(agencyName) => setPromoterAgency(agencyName || 'Tu Promotoría')}
+          />
+          <PreviewBadge onClick={reset}>Vista previa · Promotor</PreviewBadge>
+        </div>
+      );
+    }
+
+    const sessionValue = buildPreviewSessionValue(
+      { nombre: '', perfil: '' },
+      PROFILE_ROLES.PROMOTER,
+    );
 
     return (
       <div className="relative min-h-screen">
@@ -845,19 +1019,26 @@ function OnboardingPreview({ isPreview }) {
           <FinanceProvider>
             <ReferralProvider>
               <EventProvider username={PREVIEW_KEY}>
-                <AccessProvider username={PREVIEW_KEY} forcedPromoter={false}>
+                <AccessProvider username={PREVIEW_KEY} forcedPromoter>
                   <GoalsProvider username={PREVIEW_KEY}>
                     <Shell
-                      onLogout={() => window.location.reload()}
+                      onLogout={reset}
                       isPreview={isPreview}
                       isAdmin={false}
-                      isPromoterUser={false}
+                      isPromoterUser
                       storageKey={PREVIEW_KEY}
-                      displayName={approvedData.nombre || 'Asesor'}
-                      horario={approvedData.horario ?? []}
-                      inquietud={approvedData.inquietud ?? ''}
-                      mercado={approvedData.mercado ?? ''}
-                      perfil={approvedData.perfil ?? ''}
+                      displayName="Promotor"
+                      horario={[]}
+                      inquietud=""
+                      mercado=""
+                      perfil=""
+                      /*
+                        Un promotor real nunca abre en "Hoy": no tiene
+                        agenda propia que revisar ahí, su primera pantalla
+                        es su equipo. La vista previa entra directo a lo
+                        mismo que vería recién creada su agencia.
+                      */
+                      initialSection="promotoria"
                     />
                   </GoalsProvider>
                 </AccessProvider>
@@ -866,70 +1047,98 @@ function OnboardingPreview({ isPreview }) {
           </FinanceProvider>
         </InjectedSession>
 
-        <span
-          className="fixed left-3 top-3 z-50 flex items-center gap-1.5 rounded-full
-                     border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
-                     font-bold uppercase tracking-widest text-amber-300/90
-                     backdrop-blur-md"
-        >
-          <FlaskConical size={11} aria-hidden="true" />
-          Vista previa · ya aprobado
-        </span>
-
-        {/*
-          Botón aparte del badge de arriba, y no fundido con él: éste hace
-          algo (borra los puntos de prueba) mientras el otro sólo informa.
-          Existe porque `useAdvisorPoints` persiste bajo la misma
-          `PREVIEW_KEY` fija entre visitas —a propósito, para que la agenda
-          de prueba no se resetee sola— y ese mismo acierto es lo que
-          esconde `FirstLoginIntro` en la segunda vuelta: una vez ganado el
-          punto la primera vez, "Simular aprobación" ya no vuelve a
-          mostrarlo, porque la condición real (`puntos === 0`) ya no se
-          cumple. Sin este botón, la única forma de volver a verlo era
-          borrar la clave a mano desde la consola del navegador.
-        */}
-        <button
-          type="button"
-          onClick={() => {
-            localStorage.removeItem(PREVIEW_POINTS_KEY);
-            localStorage.removeItem(PREVIEW_SAFE_ZONE_KEY);
-            window.location.reload();
-          }}
-          className="fixed left-3 top-9 z-50 flex items-center gap-1.5 rounded-full
-                     border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
-                     font-bold uppercase tracking-widest text-amber-300/90
-                     backdrop-blur-md transition-colors hover:bg-amber-500/20"
-        >
-          <FlaskConical size={11} aria-hidden="true" />
-          Reiniciar puntos de prueba
-        </button>
+        <PreviewBadge onClick={reset}>
+          Vista previa · Promotor · {promoterAgency}
+        </PreviewBadge>
       </div>
     );
   }
 
-  return (
-    <div className="relative min-h-screen">
-      <OnboardingFlow
-        userId={PREVIEW_KEY}
-        onProfileSaved={async () => {}}
-        /*
-          El resto de esta pantalla no cambia por este prop: sólo lo usa la
-          Sala de Análisis, para ofrecer el botón que simula la aprobación
-          con la radiografía que se acaba de contestar.
-        */
-        onSimulateApproval={setApprovedData}
-      />
-      <button
-        type="button"
-        onClick={() => window.location.reload()}
-        className="fixed left-3 top-3 z-50 flex items-center gap-1.5 rounded-full
-                   border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
-                   font-bold uppercase tracking-widest text-amber-300/90
-                   backdrop-blur-md transition-colors hover:bg-amber-500/20"
-      >
-        <FlaskConical size={11} aria-hidden="true" />
-        Vista previa · Reiniciar
-      </button>
-    </div>
-  );
+  if (role === PROFILE_ROLES.ADVISOR) {
+    if (approvedData) {
+      /*
+        El valor no se memoriza con `useMemo` porque `approvedData` sólo
+        cambia una vez, al terminar el cuestionario: no hay ningún
+        re-render frecuente aquí que memoizar evitaría.
+      */
+      const sessionValue = buildPreviewSessionValue(approvedData);
+
+      return (
+        <div className="relative min-h-screen">
+          <InjectedSession value={sessionValue}>
+            <FinanceProvider>
+              <ReferralProvider>
+                <EventProvider username={PREVIEW_KEY}>
+                  <AccessProvider username={PREVIEW_KEY} forcedPromoter={false}>
+                    <GoalsProvider username={PREVIEW_KEY}>
+                      <Shell
+                        onLogout={reset}
+                        isPreview={isPreview}
+                        isAdmin={false}
+                        isPromoterUser={false}
+                        storageKey={PREVIEW_KEY}
+                        displayName={approvedData.nombre || 'Asesor'}
+                        horario={approvedData.horario ?? []}
+                        inquietud={approvedData.inquietud ?? ''}
+                        mercado={approvedData.mercado ?? ''}
+                        perfil={approvedData.perfil ?? ''}
+                      />
+                    </GoalsProvider>
+                  </AccessProvider>
+                </EventProvider>
+              </ReferralProvider>
+            </FinanceProvider>
+          </InjectedSession>
+
+          <PreviewBadge onClick={reset}>Vista previa · ya aprobado</PreviewBadge>
+
+          {/*
+            Botón aparte de la insignia de arriba, y no fundido con ella:
+            éste hace algo (borra los puntos de prueba) mientras la otra
+            sólo informa. Existe porque `useAdvisorPoints` persiste bajo la
+            misma `PREVIEW_KEY` fija entre visitas —a propósito, para que la
+            agenda de prueba no se resetee sola— y ese mismo acierto es lo
+            que esconde `FirstLoginIntro` en la segunda vuelta: una vez
+            ganado el punto la primera vez, "Simular aprobación" ya no
+            vuelve a mostrarlo, porque la condición real (`puntos === 0`) ya
+            no se cumple. Sin este botón, la única forma de volver a verlo
+            era borrar la clave a mano desde la consola del navegador.
+          */}
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem(PREVIEW_POINTS_KEY);
+              localStorage.removeItem(PREVIEW_SAFE_ZONE_KEY);
+              reset();
+            }}
+            className="fixed left-3 top-9 z-50 flex items-center gap-1.5 rounded-full
+                       border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px]
+                       font-bold uppercase tracking-widest text-amber-300/90
+                       backdrop-blur-md transition-colors hover:bg-amber-500/20"
+          >
+            <FlaskConical size={11} aria-hidden="true" />
+            Reiniciar puntos de prueba
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="relative min-h-screen">
+        <OnboardingFlow
+          userId={PREVIEW_KEY}
+          onProfileSaved={async () => {}}
+          /*
+            El resto de esta pantalla no cambia por este prop: sólo lo usa
+            la Sala de Análisis, para ofrecer el botón que simula la
+            aprobación con la radiografía que se acaba de contestar.
+          */
+          onSimulateApproval={setApprovedData}
+        />
+        <PreviewBadge onClick={reset}>Vista previa · Asesor</PreviewBadge>
+      </div>
+    );
+  }
+
+  return <PreviewRoleChooser onChoose={setRole} />;
 }
