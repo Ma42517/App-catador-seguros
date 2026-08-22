@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  MoreVertical, MapPin, Video, MessageCircle, Sparkles, CheckCircle, Clock,
+  RefreshCcw, MapPin, Video, MessageCircle, Sparkles, CheckCircle, Clock,
 } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
@@ -92,13 +92,28 @@ export default function PipelineCard({ event, onOpenRequirements }) {
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={FLIP_SPRING}
         >
-          {/* ── Anverso: sólo texto ── */}
+          {/*
+            ── Anverso: texto + footer de pista ──
+
+            Se descarta el ícono suelto de "tres puntos": era una pista
+            demasiado sutil, fácil de leer como decoración y no como una
+            invitación a tocar. En su lugar, una barra inferior de ancho
+            completo, con su propio fondo (`bg-slate-800`, un tono más
+            claro que el `bg-slate-900` de la tarjeta) y texto explícito —
+            "Tocar para gestionar"— deja clarísimo que ahí hay una acción,
+            sin necesidad de adivinar qué significa un ícono aislado.
+
+            La tarjeta no crece: el footer vive dentro de los mismos 68px
+            totales, como una franja fija en la base (`h-6`), y el bloque
+            de texto de arriba ocupa el resto (`flex-1`) — no se suma
+            altura nueva, se reparte la que ya había.
+          */}
           <div
-            className="absolute inset-0 flex items-center justify-between gap-3 rounded-xl
-                       border border-slate-800 bg-slate-900 p-3.5"
+            className="absolute inset-0 flex flex-col overflow-hidden rounded-xl border
+                       border-slate-800 bg-slate-900"
             style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
           >
-            <div className="min-w-0 flex-1 text-left">
+            <div className="min-w-0 flex-1 px-3.5 pt-2.5 text-left">
               <p className="truncate text-sm font-semibold text-white">
                 Cita de Propuesta
                 <span className="font-normal text-slate-400"> · {prospectName}</span>
@@ -109,8 +124,12 @@ export default function PipelineCard({ event, onOpenRequirements }) {
               </p>
             </div>
 
-            {/* Pista de que la tarjeta se puede tocar para ver más. */}
-            <MoreVertical size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+            <div className="flex h-6 shrink-0 items-center justify-center gap-1.5 bg-slate-800">
+              <RefreshCcw size={11} className="shrink-0 text-slate-500" aria-hidden="true" />
+              <span className="text-[10px] font-medium text-slate-500">
+                Tocar para gestionar
+              </span>
+            </div>
           </div>
 
           {/* ── Reverso: sólo acciones ── */}
