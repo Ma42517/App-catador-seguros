@@ -20,6 +20,12 @@ import { Checkbox, NumberInput, TextInput, Select } from '../ui';
  * `CitaInicialWizard.jsx`: sólo `useState`, sin contextos ni enrutamiento
  * propio. Se monta con `<UnderwritingDrawer onBack={...} />` y no deja
  * rastro al desmontarse.
+ *
+ * "Riesgos y Deportes" es la única de las 3 Súper Preguntas con 3 campos
+ * obligatorios: actividad/deporte, frecuencia/nivel y detalle de cómo,
+ * cuándo y dónde se practica. Médico y Hábitos/Familia conservan sus
+ * campos como opcionales dentro del sub-formulario, porque no llegó una
+ * regla equivalente para ellas.
  */
 
 const EMPTY = {
@@ -31,9 +37,12 @@ const EMPTY = {
   heightCm: 0,
   occupation: '',
 
-  // Súper Pregunta 1 — Riesgos (actividades de alto riesgo, viajes, etc.)
+  // Súper Pregunta 1 — Riesgos y Deportes. Los 3 campos son obligatorios
+  // en cuanto se responde "Sí" (ver `RISK_REQUIRED_FIELDS` más abajo).
   hasRisks: null,
-  riskDetail: '',
+  riskActivity: '',
+  riskFrequency: '',
+  riskDetails: '',
 
   // Súper Pregunta 2 — Médico
   hasMedicalHistory: null,
@@ -47,6 +56,15 @@ const EMPTY = {
   habitFrequency: '',
   quitHabit: false,
 };
+
+/** Frecuencia/Nivel del sub-formulario de Riesgos y Deportes. */
+const RISK_FREQUENCY_OPTIONS = [
+  { value: '', label: 'Selecciona una opción' },
+  { value: 'amateur', label: 'Amateur' },
+  { value: 'profesional', label: 'Profesional' },
+  { value: 'trabajo', label: 'Por trabajo' },
+  { value: 'ocasional', label: 'Ocasional' },
+];
 
 /** Categorías del sub-formulario médico. */
 const MEDICAL_CATEGORIES = [
@@ -143,15 +161,42 @@ function ConditionalPanel({ children }) {
   );
 }
 
-/** Campo compacto con etiqueta pequeña; comparte forma en las dos secciones fijas y condicionales. */
-function CompactField({ label, children }) {
+/**
+ * Campo compacto con etiqueta pequeña; comparte forma en las dos secciones
+ * fijas y condicionales. `required` agrega el asterisco: se usa en los 3
+ * campos obligatorios del sub-formulario de Riesgos y Deportes, para que
+ * el asesor vea de entrada cuáles no puede dejar vacíos.
+ */
+function CompactField({ label, required = false, children }) {
   return (
     <div>
       <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
+        {required && <span className="ml-0.5 text-rose-400">*</span>}
       </span>
       {children}
     </div>
+  );
+}
+
+/**
+ * Textarea con el mismo estilo base que el resto de campos del expediente
+ * (no existe un `Textarea` en `components/ui`, así que se dibuja aquí a
+ * mano con las mismas clases que ya usa el input de fecha, más abajo, para
+ * no introducir un tercer estilo de campo distinto en la misma pantalla).
+ */
+function CompactTextarea({ value, onChange, placeholder, required = false, rows = 3 }) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      required={required}
+      rows={rows}
+      className="w-full resize-none rounded-xl border border-slate-700 bg-slate-950/60 px-3
+                 py-2.5 text-sm text-slate-100 placeholder:text-slate-500
+                 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    />
   );
 }
 
@@ -264,14 +309,43 @@ export default function UnderwritingDrawer({ onBack }) {
               value={data.hasRisks}
               onChange={(v) => update({ hasRisks: v })}
             />
+            {/*
+              Al responder "Sí" se revelan de inmediato los 3 campos
+              obligatorios de este sub-formulario — actividad, frecuencia/
+              nivel y detalle— y no uno a la vez ni tras otra confirmación:
+              es la misma "Súper Pregunta" abriendo su formulario completo,
+              igual que Médico y Hábitos.
+            */}
             <AnimatePresence>
               {data.hasRisks === true && (
                 <ConditionalPanel>
-                  <CompactField label="Detalle de la actividad o destino">
+                  <CompactField label="¿Qué actividad o deporte realiza?" required>
                     <TextInput
-                      value={data.riskDetail}
-                      onChange={(v) => update({ riskDetail: v })}
-                      placeholder="Ej. Motociclismo, buceo, zona de conflicto..."
+                      value={data.riskActivity}
+                      onChange={(v) => update({ riskActivity: v })}
+                      placeholder="Ej. Motociclismo, buceo, paracaidismo..."
+                      required
+                    />
+                  </CompactField>
+
+                  <CompactField label="Frecuencia / Nivel" required>
+                    <Select
+                      value={data.riskFrequency}
+                      onChange={(v) => update({ riskFrequency: v })}
+                      options={RISK_FREQUENCY_OPTIONS}
+                      required
+                    />
+                  </CompactField>
+
+                  <CompactField
+                    label="Especifique detalles (cómo, cuándo y dónde lo practica)"
+                    required
+                  >
+                    <CompactTextarea
+                      value={data.riskDetails}
+                      onChange={(v) => update({ riskDetails: v })}
+                      placeholder="Describe cómo, cuándo y dónde practica esta actividad..."
+                      required
                     />
                   </CompactField>
                 </ConditionalPanel>
