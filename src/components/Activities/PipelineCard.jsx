@@ -123,21 +123,28 @@ export default function PipelineCard({ event, onOpenRequirements }) {
               transform: 'rotateY(180deg)',
             }}
           >
-            <button
-              type="button"
-              disabled={!hasLocation}
-              onClick={stop(() => window.open(locationHref, '_blank', 'noopener'))}
-              aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
-              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full
-                          transition-colors active:scale-95 disabled:cursor-not-allowed
-                          disabled:opacity-30 ${hasLocation
-                  ? 'bg-sky-500/10 text-sky-400 hover:bg-sky-500/20'
-                  : 'bg-sky-500/10 text-sky-400'}`}
-            >
-              {isVirtual
-                ? <Video size={17} aria-hidden="true" />
-                : <MapPin size={17} aria-hidden="true" />}
-            </button>
+            {/*
+              Sin `zoomLink` guardado (virtual) o sin dirección capturada
+              (presencial), este botón no tiene nada que abrir — no es un
+              caso "deshabilitado que se puede resolver después" como el
+              teléfono sin número, es un botón sin ninguna función. Se
+              deja de dibujar por completo, igual que en
+              `InitialMeetingCard.jsx` (ver esa nota para el detalle).
+            */}
+            {hasLocation && (
+              <button
+                type="button"
+                onClick={stop(() => window.open(locationHref, '_blank', 'noopener'))}
+                aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                           bg-sky-500/10 text-sky-400 transition-colors
+                           hover:bg-sky-500/20 active:scale-95"
+              >
+                {isVirtual
+                  ? <Video size={17} aria-hidden="true" />
+                  : <MapPin size={17} aria-hidden="true" />}
+              </button>
+            )}
 
             <button
               type="button"

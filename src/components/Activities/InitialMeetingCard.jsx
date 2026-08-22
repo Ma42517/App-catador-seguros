@@ -185,22 +185,32 @@ export default function InitialMeetingCard({ event, onStartSession }) {
               </p>
             </div>
 
-            <a
-              href={locationHref ?? undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-disabled={!hasLocation}
-              onClick={(e) => { if (!hasLocation) e.preventDefault(); }}
-              aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
-              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                          active:scale-95 ${hasLocation
-                  ? 'bg-sky-500/10 text-sky-400 hover:bg-sky-500/20'
-                  : 'cursor-not-allowed bg-sky-500/10 text-sky-400 opacity-30'}`}
-            >
-              {isVirtual
-                ? <Video size={16} aria-hidden="true" />
-                : <MapPin size={16} aria-hidden="true" />}
-            </a>
+            {/*
+              En una cita virtual sin `zoomLink` guardado, este ícono no
+              tiene absolutamente nada que abrir — ni siquiera queda un
+              "recordatorio" que mostrar, a diferencia del mensaje de
+              WhatsApp, que sí sabe degradarse (Caso C de
+              `whatsappConfirm.js`). Antes se dibujaba igual, sólo
+              atenuado y deshabilitado: un botón sin ninguna función sigue
+              pareciendo un botón, e invita a tocarlo para nada. Se deja de
+              renderizar por completo — presencial sin dirección cae en el
+              mismo caso, por la misma razón.
+            */}
+            {hasLocation && (
+              <a
+                href={locationHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                           bg-sky-500/10 text-sky-400 transition-colors
+                           hover:bg-sky-500/20 active:scale-95"
+              >
+                {isVirtual
+                  ? <Video size={16} aria-hidden="true" />
+                  : <MapPin size={16} aria-hidden="true" />}
+              </a>
+            )}
 
             <a
               href={confirmHref ?? undefined}
