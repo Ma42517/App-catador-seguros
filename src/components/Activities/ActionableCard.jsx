@@ -4,7 +4,9 @@ import TaskOptionsSheet from './TaskOptionsSheet';
 import CallActivityCard from './CallActivityCard';
 import InitialMeetingCard from './InitialMeetingCard';
 import PipelineCard from './PipelineCard';
+import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from './eventStatus';
+import { useEvents } from '../../context/EventContext';
 import useNow from '../../lib/useNow';
 
 /**
@@ -27,12 +29,22 @@ import useNow from '../../lib/useNow';
  * "Cita de Propuesta" (`tipo_actividad === 'cita_propuesta'`) cede a
  * `PipelineCard.jsx`, la tarjeta reversible con las 4 acciones del reverso.
  * Cualquier otro tipo de evento (o uno viejo, de antes de que existiera
- * `tipo_actividad`) sigue el camino de siempre.
+ * `tipo_actividad`) sigue el camino de siempre — y es justo esa rama la
+ * que se envuelve en `SwipeableCard.jsx`: deslizar hacia la izquierda
+ * revela "Reagendar" (abre `TaskOptionsSheet` directo en el paso de
+ * reprogramar) y "Descartar" (`removeEvent`, mismo destino que "Eliminar"
+ * en ese mismo menú). Las tarjetas especiales de arriba —llamada, Cita
+ * Inicial, Cita de Propuesta— no se envuelven: cada una ya tiene su propio
+ * lenguaje de gestos y acciones, y sumarles el deslizamiento por encima
+ * competiría con lo que ya hacen (por ejemplo, `PipelineCard.jsx` ya usa
+ * el toque para voltear la tarjeta).
  */
 export default function ActionableCard({
   event, onEarnPoints, onStartSession, onOpenRequirements,
 }) {
+  const { removeEvent } = useEvents();
   const [isOpen, setIsOpen] = useState(false);
+  const [rescheduleOnOpen, setRescheduleOnOpen] = useState(false);
 
   /*
     El reloj entra como dependencia del render para que la tarjeta cambie
@@ -68,46 +80,56 @@ export default function ActionableCard({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl
-                    border bg-zinc-900/5 p-4 text-left backdrop-blur-sm transition-all
-                    active:scale-95 focus-visible:outline-none focus-visible:ring-2
-                    focus-visible:ring-indigo-500 dark:bg-zinc-800/40 ${tone.container}`}
+      <SwipeableCard
+        onReschedule={() => { setRescheduleOnOpen(true); setIsOpen(true); }}
+        onDiscard={() => removeEvent(event.id)}
       >
-        <span className="flex min-w-0 items-center gap-3">
-          <Icon size={16} className={`shrink-0 ${tone.icon}`} aria-hidden="true" />
-          <span className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
-            {event.title}
+        <button
+          type="button"
+          onClick={() => { setRescheduleOnOpen(false); setIsOpen(true); }}
+          className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl
+                      border bg-zinc-900/5 p-4 text-left backdrop-blur-sm transition-all
+                      active:scale-95 focus-visible:outline-none focus-visible:ring-2
+                      focus-visible:ring-indigo-500 dark:bg-zinc-800/40 ${tone.container}`}
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <Icon size={16} className={`shrink-0 ${tone.icon}`} aria-hidden="true" />
+            <span className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
+              {event.title}
+            </span>
           </span>
-        </span>
 
-        <span className="flex shrink-0 items-center gap-1.5">
+          <span className="flex shrink-0 items-center gap-1.5">
+            {/*
+              El punto acompaña a la hora, que es el dato que quedó atrás. Puesto
+              en la esquina de la tarjeta se leería como un aviso del evento
+              entero, sin decir qué es lo que está mal.
+            */}
+            {tone.showDot && (
+              <span
+                className="h-2 w-2 shrink-0 rounded-full bg-rose-500 dark:bg-rose-400"
+                aria-hidden="true"
+              />
+            )}
+            <span className={`text-xs tabular-nums ${tone.time}`}>
+              {event.time || 'Sin hora'}
+            </span>
+          </span>
+
           {/*
-            El punto acompaña a la hora, que es el dato que quedó atrás. Puesto
-            en la esquina de la tarjeta se leería como un aviso del evento
-            entero, sin decir qué es lo que está mal.
+            El estado también se nombra: el color y el latido no llegan a quien
+            usa un lector de pantalla ni a quien no distingue el ámbar del rosa.
           */}
-          {tone.showDot && (
-            <span
-              className="h-2 w-2 shrink-0 rounded-full bg-rose-500 dark:bg-rose-400"
-              aria-hidden="true"
-            />
-          )}
-          <span className={`text-xs tabular-nums ${tone.time}`}>
-            {event.time || 'Sin hora'}
-          </span>
-        </span>
+          {tone.label && <span className="sr-only">{tone.label}</span>}
+        </button>
+      </SwipeableCard>
 
-        {/*
-          El estado también se nombra: el color y el latido no llegan a quien
-          usa un lector de pantalla ni a quien no distingue el ámbar del rosa.
-        */}
-        {tone.label && <span className="sr-only">{tone.label}</span>}
-      </button>
-
-      <TaskOptionsSheet event={event} isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      <TaskOptionsSheet
+        event={event}
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        initialReschedule={rescheduleOnOpen}
+      />
     </>
   );
 }

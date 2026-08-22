@@ -38,19 +38,23 @@ function OptionRow({ icon: Icon, label, tone, onClick }) {
  * modales. Todas las acciones escriben en `EventContext`, de modo que el cambio
  * se refleja al instante en las dos vistas.
  */
-export default function TaskOptionsSheet({ event, isOpen, onClose }) {
+export default function TaskOptionsSheet({ event, isOpen, onClose, initialReschedule = false }) {
   const { completeEvent, reopenEvent, removeEvent, rescheduleEvent } = useEvents();
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
 
-  // Cada apertura arranca en el menú, con los valores actuales del evento.
+  // Cada apertura arranca en el menú, con los valores actuales del evento —
+  // salvo que se pida entrar directo a reprogramar (`initialReschedule`,
+  // que usa el gesto de deslizar de `SwipeableCard.jsx`/`ActionableCard.jsx`:
+  // ahí la persona ya eligió la acción, así que el menú intermedio sería un
+  // paso de más).
   useEffect(() => {
     if (!isOpen) return;
-    setIsRescheduling(false);
+    setIsRescheduling(Boolean(initialReschedule));
     setDate(event?.date ?? '');
     setTime(event?.time ?? '');
-  }, [isOpen, event]);
+  }, [isOpen, event, initialReschedule]);
 
   if (!event) return null;
 
