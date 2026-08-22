@@ -31,3 +31,29 @@ export function markSwipeTutorialSeen() {
     // Sin persistencia el nudge se repetirá la próxima vez: no rompe nada.
   }
 }
+
+/*
+  Candado en memoria (no en `localStorage`, no persiste entre recargas):
+  quien pinta "Hoy" o "Agenda" monta muchas `SwipeableCard` a la vez —una
+  por cada notificación/actividad—, y cada una corre su propio `useEffect`
+  al montarse. Sin este candado, todas verían `hasSeenSwipeTutorial()` en
+  `false` en el mismo instante y las verían asomarse *a la vez*, un Nudge
+  por tarjeta en toda la pantalla —el "efecto circo" que se pidió evitar
+  desde el principio—. Con el candado, sólo la primera tarjeta que llega a
+  preguntar (la primera de la lista, porque React corre los efectos en el
+  orden en que los componentes aparecen en el árbol) se queda con el
+  turno; las demás, montadas en el mismo ciclo, ya lo encuentran tomado y
+  no animan nada.
+*/
+let claimedThisPageLoad = false;
+
+/**
+ * Intenta reservar el turno del Nudge para quien llama primero.
+ * @returns {boolean} `true` sólo para la primera `SwipeableCard` que lo
+ *   pide en esta carga de página, y sólo si nadie lo ha visto antes.
+ */
+export function claimSwipeTutorial() {
+  if (hasSeenSwipeTutorial() || claimedThisPageLoad) return false;
+  claimedThisPageLoad = true;
+  return true;
+}

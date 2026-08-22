@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarClock, Trash2 } from 'lucide-react';
-import { hasSeenSwipeTutorial, markSwipeTutorialSeen } from '../../data/swipeTutorial';
+import { claimSwipeTutorial, markSwipeTutorialSeen } from '../../data/swipeTutorial';
 
 /*
   Anclaje "suave": hasta aquí llega la tarjeta si se suelta sin fuerza
@@ -91,15 +91,19 @@ export default function SwipeableCard({ children, onReschedule, onDiscard }) {
   const [isNudging, setIsNudging] = useState(false);
 
   /*
-    "Efecto Circo": sólo se enseña una vez, y sólo si nadie lo ha visto
-    antes en este navegador (`hasSeenSwipeTutorial`, `data/swipeTutorial.js`).
-    Dos asomos —no uno, no un vaivén infinito— y se detiene para siempre:
-    lo suficiente para que el patrón se repita y se aprenda, sin convertirse
-    en una animación que compite por la atención cada vez que la lista se
-    vuelve a pintar.
+    "Efecto Circo": sólo se enseña una vez, y sólo en la primera
+    tarjeta/notificación que aparece en la pantalla — no una vez por cada
+    tarjeta montada. `claimSwipeTutorial()` (`data/swipeTutorial.js`)
+    reparte un único turno por carga de página entre todas las
+    `SwipeableCard` que se monten a la vez; sólo la primera en pedirlo lo
+    obtiene, así que en una lista de diez notificaciones se ve un solo
+    asomo, en la primera de arriba, no diez asomándose al mismo tiempo. Dos
+    repeticiones —no una, no un vaivén infinito— y se detiene para
+    siempre, marcando la bandera persistente para que ni siquiera la
+    primera tarjeta vuelva a animarlo en una visita futura.
   */
   useEffect(() => {
-    if (hasSeenSwipeTutorial()) return undefined;
+    if (!claimSwipeTutorial()) return undefined;
 
     let cancelled = false;
     const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
