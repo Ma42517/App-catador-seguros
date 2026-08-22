@@ -87,10 +87,20 @@ export default function ActionableCard({
         <button
           type="button"
           onClick={() => { setRescheduleOnOpen(false); setIsOpen(true); }}
+          /*
+            Fondo sólido, no translúcido: con `bg-zinc-900/5`/`dark:bg-zinc-800/40`
+            (5%/40% de opacidad) y `backdrop-blur-sm`, la tarjeta dejaba
+            entrever lo que hay debajo incluso en reposo, sin haber
+            deslizado nada —y desde que existe `SwipeableCard.jsx`, "lo que
+            hay debajo" son los botones azul/rojo de Reagendar/Descartar—.
+            Mismos tonos de siempre (`zinc-50`/`zinc-800`), sólo que ahora
+            al 100% de opacidad: no es un color nuevo, es el mismo color ya
+            sin dejar pasar nada por detrás.
+          */
           className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl
-                      border bg-zinc-900/5 p-4 text-left backdrop-blur-sm transition-all
+                      border bg-zinc-50 p-4 text-left transition-all
                       active:scale-95 focus-visible:outline-none focus-visible:ring-2
-                      focus-visible:ring-indigo-500 dark:bg-zinc-800/40 ${tone.container}`}
+                      focus-visible:ring-indigo-500 dark:bg-zinc-800 ${tone.container}`}
         >
           <span className="flex min-w-0 items-center gap-3">
             <Icon size={16} className={`shrink-0 ${tone.icon}`} aria-hidden="true" />

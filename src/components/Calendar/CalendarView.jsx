@@ -141,11 +141,19 @@ export default function CalendarView() {
                         <button
                           type="button"
                           onClick={() => setSelected(event)}
+                          /*
+                            `dark:bg-zinc-800/40` con `backdrop-blur-sm` (40%
+                            de opacidad) dejaba ver los botones de
+                            Reagendar/Descartar de `SwipeableCard.jsx` por
+                            detrás, incluso en reposo. Mismo tono
+                            (`zinc-800`), sólo que sólido: nada de color
+                            nuevo, sólo deja de ser transparente.
+                          */
                           className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border
                                      bg-white p-4 text-left shadow-sm
                                      transition-all active:scale-95 focus-visible:outline-none
                                      focus-visible:ring-2 focus-visible:ring-indigo-500
-                                     dark:bg-zinc-800/40 dark:backdrop-blur-sm ${tone.container}
+                                     dark:bg-zinc-800 ${tone.container}
                                      ${event.completed ? 'opacity-50' : ''}`}
                         >
                           <span
