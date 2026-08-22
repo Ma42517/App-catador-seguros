@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  RefreshCcw, MapPin, Video, MessageCircle, Sparkles, CheckCircle, Clock,
+  MapPin, Video, MessageCircle, Sparkles, CheckCircle, Clock,
 } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
@@ -124,9 +124,15 @@ export default function PipelineCard({ event, onOpenRequirements }) {
               </p>
             </div>
 
-            <div className="flex h-6 shrink-0 items-center justify-center gap-1.5 bg-slate-800">
-              <RefreshCcw size={11} className="shrink-0 text-slate-500" aria-hidden="true" />
-              <span className="text-[10px] font-medium text-slate-500">
+            {/*
+              Más discreto: sin la barra de fondo `bg-slate-800` ni el
+              ícono — sólo el texto, en un gris apagado que se funde con el
+              `bg-slate-900` de la tarjeta en vez de dibujar un bloque de
+              color aparte. La pista sigue siendo legible, pero deja de
+              competir visualmente con el contenido de arriba.
+            */}
+            <div className="flex h-6 shrink-0 items-center justify-center">
+              <span className="text-[10px] font-medium text-slate-600">
                 Tocar para gestionar
               </span>
             </div>

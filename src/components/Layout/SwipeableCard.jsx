@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarClock, Trash2 } from 'lucide-react';
+import { hasSeenSwipeTutorial, markSwipeTutorialSeen } from '../../data/swipeTutorial';
 
 /*
   Anclaje "suave": hasta aquí llega la tarjeta si se suelta sin fuerza
@@ -36,6 +37,21 @@ const SNAP_SPRING = { type: 'spring', stiffness: 300, damping: 30 };
 /** Salida de pantalla al auto-eliminar: rápida y sin rebote, la tarjeta se va y no vuelve. */
 const EXIT_TRANSITION = { duration: 0.25, ease: 'easeInOut' };
 
+/*
+  Efecto "Nudge": cuánto se asoma la tarjeta hacia la izquierda y cuánto
+  dura cada tramo del vaivén. Es la misma distancia con la que ya se
+  documentó `REVEAL_X` como referencia visual, pero deliberadamente menor
+  —20px y no 100px—: el Nudge sólo tiene que insinuar que ahí hay un gesto,
+  no revelar el menú completo, que se sentiría como si la tarjeta ya
+  estuviera siendo arrastrada de verdad.
+*/
+const NUDGE_X = -20;
+const NUDGE_OUT_MS = 260;
+const NUDGE_BACK_MS = 260;
+const NUDGE_PAUSE_MS = 200;
+/** Resorte del Nudge: más suave que `SNAP_SPRING`, es una insinuación, no un anclaje. */
+const NUDGE_SPRING = { type: 'spring', stiffness: 260, damping: 22 };
+
 /**
  * src/components/Layout/SwipeableCard.jsx
  *
@@ -65,6 +81,56 @@ const EXIT_TRANSITION = { duration: 0.25, ease: 'easeInOut' };
 export default function SwipeableCard({ children, onReschedule, onDiscard }) {
   const [x, setX] = useState(0);
   const [isRemoving, setIsRemoving] = useState(false);
+  /*
+    El Nudge cambia el resorte de la animación de posición mientras dura su
+    propia secuencia (ver `NUDGE_SPRING` arriba, más suave que
+    `SNAP_SPRING`): sin esto, el vaivén heredaría el resorte de anclaje y
+    se sentiría tan firme como soltar la tarjeta a medio arrastre, no como
+    una insinuación pasajera.
+  */
+  const [isNudging, setIsNudging] = useState(false);
+
+  /*
+    "Efecto Circo": sólo se enseña una vez, y sólo si nadie lo ha visto
+    antes en este navegador (`hasSeenSwipeTutorial`, `data/swipeTutorial.js`).
+    Dos asomos —no uno, no un vaivén infinito— y se detiene para siempre:
+    lo suficiente para que el patrón se repita y se aprenda, sin convertirse
+    en una animación que compite por la atención cada vez que la lista se
+    vuelve a pintar.
+  */
+  useEffect(() => {
+    if (hasSeenSwipeTutorial()) return undefined;
+
+    let cancelled = false;
+    const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+    const runNudge = async () => {
+      if (cancelled) return;
+      setIsNudging(true);
+      setX(NUDGE_X);
+      await wait(NUDGE_OUT_MS);
+      if (cancelled) return;
+      setX(0);
+      await wait(NUDGE_BACK_MS);
+    };
+
+    (async () => {
+      await runNudge();
+      if (cancelled) return;
+      await wait(NUDGE_PAUSE_MS);
+      if (cancelled) return;
+      await runNudge();
+      if (cancelled) return;
+      setIsNudging(false);
+      markSwipeTutorialSeen();
+    })();
+
+    return () => { cancelled = true; };
+    // Sólo al montar: es una demostración de una vez, no algo que deba
+    // repetirse si `onReschedule`/`onDiscard` cambiaran de identidad entre
+    // renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isRemoving) return null;
 
@@ -160,7 +226,9 @@ export default function SwipeableCard({ children, onReschedule, onDiscard }) {
         animate={{ x }}
         transition={isRemoving
           ? EXIT_TRANSITION
-          : SNAP_SPRING}
+          : isNudging
+            ? NUDGE_SPRING
+            : SNAP_SPRING}
         style={{ opacity: isRemoving ? 0 : 1 }}
         className="relative"
       >
