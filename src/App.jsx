@@ -36,6 +36,7 @@ import { readPreference, writePreference } from './lib/uiPreference';
 import { prospectNameFrom } from './lib/prospectText';
 import { hasCapturedData } from './data/defaults';
 import ConversationalWizard from './components/Wizard/ConversationalWizard';
+import UnderwritingDrawer from './components/Prospecta/UnderwritingDrawer';
 
 /** Dónde se recuerda qué versión de la captura se está usando. */
 const CAPTURE_KEY = 'df360:captureMode:v1';
@@ -493,6 +494,18 @@ function Shell({
   }, []);
 
   /*
+    Botón ámbar (`Sparkles`) del reverso de `PipelineCard.jsx`, "Asistente de
+    requisitos": abre `UnderwritingDrawer.jsx` —el expediente médico rápido
+    de las 3 Súper Preguntas— como una pantalla completa por encima de todo,
+    igual que Prospecta. Estaba conectado hasta aquí en la cadena de props
+    (`ActionableCard.jsx` → `AISequence.jsx` → `TodayView.jsx`) pero nunca
+    llegaba a un manejador real: el botón no tenía nada que abrir, por eso
+    no hacía nada al tocarlo.
+  */
+  const [underwritingOpen, setUnderwritingOpen] = useState(false);
+  const handleOpenRequirements = useCallback(() => setUnderwritingOpen(true), []);
+
+  /*
     Qué versión del diagnóstico se ve. El estado vive aquí, en el Shell, porque es
     el antepasado común de los dos sitios que la deciden: el menú "Ver más", que la
     elige antes de navegar, y el interruptor de pruebas de dentro del tablero.
@@ -643,6 +656,7 @@ function Shell({
             setSection('wizard');
           }}
           onStartSession={handleStartSession}
+          onOpenRequirements={handleOpenRequirements}
         />
       ) : activeSection === 'productivity' ? (
         <ProductivityDashboard
@@ -754,6 +768,23 @@ function Shell({
   return (
     <DashboardVersionContext.Provider value={versionContext}>
       {content}
+
+      {/*
+        Overlay independiente, fuera de `AdminLayout`: se abre por encima de
+        cualquier sección (hoy sólo desde "Hoy", pero no depende de estar
+        en ella) y "Cerrar" sólo apaga este estado, sin tocar `section`.
+      */}
+      {underwritingOpen && (
+        <div className="fixed inset-0 z-[75] overflow-y-auto bg-black">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-grid-fade" aria-hidden="true" />
+          <div className="relative mx-auto max-w-md px-4 pb-16 pt-6">
+            <UnderwritingDrawer
+              onBack={() => setUnderwritingOpen(false)}
+              backLabel="Cerrar"
+            />
+          </div>
+        </div>
+      )}
     </DashboardVersionContext.Provider>
   );
 }

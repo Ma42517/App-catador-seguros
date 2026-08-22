@@ -19,7 +19,13 @@ import { Checkbox, NumberInput, TextInput, Select } from '../ui';
  * Autocontenido igual que `CierreCuestionarioMedico.jsx`/
  * `CitaInicialWizard.jsx`: sólo `useState`, sin contextos ni enrutamiento
  * propio. Se monta con `<UnderwritingDrawer onBack={...} />` y no deja
- * rastro al desmontarse.
+ * rastro al desmontarse. `backLabel` (por omisión "Etapas") es el único
+ * ajuste de contexto que admite: `Shell` (`App.jsx`) lo abre como
+ * pantalla completa aparte, fuera de Prospecta, desde el botón ámbar
+ * (`Sparkles`, "Asistente de requisitos") del reverso de
+ * `PipelineCard.jsx`, y ahí pasa `"Cerrar"` en vez del rótulo por
+ * omisión — el resto de la pantalla no sabe ni le importa desde dónde se
+ * llegó.
  *
  * "Riesgos y Deportes" es la única de las 3 Súper Preguntas con 3 campos
  * obligatorios: actividad/deporte, frecuencia/nivel y detalle de cómo,
@@ -200,7 +206,7 @@ function CompactTextarea({ value, onChange, placeholder, required = false, rows 
   );
 }
 
-export default function UnderwritingDrawer({ onBack }) {
+export default function UnderwritingDrawer({ onBack, backLabel = 'Etapas' }) {
   const [data, setData] = useState(EMPTY);
   const update = (patch) => setData((prev) => ({ ...prev, ...patch }));
 
@@ -213,7 +219,7 @@ export default function UnderwritingDrawer({ onBack }) {
                    transition-colors hover:text-slate-200"
       >
         <ArrowLeft size={16} aria-hidden="true" />
-        Etapas
+        {backLabel}
       </button>
 
       <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-2xl

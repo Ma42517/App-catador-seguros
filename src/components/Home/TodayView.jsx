@@ -30,7 +30,7 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  */
 export default function TodayView({
   name, puntosActuales, horario = [], inquietud = '', mercado = '', perfil = '', username,
-  onOpenDiagnostic, onStartSession,
+  onOpenDiagnostic, onStartSession, onOpenRequirements,
 }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
@@ -102,6 +102,7 @@ export default function TodayView({
       */
       onEarnPoints={addPoints}
       onStartSession={onStartSession}
+      onOpenRequirements={onOpenRequirements}
       header={(
         <div className="mx-auto max-w-2xl px-4 pt-8">
           {/*
