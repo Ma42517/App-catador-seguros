@@ -7,7 +7,7 @@
  */
 const KEY = 'df360:advisorProfile:v1';
 
-const EMPTY = { displayName: '', phone: '' };
+const EMPTY = { displayName: '', phone: '', zoomLink: '' };
 
 function readAll() {
   try {
@@ -25,6 +25,14 @@ export function readAdvisorProfile(username) {
   return {
     displayName: typeof stored?.displayName === 'string' ? stored.displayName : '',
     phone: typeof stored?.phone === 'string' ? stored.phone : '',
+    /*
+      Enlace fijo de Zoom/Meet del asesor (sala personal, no de una cita en
+      particular): es el que usa `generateWhatsAppConfirmLink` (ver
+      `lib/whatsappConfirm.js`) para las citas virtuales cuando el evento no
+      trae uno propio — así el asesor no tiene que escribir un link cada vez
+      que agenda una cita virtual, sólo lo guarda una vez aquí.
+    */
+    zoomLink: typeof stored?.zoomLink === 'string' ? stored.zoomLink : '',
   };
 }
 
@@ -33,7 +41,11 @@ export function saveAdvisorProfile(username, profile) {
   try {
     localStorage.setItem(KEY, JSON.stringify({
       ...readAll(),
-      [username]: { displayName: profile.displayName ?? '', phone: profile.phone ?? '' },
+      [username]: {
+        displayName: profile.displayName ?? '',
+        phone: profile.phone ?? '',
+        zoomLink: profile.zoomLink ?? '',
+      },
     }));
   } catch {
     // Sin persistencia los datos viven sólo en esta sesión.

@@ -1,7 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Check, Phone } from 'lucide-react';
+import { Check, Phone, MapPin, Video } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import { PRIORITIES, DEFAULT_PRIORITY } from './priorities';
+
+/*
+  Modalidad de la cita: sólo aplica a los tipos que de verdad se encuentran
+  con el prospecto (`cita`, `cita_inicial`, `cita_propuesta`, `cita_cierre`)
+  — una "Llamada" o un "Cobro" no tienen lugar ni modalidad que elegir.
+  "Presencial" pide dirección; "Virtual" ya no pide ningún link: se asume
+  Zoom/Meet a partir del enlace fijo que el asesor guardó en su perfil
+  (`data/advisorProfile.js`), y si no lo guardó, el mensaje de confirmación
+  se adapta solo (`lib/whatsappConfirm.js`) — pedir el link aquí, en cada
+  cita, era justo la fricción que se quería evitar.
+*/
+const MEETING_TYPES = ['cita', 'cita_inicial', 'cita_propuesta', 'cita_cierre'];
+const MODALITIES = [
+  { value: 'presencial', label: 'Presencial', Icon: MapPin },
+  { value: 'virtual', label: 'Virtual', Icon: Video },
+];
 
 /*
   Toda "Nueva Actividad" se guarda con prioridad máxima, sin preguntar: es
@@ -112,6 +128,11 @@ export default function ActivityForm({
   const [prospectName, setProspectName] = useState(initialProspectName);
   const [prospectPhone, setProspectPhone] = useState(initialProspectPhone);
 
+  // Sólo se lee/muestra cuando `tipoActividad` es uno de `MEETING_TYPES`.
+  const [modality, setModality] = useState(MODALITIES[0].value);
+  const [location, setLocation] = useState('');
+  const isMeeting = MEETING_TYPES.includes(tipoActividad);
+
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [priority, setPriority] = useState(DEFAULT_PRIORITY);
@@ -128,6 +149,8 @@ export default function ActivityForm({
     setTipoActividad(initialTipoActividad ?? ACTIVITY_TYPE_OPTIONS[0].value);
     setProspectName(initialProspectName);
     setProspectPhone(initialProspectPhone);
+    setModality(MODALITIES[0].value);
+    setLocation('');
     setDate(parts.date);
     setTime(parts.time);
     setPriority(DEFAULT_PRIORITY);
@@ -200,6 +223,17 @@ export default function ActivityForm({
       date: date || parts.date,
       time: time || parts.time,
       priority: ACTIVITY_PRIORITY,
+      /*
+        Sólo se guardan si el tipo elegido es de encuentro con el
+        prospecto; para el resto (`llamada`, `cobro`...) no aplican y no
+        se escriben, en vez de dejar campos vacíos sin sentido en esos
+        eventos.
+      */
+      ...(isMeeting && {
+        modality,
+        // Sólo tiene sentido cuando es presencial: virtual ya no pide texto.
+        location: modality === 'presencial' ? location.trim() : '',
+      }),
     });
     onClose();
   };
@@ -339,6 +373,58 @@ export default function ActivityForm({
                 )}
               </div>
             </div>
+
+            {/*
+              Toggle de Modalidad: sólo para los tipos que se encuentran con
+              el prospecto. Virtual ya no pide ningún input de texto —el
+              link se resuelve solo, con el enlace fijo del perfil del
+              asesor o con un mensaje que se adapta si no lo tiene guardado
+              (ver `lib/whatsappConfirm.js`).
+            */}
+            {isMeeting && (
+              <div>
+                <label className={LABEL} htmlFor="entry-modality">Modalidad</label>
+                <div
+                  id="entry-modality"
+                  role="radiogroup"
+                  aria-label="Modalidad de la cita"
+                  className="grid grid-cols-2 gap-2"
+                >
+                  {MODALITIES.map(({ value, label: modLabel, Icon }) => {
+                    const isActive = modality === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        onClick={() => setModality(value)}
+                        className={`flex items-center justify-center gap-1.5 rounded-xl border
+                                    px-3 py-2.5 text-sm font-semibold transition-all
+                                    active:scale-95 ${isActive
+                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                            : 'border-zinc-200 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400'}`}
+                      >
+                        <Icon size={14} aria-hidden="true" />
+                        {modLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Sólo presencial pide dirección; virtual no pide nada. */}
+                {modality === 'presencial' && (
+                  <input
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Dirección o punto de encuentro"
+                    autoComplete="off"
+                    aria-label="Dirección o punto de encuentro"
+                    className={`${INPUT} mt-2`}
+                  />
+                )}
+              </div>
+            )}
           </>
         )}
 

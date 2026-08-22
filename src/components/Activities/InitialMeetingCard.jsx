@@ -7,6 +7,8 @@ import useHourglassTimer from '../../lib/useHourglassTimer';
 import { computeEndTime } from '../../lib/appointmentTime';
 import { addOrphanProspect } from '../../data/orphanProspects';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
+import { generateWhatsAppConfirmLink } from '../../lib/whatsappConfirm';
+import { readAdvisorProfile } from '../../data/advisorProfile';
 import WhatsAppMark from './WhatsAppMark';
 
 /**
@@ -65,11 +67,20 @@ export default function InitialMeetingCard({ event, onStartSession }) {
   const phone = digits(event.telefono);
   const hasPhone = phone.length > 0;
 
-  // Video si el evento trae link de videollamada; si no, ubicación física
-  // (también opcional: sin ninguno de los dos, el ícono queda deshabilitado,
-  // mismo criterio que el teléfono sin número en `CallActivityCard.jsx`).
-  const isVideoMeeting = Boolean(event.videoUrl);
-  const locationHref = isVideoMeeting ? event.videoUrl : event.locationUrl;
+  /*
+    Modalidad de la cita (`entry-modality` de `ActivityForm.jsx`, guardada
+    en el propio evento): "virtual" abre el enlace fijo de Zoom/Meet del
+    perfil del asesor (`data/advisorProfile.js`); sin ese link guardado, el
+    ícono de ubicación no tiene a dónde abrir —pero el de WhatsApp sí sigue
+    funcionando, con el mensaje de recordatorio que se adapta solo (Caso C
+    de `lib/whatsappConfirm.js`). "presencial" abre el mapa de la dirección
+    capturada en el formulario.
+  */
+  const isVirtual = event.modality === 'virtual';
+  const zoomLink = isVirtual ? readAdvisorProfile(username).zoomLink : '';
+  const locationHref = isVirtual
+    ? (zoomLink || null)
+    : (event.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}` : null);
   const hasLocation = Boolean(locationHref);
 
   /*
@@ -79,12 +90,19 @@ export default function InitialMeetingCard({ event, onStartSession }) {
     enlace de verdad —el botón parecía "no hacer nada"—, aunque en celular
     casi siempre lo dejaban pasar. Un `<a>` nunca cuenta como pop-up. Mismo
     ajuste que ya se hizo en `CallActivityCard.jsx`.
+
+    El mensaje de WhatsApp usa la misma lógica de degradación elegante que
+    describe `lib/whatsappConfirm.js`: presencial con dirección, virtual con
+    el link fijo del asesor si lo tiene guardado, o virtual sin link como
+    simple recordatorio si no lo tiene — nunca inventa un dato que no existe.
   */
-  const confirmHref = hasPhone
-    ? `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(
-      `Hola ${prospectName}, te escribo para confirmarte nuestra cita de hoy a las ${event.time || ''}.`,
-    )}`
-    : null;
+  const confirmHref = generateWhatsAppConfirmLink(
+    { name: prospectName, phone: event.telefono },
+    event.time,
+    event.modality,
+    event.location,
+    { zoomLink },
+  );
 
   /*
     Gatillo de 30 minutos: en cuanto el reloj de arena marca `isExpired`, se
@@ -173,13 +191,13 @@ export default function InitialMeetingCard({ event, onStartSession }) {
               rel="noopener noreferrer"
               aria-disabled={!hasLocation}
               onClick={(e) => { if (!hasLocation) e.preventDefault(); }}
-              aria-label={isVideoMeeting ? 'Abrir videollamada' : 'Abrir ubicación'}
+              aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
               className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
                           active:scale-95 ${hasLocation
                   ? 'bg-sky-500/10 text-sky-400 hover:bg-sky-500/20'
                   : 'cursor-not-allowed bg-sky-500/10 text-sky-400 opacity-30'}`}
             >
-              {isVideoMeeting
+              {isVirtual
                 ? <Video size={16} aria-hidden="true" />
                 : <MapPin size={16} aria-hidden="true" />}
             </a>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users } from 'lucide-react';
+import { BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users, Video } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
 import TextScaleControl from '../ui/TextScaleControl';
@@ -82,6 +82,9 @@ function ProfileRow({ icon: Icon, title, subtitle, badge, onClick }) {
 export default function UserProfile({ isOpen, onClose, username, onEditCard, onOpenLeads }) {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
+  // Enlace fijo de Zoom/Meet: lo usa `InitialMeetingCard.jsx` para las citas
+  // virtuales, así el asesor no lo escribe en cada cita que agenda.
+  const [zoomLink, setZoomLink] = useState('');
   const [toast, setToast] = useState('');
   const [leadCount, setLeadCount] = useState(0);
 
@@ -93,6 +96,7 @@ export default function UserProfile({ isOpen, onClose, username, onEditCard, onO
     const saved = readAdvisorProfile(username);
     setDisplayName(saved.displayName);
     setPhone(saved.phone);
+    setZoomLink(saved.zoomLink);
     setLeadCount(readLeads(username).length);
     setToast('');
   }, [isOpen, username]);
@@ -101,7 +105,7 @@ export default function UserProfile({ isOpen, onClose, username, onEditCard, onO
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    saveAdvisorProfile(username, { displayName, phone });
+    saveAdvisorProfile(username, { displayName, phone, zoomLink });
     setToast('Datos guardados. Tu marca de agua está lista.');
   };
 
@@ -214,6 +218,23 @@ export default function UserProfile({ isOpen, onClose, username, onEditCard, onO
           icon={Phone}
           inputMode="tel"
           autoComplete="tel"
+        />
+
+        {/*
+          Enlace fijo de tu sala de Zoom/Meet: lo usa `InitialMeetingCard.jsx`
+          para las citas virtuales, sin que tengas que escribirlo cada vez
+          que agendas una. Es opcional: si lo dejas vacío, el mensaje de
+          WhatsApp de esa cita se adapta solo.
+        */}
+        <MinimalField
+          id="profile-zoom-link"
+          label="Enlace fijo de videollamada (Zoom/Meet)"
+          placeholder="https://zoom.us/j/..."
+          value={zoomLink}
+          onChange={setZoomLink}
+          icon={Video}
+          type="url"
+          autoComplete="off"
         />
 
         <button
