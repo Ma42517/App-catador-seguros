@@ -3,6 +3,7 @@ import { Bell, Calendar as CalendarIcon } from 'lucide-react';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import CallActivityCard from './CallActivityCard';
 import InitialMeetingCard from './InitialMeetingCard';
+import PipelineCard from './PipelineCard';
 import { getEventStatus, eventStatusStyles } from './eventStatus';
 import useNow from '../../lib/useNow';
 
@@ -22,11 +23,15 @@ import useNow from '../../lib/useNow';
  * botón de check por el flujo de teléfono/WhatsApp y el feedback automático
  * al volver de la llamada. Una "Cita Inicial" (`tipo_actividad ===
  * 'cita_inicial'`) tampoco usa esta tarjeta: cede a `InitialMeetingCard.jsx`,
- * con sus 3 acciones propias y el "Reloj de Arena" del auto-archivo.
+ * con sus 3 acciones propias y el "Reloj de Arena" del auto-archivo. Una
+ * "Cita de Propuesta" (`tipo_actividad === 'cita_propuesta'`) cede a
+ * `PipelineCard.jsx`, la tarjeta reversible con las 4 acciones del reverso.
  * Cualquier otro tipo de evento (o uno viejo, de antes de que existiera
  * `tipo_actividad`) sigue el camino de siempre.
  */
-export default function ActionableCard({ event, onEarnPoints, onStartSession }) {
+export default function ActionableCard({
+  event, onEarnPoints, onStartSession, onOpenRequirements,
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   /*
@@ -46,6 +51,10 @@ export default function ActionableCard({ event, onEarnPoints, onStartSession }) 
 
   if (event.tipo_actividad === 'cita_inicial') {
     return <InitialMeetingCard event={event} onStartSession={onStartSession} />;
+  }
+
+  if (event.tipo_actividad === 'cita_propuesta') {
+    return <PipelineCard event={event} onOpenRequirements={onOpenRequirements} />;
   }
 
   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
