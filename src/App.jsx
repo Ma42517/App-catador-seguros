@@ -33,6 +33,7 @@ import {
   DashboardVersionContext, DASHBOARD_VERSIONS, readVersion, writeVersion,
 } from './context/dashboardVersion';
 import { readPreference, writePreference } from './lib/uiPreference';
+import { prospectNameFrom } from './lib/prospectText';
 import { hasCapturedData } from './data/defaults';
 import ConversationalWizard from './components/Wizard/ConversationalWizard';
 
@@ -443,8 +444,32 @@ function Shell({
   */
   const [prospectaAutoStage, setProspectaAutoStage] = useState(null);
 
-  const handleStartSession = useCallback(() => {
+  /*
+    Nombre y teléfono del prospecto de la Cita Inicial que se está
+    reportando en vivo — se leen del propio evento que ya tenía la
+    tarjeta (`InitialMeetingCard.jsx`, "Iniciar Sesión" manda el evento
+    completo). Viajan junto con `prospectaAutoStage` porque describen la
+    misma cosa: la cita que llegó por notificación, no una que el asesor
+    abrió por su cuenta desde el menú.
+
+    Es justo lo que permite que "Avanzamos a Propuesta"
+    (`PresentationEndModal.jsx`) llegue a `ActivityForm` con el nombre y el
+    teléfono ya puestos —el asesor sólo elige lugar/modalidad y
+    fecha/hora—, en vez de tener que volver a escribirlos: ese prospecto
+    ya existe, viene de esta misma cita. Cuando la Cita Inicial se abre a
+    mano (repasar el guion, presentación hecha fuera de la app), este valor
+    se queda en `null` y `ActivityForm` arranca con esos dos campos en
+    blanco, como cualquier "Nueva Actividad" — porque en ese caso el
+    prospecto no está en ningún lado de la app todavía.
+  */
+  const [prospectaClient, setProspectaClient] = useState(null);
+
+  const handleStartSession = useCallback((event) => {
     setProspectaAutoStage('cita');
+    setProspectaClient({
+      name: prospectNameFrom(event?.title),
+      phone: event?.telefono ?? '',
+    });
     setSection('productivity');
   }, []);
 
@@ -623,7 +648,8 @@ function Shell({
         <ProductivityDashboard
           username={storageKey}
           autoOpenProspectaStage={prospectaAutoStage}
-          onAutoOpenConsumed={() => setProspectaAutoStage(null)}
+          autoOpenProspectaClient={prospectaClient}
+          onAutoOpenConsumed={() => { setProspectaAutoStage(null); setProspectaClient(null); }}
           onRouteToActivity={handleRouteToActivity}
         />
       ) : activeSection === 'promotoria' ? (

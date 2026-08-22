@@ -31,6 +31,12 @@ export default function ProductivityDashboard({
     entrada normal, la del banner, que sigue abriendo la lista de etapas.
   */
   autoOpenProspectaStage = null,
+  /*
+    Nombre/teléfono del prospecto de la Cita Inicial que llegó por
+    notificación (ver la nota en `App.jsx`, `prospectaClient`): sólo viaja
+    junto con `autoOpenProspectaStage`, nunca por su cuenta.
+  */
+  autoOpenProspectaClient = null,
   onAutoOpenConsumed,
   onRouteToActivity,
 }) {
@@ -155,6 +161,7 @@ export default function ProductivityDashboard({
         isOpen={isProspectaOpen}
         onClose={() => { setProspectaOpen(false); onAutoOpenConsumed?.(); }}
         initialStageKey={autoOpenProspectaStage}
+        client={autoOpenProspectaClient}
         onRouteToActivity={handleRouteToActivity}
       />
 

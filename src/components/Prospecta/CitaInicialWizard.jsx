@@ -641,7 +641,9 @@ const STEPS = [
  * "Etapas", sin interrumpir con un formulario de resolución de ventas que
  * no corresponde a una cita que en verdad se esté cerrando.
  */
-export default function CitaInicialWizard({ onBack, onRouteToActivity, requireResolution = false }) {
+export default function CitaInicialWizard({
+  onBack, onRouteToActivity, requireResolution = false, client = null,
+}) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState(EMPTY);
   const [showEndModal, setShowEndModal] = useState(false);
@@ -744,19 +746,22 @@ export default function CitaInicialWizard({ onBack, onRouteToActivity, requireRe
       </div>
 
       {/*
-        Sin un identificador real de prospecto capturado por este asistente
-        todavía (ver la nota del Paso 7: "nada de esto se guarda todavía"),
-        `client` viaja vacío — el modal cae a "este prospecto" en su título,
-        y `ActivityForm` sigue abriendo con los campos de nombre/teléfono en
-        blanco, listos para escribirse a mano, como cualquier "Nueva
-        Actividad" hoy.
+        `client` llega con nombre y teléfono ya resueltos sólo cuando esta
+        cita se está reportando en vivo, desde la notificación (ver la nota
+        de `requireResolution` arriba, y `prospectaClient` en `App.jsx`):
+        ese prospecto ya existe en la agenda de hoy, así que
+        `ActivityForm` no debe volver a preguntarlos. Entrando a mano —sin
+        `requireResolution`— siempre es `null`; el modal cae a "este
+        prospecto" en su título, y `ActivityForm` abre con esos dos campos
+        en blanco, porque en ese caso el prospecto no está capturado en
+        ningún lado todavía.
       */}
       <PresentationEndModal
         isOpen={showEndModal}
-        client={{ name: '', phone: '' }}
+        client={client ?? { name: '', phone: '' }}
         onClose={() => { setShowEndModal(false); onBack(); }}
         onRouteToActivity={onRouteToActivity}
-        onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
+        onDiscardClient={(discardedClient) => markProspectDiscarded(identity?.key, discardedClient)}
         onEarnPoints={addPoints}
       />
     </div>

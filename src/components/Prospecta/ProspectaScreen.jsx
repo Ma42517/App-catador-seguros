@@ -143,7 +143,7 @@ function StageDetail({ stage, onBack }) {
  * Se monta y desmonta con retardo para poder animar entrada y salida.
  */
 export default function ProspectaScreen({
-  isOpen, onClose, initialStageKey = null, onRouteToActivity,
+  isOpen, onClose, initialStageKey = null, client = null, onRouteToActivity,
 }) {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isShown, setIsShown] = useState(false);
@@ -246,6 +246,7 @@ export default function ProspectaScreen({
               onBack={() => setSelected(null)}
               onRouteToActivity={onRouteToActivity}
               requireResolution={cameFromNotification}
+              client={cameFromNotification ? client : null}
             />
           ) : (
             <StageDetail stage={selected} onBack={() => setSelected(null)} />
