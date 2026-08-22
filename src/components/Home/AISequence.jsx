@@ -63,7 +63,20 @@ export default function AISequence({
   const [diagnosticsCount] = useDiagnosticInventory(username);
   const [safeZoneProspects] = useState(() => readSafeZone(username));
 
-  const text = buildMessage(highPriorityToday.length);
+  /*
+    Congelado en el primer render con `useState(() => ...)`, y no recalculado
+    en cada uno: antes era `buildMessage(highPriorityToday.length)` directo,
+    así que completar o eliminar cualquier actividad de la lista (una
+    notificación, la Cita Inicial, cualquier tarea) cambiaba el conteo de
+    pendientes, `text` cambiaba, y como el efecto de `useTypewriter` depende
+    de `text`, volvía a escribir el mensaje completo desde cero — `isTyping`
+    se ponía en `true` otra vez y `revealClass` ocultaba de golpe el
+    encabezado, la barra de puntos, los avisos y la agenda entera, dando la
+    sensación de que la app se reiniciaba. Con el valor fijo desde el
+    montaje, tachar o quitar una notificación ya no vuelve a disparar esa
+    máquina de escribir: sólo desaparece la notificación, tal como se pidió.
+  */
+  const [text] = useState(() => buildMessage(highPriorityToday.length));
 
   /*
     Reloj vivo para el mensaje inteligente: sin él, alguien que abre la app

@@ -65,8 +65,18 @@ export default function AdminLayout({
     hermanos dentro del mismo commit inicial) y corren el mismo intervalo
     sobre el mismo texto, así que terminan de "escribir" juntas y la barra
     se revela exactamente cuando el resto lo hace.
+
+    El texto se congela en el primer render (`useState(() => ...)`), igual
+    que en `AISequence.jsx` y por la misma razón: antes se recalculaba en
+    cada render a partir de `highPriorityToday.length`, así que completar o
+    eliminar cualquier actividad cambiaba el conteo, el texto cambiaba, y
+    `useTypewriter` volvía a escribir desde cero — la barra inferior
+    desaparecía (`revealed={!isHomeTextTyping}` más abajo) al mismo tiempo
+    que el resto de "Hoy" se apagaba en `AISequence.jsx`, dando la sensación
+    de que la app entera se reiniciaba con sólo tachar una notificación.
   */
-  const { isTyping: isHomeTextTyping } = useTypewriter(buildMessage(highPriorityToday.length));
+  const [homeMessage] = useState(() => buildMessage(highPriorityToday.length));
+  const { isTyping: isHomeTextTyping } = useTypewriter(homeMessage);
 
   /*
     El panel de administración tiene una sola llave: el rol `admin`.
