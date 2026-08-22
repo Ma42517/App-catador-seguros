@@ -1,74 +1,88 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 /*
-  Cuánto tiempo mínimo tiene que estar la pestaña oculta para contar como
-  "se fue a hacer la llamada y volvió", y no como un cambio de pestaña de
-  medio segundo (revisar una notificación, un parpadeo del sistema al
-  abrir el marcador). Una llamada real —aunque nadie conteste— tarda al
-  menos un par de segundos en sonar; por debajo de ese umbral es más
-  probable que sea ruido que una llamada de verdad.
+  Red de seguridad: si pasado este tiempo desde que se armó el detector nunca
+  llegó un aviso fiable de que la persona volvió, se abre el feedback de
+  todos modos.
+
+  Existe por el caso real que se reportó: en ciertos navegadores o
+  dispositivos `tel:` no hace nada visible —no hay app de teléfono
+  instalada, o el sistema simplemente lo ignora— así que la pestaña nunca
+  pasa a "hidden" y nunca "regresa": sin esta red, el feedback no se abría
+  ni en ese intento ni en ninguno de los siguientes, porque no había ningún
+  evento real que lo disparara. Con la red, tocar el ícono de teléfono
+  siempre termina abriendo el modal, tarde o temprano — que es justo lo que
+  se pidió ("que siempre lo hiciera, independientemente").
 */
-const MIN_AWAY_MS = 2000;
+const FALLBACK_MS = 4000;
 
 /**
  * src/lib/useCallReturnDetector.js
  *
  * Detecta el regreso a la pestaña después de haber salido a hacer una
- * llamada (`tel:`), sin disparar falsos positivos.
+ * llamada (`tel:`), armado explícitamente por quien toca el ícono
+ * (`arm()`, justo antes de abrir el `tel:`) — cambiar de pestaña o que
+ * llegue una notificación cualquier otro día no dispara nada, porque nadie
+ * llamó a `arm()`.
  *
- * Dos guardas, no una sola, es lo que hace esto robusto:
+ * Dos señales de "regresé", no una sola:
+ *   1. `visibilitychange` a "visible": el caso normal en celular, donde
+ *      abrir el marcador sí manda la pestaña a segundo plano.
+ *   2. `focus` de la ventana: cubre el escritorio, donde `tel:` a veces
+ *      sólo muestra un diálogo de confirmación del sistema y la pestaña
+ *      nunca llega a "hidden", pero sí pierde y recupera el foco.
+ * Cualquiera de las dos que llegue primero abre el feedback; la otra, si
+ * llega después, ya no hace nada (el armado se consume solo).
  *
- *   1. **Armado explícito** (`arm()`): el detector no escucha nada hasta
- *      que la propia tarjeta lo activa, justo en el `onClick` del ícono de
- *      teléfono — cambiar de pestaña, minimizar el navegador o que llegue
- *      una notificación cualquier otro día no dispara nada, porque nadie
- *      llamó a `arm()`.
- *   2. **Tiempo mínimo fuera** (`MIN_AWAY_MS`): incluso armado, sólo cuenta
- *      si la pestaña estuvo oculta al menos ese tiempo. Un `tel:` que el
- *      sistema rechaza al instante (sin app de teléfono, por ejemplo)
- *      vuelve a "visible" casi de inmediato y no debe abrir el modal de
- *      feedback de una llamada que nunca ocurrió.
+ * Ya no hay un tiempo mínimo fuera antes de contar como regreso real: un
+ * primer intento de esa guarda (para filtrar parpadeos) acabó bloqueando
+ * regresos legítimos en ciertos navegadores, que es un daño mayor que el
+ * de abrir el modal alguna vez de más. Entre "puede que sobre una vez" y
+ * "puede que nunca abra", se eligió lo primero.
  *
- * El armado se consume solo: cada llamada a `arm()` cubre un único ciclo
- * oculto→visible, y no vuelve a dispararse hasta la siguiente vez que se
- * toque el ícono.
- *
- * @param {() => void} onReturn - Se llama una sola vez por cada ciclo armado que cumple el tiempo mínimo.
+ * @param {() => void} onReturn - Se llama una sola vez por cada ciclo armado.
  * @returns {() => void} `arm` — llamar justo antes de abrir el `tel:`.
  */
 export default function useCallReturnDetector(onReturn) {
   const armedRef = useRef(false);
-  const hiddenAtRef = useRef(0);
   const onReturnRef = useRef(onReturn);
   onReturnRef.current = onReturn;
+  const timeoutRef = useRef(null);
+
+  const clearFallback = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  const fire = useCallback(() => {
+    if (!armedRef.current) return;
+    armedRef.current = false;
+    clearFallback();
+    onReturnRef.current?.();
+  }, []);
 
   const arm = useCallback(() => {
     armedRef.current = true;
-    hiddenAtRef.current = 0;
-  }, []);
+    clearFallback();
+    timeoutRef.current = setTimeout(fire, FALLBACK_MS);
+  }, [fire]);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!armedRef.current) return;
-
-      if (document.visibilityState === 'hidden') {
-        hiddenAtRef.current = Date.now();
-        return;
-      }
-
-      // De vuelta a "visible": sólo cuenta si de verdad se había ocultado
-      // antes (evita el caso raro de dos eventos "visible" consecutivos).
-      if (document.visibilityState === 'visible' && hiddenAtRef.current) {
-        const awayMs = Date.now() - hiddenAtRef.current;
-        armedRef.current = false;
-        hiddenAtRef.current = 0;
-        if (awayMs >= MIN_AWAY_MS) onReturnRef.current?.();
-      }
+    const onVisible = () => {
+      // El evento de `visibilitychange` dispara en ambas direcciones; sólo
+      // el regreso a "visible" cuenta como que la persona volvió.
+      if (document.visibilityState === 'visible') fire();
     };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', fire);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', fire);
+      clearFallback();
+    };
+  }, [fire]);
 
   return arm;
 }

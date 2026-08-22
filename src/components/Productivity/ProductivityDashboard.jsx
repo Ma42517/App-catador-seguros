@@ -33,10 +33,27 @@ export default function ProductivityDashboard({
   autoOpenProspectaStage = null,
   onAutoOpenConsumed,
 }) {
-  const [isProspectaOpen, setProspectaOpen] = useState(Boolean(autoOpenProspectaStage));
+  const [isProspectaOpen, setProspectaOpen] = useState(false);
   const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
   const [isGoalsOpen, setGoalsOpen] = useState(false);
   const [isBlocksOpen, setBlocksOpen] = useState(false);
+
+  /*
+    Se abre cada vez que llega una etapa a la que saltar, no sólo la primera
+    vez que este panel se monta.
+
+    Antes `autoOpenProspectaStage` sólo se leía como valor inicial de
+    `useState(Boolean(autoOpenProspectaStage))`: eso abría Prospecta sola la
+    primera vez que la persona entraba a "Productividad" recién llegada
+    desde "Iniciar Sesión", pero si ya había estado antes en esta pestaña
+    —así que el componente ya estaba montado—, React no vuelve a ejecutar
+    ese inicializador nunca más: la prop cambiaba, pero la pantalla nunca se
+    abría. Con el efecto, cualquier cambio de la prop (venga del primer
+    montaje o de uno ya en pie) abre la pantalla igual.
+  */
+  useEffect(() => {
+    if (autoOpenProspectaStage) setProspectaOpen(true);
+  }, [autoOpenProspectaStage]);
 
   /*
     Resumen del día en la tarjeta de bloques. Se relee al cerrar la pantalla del
