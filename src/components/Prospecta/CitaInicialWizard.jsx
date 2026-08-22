@@ -631,13 +631,17 @@ const STEPS = [
  * en cualquier sitio con `<CitaInicialWizard onBack={...} />` y quitarlo sin
  * dejar rastro.
  *
- * "Terminar cita" ya no regresa directo a la lista de etapas: abre
- * `PresentationEndModal`, el router de ventas que decide a dónde va el
- * prospecto después (`onRouteToActivity`, hacia `ActivityForm` pre-llenado
- * en `AdminLayout.jsx`, vía `App.jsx`). El regreso a "Etapas" ocurre recién
- * al cerrar ese modal, sea cual sea la resolución elegida.
+ * "Terminar cita" abre `PresentationEndModal` —el router de ventas que
+ * decide a dónde va el prospecto después (`onRouteToActivity`, hacia
+ * `ActivityForm` pre-llenado)— sólo cuando `requireResolution` es `true`:
+ * es el cierre obligatorio de una cita real, y sólo aplica cuando se llegó
+ * aquí desde la notificación de "Iniciar Sesión" (`ProspectaScreen.jsx`
+ * decide ese valor). Entrando a mano desde la lista de etapas —a repasar
+ * el guion, a probar la herramienta— "Terminar cita" vuelve directo a
+ * "Etapas", sin interrumpir con un formulario de resolución de ventas que
+ * no corresponde a una cita que en verdad se esté cerrando.
  */
-export default function CitaInicialWizard({ onBack, onRouteToActivity }) {
+export default function CitaInicialWizard({ onBack, onRouteToActivity, requireResolution = false }) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState(EMPTY);
   const [showEndModal, setShowEndModal] = useState(false);
@@ -724,7 +728,11 @@ export default function CitaInicialWizard({ onBack, onRouteToActivity }) {
           </Button>
 
           {isLast ? (
-            <Button variant="success" icon={Check} onClick={() => setShowEndModal(true)}>
+            <Button
+              variant="success"
+              icon={Check}
+              onClick={() => (requireResolution ? setShowEndModal(true) : onBack())}
+            >
               Terminar cita
             </Button>
           ) : (

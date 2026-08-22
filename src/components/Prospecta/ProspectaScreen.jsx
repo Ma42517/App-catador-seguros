@@ -149,6 +149,18 @@ export default function ProspectaScreen({
   const [isShown, setIsShown] = useState(false);
   const [selected, setSelected] = useState(null);
 
+  /*
+    Si a la Cita Inicial se llegó automáticamente desde la notificación
+    ("Iniciar Sesión" de `InitialMeetingCard.jsx`, vía `initialStageKey`) o
+    a mano, eligiéndola de la lista de etapas. `PresentationEndModal.jsx`
+    ("Terminar cita") sólo debe interrumpir en el primer caso: es el cierre
+    obligatorio de una cita que de verdad se está reportando en vivo. Quien
+    entra por su cuenta a repasar el guion o probar la herramienta —sin
+    que haya una cita real en curso— no debe tropezar con un formulario que
+    le exige elegir una resolución de ventas.
+  */
+  const [cameFromNotification, setCameFromNotification] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       /*
@@ -159,6 +171,7 @@ export default function ProspectaScreen({
         `ProspectaHero`), se abre en la lista como siempre.
       */
       setSelected(STAGES.find((stage) => stage.key === initialStageKey) ?? null);
+      setCameFromNotification(Boolean(initialStageKey));
       setIsMounted(true);
       const raf = requestAnimationFrame(() => setIsShown(true));
       return () => cancelAnimationFrame(raf);
@@ -232,6 +245,7 @@ export default function ProspectaScreen({
             <selected.Component
               onBack={() => setSelected(null)}
               onRouteToActivity={onRouteToActivity}
+              requireResolution={cameFromNotification}
             />
           ) : (
             <StageDetail stage={selected} onBack={() => setSelected(null)} />
@@ -250,7 +264,11 @@ export default function ProspectaScreen({
                 <StageButton
                   key={stage.key}
                   stage={stage}
-                  onClick={() => setSelected(stage)}
+                  /*
+                    Entrada manual: nunca exige el cierre obligatorio, sin
+                    importar cómo se haya llegado a esta lista antes.
+                  */
+                  onClick={() => { setSelected(stage); setCameFromNotification(false); }}
                 />
               ))}
             </div>
