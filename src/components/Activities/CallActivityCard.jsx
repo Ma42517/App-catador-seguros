@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { Phone, Clock } from 'lucide-react';
 import useCallReturnDetector from '../../lib/useCallReturnDetector';
 import CallFeedbackModal from './CallFeedbackModal';
+import TaskOptionsSheet from './TaskOptionsSheet';
+import SwipeableCard from '../Layout/SwipeableCard';
 import WhatsAppMark from './WhatsAppMark';
 import Toast from '../Layout/Toast';
 import { playChime, primeAudio } from '../../data/chime';
 import { tapFeedback, SUCCESS_PATTERN } from '../../lib/haptics';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
+import { useEvents } from '../../context/EventContext';
 
 /** "+ 0.5 Puntos", "+ 3 Puntos": entero sin decimales, fracción con uno solo. */
 function formatPoints(amount) {
@@ -40,7 +43,12 @@ function formatPoints(amount) {
  * hora ahí mismo, sin abrir un segundo formulario aparte.
  */
 export default function CallActivityCard({ event, onEarnPoints }) {
+  const { removeEvent } = useEvents();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // Sólo lo abre el "Reagendar" del gesto de deslizar (`SwipeableCard`,
+  // ver más abajo): tocar la tarjeta nunca abre este menú, sigue siendo
+  // el flujo de teléfono/WhatsApp de siempre.
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [toast, setToast] = useState('');
   const arm = useCallReturnDetector(() => setFeedbackOpen(true));
 
@@ -79,46 +87,59 @@ export default function CallActivityCard({ event, onEarnPoints }) {
 
   return (
     <>
-      <div
-        className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900
-                   p-3.5"
+      {/*
+        Mismo gesto de deslizar que ya tienen las demás tarjetas de "Hoy"
+        (`ActionableCard.jsx`, para el resto de actividades): al final de
+        cuentas ésta es también una notificación del día, y la persona debe
+        poder descartarla sin depender del flujo de teléfono/WhatsApp.
+        "Reagendar" abre `TaskOptionsSheet` directo en el paso de
+        reprogramar; "Descartar" quita la actividad de la agenda.
+      */}
+      <SwipeableCard
+        onReschedule={() => setRescheduleOpen(true)}
+        onDiscard={() => removeEvent(event.id)}
       >
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-            <Clock size={11} aria-hidden="true" />
-            {event.time || 'Sin hora'}
-          </p>
+        <div
+          className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900
+                     p-3.5"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+              <Clock size={11} aria-hidden="true" />
+              {event.time || 'Sin hora'}
+            </p>
+          </div>
+
+          <a
+            href={whatsAppHref ?? undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-disabled={!hasPhone}
+            onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
+            aria-label={`Enviar WhatsApp a ${prospectName}`}
+            className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
+                        active:scale-95 ${hasPhone
+                ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
+          >
+            <WhatsAppMark size={16} />
+          </a>
+
+          <button
+            type="button"
+            onClick={handleCall}
+            disabled={!hasPhone}
+            aria-label={`Llamar a ${prospectName}`}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                       bg-indigo-500/10 text-indigo-400 transition-colors
+                       hover:bg-indigo-500/20 active:scale-95 disabled:cursor-not-allowed
+                       disabled:opacity-30"
+          >
+            <Phone size={16} aria-hidden="true" />
+          </button>
         </div>
-
-        <a
-          href={whatsAppHref ?? undefined}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-disabled={!hasPhone}
-          onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
-          aria-label={`Enviar WhatsApp a ${prospectName}`}
-          className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                      active:scale-95 ${hasPhone
-              ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-              : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
-        >
-          <WhatsAppMark size={16} />
-        </a>
-
-        <button
-          type="button"
-          onClick={handleCall}
-          disabled={!hasPhone}
-          aria-label={`Llamar a ${prospectName}`}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                     bg-indigo-500/10 text-indigo-400 transition-colors
-                     hover:bg-indigo-500/20 active:scale-95 disabled:cursor-not-allowed
-                     disabled:opacity-30"
-        >
-          <Phone size={16} aria-hidden="true" />
-        </button>
-      </div>
+      </SwipeableCard>
 
       <CallFeedbackModal
         event={event}
@@ -126,6 +147,13 @@ export default function CallActivityCard({ event, onEarnPoints }) {
         isOpen={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
         onEarnPoints={awardPoints}
+      />
+
+      <TaskOptionsSheet
+        event={event}
+        isOpen={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
+        initialReschedule
       />
 
       <Toast message={toast} onDone={() => setToast('')} />

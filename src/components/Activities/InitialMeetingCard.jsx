@@ -10,6 +10,8 @@ import { digits, prospectNameFrom } from '../../lib/prospectText';
 import { generateWhatsAppConfirmLink } from '../../lib/whatsappConfirm';
 import { readAdvisorProfile } from '../../data/advisorProfile';
 import WhatsAppMark from './WhatsAppMark';
+import TaskOptionsSheet from './TaskOptionsSheet';
+import SwipeableCard from '../Layout/SwipeableCard';
 
 /**
  * src/components/Activities/InitialMeetingCard.jsx
@@ -56,6 +58,9 @@ export default function InitialMeetingCard({ event, onStartSession }) {
 
   const [isArchiving, setIsArchiving] = useState(false);
   const archivedRef = useRef(false);
+  // Sólo lo abre "Reagendar" del gesto de deslizar; tocar la tarjeta sigue
+  // sin abrir ningún menú, es el mismo comportamiento de siempre.
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
   const sessionStarted = Boolean(event.sessionStarted);
   const endTime = event.endTime ?? computeEndTime(event);
@@ -163,81 +168,105 @@ export default function InitialMeetingCard({ event, onStartSession }) {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 0.92, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.35, ease: 'easeInOut' }}
-          className={`overflow-hidden rounded-xl border p-3.5 transition-colors ${
-            isWarning
-              ? 'animate-pulse border-amber-500/60 bg-slate-900'
-              : 'border-slate-800 bg-slate-900'
-          }`}
+          className="overflow-hidden"
         >
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                <Clock size={11} aria-hidden="true" />
-                {event.time || 'Sin hora'}
-                {!sessionStarted && isWarning && minutesUntilPenalty !== null && (
-                  <span className="font-semibold text-amber-400">
-                    · Se archiva en {minutesUntilPenalty}
-                    {' '}
-                    {minutesUntilPenalty === 1 ? 'minuto' : 'minutos'}
-                  </span>
+          {/*
+            Mismo gesto de deslizar que ya tienen las demás tarjetas de
+            "Hoy": es la Cita Inicial más importante del día, pero sigue
+            siendo una notificación que la persona debe poder descartar sin
+            depender del Reloj de Arena. El auto-archivo a los 30 minutos
+            (arriba) sigue intacto y corre por su cuenta; esto sólo agrega
+            la salida manual.
+          */}
+          <SwipeableCard
+            onReschedule={() => setRescheduleOpen(true)}
+            onDiscard={() => removeEvent(event.id)}
+          >
+            <div
+              className={`rounded-xl border p-3.5 transition-colors ${
+                isWarning
+                  ? 'animate-pulse border-amber-500/60 bg-slate-900'
+                  : 'border-slate-800 bg-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                    <Clock size={11} aria-hidden="true" />
+                    {event.time || 'Sin hora'}
+                    {!sessionStarted && isWarning && minutesUntilPenalty !== null && (
+                      <span className="font-semibold text-amber-400">
+                        · Se archiva en {minutesUntilPenalty}
+                        {' '}
+                        {minutesUntilPenalty === 1 ? 'minuto' : 'minutos'}
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                {/*
+                  En una cita virtual sin `zoomLink` guardado, este ícono no
+                  tiene absolutamente nada que abrir — ni siquiera queda un
+                  "recordatorio" que mostrar, a diferencia del mensaje de
+                  WhatsApp, que sí sabe degradarse (Caso C de
+                  `whatsappConfirm.js`). Antes se dibujaba igual, sólo
+                  atenuado y deshabilitado: un botón sin ninguna función
+                  sigue pareciendo un botón, e invita a tocarlo para nada.
+                  Se deja de renderizar por completo — presencial sin
+                  dirección cae en el mismo caso, por la misma razón.
+                */}
+                {hasLocation && (
+                  <a
+                    href={locationHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                               bg-sky-500/10 text-sky-400 transition-colors
+                               hover:bg-sky-500/20 active:scale-95"
+                  >
+                    {isVirtual
+                      ? <Video size={16} aria-hidden="true" />
+                      : <MapPin size={16} aria-hidden="true" />}
+                  </a>
                 )}
-              </p>
+
+                <a
+                  href={confirmHref ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-disabled={!hasPhone}
+                  onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
+                  aria-label={`Confirmar cita con ${prospectName} por WhatsApp`}
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full
+                              transition-colors active:scale-95 ${hasPhone
+                      ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                      : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
+                >
+                  <WhatsAppMark size={16} />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleStartSession}
+                  aria-label={sessionStarted ? 'Abrir presentación' : 'Iniciar sesión de presentación'}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                             bg-indigo-500/10 text-indigo-400 transition-colors
+                             hover:bg-indigo-500/20 active:scale-95"
+                >
+                  <PlayCircle size={16} aria-hidden="true" />
+                </button>
+              </div>
             </div>
+          </SwipeableCard>
 
-            {/*
-              En una cita virtual sin `zoomLink` guardado, este ícono no
-              tiene absolutamente nada que abrir — ni siquiera queda un
-              "recordatorio" que mostrar, a diferencia del mensaje de
-              WhatsApp, que sí sabe degradarse (Caso C de
-              `whatsappConfirm.js`). Antes se dibujaba igual, sólo
-              atenuado y deshabilitado: un botón sin ninguna función sigue
-              pareciendo un botón, e invita a tocarlo para nada. Se deja de
-              renderizar por completo — presencial sin dirección cae en el
-              mismo caso, por la misma razón.
-            */}
-            {hasLocation && (
-              <a
-                href={locationHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                           bg-sky-500/10 text-sky-400 transition-colors
-                           hover:bg-sky-500/20 active:scale-95"
-              >
-                {isVirtual
-                  ? <Video size={16} aria-hidden="true" />
-                  : <MapPin size={16} aria-hidden="true" />}
-              </a>
-            )}
-
-            <a
-              href={confirmHref ?? undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-disabled={!hasPhone}
-              onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
-              aria-label={`Confirmar cita con ${prospectName} por WhatsApp`}
-              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                          active:scale-95 ${hasPhone
-                  ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                  : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
-            >
-              <WhatsAppMark size={16} />
-            </a>
-
-            <button
-              type="button"
-              onClick={handleStartSession}
-              aria-label={sessionStarted ? 'Abrir presentación' : 'Iniciar sesión de presentación'}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                         bg-indigo-500/10 text-indigo-400 transition-colors
-                         hover:bg-indigo-500/20 active:scale-95"
-            >
-              <PlayCircle size={16} aria-hidden="true" />
-            </button>
-          </div>
+          <TaskOptionsSheet
+            event={event}
+            isOpen={rescheduleOpen}
+            onClose={() => setRescheduleOpen(false)}
+            initialReschedule
+          />
         </motion.div>
       )}
     </AnimatePresence>

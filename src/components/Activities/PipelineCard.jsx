@@ -8,6 +8,8 @@ import { useSession } from '../../context/SessionContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
 import { generateWhatsAppConfirmLink } from '../../lib/whatsappConfirm';
 import { readAdvisorProfile } from '../../data/advisorProfile';
+import SwipeableCard from '../Layout/SwipeableCard';
+import TaskOptionsSheet from './TaskOptionsSheet';
 
 /*
   Física del giro: un resorte ágil, no una curva de tiempo fija. `stiffness`
@@ -36,11 +38,21 @@ const FLIP_SPRING = { type: 'spring', stiffness: 400, damping: 26 };
  * su tarjeta de dos caras—: cada cara aplica `backfaceVisibility: 'hidden'`
  * para que la que está de espaldas ni se vea ni se pueda tocar a través de
  * la otra.
+ *
+ * También envuelta en `SwipeableCard.jsx`: esta cita es igualmente una
+ * notificación del día, y debe poder reagendarse o descartarse con el mismo
+ * gesto que el resto de "Hoy", sin obligar a voltear la tarjeta y usar
+ * "Finalizar" en el reverso. El arrastre horizontal de `SwipeableCard` y el
+ * toque para voltear conviven sin pisarse: uno exige mover el dedo una
+ * distancia real, el otro es un toque breve sin desplazamiento.
  */
 export default function PipelineCard({ event, onOpenRequirements }) {
-  const { completeEvent } = useEvents();
+  const { completeEvent, removeEvent } = useEvents();
   const { identity } = useSession();
   const [isFlipped, setIsFlipped] = useState(false);
+  // Sólo lo abre "Reagendar" del gesto de deslizar; tocar la tarjeta sigue
+  // volteándola como siempre, sin abrir ningún menú.
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
@@ -75,138 +87,154 @@ export default function PipelineCard({ event, onOpenRequirements }) {
   const handleFinish = () => completeEvent(event.id);
 
   return (
-    <div className="relative h-[68px] w-full [perspective:1000px]">
-      <button
-        type="button"
-        onClick={() => setIsFlipped((v) => !v)}
-        aria-label={isFlipped
-          ? `Ocultar acciones de ${prospectName}`
-          : `Ver acciones de ${prospectName}`}
-        className="relative h-full w-full rounded-xl focus-visible:outline-none
-                   focus-visible:ring-2 focus-visible:ring-indigo-500"
-        style={{ transformStyle: 'preserve-3d' }}
+    <>
+      <SwipeableCard
+        onReschedule={() => setRescheduleOpen(true)}
+        onDiscard={() => removeEvent(event.id)}
       >
-        <motion.div
-          className="absolute inset-0"
-          style={{ transformStyle: 'preserve-3d' }}
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={FLIP_SPRING}
-        >
-          {/*
-            ── Anverso: texto + footer de pista ──
-
-            Se descarta el ícono suelto de "tres puntos": era una pista
-            demasiado sutil, fácil de leer como decoración y no como una
-            invitación a tocar. En su lugar, una barra inferior de ancho
-            completo, con su propio fondo (`bg-slate-800`, un tono más
-            claro que el `bg-slate-900` de la tarjeta) y texto explícito —
-            "Tocar para gestionar"— deja clarísimo que ahí hay una acción,
-            sin necesidad de adivinar qué significa un ícono aislado.
-
-            La tarjeta no crece: el footer vive dentro de los mismos 68px
-            totales, como una franja fija en la base (`h-6`), y el bloque
-            de texto de arriba ocupa el resto (`flex-1`) — no se suma
-            altura nueva, se reparte la que ya había.
-          */}
-          <div
-            className="absolute inset-0 flex flex-col overflow-hidden rounded-xl border
-                       border-slate-800 bg-slate-900"
-            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+        <div className="relative h-[68px] w-full [perspective:1000px]">
+          <button
+            type="button"
+            onClick={() => setIsFlipped((v) => !v)}
+            aria-label={isFlipped
+              ? `Ocultar acciones de ${prospectName}`
+              : `Ver acciones de ${prospectName}`}
+            className="relative h-full w-full rounded-xl focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-indigo-500"
+            style={{ transformStyle: 'preserve-3d' }}
           >
-            <div className="min-w-0 flex-1 px-3.5 pt-2.5 text-left">
-              <p className="truncate text-sm font-semibold text-white">
-                Cita de Propuesta
-                <span className="font-normal text-slate-400"> · {prospectName}</span>
-              </p>
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                <Clock size={11} aria-hidden="true" />
-                {event.time || 'Sin hora'}
-              </p>
-            </div>
+            <motion.div
+              className="absolute inset-0"
+              style={{ transformStyle: 'preserve-3d' }}
+              animate={{ rotateY: isFlipped ? 180 : 0 }}
+              transition={FLIP_SPRING}
+            >
+              {/*
+                ── Anverso: texto + footer de pista ──
 
-            {/*
-              Más discreto: sin la barra de fondo `bg-slate-800` ni el
-              ícono — sólo el texto, en un gris apagado que se funde con el
-              `bg-slate-900` de la tarjeta en vez de dibujar un bloque de
-              color aparte. La pista sigue siendo legible, pero deja de
-              competir visualmente con el contenido de arriba.
-            */}
-            <div className="flex h-6 shrink-0 items-center justify-center">
-              <span className="text-[10px] font-medium text-slate-600">
-                Tocar para gestionar
-              </span>
-            </div>
-          </div>
+                Se descarta el ícono suelto de "tres puntos": era una pista
+                demasiado sutil, fácil de leer como decoración y no como una
+                invitación a tocar. En su lugar, una barra inferior de
+                ancho completo con texto explícito — "Tocar para
+                gestionar"— deja claro que ahí hay una acción, sin
+                necesidad de adivinar qué significa un ícono aislado.
 
-          {/* ── Reverso: sólo acciones ── */}
-          <div
-            className="absolute inset-0 flex items-center justify-evenly rounded-xl
-                       border border-slate-800 bg-slate-900 px-2"
-            style={{
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              transform: 'rotateY(180deg)',
-            }}
-          >
-            {/*
-              Sin `zoomLink` guardado (virtual) o sin dirección capturada
-              (presencial), este botón no tiene nada que abrir — no es un
-              caso "deshabilitado que se puede resolver después" como el
-              teléfono sin número, es un botón sin ninguna función. Se
-              deja de dibujar por completo, igual que en
-              `InitialMeetingCard.jsx` (ver esa nota para el detalle).
-            */}
-            {hasLocation && (
-              <button
-                type="button"
-                onClick={stop(() => window.open(locationHref, '_blank', 'noopener'))}
-                aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                           bg-sky-500/10 text-sky-400 transition-colors
-                           hover:bg-sky-500/20 active:scale-95"
+                La tarjeta no crece: el footer vive dentro de los mismos
+                68px totales, como una franja fija en la base (`h-6`), y el
+                bloque de texto de arriba ocupa el resto (`flex-1`) — no se
+                suma altura nueva, se reparte la que ya había.
+              */}
+              <div
+                className="absolute inset-0 flex flex-col overflow-hidden rounded-xl border
+                           border-slate-800 bg-slate-900"
+                style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
               >
-                {isVirtual
-                  ? <Video size={17} aria-hidden="true" />
-                  : <MapPin size={17} aria-hidden="true" />}
-              </button>
-            )}
+                <div className="min-w-0 flex-1 px-3.5 pt-2.5 text-left">
+                  <p className="truncate text-sm font-semibold text-white">
+                    Cita de Propuesta
+                    <span className="font-normal text-slate-400"> · {prospectName}</span>
+                  </p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                    <Clock size={11} aria-hidden="true" />
+                    {event.time || 'Sin hora'}
+                  </p>
+                </div>
 
-            <button
-              type="button"
-              disabled={!hasPhone}
-              onClick={stop(() => window.open(confirmHref, '_blank', 'noopener'))}
-              aria-label={`Enviar WhatsApp a ${prospectName}`}
-              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full
-                          transition-colors active:scale-95 disabled:cursor-not-allowed
-                          disabled:opacity-30 ${hasPhone
-                  ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                  : 'bg-emerald-500/10 text-emerald-400'}`}
-            >
-              <MessageCircle size={17} aria-hidden="true" />
-            </button>
+                {/*
+                  Discreto a propósito: sin fondo de color ni ícono — sólo
+                  el texto, en un gris apagado que se funde con el
+                  `bg-slate-900` de la tarjeta. La pista sigue siendo
+                  legible, pero deja de competir visualmente con el
+                  contenido de arriba.
+                */}
+                <div className="flex h-6 shrink-0 items-center justify-center">
+                  <span className="text-[10px] font-medium text-slate-600">
+                    Tocar para gestionar
+                  </span>
+                </div>
+              </div>
 
-            <button
-              type="button"
-              onClick={stop(() => onOpenRequirements?.(event))}
-              aria-label="Asistente de requisitos"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-500/10
-                         text-amber-400 transition-colors hover:bg-amber-500/20 active:scale-95"
-            >
-              <Sparkles size={17} aria-hidden="true" />
-            </button>
+              {/* ── Reverso: sólo acciones ── */}
+              <div
+                className="absolute inset-0 flex items-center justify-evenly rounded-xl
+                           border border-slate-800 bg-slate-900 px-2"
+                style={{
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                  transform: 'rotateY(180deg)',
+                }}
+              >
+                {/*
+                  Sin `zoomLink` guardado (virtual) o sin dirección
+                  capturada (presencial), este botón no tiene nada que
+                  abrir — no es un caso "deshabilitado que se puede
+                  resolver después" como el teléfono sin número, es un
+                  botón sin ninguna función. Se deja de dibujar por
+                  completo, igual que en `InitialMeetingCard.jsx` (ver esa
+                  nota para el detalle).
+                */}
+                {hasLocation && (
+                  <button
+                    type="button"
+                    onClick={stop(() => window.open(locationHref, '_blank', 'noopener'))}
+                    aria-label={isVirtual ? 'Abrir videollamada' : 'Abrir ubicación'}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                               bg-sky-500/10 text-sky-400 transition-colors
+                               hover:bg-sky-500/20 active:scale-95"
+                  >
+                    {isVirtual
+                      ? <Video size={17} aria-hidden="true" />
+                      : <MapPin size={17} aria-hidden="true" />}
+                  </button>
+                )}
 
-            <button
-              type="button"
-              onClick={stop(handleFinish)}
-              aria-label={`Finalizar cita de propuesta con ${prospectName}`}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-500/10
-                         text-indigo-400 transition-colors hover:bg-indigo-500/20 active:scale-95"
-            >
-              <CheckCircle size={17} aria-hidden="true" />
-            </button>
-          </div>
-        </motion.div>
-      </button>
-    </div>
+                <button
+                  type="button"
+                  disabled={!hasPhone}
+                  onClick={stop(() => window.open(confirmHref, '_blank', 'noopener'))}
+                  aria-label={`Enviar WhatsApp a ${prospectName}`}
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full
+                              transition-colors active:scale-95 disabled:cursor-not-allowed
+                              disabled:opacity-30 ${hasPhone
+                      ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                      : 'bg-emerald-500/10 text-emerald-400'}`}
+                >
+                  <MessageCircle size={17} aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={stop(() => onOpenRequirements?.(event))}
+                  aria-label="Asistente de requisitos"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                             bg-amber-500/10 text-amber-400 transition-colors
+                             hover:bg-amber-500/20 active:scale-95"
+                >
+                  <Sparkles size={17} aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={stop(handleFinish)}
+                  aria-label={`Finalizar cita de propuesta con ${prospectName}`}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                             bg-indigo-500/10 text-indigo-400 transition-colors
+                             hover:bg-indigo-500/20 active:scale-95"
+                >
+                  <CheckCircle size={17} aria-hidden="true" />
+                </button>
+              </div>
+            </motion.div>
+          </button>
+        </div>
+      </SwipeableCard>
+
+      <TaskOptionsSheet
+        event={event}
+        isOpen={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
+        initialReschedule
+      />
+    </>
   );
 }
