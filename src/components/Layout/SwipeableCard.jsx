@@ -82,6 +82,17 @@ export default function SwipeableCard({ children, onReschedule, onDiscard }) {
   const [x, setX] = useState(0);
   const [isRemoving, setIsRemoving] = useState(false);
   /*
+    Posición en vivo mientras el dedo sigue tocando la pantalla. `x` (de
+    arriba) sólo se actualiza al soltar —es lo que sirve para animar el
+    regreso, el anclaje o la salida—, así que por sí solo no basta para
+    saber "cuánto se ha deslizado ahora mismo": durante el arrastre real,
+    Framer Motion mueve la tarjeta por su cuenta sin tocar ese estado.
+    `liveDragX` es la copia que sí se actualiza en cada cuadro del
+    arrastre (`onDrag`, más abajo), sólo para calcular cuánto revelar el
+    fondo — nunca controla la posición de la tarjeta.
+  */
+  const [liveDragX, setLiveDragX] = useState(null);
+  /*
     El Nudge cambia el resorte de la animación de posición mientras dura su
     propia secuencia (ver `NUDGE_SPRING` arriba, más suave que
     `SNAP_SPRING`): sin esto, el vaivén heredaría el resorte de anclaje y
@@ -162,6 +173,24 @@ export default function SwipeableCard({ children, onReschedule, onDiscard }) {
     setX(0);
   };
 
+  /*
+    Cuánto revelar el fondo de acciones, de 0 (invisible del todo) a 1
+    (completamente a la vista) — no sólo "cubierto por la tarjeta de
+    encima", sino con su propia opacidad en cero por defecto. Esto es lo
+    que corrige el reporte: `PipelineCard.jsx` gira su tarjeta en 3D
+    (`rotateY`) al tocar "Tocar para gestionar", y a la mitad del giro la
+    tarjeta queda de perfil —un plano casi sin área visible hacia la
+    cámara—, dejando entrever lo que hay detrás durante esa fracción de
+    segundo. Antes, "lo que había detrás" eran los íconos de
+    Reagendar/Descartar a plena opacidad, sólo tapados por la tarjeta;
+    ahora, mientras no se esté deslizando de verdad, están en opacidad 0 y
+    no hay nada que ese instante del giro pueda dejar ver.
+    `pointerEvents: 'none'` bajo cierto umbral evita además tocar por
+    accidente un botón que todavía no se percibe como presente.
+  */
+  const revealX = liveDragX ?? x;
+  const revealProgress = Math.min(1, Math.abs(revealX) / Math.abs(REVEAL_X));
+
   const handleRescheduleClick = () => {
     setX(0);
     onReschedule?.();
@@ -190,7 +219,13 @@ export default function SwipeableCard({ children, onReschedule, onDiscard }) {
         derecha a izquierda: los botones aparecen del lado hacia el que se
         deslizó, no del lado opuesto.
       */}
-      <div className="absolute inset-0 flex items-stretch justify-end gap-2 pr-1">
+      <div
+        className="absolute inset-0 flex items-stretch justify-end gap-2 pr-1"
+        style={{
+          opacity: revealProgress,
+          pointerEvents: revealProgress > 0.05 ? 'auto' : 'none',
+        }}
+      >
         <button
           type="button"
           onClick={handleRescheduleClick}
@@ -226,7 +261,8 @@ export default function SwipeableCard({ children, onReschedule, onDiscard }) {
         drag="x"
         dragConstraints={{ left: -1000, right: 0 }}
         dragElastic={0.2}
-        onDragEnd={handleDragEnd}
+        onDrag={(_e, info) => setLiveDragX(info.offset.x)}
+        onDragEnd={(e, info) => { setLiveDragX(null); handleDragEnd(e, info); }}
         animate={{ x }}
         transition={isRemoving
           ? EXIT_TRANSITION
