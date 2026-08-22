@@ -104,6 +104,17 @@ export default function CallActivityCard({ event, onEarnPoints }) {
                      p-3.5"
         >
           <div className="min-w-0 flex-1">
+            {/*
+              Etiqueta del tipo de actividad, arriba del nombre: sin esto,
+              la tarjeta sólo dice a quién y a qué hora, pero nunca qué es
+              —tocar/deslizar/leer el ícono no era suficiente pista de que
+              se trata de una Llamada—. Mismo patrón que ya usa
+              `PipelineCard.jsx` con "Cita de Propuesta"/"Cita de Cierre"
+              antes del nombre.
+            */}
+            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
+              Llamada
+            </p>
             <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
               <Clock size={11} aria-hidden="true" />

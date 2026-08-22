@@ -191,6 +191,16 @@ export default function InitialMeetingCard({ event, onStartSession }) {
             >
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
+                  {/*
+                    Etiqueta del tipo de actividad, arriba del nombre —
+                    mismo patrón que `CallActivityCard.jsx`: sin esto la
+                    tarjeta más importante del día no decía en ningún lado
+                    que se trata de una Cita Inicial, sólo mostraba a quién
+                    y a qué hora.
+                  */}
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
+                    Cita Inicial
+                  </p>
                   <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                     <Clock size={11} aria-hidden="true" />

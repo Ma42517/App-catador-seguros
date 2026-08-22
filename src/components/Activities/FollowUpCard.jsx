@@ -43,6 +43,15 @@ export default function FollowUpCard({ event }) {
                  p-3.5"
     >
       <div className="min-w-0 flex-1">
+        {/*
+          Etiqueta del tipo de actividad, arriba del nombre — mismo patrón
+          que `CallActivityCard.jsx`/`InitialMeetingCard.jsx`: el
+          subtítulo con el motivo ya avisaba "por qué", pero no decía
+          "qué es esto" hasta leer el título completo del evento.
+        */}
+        <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
+          Seguimiento
+        </p>
         <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
         <p className="mt-0.5 truncate text-xs text-slate-500">{reason}</p>
         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
