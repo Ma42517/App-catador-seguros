@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, IdCard, FileText, Mail, Scale, Ruler, Briefcase,
-  AlertTriangle, Stethoscope, Cigarette, Check, X, Ban,
+  AlertTriangle, Stethoscope, Cigarette, Check, X, Ban, Save,
 } from 'lucide-react';
 import { Checkbox, NumberInput, TextInput, Select } from '../ui';
+import { saveExpedienteLead } from '../../data/leads';
 
 /**
  * src/components/Prospecta/UnderwritingDrawer.jsx
@@ -206,9 +207,45 @@ function CompactTextarea({ value, onChange, placeholder, required = false, rows 
   );
 }
 
-export default function UnderwritingDrawer({ onBack, backLabel = 'Etapas' }) {
+export default function UnderwritingDrawer({
+  onBack, backLabel = 'Etapas',
+  /*
+    Prospecto al que pertenece este expediente —nombre y teléfono, los
+    mismos que ya trae el evento de la Cita de Propuesta
+    (`PipelineCard.jsx`, vía `App.jsx`)—: sin esto, "Guardar Expediente"
+    no tendría a quién asociar la captura. Si se abre sin cliente (por
+    ejemplo, entrando a mano en algún flujo futuro), cae a "Prospecto"
+    igual que el resto de capturas sin nombre en la app.
+  */
+  client = null,
+  /*
+    Clave del asesor (`identity.key`): a quién pertenece "Prospectos
+    capturados" en su perfil. Sin ella, "Guardar Expediente" no tiene
+    dónde escribir — el botón se deshabilita.
+  */
+  username = null,
+}) {
   const [data, setData] = useState(EMPTY);
-  const update = (patch) => setData((prev) => ({ ...prev, ...patch }));
+  const [saved, setSaved] = useState(false);
+  const update = (patch) => { setData((prev) => ({ ...prev, ...patch })); setSaved(false); };
+
+  /*
+    Guarda el expediente completo como un prospecto más en "Prospectos
+    capturados" (`LeadsList.jsx`, mismo almacén que ya usa la tarjeta
+    digital — ver `saveExpedienteLead`, `data/leads.js`) y regresa. No hay
+    ninguna validación de campos obligatorios más allá de las 3 Súper
+    Preguntas del propio formulario: si el cliente está sano, guardar con
+    las tres en "No" es justo el caso rápido que este componente existe
+    para resolver.
+  */
+  const handleSave = () => {
+    saveExpedienteLead(username, {
+      name: client?.name,
+      phone: client?.phone,
+      expediente: data,
+    });
+    setSaved(true);
+  };
 
   return (
     <div className="animate-rise">
@@ -229,7 +266,7 @@ export default function UnderwritingDrawer({ onBack, backLabel = 'Etapas' }) {
           Expediente Previo a Emisión
         </p>
         <h2 className="mt-1 text-lg font-bold leading-snug text-white">
-          Suscripción rápida
+          {client?.name || 'Suscripción rápida'}
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-slate-400">
           Si el cliente está sano, contesta "No" a las 3 preguntas y termina en
@@ -449,6 +486,27 @@ export default function UnderwritingDrawer({ onBack, backLabel = 'Etapas' }) {
             </AnimatePresence>
           </div>
         </div>
+
+        {/*
+          "Guardar Expediente": sin esto, el formulario nunca escribía en
+          ningún lado — se podía contestar todo y cerrar la pantalla sin
+          dejar rastro. Se anuncia con un cambio de color y texto en vez de
+          un `Toast` aparte, porque el botón mismo es el lugar donde la
+          persona está mirando en ese instante.
+        */}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!username}
+          className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3
+                      text-sm font-semibold transition-all active:scale-[0.98]
+                      disabled:cursor-not-allowed disabled:opacity-50 ${saved
+              ? 'bg-emerald-600 text-white'
+              : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
+        >
+          {saved ? <Check size={16} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
+          {saved ? 'Guardado en Prospectos capturados' : 'Guardar Expediente'}
+        </button>
       </div>
     </div>
   );

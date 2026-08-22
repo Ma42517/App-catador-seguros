@@ -521,8 +521,19 @@ function Shell({
     tenía nada que abrir, por eso no hacía nada al tocarlo.
   */
   const [openAssistant, setOpenAssistant] = useState(null);
+  /*
+    Nombre y teléfono del prospecto de la tarjeta que abrió el Asistente:
+    `UnderwritingDrawer.jsx` los necesita para "Guardar Expediente" en
+    "Prospectos capturados" (`data/leads.js`, `saveExpedienteLead`) — sin
+    esto, el expediente se guardaría sin saber de quién es.
+  */
+  const [assistantClient, setAssistantClient] = useState(null);
   const handleOpenRequirements = useCallback((event) => {
     setOpenAssistant(event?.tipo_actividad === 'cita_cierre' ? 'delivery' : 'underwriting');
+    setAssistantClient({
+      name: prospectNameFrom(event?.title),
+      phone: event?.telefono ?? '',
+    });
   }, []);
 
   /*
@@ -808,6 +819,8 @@ function Shell({
               <UnderwritingDrawer
                 onBack={() => setOpenAssistant(null)}
                 backLabel="Cerrar"
+                client={assistantClient}
+                username={storageKey}
               />
             )}
           </div>

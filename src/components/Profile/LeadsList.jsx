@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Users, Trash2, Phone, Check, X } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import { useSession } from '../../context/SessionContext';
-import { readLeads, removeLead, capturedLabel, followUpLink } from '../../data/leads';
+import {
+  readLeads, removeLead, capturedLabel, followUpLink, expedienteSummary,
+} from '../../data/leads';
 import { listMyLeads, deleteLead } from '../../data/leadsRepo';
 
 /** Icono de WhatsApp: lucide no lo trae, así que va como trazo propio. */
@@ -25,6 +27,11 @@ function WhatsAppMark({ size = 15 }) {
 function LeadRow({ lead, advisorName, onRemove }) {
   const [confirming, setConfirming] = useState(false);
   const fromLink = lead.storage === 'cloud';
+  // Filas que vinieron del Expediente Previo a Emisión
+  // (`UnderwritingDrawer.jsx`, "Guardar Expediente"): muestran el resumen
+  // de las 3 Súper Preguntas en vez del origen de captura, que es lo que
+  // de verdad interesa recordar de un prospecto ya con expediente.
+  const isExpediente = lead.kind === 'underwriting';
 
   return (
     <li
@@ -44,13 +51,19 @@ function LeadRow({ lead, advisorName, onRemove }) {
           {lead.name}
         </p>
         <p className="truncate text-[11px] text-zinc-500">
-          {lead.whatsapp} · {capturedLabel(lead.capturedAt)}
-          {/*
-            Se distingue de dónde vino. No es un detalle técnico: quien llegó por
-            el enlace no conoce al asesor en persona, y el primer mensaje se
-            escribe distinto que a quien acaba de tener el teléfono en la mano.
-          */}
-          {fromLink && ' · por tu enlace'}
+          {isExpediente
+            ? expedienteSummary(lead.expediente)
+            : (
+              <>
+                {lead.whatsapp} · {capturedLabel(lead.capturedAt)}
+                {/*
+                  Se distingue de dónde vino. No es un detalle técnico: quien llegó por
+                  el enlace no conoce al asesor en persona, y el primer mensaje se
+                  escribe distinto que a quien acaba de tener el teléfono en la mano.
+                */}
+                {fromLink && ' · por tu enlace'}
+              </>
+            )}
         </p>
       </div>
 

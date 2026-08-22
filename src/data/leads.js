@@ -33,6 +33,53 @@ export function readLeads(advisorKey) {
   return Array.isArray(list) ? [...list].sort((a, b) => b.capturedAt - a.capturedAt) : [];
 }
 
+/**
+ * Guarda el Expediente Previo a Emisión (`UnderwritingDrawer.jsx`) como un
+ * prospecto más, en la misma lista que ya muestra "Prospectos capturados"
+ * (`LeadsList.jsx`, vía `readLeads`) — no se crea una pantalla ni un
+ * almacén aparte: es el mismo circuito que ya cierra la tarjeta digital
+ * (capturar → aparecer en el perfil), sólo que este expediente entra desde
+ * `PipelineCard.jsx` en vez de desde la tarjeta.
+ *
+ * `kind: 'underwriting'` es lo que distingue esta fila de un contacto
+ * capturado normal (`LeadRow`, en `LeadsList.jsx`, lo usa para mostrar el
+ * resumen del expediente en vez de sólo el botón de WhatsApp de siempre).
+ */
+export function saveExpedienteLead(advisorKey, { name, phone, expediente }) {
+  if (!advisorKey) return null;
+
+  const entry = {
+    id: newId(),
+    name: String(name ?? '').trim() || 'Prospecto',
+    whatsapp: String(phone ?? '').trim(),
+    capturedAt: Date.now(),
+    kind: 'underwriting',
+    expediente,
+  };
+
+  try {
+    const all = readAll();
+    const list = Array.isArray(all[advisorKey]) ? all[advisorKey] : [];
+    localStorage.setItem(KEY, JSON.stringify({ ...all, [advisorKey]: [...list, entry] }));
+  } catch {
+    // Sin persistencia el expediente vive sólo esta sesión; se acepta.
+  }
+  return entry;
+}
+
+/**
+ * Resumen de una línea del Expediente Previo a Emisión, para la fila de
+ * `LeadsList.jsx`: sólo las 3 Súper Preguntas, en Sí/No — el detalle
+ * completo (categoría médica, frecuencia de riesgo, etc.) queda para quien
+ * abra el expediente completo, no para la lista.
+ */
+export function expedienteSummary(expediente) {
+  if (!expediente) return '';
+  const yesNo = (v) => (v === true ? 'Sí' : v === false ? 'No' : '—');
+  return `Riesgos: ${yesNo(expediente.hasRisks)} · Médico: ${yesNo(expediente.hasMedicalHistory)} `
+    + `· Hábitos: ${yesNo(expediente.hasHabits)}`;
+}
+
 export function saveLead(advisorKey, lead) {
   if (!advisorKey) return null;
 
