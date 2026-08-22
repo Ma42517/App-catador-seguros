@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import { Checkbox, NumberInput, TextInput, Select } from '../ui';
 import { saveExpedienteLead } from '../../data/leads';
+import {
+  RISK_FREQUENCY_OPTIONS, MEDICAL_CATEGORIES, HEALTH_STATUS_OPTIONS, HABIT_TYPES,
+} from './underwritingOptions';
 
 /**
  * src/components/Prospecta/UnderwritingDrawer.jsx
@@ -64,40 +67,12 @@ const EMPTY = {
   quitHabit: false,
 };
 
-/** Frecuencia/Nivel del sub-formulario de Riesgos y Deportes. */
-const RISK_FREQUENCY_OPTIONS = [
-  { value: '', label: 'Selecciona una opción' },
-  { value: 'amateur', label: 'Amateur' },
-  { value: 'profesional', label: 'Profesional' },
-  { value: 'trabajo', label: 'Por trabajo' },
-  { value: 'ocasional', label: 'Ocasional' },
-];
-
-/** Categorías del sub-formulario médico. */
-const MEDICAL_CATEGORIES = [
-  { value: '', label: 'Selecciona una categoría' },
-  { value: 'cardiaco', label: 'Cardíaco' },
-  { value: 'respiratorio', label: 'Respiratorio' },
-  { value: 'oncologico', label: 'Oncológico' },
-  { value: 'metabolico', label: 'Metabólico (diabetes, tiroides...)' },
-  { value: 'otro', label: 'Otro' },
-];
-
-/** Estado de salud actual, para el sub-formulario médico. */
-const HEALTH_STATUS_OPTIONS = [
-  { value: '', label: 'Selecciona un estado' },
-  { value: 'controlado', label: 'Controlado / en tratamiento' },
-  { value: 'resuelto', label: 'Resuelto, sin seguimiento' },
-  { value: 'activo', label: 'Activo, sin tratamiento' },
-];
-
-/** Tipo de hábito, para el sub-formulario de hábitos/familia. */
-const HABIT_TYPES = [
-  { value: '', label: 'Selecciona un tipo' },
-  { value: 'tabaco', label: 'Tabaco' },
-  { value: 'alcohol', label: 'Alcohol' },
-  { value: 'antecedente_familiar', label: 'Antecedente familiar de riesgo' },
-];
+// Las 4 listas de opciones de las Súper Preguntas viven en
+// `underwritingOptions.js` (import de arriba), no aquí: `LeadsList.jsx`
+// también las necesita para traducir a texto legible el detalle completo
+// de un expediente ya guardado, y exportarlas desde este componente
+// generaba una advertencia de lint (`react/only-export-components`,
+// rompe el Fast Refresh de un archivo que también exporta un componente).
 
 /** Botón binario gigante de una Súper Pregunta. */
 function SuperQuestionToggle({ icon: Icon, question, value, onChange }) {

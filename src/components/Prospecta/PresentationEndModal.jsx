@@ -53,9 +53,10 @@ import { PRESENTATION_END_GAMIFICATION } from '../../lib/presentationGamificatio
  * @param {(activityType: 'cita_propuesta'|'seguimiento', client: object) => void} onRouteToActivity
  * @param {(client: object) => void} onDiscardClient
  * @param {(amount: number) => void} onEarnPoints
+ * @param {() => void} [onResolved] Se llama siempre, sin importar la resolución elegida: la Cita Inicial que se está cerrando ya se llevó a cabo, así que quien monta el modal debe quitarla de la agenda sin importar a dónde se enrutó el prospecto después.
  */
 export default function PresentationEndModal({
-  isOpen, client, onClose, onRouteToActivity, onDiscardClient, onEarnPoints,
+  isOpen, client, onClose, onRouteToActivity, onDiscardClient, onEarnPoints, onResolved,
 }) {
   const clientName = client?.name || 'este prospecto';
 
@@ -74,6 +75,12 @@ export default function PresentationEndModal({
   const resolve = (action) => {
     onEarnPoints?.(PRESENTATION_END_GAMIFICATION.RESOLUTION_BASE);
     action();
+    // Sin importar cuál de las 3 resoluciones se elija, la Cita Inicial ya
+    // se llevó a cabo: su tarjeta debe salir de "Hoy" en las tres, no sólo
+    // en "No califica" (que la borraba de rebote al descartar al
+    // prospecto). "Avanzamos a Propuesta" y "Requiere Seguimiento" sólo
+    // creaban la siguiente actividad y dejaban ésta huérfana en la lista.
+    onResolved?.();
     onClose?.();
   };
 

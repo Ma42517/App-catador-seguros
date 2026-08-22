@@ -86,6 +86,36 @@ export default function ActionableCard({
 
   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
 
+  /*
+    Misma etiqueta de tipo que ya llevan las tarjetas especiales de arriba
+    (Llamada, Cita Inicial, Seguimiento, Cita de Propuesta/Cierre): esta
+    rama genérica atiende "Cita", "Entrega de Póliza" y "Cobro" —los tres
+    valores de `tipo_actividad` que no tienen tarjeta propia—, además de
+    los recordatorios y de cualquier evento viejo de antes de que existiera
+    el catálogo cerrado.
+
+    `ActivityForm.jsx` ya guarda el título como `"Etiqueta: Nombre"` para
+    toda actividad estructurada (`activityTypeLabel(tipoActividad)` +
+    `cleanName`), así que separar por los dos puntos recupera exactamente
+    la misma etiqueta sin duplicar aquí el catálogo de 8 opciones. Un
+    recordatorio no sigue ese patrón —es texto libre, tecleado por la
+    persona— y podría llevar sus propios dos puntos por casualidad, así que
+    no se le aplica el split: sólo se le pone la etiqueta fija
+    "Recordatorio" encima, sin tocar su texto.
+  */
+  const isReminder = event.type === 'recordatorio';
+  let typeLabel = null;
+  let displayTitle = event.title;
+  if (isReminder) {
+    typeLabel = 'Recordatorio';
+  } else {
+    const [before, after] = String(event.title ?? '').split(/:\s*/);
+    if (after) {
+      typeLabel = before;
+      displayTitle = after;
+    }
+  }
+
   const status = getEventStatus(event.time, {
     date: event.date,
     completed: event.completed,
@@ -119,8 +149,15 @@ export default function ActionableCard({
         >
           <span className="flex min-w-0 items-center gap-3">
             <Icon size={16} className={`shrink-0 ${tone.icon}`} aria-hidden="true" />
-            <span className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
-              {event.title}
+            <span className="min-w-0 truncate">
+              {typeLabel && (
+                <span className="block text-[10px] font-bold uppercase tracking-wide text-indigo-400">
+                  {typeLabel}
+                </span>
+              )}
+              <span className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                {displayTitle}
+              </span>
             </span>
           </span>
 

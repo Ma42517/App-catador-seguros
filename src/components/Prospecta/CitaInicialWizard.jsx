@@ -9,6 +9,7 @@ import {
 import { BigResult, MiniStat, YesNoRow, StepHeading } from './ProspectaParts';
 import PresentationEndModal from './PresentationEndModal';
 import { useSession } from '../../context/SessionContext';
+import { useEvents } from '../../context/EventContext';
 import useAdvisorPoints from '../../lib/useAdvisorPoints';
 import { markProspectDiscarded } from '../../data/prospectStatus';
 import {
@@ -649,7 +650,25 @@ export default function CitaInicialWizard({
   const [showEndModal, setShowEndModal] = useState(false);
 
   const { identity } = useSession();
+  const { removeEvent } = useEvents();
   const [, addPoints] = useAdvisorPoints(identity?.key);
+
+  /*
+    Cierra el ciclo de la Cita Inicial: sin importar cuál de las 3
+    resoluciones eligió el asesor en `PresentationEndModal.jsx`, la cita
+    que se está reportando en vivo ya se llevó a cabo, así que su tarjeta
+    debe salir de "Hoy" — quedaba huérfana ahí (visible junto con la
+    actividad nueva que el router de ventas acaba de crear) porque nadie
+    llamaba nunca a `removeEvent` para ella; sólo se descartaba de rebote
+    cuando la resolución era "No califica", porque esa sí borra al
+    prospecto. `client?.id` es el `id` del propio evento (ver
+    `handleStartSession`, `App.jsx`) y sólo existe cuando la cita llegó por
+    notificación (`requireResolution`); entrando a mano no hay evento real
+    que borrar.
+  */
+  const handleInitialMeetingResolved = () => {
+    if (client?.id) removeEvent(client.id);
+  };
 
   const update = (patch) => setData((prev) => ({ ...prev, ...patch }));
 
@@ -762,6 +781,7 @@ export default function CitaInicialWizard({
         onClose={() => { setShowEndModal(false); onBack(); }}
         onRouteToActivity={onRouteToActivity}
         onDiscardClient={(discardedClient) => markProspectDiscarded(identity?.key, discardedClient)}
+        onResolved={handleInitialMeetingResolved}
         onEarnPoints={addPoints}
       />
     </div>

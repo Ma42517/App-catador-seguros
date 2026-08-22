@@ -1,11 +1,154 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Trash2, Phone, Check, X } from 'lucide-react';
+import {
+  Users, Trash2, Phone, Check, X, IdCard, FileText, Mail, Scale, Ruler,
+  Briefcase, AlertTriangle, Stethoscope, Cigarette, Ban,
+} from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
+import BottomSheet from '../Layout/BottomSheet';
 import { useSession } from '../../context/SessionContext';
 import {
   readLeads, removeLead, capturedLabel, followUpLink, expedienteSummary,
 } from '../../data/leads';
 import { listMyLeads, deleteLead } from '../../data/leadsRepo';
+import {
+  RISK_FREQUENCY_OPTIONS, MEDICAL_CATEGORIES, HEALTH_STATUS_OPTIONS, HABIT_TYPES,
+} from '../Prospecta/underwritingOptions';
+
+/** Traduce un valor crudo del catálogo (p. ej. `'cardiaco'`) a su etiqueta legible. */
+function labelFrom(options, value) {
+  return options.find((option) => option.value === value)?.label || '—';
+}
+
+/** Sí/No/— para un booleano que también puede llegar como `null` (no contestado). */
+function yesNo(value) {
+  return value === true ? 'Sí' : value === false ? 'No' : '—';
+}
+
+/** Un dato del expediente, en la misma forma en las 3 secciones. */
+function DetailRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-start justify-between gap-3 py-2">
+      <span className="flex items-center gap-1.5 text-xs text-slate-500">
+        {Icon && <Icon size={13} className="shrink-0" aria-hidden="true" />}
+        {label}
+      </span>
+      <span className="max-w-[60%] text-right text-xs font-semibold text-slate-200">
+        {value || '—'}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Detalle completo del Expediente Previo a Emisión.
+ *
+ * `LeadRow` sólo mostraba `expedienteSummary` —las 3 Súper Preguntas en
+ * Sí/No, pensado para una fila de lista— y no había ninguna forma de ver
+ * el resto de lo capturado (peso, ocupación, categoría médica, detalles de
+ * riesgo...): quien preguntó por esto tenía razón, esos datos entraban al
+ * expediente y no volvían a aparecer en ningún lado. Se abre en una hoja
+ * propia, oscura como el propio `UnderwritingDrawer.jsx` de donde salió
+ * este dato, y no reutiliza esa pantalla completa porque aquí es de sólo
+ * lectura: no tiene sentido reabrir el formulario editable para ver un
+ * expediente que ya se guardó.
+ */
+function ExpedienteDetailSheet({ lead, onClose }) {
+  const data = lead?.expediente;
+
+  return (
+    <BottomSheet isOpen={Boolean(lead)} onClose={onClose} label="Expediente Previo a Emisión">
+      {data && (
+        <div className="dark">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
+            Expediente Previo a Emisión
+          </p>
+          <h2 className="mt-1 text-lg font-bold leading-snug text-white">{lead.name}</h2>
+
+          <div className="mt-4 flex flex-col divide-y divide-slate-800 rounded-2xl border
+                          border-slate-800 bg-slate-900 px-4"
+          >
+            <DetailRow icon={IdCard} label="INE" value={yesNo(data.hasIne)} />
+            <DetailRow icon={FileText} label="RFC" value={yesNo(data.hasRfc)} />
+            <DetailRow icon={Mail} label="Correo" value={yesNo(data.hasEmail)} />
+            <DetailRow icon={Scale} label="Peso" value={data.weightKg ? `${data.weightKg} kg` : '—'} />
+            <DetailRow icon={Ruler} label="Estatura" value={data.heightCm ? `${data.heightCm} cm` : '—'} />
+            <DetailRow icon={Briefcase} label="Ocupación" value={data.occupation} />
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide
+                          text-slate-400"
+            >
+              <AlertTriangle size={13} className="shrink-0 text-amber-400" aria-hidden="true" />
+              Riesgos y Deportes
+            </p>
+            <div className="mt-1 flex flex-col divide-y divide-slate-800">
+              <DetailRow label="¿Practica actividad de riesgo?" value={yesNo(data.hasRisks)} />
+              {data.hasRisks && (
+                <>
+                  <DetailRow label="Actividad" value={data.riskActivity} />
+                  <DetailRow
+                    label="Frecuencia / Nivel"
+                    value={labelFrom(RISK_FREQUENCY_OPTIONS, data.riskFrequency)}
+                  />
+                  <DetailRow label="Detalles" value={data.riskDetails} />
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide
+                          text-slate-400"
+            >
+              <Stethoscope size={13} className="shrink-0 text-indigo-400" aria-hidden="true" />
+              Médico
+            </p>
+            <div className="mt-1 flex flex-col divide-y divide-slate-800">
+              <DetailRow label="¿Padecimiento diagnosticado?" value={yesNo(data.hasMedicalHistory)} />
+              {data.hasMedicalHistory && (
+                <>
+                  <DetailRow
+                    label="Categoría"
+                    value={labelFrom(MEDICAL_CATEGORIES, data.medicalCategory)}
+                  />
+                  <DetailRow label="Fecha del diagnóstico" value={data.medicalDate} />
+                  <DetailRow
+                    label="Estado de salud"
+                    value={labelFrom(HEALTH_STATUS_OPTIONS, data.medicalStatus)}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-2 mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide
+                          text-slate-400"
+            >
+              <Cigarette size={13} className="shrink-0 text-slate-400" aria-hidden="true" />
+              Hábitos / Familia
+            </p>
+            <div className="mt-1 flex flex-col divide-y divide-slate-800">
+              <DetailRow label="¿Hábitos o antecedentes?" value={yesNo(data.hasHabits)} />
+              {data.hasHabits && (
+                <>
+                  <DetailRow label="Tipo" value={labelFrom(HABIT_TYPES, data.habitType)} />
+                  <DetailRow label="Frecuencia de consumo" value={data.habitFrequency} />
+                  <DetailRow
+                    icon={data.quitHabit ? Ban : undefined}
+                    label="¿Abandonó el hábito?"
+                    value={yesNo(data.quitHabit)}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </BottomSheet>
+  );
+}
 
 /** Icono de WhatsApp: lucide no lo trae, así que va como trazo propio. */
 function WhatsAppMark({ size = 15 }) {
@@ -24,7 +167,7 @@ function WhatsAppMark({ size = 15 }) {
  * perdido no se recupera —vive sólo en este teléfono— y un toque accidental en
  * una lista que se recorre con el pulgar es demasiado fácil.
  */
-function LeadRow({ lead, advisorName, onRemove }) {
+function LeadRow({ lead, advisorName, onRemove, onOpenDetail }) {
   const [confirming, setConfirming] = useState(false);
   const fromLink = lead.storage === 'cloud';
   // Filas que vinieron del Expediente Previo a Emisión
@@ -46,26 +189,46 @@ function LeadRow({ lead, advisorName, onRemove }) {
         {lead.name.trim().charAt(0).toUpperCase() || '?'}
       </span>
 
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
-          {lead.name}
-        </p>
-        <p className="truncate text-[11px] text-zinc-500">
-          {isExpediente
-            ? expedienteSummary(lead.expediente)
-            : (
-              <>
-                {lead.whatsapp} · {capturedLabel(lead.capturedAt)}
-                {/*
-                  Se distingue de dónde vino. No es un detalle técnico: quien llegó por
-                  el enlace no conoce al asesor en persona, y el primer mensaje se
-                  escribe distinto que a quien acaba de tener el teléfono en la mano.
-                */}
-                {fromLink && ' · por tu enlace'}
-              </>
-            )}
-        </p>
-      </div>
+      {/*
+        Sólo el expediente abre un detalle: el resumen del contacto normal
+        ya se ve completo en la propia fila (nombre, WhatsApp, origen), no
+        hay nada más que mostrar detrás. El expediente, en cambio, guarda
+        una decena de campos que `expedienteSummary` recorta a 3 — antes no
+        había ninguna forma de llegar al resto.
+      */}
+      {isExpediente ? (
+        <button
+          type="button"
+          onClick={onOpenDetail}
+          className="min-w-0 flex-1 rounded-lg text-left focus-visible:outline-none
+                     focus-visible:ring-2 focus-visible:ring-indigo-500"
+        >
+          <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
+            {lead.name}
+          </p>
+          <p className="truncate text-[11px] text-zinc-500">
+            {expedienteSummary(lead.expediente)}
+          </p>
+          <p className="mt-0.5 text-[10px] font-semibold text-indigo-500 dark:text-indigo-400">
+            Ver expediente completo
+          </p>
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
+            {lead.name}
+          </p>
+          <p className="truncate text-[11px] text-zinc-500">
+            {lead.whatsapp} · {capturedLabel(lead.capturedAt)}
+            {/*
+              Se distingue de dónde vino. No es un detalle técnico: quien llegó por
+              el enlace no conoce al asesor en persona, y el primer mensaje se
+              escribe distinto que a quien acaba de tener el teléfono en la mano.
+            */}
+            {fromLink && ' · por tu enlace'}
+          </p>
+        </div>
+      )}
 
       {confirming ? (
         <span className="flex shrink-0 items-center gap-1">
@@ -137,6 +300,9 @@ function LeadRow({ lead, advisorName, onRemove }) {
 export default function LeadsList({ isOpen, onClose }) {
   const { identity } = useSession();
   const [leads, setLeads] = useState([]);
+  // Expediente cuyo detalle completo se está mostrando en la hoja de abajo;
+  // `null` cuando está cerrada.
+  const [detailLead, setDetailLead] = useState(null);
 
   /**
    * Junta las dos procedencias de un prospecto.
@@ -218,6 +384,7 @@ export default function LeadsList({ isOpen, onClose }) {
               lead={lead}
               advisorName={identity?.name}
               onRemove={() => remove(lead)}
+              onOpenDetail={() => setDetailLead(lead)}
             />
           ))}
         </ul>
@@ -241,6 +408,8 @@ export default function LeadsList({ isOpen, onClose }) {
           enlace compartido sí quedan guardados en tu cuenta.
         </p>
       )}
+
+      <ExpedienteDetailSheet lead={detailLead} onClose={() => setDetailLead(null)} />
     </FullScreenView>
   );
 }

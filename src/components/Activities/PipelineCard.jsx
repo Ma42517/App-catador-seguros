@@ -182,10 +182,17 @@ export default function PipelineCard({ event, onOpenRequirements, onRouteToActiv
                 style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
               >
                 <div className="min-w-0 flex-1 px-3.5 pt-2.5 text-left">
-                  <p className="truncate text-sm font-semibold text-white">
+                  {/*
+                    Mismo patrón que las demás tarjetas de actividad
+                    (Llamada, Cita Inicial, Seguimiento): la etiqueta del
+                    tipo va arriba, en su propia línea, y el nombre abajo.
+                    Antes iban juntos en una sola línea ("Cita de
+                    Propuesta · Mario") y se veía distinto al resto.
+                  */}
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
                     {meta.title}
-                    <span className="font-normal text-slate-400"> · {prospectName}</span>
                   </p>
+                  <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                     <Clock size={11} aria-hidden="true" />
                     {event.time || 'Sin hora'}

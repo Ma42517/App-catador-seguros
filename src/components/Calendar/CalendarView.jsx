@@ -115,6 +115,29 @@ export default function CalendarView() {
                 {items.map((event) => {
                   const priority = PRIORITY_STYLES[event.priority] ?? PRIORITY_STYLES.importante;
                   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
+
+                  /*
+                    Misma etiqueta de tipo que ya llevan las tarjetas de
+                    "Hoy" (`ActionableCard.jsx`, mismo criterio ahí
+                    documentado): "Cita Inicial: Manuel Ruiz" se separa en
+                    "CITA INICIAL" arriba y "Manuel Ruiz" como nombre, en
+                    vez de mostrar el título completo tal cual. Un
+                    recordatorio es texto libre y no sigue ese patrón, así
+                    que su etiqueta es la fija "Recordatorio".
+                  */
+                  const isReminder = event.type === 'recordatorio';
+                  let typeLabel = null;
+                  let displayTitle = event.title;
+                  if (isReminder) {
+                    typeLabel = 'Recordatorio';
+                  } else {
+                    const [before, after] = String(event.title ?? '').split(/:\s*/);
+                    if (after) {
+                      typeLabel = before;
+                      displayTitle = after;
+                    }
+                  }
+
                   const status = getEventStatus(event.time, {
                     date: event.date,
                     completed: event.completed,
@@ -166,12 +189,19 @@ export default function CalendarView() {
                           </span>
 
                           <div className="min-w-0 flex-1">
+                            {typeLabel && (
+                              <p className="truncate text-[10px] font-bold uppercase tracking-wide
+                                            text-indigo-500 dark:text-indigo-400"
+                              >
+                                {typeLabel}
+                              </p>
+                            )}
                             <p
                               className={`truncate text-sm font-semibold text-zinc-900
                                           dark:text-white
                                           ${event.completed ? 'line-through decoration-zinc-400' : ''}`}
                             >
-                              {event.title}
+                              {displayTitle}
                             </p>
                             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
                               {/* El punto va pegado a la hora, que es el dato vencido. */}
@@ -183,10 +213,6 @@ export default function CalendarView() {
                                 />
                               )}
                               <span className={tone.time}>{event.time || 'Sin hora'}</span>
-                              <span aria-hidden="true">·</span>
-                              <span>
-                                {event.type === 'recordatorio' ? 'Recordatorio' : 'Actividad'}
-                              </span>
                             </p>
                           </div>
 

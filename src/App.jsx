@@ -469,6 +469,16 @@ function Shell({
   const handleStartSession = useCallback((event) => {
     setProspectaAutoStage('cita');
     setProspectaClient({
+      /*
+        El `id` del propio evento de la Cita Inicial viaja junto con el
+        nombre y el teléfono: es lo único que le permite a
+        `CitaInicialWizard.jsx` borrar esa tarjeta de la agenda al cerrar
+        la cita con cualquiera de las 3 resoluciones de
+        `PresentationEndModal.jsx` — la cita ya se llevó a cabo, así que no
+        debe seguir apareciendo en "Hoy" junto con la actividad nueva que
+        el router de ventas acaba de crear.
+      */
+      id: event?.id,
       name: prospectNameFrom(event?.title),
       phone: event?.telefono ?? '',
     });
