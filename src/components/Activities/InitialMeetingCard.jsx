@@ -73,6 +73,20 @@ export default function InitialMeetingCard({ event, onStartSession }) {
   const hasLocation = Boolean(locationHref);
 
   /*
+    Los dos íconos de acción se dibujan como `<a target="_blank">` reales y
+    no como `window.open` disparado desde un `<button>`: en computadora los
+    navegadores bloquean en silencio un `window.open` que no venga de un
+    enlace de verdad —el botón parecía "no hacer nada"—, aunque en celular
+    casi siempre lo dejaban pasar. Un `<a>` nunca cuenta como pop-up. Mismo
+    ajuste que ya se hizo en `CallActivityCard.jsx`.
+  */
+  const confirmHref = hasPhone
+    ? `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(
+      `Hola ${prospectName}, te escribo para confirmarte nuestra cita de hoy a las ${event.time || ''}.`,
+    )}`
+    : null;
+
+  /*
     Gatillo de 30 minutos: en cuanto el reloj de arena marca `isExpired`, se
     dispara el desmontaje una sola vez (el `ref` evita que un segundo tic del
     temporizador, mientras dura la animación de salida, vuelva a archivar el
@@ -98,17 +112,6 @@ export default function InitialMeetingCard({ event, onStartSession }) {
       reason: 'sin_sesion_30min',
     });
     removeEvent(event.id);
-  };
-
-  const handleLocation = () => {
-    if (!hasLocation) return;
-    window.open(locationHref, '_blank', 'noopener');
-  };
-
-  const handleConfirm = () => {
-    if (!hasPhone) return;
-    const text = `Hola ${prospectName}, te escribo para confirmarte nuestra cita de hoy a las ${event.time || ''}.`;
-    window.open(`https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
   };
 
   /*
@@ -154,33 +157,37 @@ export default function InitialMeetingCard({ event, onStartSession }) {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLocation}
-              disabled={!hasLocation}
+            <a
+              href={locationHref ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={!hasLocation}
+              onClick={(e) => { if (!hasLocation) e.preventDefault(); }}
               aria-label={isVideoMeeting ? 'Abrir videollamada' : 'Abrir ubicación'}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                         bg-sky-500/10 text-sky-400 transition-colors
-                         hover:bg-sky-500/20 active:scale-95 disabled:cursor-not-allowed
-                         disabled:opacity-30"
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
+                          active:scale-95 ${hasLocation
+                  ? 'bg-sky-500/10 text-sky-400 hover:bg-sky-500/20'
+                  : 'cursor-not-allowed bg-sky-500/10 text-sky-400 opacity-30'}`}
             >
               {isVideoMeeting
                 ? <Video size={16} aria-hidden="true" />
                 : <MapPin size={16} aria-hidden="true" />}
-            </button>
+            </a>
 
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={!hasPhone}
+            <a
+              href={confirmHref ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={!hasPhone}
+              onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
               aria-label={`Confirmar cita con ${prospectName} por WhatsApp`}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                         bg-emerald-500/10 text-emerald-400 transition-colors
-                         hover:bg-emerald-500/20 active:scale-95 disabled:cursor-not-allowed
-                         disabled:opacity-30"
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
+                          active:scale-95 ${hasPhone
+                  ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                  : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
             >
               <WhatsAppMark size={16} />
-            </button>
+            </a>
 
             <button
               type="button"

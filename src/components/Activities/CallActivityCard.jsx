@@ -48,6 +48,18 @@ export default function CallActivityCard({ event, onEarnPoints }) {
   const phone = digits(event.telefono);
   const hasPhone = phone.length > 0;
 
+  /*
+    `wa.me` como enlace `<a>` real, no como `window.open` disparado desde un
+    `<button>`: en computadora los navegadores (y muchos bloqueadores de
+    pop-ups) tratan un `window.open` sin gesto de navegación explícito como
+    ventana emergente y lo bloquean en silencio —sin ningún error visible—,
+    aunque en celular casi siempre lo dejan pasar porque `wa.me` termina
+    redirigiendo a la app nativa. Un `<a target="_blank">` nunca cuenta como
+    pop-up para el navegador, así que funciona igual en los dos. Mismo
+    criterio que ya usa `DigitalCardPreview.jsx`/`ServicesHubBack.jsx`.
+  */
+  const whatsAppHref = hasPhone ? `https://wa.me/${phone.replace(/^\+/, '')}` : null;
+
   const handleCall = () => {
     if (!hasPhone) return;
     // El audio se abre con el gesto de tocar el ícono: para cuando la
@@ -56,11 +68,6 @@ export default function CallActivityCard({ event, onEarnPoints }) {
     primeAudio();
     arm();
     window.location.href = `tel:${phone}`;
-  };
-
-  const handleWhatsApp = () => {
-    if (!hasPhone) return;
-    window.open(`https://wa.me/${phone.replace(/^\+/, '')}`, '_blank', 'noopener');
   };
 
   const awardPoints = (amount) => {
@@ -84,18 +91,20 @@ export default function CallActivityCard({ event, onEarnPoints }) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleWhatsApp}
-          disabled={!hasPhone}
+        <a
+          href={whatsAppHref ?? undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-disabled={!hasPhone}
+          onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
           aria-label={`Enviar WhatsApp a ${prospectName}`}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                     bg-emerald-500/10 text-emerald-400 transition-colors
-                     hover:bg-emerald-500/20 active:scale-95 disabled:cursor-not-allowed
-                     disabled:opacity-30"
+          className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
+                      active:scale-95 ${hasPhone
+              ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+              : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
         >
           <WhatsAppMark size={16} />
-        </button>
+        </a>
 
         <button
           type="button"
