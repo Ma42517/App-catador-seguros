@@ -449,6 +449,25 @@ function Shell({
   }, []);
 
   /*
+    Router de ventas del cierre de una Cita Inicial
+    (`PresentationEndModal.jsx`): "Avanzamos a Propuesta" y "Requiere
+    Seguimiento" no crean el evento ellos mismos, sólo dicen qué prellenar.
+    Guardar el prellenado aquí, en el Shell, es lo que le llega a
+    `AdminLayout` sin importar en qué sección se esté ("productivity", que
+    es de donde viene siempre este llamado): es el mismo antepasado común
+    que ya resuelve `prospectaAutoStage` arriba.
+  */
+  const [activityPrefill, setActivityPrefill] = useState(null);
+
+  const handleRouteToActivity = useCallback((activityType, client) => {
+    setActivityPrefill({
+      tipoActividad: activityType,
+      prospectName: client?.name ?? '',
+      prospectPhone: client?.phone ?? '',
+    });
+  }, []);
+
+  /*
     Qué versión del diagnóstico se ve. El estado vive aquí, en el Shell, porque es
     el antepasado común de los dos sitios que la deciden: el menú "Ver más", que la
     elige antes de navegar, y el interruptor de pruebas de dentro del tablero.
@@ -565,6 +584,8 @@ function Shell({
       isPromoterUser={isPromoterUser}
       onOpenPromotoria={() => setSection('promotoria')}
       username={storageKey}
+      activityPrefill={activityPrefill}
+      onActivityPrefillConsumed={() => setActivityPrefill(null)}
       /*
         El Diagnóstico se queda con la pantalla completa: sin barra inferior.
 
@@ -603,6 +624,7 @@ function Shell({
           username={storageKey}
           autoOpenProspectaStage={prospectaAutoStage}
           onAutoOpenConsumed={() => setProspectaAutoStage(null)}
+          onRouteToActivity={handleRouteToActivity}
         />
       ) : activeSection === 'promotoria' ? (
         <PromotorDashboard />

@@ -32,8 +32,20 @@ export default function ProductivityDashboard({
   */
   autoOpenProspectaStage = null,
   onAutoOpenConsumed,
+  onRouteToActivity,
 }) {
   const [isProspectaOpen, setProspectaOpen] = useState(false);
+
+  /*
+    Al enrutar a "Nueva Actividad" (Opción A/B de `PresentationEndModal.jsx`)
+    Prospecta se cierra entera y no sólo su etapa interna: quien acaba de
+    resolver la cita ya terminó aquí, y `ActivityForm` (montado más arriba,
+    en `AdminLayout.jsx`) se abre por encima de lo que quede debajo.
+  */
+  const handleRouteToActivity = (activityType, client) => {
+    setProspectaOpen(false);
+    onRouteToActivity?.(activityType, client);
+  };
   const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
   const [isGoalsOpen, setGoalsOpen] = useState(false);
   const [isBlocksOpen, setBlocksOpen] = useState(false);
@@ -143,6 +155,7 @@ export default function ProductivityDashboard({
         isOpen={isProspectaOpen}
         onClose={() => { setProspectaOpen(false); onAutoOpenConsumed?.(); }}
         initialStageKey={autoOpenProspectaStage}
+        onRouteToActivity={handleRouteToActivity}
       />
 
       <WorkplaceBoard

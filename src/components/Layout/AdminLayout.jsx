@@ -40,8 +40,22 @@ export default function AdminLayout({
     "Regresar" en su cabecera; si no, la sección se convierte en un callejón.
   */
   immersive = false,
+  /*
+    "Nueva Actividad" pre-llenada desde el router de ventas de
+    `PresentationEndModal.jsx` ("Avanzamos a Propuesta" / "Requiere
+    Seguimiento"): cuando llega un valor no nulo, se abre `ActivityForm`
+    sola, ya con el tipo elegido. `onActivityPrefillConsumed` limpia el
+    valor en `App.jsx` para que cerrar y volver a abrir "Nueva Actividad"
+    desde el menú "Agregar" no reaparezca con el mismo prellenado.
+  */
+  activityPrefill = null, onActivityPrefillConsumed,
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday, highPriorityToday } = useEvents();
+
+  useEffect(() => {
+    if (activityPrefill) setActiveForm('actividad');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityPrefill]);
 
   /*
     Mismo texto y el mismo `useTypewriter` que ya usa `AISequence.jsx` para
@@ -164,8 +178,11 @@ export default function AdminLayout({
       <ActivityForm
         isOpen={activeForm === 'actividad' || activeForm === 'recordatorio'}
         type={activeForm === 'recordatorio' ? 'recordatorio' : 'actividad'}
-        onClose={() => setActiveForm(null)}
+        onClose={() => { setActiveForm(null); onActivityPrefillConsumed?.(); }}
         onSave={addEvent}
+        initialTipoActividad={activityPrefill?.tipoActividad ?? null}
+        initialProspectName={activityPrefill?.prospectName ?? ''}
+        initialProspectPhone={activityPrefill?.prospectPhone ?? ''}
       />
 
       <QuickNoteForm

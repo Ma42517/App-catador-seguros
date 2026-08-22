@@ -7,6 +7,10 @@ import {
   Field, NumberInput, MoneyInput, SegmentedControl, Checkbox, Button,
 } from '../ui';
 import { BigResult, MiniStat, YesNoRow, StepHeading } from './ProspectaParts';
+import PresentationEndModal from './PresentationEndModal';
+import { useSession } from '../../context/SessionContext';
+import useAdvisorPoints from '../../lib/useAdvisorPoints';
+import { markProspectDiscarded } from '../../data/prospectStatus';
 import {
   COMPANY_FACTS, PYRAMID_LEVELS, THERMOMETER_AMOUNTS, PAYMENT_METHODS,
   SAVING_HABITS, CURRENCY_OPTIONS,
@@ -626,10 +630,20 @@ const STEPS = [
  * cambiaría el paso— y no guarda nada fuera de su propio estado. Se puede montar
  * en cualquier sitio con `<CitaInicialWizard onBack={...} />` y quitarlo sin
  * dejar rastro.
+ *
+ * "Terminar cita" ya no regresa directo a la lista de etapas: abre
+ * `PresentationEndModal`, el router de ventas que decide a dónde va el
+ * prospecto después (`onRouteToActivity`, hacia `ActivityForm` pre-llenado
+ * en `AdminLayout.jsx`, vía `App.jsx`). El regreso a "Etapas" ocurre recién
+ * al cerrar ese modal, sea cual sea la resolución elegida.
  */
-export default function CitaInicialWizard({ onBack }) {
+export default function CitaInicialWizard({ onBack, onRouteToActivity }) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState(EMPTY);
+  const [showEndModal, setShowEndModal] = useState(false);
+
+  const { identity } = useSession();
+  const [, addPoints] = useAdvisorPoints(identity?.key);
 
   const update = (patch) => setData((prev) => ({ ...prev, ...patch }));
 
@@ -710,7 +724,7 @@ export default function CitaInicialWizard({ onBack }) {
           </Button>
 
           {isLast ? (
-            <Button variant="success" icon={Check} onClick={onBack}>
+            <Button variant="success" icon={Check} onClick={() => setShowEndModal(true)}>
               Terminar cita
             </Button>
           ) : (
@@ -720,6 +734,23 @@ export default function CitaInicialWizard({ onBack }) {
           )}
         </div>
       </div>
+
+      {/*
+        Sin un identificador real de prospecto capturado por este asistente
+        todavía (ver la nota del Paso 7: "nada de esto se guarda todavía"),
+        `client` viaja vacío — el modal cae a "este prospecto" en su título,
+        y `ActivityForm` sigue abriendo con los campos de nombre/teléfono en
+        blanco, listos para escribirse a mano, como cualquier "Nueva
+        Actividad" hoy.
+      */}
+      <PresentationEndModal
+        isOpen={showEndModal}
+        client={{ name: '', phone: '' }}
+        onClose={() => { setShowEndModal(false); onBack(); }}
+        onRouteToActivity={onRouteToActivity}
+        onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
+        onEarnPoints={addPoints}
+      />
     </div>
   );
 }
