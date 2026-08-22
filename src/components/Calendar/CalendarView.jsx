@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { CalendarDays, Bell, Calendar as CalendarIcon } from 'lucide-react';
 import { useEvents, todayKey } from '../../context/EventContext';
 import TaskOptionsSheet from '../Activities/TaskOptionsSheet';
+import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from '../Activities/eventStatus';
 import useNow from '../../lib/useNow';
 
@@ -45,8 +46,16 @@ function formatDay(dateKey) {
  * primero. Sustituye a los destinos separados de "Eventos" y "Calendario".
  */
 export default function CalendarView() {
-  const { events } = useEvents();
+  const { events, removeEvent } = useEvents();
   const grouped = useMemo(() => groupByDate(events), [events]);
+
+  /*
+    Si "Reagendar" (del gesto de deslizar) se disparó, la hoja de opciones
+    debe abrir directo en el paso de reprogramar y no en el menú
+    intermedio — mismo criterio que ya usa `ActionableCard.jsx`
+    (`initialReschedule`, en `TaskOptionsSheet.jsx`).
+  */
+  const [rescheduleOnOpen, setRescheduleOnOpen] = useState(false);
 
   /*
     Un solo reloj para toda la agenda. Si cada fila llevara el suyo, una lista
@@ -60,7 +69,10 @@ export default function CalendarView() {
     de eventos, montar una hoja por tarjeta sería trabajo inútil.
   */
   const [selectedId, setSelectedId] = useState(null);
-  const setSelected = (event) => setSelectedId(event.id);
+  const setSelected = (event, { reschedule = false } = {}) => {
+    setRescheduleOnOpen(reschedule);
+    setSelectedId(event.id);
+  };
   // Se busca por id en cada render para que el panel refleje el evento ya
   // actualizado tras reprogramarlo o completarlo.
   const selected = events.find((e) => e.id === selectedId) ?? null;
@@ -112,60 +124,75 @@ export default function CalendarView() {
 
                   return (
                     <li key={event.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelected(event)}
-                        className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border
-                                   bg-white p-4 text-left shadow-sm
-                                   transition-all active:scale-95 focus-visible:outline-none
-                                   focus-visible:ring-2 focus-visible:ring-indigo-500
-                                   dark:bg-zinc-800/40 dark:backdrop-blur-sm ${tone.container}
-                                   ${event.completed ? 'opacity-50' : ''}`}
+                      {/*
+                        Esta agenda es la lista completa de eventos —a
+                        diferencia de "Hoy" (`AISequence.jsx`), que sólo
+                        muestra los de prioridad máxima del día—, así que es
+                        el lugar donde se ve *todo*: mismo gesto de deslizar
+                        que ya tienen las tarjetas de "Hoy"
+                        (`ActionableCard.jsx`), para que "Reagendar" y
+                        "Descartar" funcionen sin importar desde qué pantalla
+                        se esté viendo la actividad.
+                      */}
+                      <SwipeableCard
+                        onReschedule={() => setSelected(event, { reschedule: true })}
+                        onDiscard={() => removeEvent(event.id)}
                       >
-                        <span
-                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border
-                                      border-zinc-200 bg-zinc-50
-                                      dark:border-zinc-700 dark:bg-zinc-900 ${tone.icon}`}
-                          aria-hidden="true"
+                        <button
+                          type="button"
+                          onClick={() => setSelected(event)}
+                          className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border
+                                     bg-white p-4 text-left shadow-sm
+                                     transition-all active:scale-95 focus-visible:outline-none
+                                     focus-visible:ring-2 focus-visible:ring-indigo-500
+                                     dark:bg-zinc-800/40 dark:backdrop-blur-sm ${tone.container}
+                                     ${event.completed ? 'opacity-50' : ''}`}
                         >
-                          <Icon size={16} />
-                        </span>
-
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className={`truncate text-sm font-semibold text-zinc-900
-                                        dark:text-white
-                                        ${event.completed ? 'line-through decoration-zinc-400' : ''}`}
+                          <span
+                            className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border
+                                        border-zinc-200 bg-zinc-50
+                                        dark:border-zinc-700 dark:bg-zinc-900 ${tone.icon}`}
+                            aria-hidden="true"
                           >
-                            {event.title}
-                          </p>
-                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
-                            {/* El punto va pegado a la hora, que es el dato vencido. */}
-                            {tone.showDot && (
-                              <span
-                                className="h-2 w-2 shrink-0 rounded-full bg-rose-500
-                                           dark:bg-rose-400"
-                                aria-hidden="true"
-                              />
-                            )}
-                            <span className={tone.time}>{event.time || 'Sin hora'}</span>
-                            <span aria-hidden="true">·</span>
-                            <span>
-                              {event.type === 'recordatorio' ? 'Recordatorio' : 'Actividad'}
-                            </span>
-                          </p>
-                        </div>
+                            <Icon size={16} />
+                          </span>
 
-                        <span
-                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px]
-                                      font-semibold ${priority.chip}`}
-                        >
-                          {priority.label}
-                        </span>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`truncate text-sm font-semibold text-zinc-900
+                                          dark:text-white
+                                          ${event.completed ? 'line-through decoration-zinc-400' : ''}`}
+                            >
+                              {event.title}
+                            </p>
+                            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
+                              {/* El punto va pegado a la hora, que es el dato vencido. */}
+                              {tone.showDot && (
+                                <span
+                                  className="h-2 w-2 shrink-0 rounded-full bg-rose-500
+                                             dark:bg-rose-400"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              <span className={tone.time}>{event.time || 'Sin hora'}</span>
+                              <span aria-hidden="true">·</span>
+                              <span>
+                                {event.type === 'recordatorio' ? 'Recordatorio' : 'Actividad'}
+                              </span>
+                            </p>
+                          </div>
 
-                        {/* El estado se nombra, no sólo se pinta. */}
-                        {tone.label && <span className="sr-only">{tone.label}</span>}
-                      </button>
+                          <span
+                            className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px]
+                                        font-semibold ${priority.chip}`}
+                          >
+                            {priority.label}
+                          </span>
+
+                          {/* El estado se nombra, no sólo se pinta. */}
+                          {tone.label && <span className="sr-only">{tone.label}</span>}
+                        </button>
+                      </SwipeableCard>
                     </li>
                   );
                 })}
@@ -179,6 +206,7 @@ export default function CalendarView() {
         event={selected}
         isOpen={Boolean(selected)}
         onClose={() => setSelectedId(null)}
+        initialReschedule={rescheduleOnOpen}
       />
     </div>
   );
