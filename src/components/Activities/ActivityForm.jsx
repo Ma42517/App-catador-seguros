@@ -103,6 +103,15 @@ export default function ActivityForm({
     pasa y todo arranca vacío como siempre.
   */
   initialTipoActividad = null, initialProspectName = '', initialProspectPhone = '',
+  /*
+    Campos sueltos que el router de ventas (`resolvePipelineStage`,
+    `store/pipelineStore.js`, vía `App.jsx`) resuelve junto con el tipo de
+    actividad y que este formulario no pregunta —`followUpReason` (el
+    motivo del Seguimiento) y `primaAnual` (la que validó "Cierre
+    Exitoso")—: se escriben tal cual en el evento nuevo, sin mostrar
+    ningún campo adicional en la interfaz.
+  */
+  initialExtraFields = null,
 }) {
   const isReminder = type === 'recordatorio';
 
@@ -234,6 +243,7 @@ export default function ActivityForm({
         // Sólo tiene sentido cuando es presencial: virtual ya no pide texto.
         location: modality === 'presencial' ? location.trim() : '',
       }),
+      ...initialExtraFields,
     });
     onClose();
   };

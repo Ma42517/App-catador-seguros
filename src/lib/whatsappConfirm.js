@@ -63,3 +63,57 @@ export function generateWhatsAppConfirmLink(client, time, modality, location, us
   const message = buildConfirmMessage(client?.name, time, modality, location, userSettings);
   return `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(message)}`;
 }
+
+/**
+ * Línea de lugar compartida por los mensajes de Propuesta y Cierre: el
+ * enlace de Zoom si es virtual y el asesor lo tiene guardado, la dirección
+ * si es presencial, o nada si no hay ninguno de los dos — misma
+ * degradación elegante que ya usa `buildConfirmMessage` (Caso C): nunca
+ * inventa un dato que no existe, sólo omite la frase de lugar.
+ */
+function meetingPlaceLine(modality, location, zoomLink) {
+  if (modality === 'virtual') {
+    return zoomLink ? `por videollamada en este enlace: ${zoomLink}` : null;
+  }
+  const place = location?.trim();
+  return place ? `en ${place}` : null;
+}
+
+/**
+ * Plantillas de confirmación por etapa del embudo, posteriores a la Cita
+ * Inicial (`PipelineCard.jsx`, botón WhatsApp del reverso). El texto de
+ * cada etapa lo pidió el pedido tal cual; sólo la frase de lugar es
+ * condicional, con la misma lógica de `meetingPlaceLine`.
+ */
+const STAGE_TEMPLATES = {
+  propuesta: (name, hour, placeLine) => `Hola ${name}, te confirmo nuestra cita hoy a las ${hour}`
+    + `${placeLine ? `, ${placeLine}` : ''}. Ya tengo listos los números y el diseño de tu plan a la medida.`,
+  cierre: (name, hour, placeLine) => `Hola ${name}, te tengo excelentes noticias: tengo listo el `
+    + `documento final de tu plan. Nos vemos hoy a las ${hour}${placeLine ? `, ${placeLine}` : ''} `
+    + 'para revisarlo a detalle.',
+};
+
+/**
+ * Enlace de `wa.me` para las etapas Propuesta y Cierre — mismo contrato que
+ * `generateWhatsAppConfirmLink`, pero con el texto propio de cada etapa en
+ * vez del de confirmación de la Cita Inicial.
+ *
+ * @param {'propuesta'|'cierre'} stage
+ * @param {{name?: string, phone?: string}} client
+ * @param {string} time
+ * @param {'presencial'|'virtual'} modality
+ * @param {string} location
+ * @param {{zoomLink?: string}} userSettings
+ */
+export function generateStageWhatsAppLink(stage, client, time, modality, location, userSettings = {}) {
+  const phone = digitsOnly(client?.phone);
+  if (!phone) return null;
+
+  const name = client?.name || 'tu prospecto';
+  const hour = time || '';
+  const zoomLink = userSettings?.zoomLink?.trim();
+  const placeLine = meetingPlaceLine(modality, location, zoomLink);
+  const buildMessage = STAGE_TEMPLATES[stage] ?? STAGE_TEMPLATES.propuesta;
+
+  return `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(buildMessage(name, hour, placeLine))}`;
+}

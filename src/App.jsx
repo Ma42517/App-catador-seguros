@@ -37,6 +37,7 @@ import { prospectNameFrom } from './lib/prospectText';
 import { hasCapturedData } from './data/defaults';
 import ConversationalWizard from './components/Wizard/ConversationalWizard';
 import UnderwritingDrawer from './components/Prospecta/UnderwritingDrawer';
+import DeliveryKitDrawer from './components/Prospecta/DeliveryKitDrawer';
 
 /** Dónde se recuerda qué versión de la captura se está usando. */
 const CAPTURE_KEY = 'df360:captureMode:v1';
@@ -485,25 +486,44 @@ function Shell({
   */
   const [activityPrefill, setActivityPrefill] = useState(null);
 
-  const handleRouteToActivity = useCallback((activityType, client) => {
+  const handleRouteToActivity = useCallback((activityType, client, extra) => {
     setActivityPrefill({
       tipoActividad: activityType,
       prospectName: client?.name ?? '',
       prospectPhone: client?.phone ?? '',
+      /*
+        Datos que el router de ventas (`resolvePipelineStage`,
+        `store/pipelineStore.js`) resuelve junto con el tipo de actividad,
+        y que `ActivityForm.jsx` necesita escribir en el evento nuevo sin
+        que el asesor los vuelva a teclear: `followUpReason` es el
+        origen/motivo que muestra `FollowUpCard.jsx` como subtítulo del
+        Seguimiento, y `primaAnual` es la que validó "Cierre Exitoso" al
+        salir de la Propuesta, para que quien complete el
+        `DeliveryKitDrawer.jsx` de la Cita de Cierre sepa cuánto se
+        acordó.
+      */
+      extraFields: {
+        ...(extra?.reason && { followUpReason: extra.reason }),
+        ...(extra?.primaAnual && { primaAnual: extra.primaAnual }),
+      },
     });
   }, []);
 
   /*
-    Botón ámbar (`Sparkles`) del reverso de `PipelineCard.jsx`, "Asistente de
-    requisitos": abre `UnderwritingDrawer.jsx` —el expediente médico rápido
-    de las 3 Súper Preguntas— como una pantalla completa por encima de todo,
-    igual que Prospecta. Estaba conectado hasta aquí en la cadena de props
-    (`ActionableCard.jsx` → `AISequence.jsx` → `TodayView.jsx`) pero nunca
-    llegaba a un manejador real: el botón no tenía nada que abrir, por eso
-    no hacía nada al tocarlo.
+    Botón ámbar (`Sparkles`) del reverso de `PipelineCard.jsx`,
+    "Asistente": abre una pantalla completa por encima de todo, igual que
+    Prospecta, pero cuál depende de la etapa de la tarjeta —
+    `UnderwritingDrawer.jsx` (expediente médico de las 3 Súper Preguntas)
+    para "Cita de Propuesta", `DeliveryKitDrawer.jsx` (checklist de
+    entrega) para "Cita de Cierre"—. Estaba conectado hasta aquí en la
+    cadena de props (`ActionableCard.jsx` → `AISequence.jsx` →
+    `TodayView.jsx`) pero nunca llegaba a un manejador real: el botón no
+    tenía nada que abrir, por eso no hacía nada al tocarlo.
   */
-  const [underwritingOpen, setUnderwritingOpen] = useState(false);
-  const handleOpenRequirements = useCallback(() => setUnderwritingOpen(true), []);
+  const [openAssistant, setOpenAssistant] = useState(null);
+  const handleOpenRequirements = useCallback((event) => {
+    setOpenAssistant(event?.tipo_actividad === 'cita_cierre' ? 'delivery' : 'underwriting');
+  }, []);
 
   /*
     Qué versión del diagnóstico se ve. El estado vive aquí, en el Shell, porque es
@@ -657,6 +677,7 @@ function Shell({
           }}
           onStartSession={handleStartSession}
           onOpenRequirements={handleOpenRequirements}
+          onRouteToActivity={handleRouteToActivity}
         />
       ) : activeSection === 'productivity' ? (
         <ProductivityDashboard
@@ -774,14 +795,21 @@ function Shell({
         cualquier sección (hoy sólo desde "Hoy", pero no depende de estar
         en ella) y "Cerrar" sólo apaga este estado, sin tocar `section`.
       */}
-      {underwritingOpen && (
+      {openAssistant && (
         <div className="fixed inset-0 z-[75] overflow-y-auto bg-black">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-grid-fade" aria-hidden="true" />
           <div className="relative mx-auto max-w-md px-4 pb-16 pt-6">
-            <UnderwritingDrawer
-              onBack={() => setUnderwritingOpen(false)}
-              backLabel="Cerrar"
-            />
+            {openAssistant === 'delivery' ? (
+              <DeliveryKitDrawer
+                onBack={() => setOpenAssistant(null)}
+                backLabel="Cerrar"
+              />
+            ) : (
+              <UnderwritingDrawer
+                onBack={() => setOpenAssistant(null)}
+                backLabel="Cerrar"
+              />
+            )}
           </div>
         </div>
       )}

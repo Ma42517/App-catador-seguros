@@ -6,10 +6,14 @@ import {
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
-import { generateWhatsAppConfirmLink } from '../../lib/whatsappConfirm';
+import { generateStageWhatsAppLink } from '../../lib/whatsappConfirm';
 import { readAdvisorProfile } from '../../data/advisorProfile';
+import { markProspectDiscarded } from '../../data/prospectStatus';
+import { upsertProspect } from '../../store/pipelineStore';
+import useAdvisorPoints from '../../lib/useAdvisorPoints';
 import SwipeableCard from '../Layout/SwipeableCard';
 import TaskOptionsSheet from './TaskOptionsSheet';
+import StageResolutionModal from '../Prospecta/StageResolutionModal';
 
 /*
   Física del giro: un resorte ágil, no una curva de tiempo fija. `stiffness`
@@ -19,15 +23,23 @@ import TaskOptionsSheet from './TaskOptionsSheet';
 */
 const FLIP_SPRING = { type: 'spring', stiffness: 400, damping: 26 };
 
+/** Texto del anverso y de la etapa del router, según `tipo_actividad`. */
+const STAGE_META = {
+  cita_propuesta: { title: 'Cita de Propuesta', waStage: 'propuesta', routerStage: 'cita_propuesta' },
+  cita_cierre: { title: 'Cita de Cierre', waStage: 'cierre', routerStage: 'cita_cierre' },
+};
+
 /**
  * src/components/Activities/PipelineCard.jsx
  *
- * Tarjeta de una actividad del embudo de ventas posterior a la Cita Inicial
- * —hoy sólo "Cita de Propuesta" (`tipo_actividad === 'cita_propuesta'`)—,
+ * Tarjeta base del embudo de ventas posterior a la Cita Inicial —hoy sirve
+ * a las dos etapas con este mismo diseño, "Cita de Propuesta"
+ * (`tipo_actividad === 'cita_propuesta'`) y "Cita de Cierre"
+ * (`'cita_cierre'`), diferenciadas sólo por `STAGE_META` de arriba—,
  * resuelta como tarjeta reversible ("Flip Card") para no crecer de tamaño.
  *
- * El problema que resuelve: "Cita de Propuesta" más el nombre del cliente ya
- * llenan el ancho completo de la fila delgada que usa el resto de la agenda
+ * El problema que resuelve: el título más el nombre del cliente ya llenan
+ * el ancho completo de la fila delgada que usa el resto de la agenda
  * (`ActionableCard.jsx`, un solo renglón con `p-4`), y esa fila no tiene
  * sitio para 4 botones de acción sin ensancharse o crecer de alto — lo que
  * el pedido prohíbe. En vez de eso, la tarjeta gira: el frente es sólo
@@ -37,7 +49,8 @@ const FLIP_SPRING = { type: 'spring', stiffness: 400, damping: 26 };
  * mismo patrón (y el mismo motivo) que ya usa `DigitalCardPreview.jsx` para
  * su tarjeta de dos caras—: cada cara aplica `backfaceVisibility: 'hidden'`
  * para que la que está de espaldas ni se vea ni se pueda tocar a través de
- * la otra.
+ * la otra. El giro es manual: sólo ocurre al tocar la tarjeta
+ * (`onClick`), nunca por su cuenta.
  *
  * También envuelta en `SwipeableCard.jsx`: esta cita es igualmente una
  * notificación del día, y debe poder reagendarse o descartarse con el mismo
@@ -45,14 +58,27 @@ const FLIP_SPRING = { type: 'spring', stiffness: 400, damping: 26 };
  * "Finalizar" en el reverso. El arrastre horizontal de `SwipeableCard` y el
  * toque para voltear conviven sin pisarse: uno exige mover el dedo una
  * distancia real, el otro es un toque breve sin desplazamiento.
+ *
+ * "Finalizar" ya no completa la actividad directo: abre
+ * `StageResolutionModal.jsx`, el router de ventas que decide el "Efecto
+ * Dominó" —a qué tipo de actividad se agenda después, o si el prospecto se
+ * archiva— a través de `resolvePipelineStage` (`store/pipelineStore.js`).
+ * `onRouteToActivity` es la única forma en que esta tarjeta habla hacia
+ * arriba para crear la siguiente actividad; el descarte
+ * (`markProspectDiscarded`) lo resuelve aquí mismo, igual que
+ * `CitaInicialWizard.jsx` con su propio `PresentationEndModal`.
  */
-export default function PipelineCard({ event, onOpenRequirements }) {
+export default function PipelineCard({ event, onOpenRequirements, onRouteToActivity }) {
   const { completeEvent, removeEvent } = useEvents();
   const { identity } = useSession();
+  const [, addPoints] = useAdvisorPoints(identity?.key);
   const [isFlipped, setIsFlipped] = useState(false);
   // Sólo lo abre "Reagendar" del gesto de deslizar; tocar la tarjeta sigue
   // volteándola como siempre, sin abrir ningún menú.
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [resolutionOpen, setResolutionOpen] = useState(false);
+
+  const meta = STAGE_META[event.tipo_actividad] ?? STAGE_META.cita_propuesta;
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
@@ -67,7 +93,8 @@ export default function PipelineCard({ event, onOpenRequirements }) {
       : null);
   const hasLocation = Boolean(locationHref);
 
-  const confirmHref = generateWhatsAppConfirmLink(
+  const confirmHref = generateStageWhatsAppLink(
+    meta.waStage,
     { name: prospectName, phone: event.telefono },
     event.time,
     event.modality,
@@ -84,7 +111,34 @@ export default function PipelineCard({ event, onOpenRequirements }) {
   */
   const stop = (handler) => (e) => { e.stopPropagation(); handler?.(); };
 
-  const handleFinish = () => completeEvent(event.id);
+  /*
+    Resultado del router de ventas (`resolvePipelineStage`, dentro de
+    `StageResolutionModal`): "avanzó" o "pidió más tiempo" completan esta
+    actividad —ya se resolvió, con una siguiente actividad agendada—;
+    "no califica" la elimina del todo, junto con el registro del
+    prospecto. Ninguno de los dos caminos necesita el `onExitComplete` que
+    sí usa `InitialMeetingCard.jsx`: aquí no hay animación de archivado
+    propia, la tarjeta simplemente sale de la lista al cambiar el estado
+    del evento.
+  */
+  const handleResolved = (resultType) => {
+    if (resultType === 'discard') {
+      removeEvent(event.id);
+    } else {
+      completeEvent(event.id);
+    }
+  };
+
+  const handleDiscardClient = (client) => {
+    markProspectDiscarded(identity?.key, client);
+  };
+
+  const handleRouteToActivity = (tipoActividad, client, extra) => {
+    if (extra?.primaAnual) {
+      upsertProspect({ id: client?.id ?? phone, ...client, primaAnual: extra.primaAnual });
+    }
+    onRouteToActivity?.(tipoActividad, client, extra);
+  };
 
   return (
     <>
@@ -112,12 +166,10 @@ export default function PipelineCard({ event, onOpenRequirements }) {
               {/*
                 ── Anverso: texto + footer de pista ──
 
-                Se descarta el ícono suelto de "tres puntos": era una pista
-                demasiado sutil, fácil de leer como decoración y no como una
-                invitación a tocar. En su lugar, una barra inferior de
-                ancho completo con texto explícito — "Tocar para
-                gestionar"— deja claro que ahí hay una acción, sin
-                necesidad de adivinar qué significa un ícono aislado.
+                Sin ícono ni fondo de color en el footer —discreto a
+                propósito—: sólo el texto "Tocar para gestionar", en un
+                gris apagado que se funde con el `bg-slate-900` de la
+                tarjeta, sin competir con el contenido de arriba.
 
                 La tarjeta no crece: el footer vive dentro de los mismos
                 68px totales, como una franja fija en la base (`h-6`), y el
@@ -131,7 +183,7 @@ export default function PipelineCard({ event, onOpenRequirements }) {
               >
                 <div className="min-w-0 flex-1 px-3.5 pt-2.5 text-left">
                   <p className="truncate text-sm font-semibold text-white">
-                    Cita de Propuesta
+                    {meta.title}
                     <span className="font-normal text-slate-400"> · {prospectName}</span>
                   </p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
@@ -140,13 +192,6 @@ export default function PipelineCard({ event, onOpenRequirements }) {
                   </p>
                 </div>
 
-                {/*
-                  Discreto a propósito: sin fondo de color ni ícono — sólo
-                  el texto, en un gris apagado que se funde con el
-                  `bg-slate-900` de la tarjeta. La pista sigue siendo
-                  legible, pero deja de competir visualmente con el
-                  contenido de arriba.
-                */}
                 <div className="flex h-6 shrink-0 items-center justify-center">
                   <span className="text-[10px] font-medium text-slate-600">
                     Tocar para gestionar
@@ -205,7 +250,7 @@ export default function PipelineCard({ event, onOpenRequirements }) {
                 <button
                   type="button"
                   onClick={stop(() => onOpenRequirements?.(event))}
-                  aria-label="Asistente de requisitos"
+                  aria-label="Asistente"
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-full
                              bg-amber-500/10 text-amber-400 transition-colors
                              hover:bg-amber-500/20 active:scale-95"
@@ -215,8 +260,8 @@ export default function PipelineCard({ event, onOpenRequirements }) {
 
                 <button
                   type="button"
-                  onClick={stop(handleFinish)}
-                  aria-label={`Finalizar cita de propuesta con ${prospectName}`}
+                  onClick={stop(() => setResolutionOpen(true))}
+                  aria-label={`Finalizar cita con ${prospectName}`}
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-full
                              bg-indigo-500/10 text-indigo-400 transition-colors
                              hover:bg-indigo-500/20 active:scale-95"
@@ -234,6 +279,17 @@ export default function PipelineCard({ event, onOpenRequirements }) {
         isOpen={rescheduleOpen}
         onClose={() => setRescheduleOpen(false)}
         initialReschedule
+      />
+
+      <StageResolutionModal
+        isOpen={resolutionOpen}
+        stage={meta.routerStage}
+        client={{ id: event.id, name: prospectName, phone: event.telefono }}
+        onClose={() => setResolutionOpen(false)}
+        onRouteToActivity={handleRouteToActivity}
+        onDiscardClient={handleDiscardClient}
+        onResolved={handleResolved}
+        onEarnPoints={addPoints}
       />
     </>
   );

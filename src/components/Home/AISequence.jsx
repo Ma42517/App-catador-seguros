@@ -46,7 +46,7 @@ const SMART_MESSAGE_DELAY_MS = 6500;
  */
 export default function AISequence({
   header, children, puntosActuales = 0, horario = [], username = '', onOpenDiagnostic,
-  onEarnPoints, onStartSession, onOpenRequirements,
+  onEarnPoints, onStartSession, onOpenRequirements, onRouteToActivity,
 }) {
   const { highPriorityToday, activeToday } = useEvents();
 
@@ -227,6 +227,7 @@ export default function AISequence({
                   onEarnPoints={onEarnPoints}
                   onStartSession={onStartSession}
                   onOpenRequirements={onOpenRequirements}
+                  onRouteToActivity={onRouteToActivity}
                 />
               </li>
             ))}

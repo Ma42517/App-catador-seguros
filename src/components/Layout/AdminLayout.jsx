@@ -193,6 +193,7 @@ export default function AdminLayout({
         initialTipoActividad={activityPrefill?.tipoActividad ?? null}
         initialProspectName={activityPrefill?.prospectName ?? ''}
         initialProspectPhone={activityPrefill?.prospectPhone ?? ''}
+        initialExtraFields={activityPrefill?.extraFields ?? null}
       />
 
       <QuickNoteForm
