@@ -116,13 +116,23 @@ export default function InitialMeetingCard({ event, onStartSession }) {
 
   /*
     "Seguro de Vida": marcar `sessionStarted` es lo único que apaga el
-    reloj de arena de forma permanente (`useHourglassTimer.js`). La
-    redirección al módulo de presentación es responsabilidad de quien monta
-    esta tarjeta —`onStartSession`, opcional—: esta tarjeta no decide rutas,
-    sólo avisa que la sesión ya empezó.
+    reloj de arena de forma permanente (`useHourglassTimer.js`), y sólo
+    hace falta escribirlo la primera vez. La redirección al módulo de
+    presentación es responsabilidad de quien monta esta tarjeta
+    —`onStartSession`, opcional—: esta tarjeta no decide rutas, sólo avisa
+    que la sesión ya empezó.
+
+    El botón se queda siempre activo, incluso después de la primera vez:
+    antes tenía `disabled={sessionStarted}`, así que en cuanto se marcaba
+    la sesión como iniciada el ícono quedaba apagado para siempre y ya no
+    volvía a abrir la presentación —justo el reporte de que "sólo sirve una
+    vez"—. El Seguro de Vida sigue siendo permanente (nunca se vuelve a
+    escribir `sessionStarted: false`), pero eso no debe impedir volver a
+    entrar al módulo de presentación cuantas veces haga falta (la llamada
+    se cortó, se cerró por accidente, etc.).
   */
   const handleStartSession = () => {
-    updateEvent(event.id, { sessionStarted: true });
+    if (!sessionStarted) updateEvent(event.id, { sessionStarted: true });
     onStartSession?.(event);
   };
 
@@ -192,12 +202,10 @@ export default function InitialMeetingCard({ event, onStartSession }) {
             <button
               type="button"
               onClick={handleStartSession}
-              disabled={sessionStarted}
-              aria-label={sessionStarted ? 'Sesión ya iniciada' : 'Iniciar sesión de presentación'}
+              aria-label={sessionStarted ? 'Abrir presentación' : 'Iniciar sesión de presentación'}
               className="grid h-10 w-10 shrink-0 place-items-center rounded-full
                          bg-indigo-500/10 text-indigo-400 transition-colors
-                         hover:bg-indigo-500/20 active:scale-95 disabled:cursor-not-allowed
-                         disabled:opacity-40"
+                         hover:bg-indigo-500/20 active:scale-95"
             >
               <PlayCircle size={16} aria-hidden="true" />
             </button>
