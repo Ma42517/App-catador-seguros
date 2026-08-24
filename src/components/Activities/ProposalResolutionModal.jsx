@@ -1,7 +1,7 @@
 import { useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, CalendarClock, Archive, Check } from 'lucide-react';
+import { ArrowRight, CalendarClock, Archive, Check, Sparkles } from 'lucide-react';
 import { PROPOSAL_GAMIFICATION } from '../../lib/proposalGamification';
 
 const INPUT =
@@ -31,6 +31,13 @@ const INPUT =
  *  - "No le interesó": archiva al prospecto, mismo criterio que "No
  *    califica" en las otras dos etapas.
  *
+ * Además de las 3 resoluciones, un cuarto botón —"Llenar Cuestionario"—
+ * no resuelve nada: abre `UnderwritingDrawer.jsx` (`onOpenRequirements`,
+ * el mismo Asistente ámbar de la propia tarjeta) sin cerrar este modal ni
+ * pagar puntos, para quien llega directo al router de ventas y quiere
+ * capturar el expediente médico antes de decidir cómo sigue la Cita de
+ * Propuesta.
+ *
  * Ninguna de las 3 resoluciones habla directo con `EventContext` ni con
  * `data/prospectStatus.js`: cada una llama a la prop correspondiente y es
  * quien monta este modal (`ProposalCard.jsx`) el que decide cómo
@@ -41,14 +48,15 @@ const INPUT =
  * @param {{id?: string, name?: string, phone?: string}} client
  * @param {() => void} onClose
  * @param {(client: object) => void} onIssuePolicy
+ * @param {() => void} [onOpenRequirements] Abre el cuestionario de requisitos; no cierra el modal ni cuenta como resolución.
  * @param {(activityType: 'seguimiento', client: object, extra?: {reason?: string}) => void} onRouteToActivity
  * @param {(client: object) => void} onDiscardClient
  * @param {(resultType: 'advance'|'discard') => void} [onResolved] Se llama siempre, sin importar la resolución — quien monta el modal completa o descarta aquí la Cita de Propuesta actual.
  * @param {(amount: number) => void} onEarnPoints
  */
 export default function ProposalResolutionModal({
-  isOpen, client, onClose, onIssuePolicy, onRouteToActivity, onDiscardClient, onResolved,
-  onEarnPoints,
+  isOpen, client, onClose, onIssuePolicy, onOpenRequirements, onRouteToActivity, onDiscardClient,
+  onResolved, onEarnPoints,
 }) {
   const clientName = client?.name || 'este prospecto';
 
@@ -224,6 +232,28 @@ export default function ProposalResolutionModal({
                           <Archive size={18} className="shrink-0" aria-hidden="true" />
                         </button>
                       </div>
+
+                      {/*
+                        No es una cuarta resolución: no cierra el modal ni
+                        paga puntos, sólo abre el mismo Asistente ámbar de
+                        la tarjeta (`UnderwritingDrawer.jsx`) para quien
+                        quiere capturar el expediente médico antes de
+                        decidir. Separado con su propio borde para no
+                        leerse como una opción más entre las 3 de arriba.
+                      */}
+                      {onOpenRequirements && (
+                        <button
+                          type="button"
+                          onClick={onOpenRequirements}
+                          className="mt-2.5 flex w-full items-center justify-center gap-2
+                                     rounded-xl border border-dashed border-amber-500/30 px-4 py-3
+                                     text-xs font-semibold text-amber-400 transition-colors
+                                     hover:bg-amber-500/10 active:scale-[0.98]"
+                        >
+                          <Sparkles size={15} className="shrink-0" aria-hidden="true" />
+                          Llenar Cuestionario
+                        </button>
+                      )}
                     </>
                   )}
                 </motion.div>

@@ -78,7 +78,13 @@ export default function ActionableCard({
   }
 
   if (event.tipo_actividad === 'cita_propuesta') {
-    return <ProposalCard event={event} onRouteToActivity={onRouteToActivity} />;
+    return (
+      <ProposalCard
+        event={event}
+        onOpenRequirements={onOpenRequirements}
+        onRouteToActivity={onRouteToActivity}
+      />
+    );
   }
 
   if (event.tipo_actividad === 'cita_cierre') {

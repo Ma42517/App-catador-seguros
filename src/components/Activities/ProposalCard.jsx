@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PlayCircle, Clock } from 'lucide-react';
+import { PlayCircle, Sparkles, Clock } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
@@ -41,8 +41,17 @@ function nowParts() {
  * (`onRouteToActivity`, hacia `ActivityForm` pre-llenado) porque un
  * Seguimiento de verdad necesita que el asesor elija cuándo va a dar
  * seguimiento.
+ *
+ * El botón ámbar ("Asistente", ícono `Sparkles`) vuelve a estar siempre a
+ * la vista en esta tarjeta —igual que ya lo tenía la etapa cuando vivía
+ * dentro de `PipelineCard.jsx`, antes de mudarse a esta "Pill"— y no
+ * escondido detrás de ningún volteo: abre `UnderwritingDrawer.jsx` (el
+ * expediente médico de las 3 Súper Preguntas) vía `onOpenRequirements`.
+ * El mismo atajo se repite dentro de `ProposalResolutionModal.jsx`
+ * ("Llenar Cuestionario"), para quien llega directo al router de ventas
+ * sin haber tocado antes el ícono de la tarjeta.
  */
-export default function ProposalCard({ event, onRouteToActivity }) {
+export default function ProposalCard({ event, onOpenRequirements, onRouteToActivity }) {
   const { completeEvent, removeEvent, addEvent } = useEvents();
   const { identity } = useSession();
   const [, addPoints] = useAdvisorPoints(identity?.key);
@@ -93,6 +102,8 @@ export default function ProposalCard({ event, onRouteToActivity }) {
     });
   };
 
+  const handleOpenRequirements = () => onOpenRequirements?.(event);
+
   return (
     <>
       <SwipeableCard
@@ -129,6 +140,17 @@ export default function ProposalCard({ event, onRouteToActivity }) {
             <WhatsAppMark size={16} />
           </a>
 
+          <button
+            type="button"
+            onClick={handleOpenRequirements}
+            aria-label={`Abrir cuestionario de requisitos de ${prospectName}`}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                       bg-amber-500/10 text-amber-400 transition-colors
+                       hover:bg-amber-500/20 active:scale-95"
+          >
+            <Sparkles size={16} aria-hidden="true" />
+          </button>
+
           {/*
             Botón visible con texto, no sólo un ícono suelto: es la puerta
             de entrada al router de ventas de esta etapa, y tiene que
@@ -161,6 +183,7 @@ export default function ProposalCard({ event, onRouteToActivity }) {
         client={{ id: event.id, name: prospectName, phone: event.telefono }}
         onClose={() => setResolutionOpen(false)}
         onIssuePolicy={handleIssuePolicy}
+        onOpenRequirements={handleOpenRequirements}
         onRouteToActivity={onRouteToActivity}
         onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
         onResolved={handleResolved}
