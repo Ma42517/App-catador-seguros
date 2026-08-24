@@ -4,6 +4,8 @@ import TaskOptionsSheet from './TaskOptionsSheet';
 import CallActivityCard from './CallActivityCard';
 import InitialMeetingCard from './InitialMeetingCard';
 import PipelineCard from './PipelineCard';
+import ProposalCard from './ProposalCard';
+import IssuanceReminderCard from './IssuanceReminderCard';
 import FollowUpCard from './FollowUpCard';
 import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from './eventStatus';
@@ -27,11 +29,16 @@ import useNow from '../../lib/useNow';
  * al volver de la llamada. Una "Cita Inicial" (`tipo_actividad ===
  * 'cita_inicial'`) tampoco usa esta tarjeta: cede a `InitialMeetingCard.jsx`,
  * con sus 3 acciones propias y el "Reloj de Arena" del auto-archivo. Una
- * "Cita de Propuesta" y "Cita de Cierre" (`tipo_actividad ===
- * 'cita_propuesta'`/`'cita_cierre'`) ceden a `PipelineCard.jsx`, la misma
- * tarjeta reversible base para las dos etapas —se distinguen sólo por el
- * título y por a qué etapa del router de ventas apuntan
- * (`STAGE_META`/`resolvePipelineStage`, dentro de `PipelineCard.jsx`)—.
+ * "Cita de Propuesta" (`tipo_actividad === 'cita_propuesta'`) cede a
+ * `ProposalCard.jsx` — misma "Pill" de botones circulares que el resto,
+ * con un botón "Iniciar" que abre su propio router de ventas
+ * (`ProposalResolutionModal.jsx`) — y "Cita de Cierre" (`'cita_cierre'`)
+ * sigue en `PipelineCard.jsx`, la tarjeta reversible ("Flip Card") con sus
+ * 4 acciones en el reverso. Un "Recordatorio de Emisión"
+ * (`'recordatorio_emision'`) —estado interno que sólo crea
+ * `ProposalCard.jsx`, nunca aparece en el catálogo de "Nueva
+ * Actividad"— cede a `IssuanceReminderCard.jsx`, donde WhatsApp y Llamada
+ * quedan interceptados por `ScheduleClosingModal.jsx` antes de ejecutarse.
  * "Seguimiento" (`'seguimiento'`) cede a `FollowUpCard.jsx`, compacta y
  * sin Flip. Cualquier otro tipo de evento (o uno viejo, de antes de que
  * existiera `tipo_actividad`) sigue el camino de siempre — y es justo esa
@@ -39,10 +46,10 @@ import useNow from '../../lib/useNow';
  * izquierda revela "Reagendar" (abre `TaskOptionsSheet` directo en el paso
  * de reprogramar) y "Descartar" (`removeEvent`, mismo destino que
  * "Eliminar" en ese mismo menú). Las tarjetas especiales de arriba —
- * llamada, Cita Inicial, Cita de Propuesta/Cierre— no se envuelven: cada
- * una ya tiene su propio lenguaje de gestos y acciones, y sumarles el
- * deslizamiento por encima competiría con lo que ya hacen (por ejemplo,
- * `PipelineCard.jsx` ya usa el toque para voltear la tarjeta).
+ * llamada, Cita Inicial, Cita de Propuesta/Cierre, Recordatorio de
+ * Emisión— no se envuelven aquí: cada una ya trae su propio
+ * `SwipeableCard.jsx` por dentro (o, en el caso de `PipelineCard.jsx`, su
+ * propio lenguaje de gestos con el toque para voltear).
  */
 export default function ActionableCard({
   event, onEarnPoints, onStartSession, onOpenRequirements, onRouteToActivity,
@@ -70,7 +77,11 @@ export default function ActionableCard({
     return <InitialMeetingCard event={event} onStartSession={onStartSession} />;
   }
 
-  if (event.tipo_actividad === 'cita_propuesta' || event.tipo_actividad === 'cita_cierre') {
+  if (event.tipo_actividad === 'cita_propuesta') {
+    return <ProposalCard event={event} onRouteToActivity={onRouteToActivity} />;
+  }
+
+  if (event.tipo_actividad === 'cita_cierre') {
     return (
       <PipelineCard
         event={event}
@@ -78,6 +89,10 @@ export default function ActionableCard({
         onRouteToActivity={onRouteToActivity}
       />
     );
+  }
+
+  if (event.tipo_actividad === 'recordatorio_emision') {
+    return <IssuanceReminderCard event={event} />;
   }
 
   if (event.tipo_actividad === 'seguimiento') {

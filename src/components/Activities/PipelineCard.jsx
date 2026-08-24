@@ -25,18 +25,22 @@ const FLIP_SPRING = { type: 'spring', stiffness: 400, damping: 26 };
 
 /** Texto del anverso y de la etapa del router, según `tipo_actividad`. */
 const STAGE_META = {
-  cita_propuesta: { title: 'Cita de Propuesta', waStage: 'propuesta', routerStage: 'cita_propuesta' },
   cita_cierre: { title: 'Cita de Cierre', waStage: 'cierre', routerStage: 'cita_cierre' },
 };
 
 /**
  * src/components/Activities/PipelineCard.jsx
  *
- * Tarjeta base del embudo de ventas posterior a la Cita Inicial —hoy sirve
- * a las dos etapas con este mismo diseño, "Cita de Propuesta"
- * (`tipo_actividad === 'cita_propuesta'`) y "Cita de Cierre"
- * (`'cita_cierre'`), diferenciadas sólo por `STAGE_META` de arriba—,
- * resuelta como tarjeta reversible ("Flip Card") para no crecer de tamaño.
+ * Tarjeta reversible ("Flip Card") de "Cita de Cierre"
+ * (`tipo_actividad === 'cita_cierre'`), la resuelta con 4 acciones en el
+ * reverso (Ubicación, WhatsApp, Asistente, Finalizar) para no crecer de
+ * tamaño. "Cita de Propuesta" tenía este mismo diseño al principio, pero
+ * pasó a `ProposalCard.jsx` —la "Pill" simple del resto de tarjetas, con
+ * un botón "Iniciar" siempre visible— porque esa etapa necesitaba abrir
+ * su router de ventas (`ProposalResolutionModal.jsx`) sin que la persona
+ * tuviera que voltear la tarjeta primero para encontrar el botón.
+ * `STAGE_META` conserva la forma de mapa (y no un objeto plano) por si
+ * una etapa futura vuelve a compartir este mismo diseño.
  *
  * El problema que resuelve: el título más el nombre del cliente ya llenan
  * el ancho completo de la fila delgada que usa el resto de la agenda
@@ -78,7 +82,7 @@ export default function PipelineCard({ event, onOpenRequirements, onRouteToActiv
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [resolutionOpen, setResolutionOpen] = useState(false);
 
-  const meta = STAGE_META[event.tipo_actividad] ?? STAGE_META.cita_propuesta;
+  const meta = STAGE_META[event.tipo_actividad] ?? STAGE_META.cita_cierre;
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
