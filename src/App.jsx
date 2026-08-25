@@ -711,7 +711,19 @@ function Shell({
       ) : activeSection === 'promotoria' ? (
         <PromotorDashboard />
       ) : activeSection === 'agenda' ? (
-        <CalendarView />
+        /*
+          Los mismos manejadores que recibe "Hoy": la Agenda dibuja las
+          tarjetas reales del embudo (`ActionableCard.jsx`), no filas
+          genéricas, así que necesita las mismas rutas hacia arriba —
+          iniciar la presentación, abrir el Asistente y enrutar a la
+          siguiente actividad—. Sin ellas, esas tarjetas se verían igual
+          pero sus botones no llevarían a ningún lado.
+        */
+        <CalendarView
+          onStartSession={handleStartSession}
+          onOpenRequirements={handleOpenRequirements}
+          onRouteToActivity={handleRouteToActivity}
+        />
       ) : activeSection === 'wizard' && captureMode === 'v2' ? (
         /*
           La propuesta conversacional se queda con la pestaña entera.

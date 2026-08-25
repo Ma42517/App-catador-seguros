@@ -1,10 +1,13 @@
 import { useState, useMemo } from 'react';
 import { CalendarDays, Bell, Calendar as CalendarIcon } from 'lucide-react';
 import { useEvents, todayKey } from '../../context/EventContext';
+import { useSession } from '../../context/SessionContext';
 import TaskOptionsSheet from '../Activities/TaskOptionsSheet';
+import ActionableCard from '../Activities/ActionableCard';
 import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from '../Activities/eventStatus';
 import useNow from '../../lib/useNow';
+import useAdvisorPoints from '../../lib/useAdvisorPoints';
 
 const PRIORITY_STYLES = {
   baja: { label: 'Baja', chip: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400' },
@@ -44,10 +47,54 @@ function formatDay(dateKey) {
 /**
  * Agenda del asesor: todos los eventos agrupados por fecha, con el día de hoy
  * primero. Sustituye a los destinos separados de "Eventos" y "Calendario".
+ *
+ * ## Por qué dibuja las tarjetas del embudo y no filas propias
+ *
+ * Antes esta pantalla pintaba su propia fila para TODO evento, sin importar
+ * el tipo: un rectángulo con ícono, título, hora y una etiqueta de
+ * prioridad, que al tocarse abría el menú genérico de `TaskOptionsSheet`.
+ * Eso abría una fuga en el embudo: ese menú ofrece "Marcar como
+ * Completada", así que una Cita de Propuesta o un Cobro podían cerrarse en
+ * silencio desde aquí —sin pasar por su router, sin agendar la etapa
+ * siguiente y sin dejar constancia de por qué—, mientras que la MISMA
+ * actividad abierta desde "Hoy" obligaba a elegir una resolución. Un solo
+ * evento con dos comportamientos según por dónde se abriera.
+ *
+ * Ahora cualquier actividad con `tipo_actividad` cede a
+ * `ActionableCard.jsx`, exactamente el mismo componente que usa "Hoy": la
+ * Cita de Propuesta trae su "Iniciar", el Seguimiento su "Retomar", el
+ * Cobro su "Cobrado" con los cobros recurrentes. Una actividad se
+ * administra igual desde donde se la encuentre, que era la intención
+ * original de compartir `TaskOptionsSheet` entre las dos pantallas.
+ *
+ * Se conservan las filas propias para dos casos donde sí son lo correcto:
+ *
+ *  1. **Recordatorios y eventos viejos** (sin `tipo_actividad`): no son
+ *     etapas del embudo, no tienen router al que mandarlos, y "Marcar como
+ *     Completada" es justo lo que les toca — un recordatorio ya avisó.
+ *  2. **Actividades ya completadas**: las tarjetas del embudo asumen una
+ *     tarea viva y mostrarían sus botones de resolución para algo ya
+ *     resuelto. La fila las muestra tachadas y su menú ofrece "Marcar como
+ *     pendiente", que es la acción que de verdad aplica. La Agenda es la
+ *     única pantalla que muestra el historial ("Hoy" filtra lo completado),
+ *     así que este caso sólo existe aquí.
  */
-export default function CalendarView() {
+export default function CalendarView({
+  onStartSession, onOpenRequirements, onRouteToActivity,
+}) {
   const { events, removeEvent } = useEvents();
   const grouped = useMemo(() => groupByDate(events), [events]);
+
+  /*
+    Los puntos que puede otorgar una tarjeta desde aquí (el feedback de una
+    llamada, por ejemplo) van al mismo marcador persistido por usuario que
+    usa "Hoy". Se instancia el hook aquí en vez de recibir `onEarnPoints`
+    como prop: las dos pantallas nunca están montadas a la vez —`Shell`
+    cambia de sección— y el hook relee el valor guardado al montar, así que
+    no hay dos contadores compitiendo.
+  */
+  const { identity } = useSession();
+  const [, addPoints] = useAdvisorPoints(identity?.key);
 
   /*
     Si "Reagendar" (del gesto de deslizar) se disparó, la hoja de opciones
@@ -113,6 +160,28 @@ export default function CalendarView() {
 
               <ul className="flex flex-col gap-2">
                 {items.map((event) => {
+                  /*
+                    Una actividad del embudo todavía viva se dibuja con su
+                    tarjeta real, la misma de "Hoy": así su botón de
+                    resolución (Iniciar, Retomar, Cobrado...) es el único
+                    camino para cerrarla, y no se puede completar en silencio
+                    desde el menú genérico. Ver la nota de arriba para el
+                    porqué de las dos excepciones.
+                  */
+                  if (event.tipo_actividad && !event.completed) {
+                    return (
+                      <li key={event.id}>
+                        <ActionableCard
+                          event={event}
+                          onEarnPoints={addPoints}
+                          onStartSession={onStartSession}
+                          onOpenRequirements={onOpenRequirements}
+                          onRouteToActivity={onRouteToActivity}
+                        />
+                      </li>
+                    );
+                  }
+
                   const priority = PRIORITY_STYLES[event.priority] ?? PRIORITY_STYLES.importante;
                   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;
 
