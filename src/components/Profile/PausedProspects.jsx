@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  PauseCircle, RotateCcw, Trash2, Check, X, Hourglass, Archive, Phone,
+  PauseCircle, RotateCcw, Trash2, Check, X, Hourglass, Archive, Phone, PhoneMissed,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import { useSession } from '../../context/SessionContext';
@@ -35,7 +35,22 @@ function reasonLabel(record) {
   if (record.reason === 'sin_sesion_30min') {
     return 'Su Cita Inicial se archivó: pasaron 30 minutos sin iniciar la presentación';
   }
+  if (record.reason === 'sin_respuesta') {
+    return 'No contestó la llamada y se cerró sin más intentos';
+  }
   return 'Quedó fuera del embudo';
+}
+
+/**
+ * Estado visual de un registro. Los huérfanos se subdividen por motivo: una
+ * llamada sin respuesta y una Cita Inicial archivada están las dos en pausa,
+ * pero no son lo mismo —la primera no llegó ni a hablar con la persona— y
+ * conviene distinguirlas de un vistazo al decidir a quién retomar primero.
+ */
+function styleFor(record) {
+  if (record.kind === 'discarded') return KIND_STYLES.discarded;
+  if (record.reason === 'sin_respuesta') return KIND_STYLES.noAnswer;
+  return KIND_STYLES.orphan;
 }
 
 /** Fecha y hora de mañana: un prospecto reactivado se retoma al día siguiente. */
@@ -56,6 +71,11 @@ const KIND_STYLES = {
     Icon: Hourglass,
     chip: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
   },
+  noAnswer: {
+    label: 'No contestó',
+    Icon: PhoneMissed,
+    chip: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  },
   discarded: {
     label: 'Descartado',
     Icon: Archive,
@@ -71,7 +91,7 @@ const KIND_STYLES = {
  */
 function PausedRow({ record, onReactivate, onForget }) {
   const [confirming, setConfirming] = useState(false);
-  const style = KIND_STYLES[record.kind] ?? KIND_STYLES.orphan;
+  const style = styleFor(record);
   const hasPhone = Boolean(String(record.phone ?? '').trim());
 
   return (

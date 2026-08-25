@@ -6,8 +6,10 @@ import {
 
 import BottomSheet from '../Layout/BottomSheet';
 import { useEvents } from '../../context/EventContext';
+import { useSession } from '../../context/SessionContext';
 import { CALL_GAMIFICATION } from '../../lib/callGamification';
 import { buildFollowUpEvent, followUpReasonFor } from '../../lib/followUpEvent';
+import { addOrphanProspect } from '../../data/orphanProspects';
 
 /*
   El resultado de "Agendar Cita" tras una llamada es siempre una Cita
@@ -85,6 +87,7 @@ export default function CallFeedbackModal({
   const {
     completeEvent, removeEvent, rescheduleEvent, addEvent,
   } = useEvents();
+  const { identity } = useSession();
 
   /*
     'estado' (Paso 1) → 'resultado' (Paso 2, sólo si "Contestó") →
@@ -135,8 +138,28 @@ export default function CallFeedbackModal({
 
   if (!event) return null;
 
+  /*
+    "Cerrar sin más intentos" tras una llamada sin respuesta. Además de
+    completar la tarea, el prospecto queda registrado en pausa
+    (`addOrphanProspect`, con `reason: 'sin_respuesta'`): antes desaparecía
+    de la app sin dejar rastro alguno, y no contestar es lo que más pasa en
+    prospección — se perdían justo los contactos que sólo necesitaban otro
+    intento en otro momento.
+
+    Desde ahí la app vuelve a recomendarlos sola
+    (`PausedProspectsNudge.jsx`, en "Hoy") y se pueden reactivar a mano
+    desde el perfil (`PausedProspects.jsx`). No se registran los que se
+    marcan "No está interesado": ésos van a la lista de descartados y la
+    app no debe volver a insistir con ellos.
+  */
   const finishWithEffort = () => {
     onEarnPoints(CALL_GAMIFICATION.LLAMADA_ESFUERZO);
+    addOrphanProspect(identity?.key, {
+      prospectId: event.id,
+      name: prospectName,
+      phone: event.telefono ?? '',
+      reason: 'sin_respuesta',
+    });
     completeEvent(event.id);
     onClose();
   };

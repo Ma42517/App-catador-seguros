@@ -9,6 +9,7 @@ import { buildSmartMessage } from '../../lib/smartMessage';
 import { isHourWithinSchedule } from '../../lib/advisorOnboarding';
 import DailyGoalBar from './DailyGoalBar';
 import DiagnosticPushNudge from './DiagnosticPushNudge';
+import PausedProspectsNudge from './PausedProspectsNudge';
 import useDiagnosticInventory from '../../lib/useDiagnosticInventory';
 import { readSafeZone } from '../../data/safeZone';
 
@@ -198,6 +199,22 @@ export default function AISequence({
             hasAgendaToday={activeToday.length > 0}
             onUseDiagnostic={onOpenDiagnostic}
           />
+        </div>
+
+        {/*
+          Recomendación de recontacto: la app vuelve a proponer a los
+          prospectos que quedaron en pausa sin seguimiento —todos, menos los
+          que se descartaron a propósito—. Mismo `revealClass` y mismo peso
+          visual de fila delgada que el push de arriba, para que la
+          coreografía de la Fase 2 no cambie.
+
+          A diferencia de ese push, no se oculta cuando hay agenda: un
+          prospecto olvidado no deja de estarlo porque hoy haya trabajo, y el
+          componente ya se limita a mostrar uno a la vez para no competir con
+          la lista de citas.
+        */}
+        <div className={`mt-3 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
+          <PausedProspectsNudge />
         </div>
 
         {/*
