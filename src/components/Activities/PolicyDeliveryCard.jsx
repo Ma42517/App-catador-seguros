@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Phone, CheckCircle2 } from 'lucide-react';
+import { Phone, CheckCircle2, CalendarClock } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
+import { PIPELINE_STAGES } from '../../store/pipelineStore';
 import WhatsAppMark from './WhatsAppMark';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import ActionCardBase from './ActionCardBase';
 import CircleActionButton from './CircleActionButton';
+import FollowUpSchedulerSheet from './FollowUpSchedulerSheet';
 import PolicyDeliveryWhatsAppModal from './PolicyDeliveryWhatsAppModal';
 
 /** Fecha y hora de ahora mismo, en el formato que guarda el resto de la agenda. */
@@ -54,6 +56,7 @@ export default function PolicyDeliveryCard({ event }) {
   const { completeEvent, removeEvent, addEvent } = useEvents();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [whatsAppOpen, setWhatsAppOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
@@ -109,6 +112,18 @@ export default function PolicyDeliveryCard({ event }) {
           label={`Llamar a ${prospectName}`}
         />
 
+        {/*
+          La entrega se reprograma seguido —el cliente cancela, no llega—,
+          y sin esta salida había que fingir que ya se entregó o descartar
+          al prospecto ya emitido, que es lo peor que podía pasar aquí.
+        */}
+        <CircleActionButton
+          icon={CalendarClock}
+          tone="slate"
+          onClick={() => setFollowUpOpen(true)}
+          label={`Agendar seguimiento de la entrega de ${prospectName}`}
+        />
+
         <button
           type="button"
           onClick={handleDelivered}
@@ -139,6 +154,14 @@ export default function PolicyDeliveryCard({ event }) {
         clientName={prospectName}
         phone={phone}
         onClose={() => setWhatsAppOpen(false)}
+      />
+
+      <FollowUpSchedulerSheet
+        isOpen={followUpOpen}
+        event={event}
+        stage={PIPELINE_STAGES.ENTREGA}
+        onClose={() => setFollowUpOpen(false)}
+        onScheduled={() => completeEvent(event.id)}
       />
     </>
   );

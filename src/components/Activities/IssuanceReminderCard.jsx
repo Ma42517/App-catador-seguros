@@ -1,9 +1,12 @@
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, CalendarClock } from 'lucide-react';
 import { useState } from 'react';
 import { useEvents } from '../../context/EventContext';
 import { prospectNameFrom } from '../../lib/prospectText';
+import { PIPELINE_STAGES } from '../../store/pipelineStore';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import ActionCardBase from './ActionCardBase';
+import CircleActionButton from './CircleActionButton';
+import FollowUpSchedulerSheet from './FollowUpSchedulerSheet';
 
 /** Fecha y hora de ahora mismo, en el formato que guarda el resto de la agenda. */
 function nowParts() {
@@ -37,6 +40,7 @@ function nowParts() {
 export default function IssuanceReminderCard({ event }) {
   const { completeEvent, removeEvent, addEvent } = useEvents();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
 
@@ -64,6 +68,18 @@ export default function IssuanceReminderCard({ event }) {
         onReschedule={() => setRescheduleOpen(true)}
         onDiscard={() => removeEvent(event.id)}
       >
+        {/*
+          Salida a Seguimiento: la emisión puede tardar días en la
+          aseguradora, y sin esto la única forma de sacar la tarjeta de
+          "Hoy" era marcarla emitida en falso o descartarla.
+        */}
+        <CircleActionButton
+          icon={CalendarClock}
+          tone="slate"
+          onClick={() => setFollowUpOpen(true)}
+          label={`Agendar seguimiento de la emisión de ${prospectName}`}
+        />
+
         <button
           type="button"
           onClick={handleIssued}
@@ -82,6 +98,14 @@ export default function IssuanceReminderCard({ event }) {
         isOpen={rescheduleOpen}
         onClose={() => setRescheduleOpen(false)}
         initialReschedule
+      />
+
+      <FollowUpSchedulerSheet
+        isOpen={followUpOpen}
+        event={event}
+        stage={PIPELINE_STAGES.EMISION}
+        onClose={() => setFollowUpOpen(false)}
+        onScheduled={() => completeEvent(event.id)}
       />
     </>
   );

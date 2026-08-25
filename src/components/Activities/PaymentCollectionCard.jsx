@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Phone, CheckCircle2 } from 'lucide-react';
+import { Phone, CheckCircle2, CalendarClock } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
+import { PIPELINE_STAGES } from '../../store/pipelineStore';
 import WhatsAppMark from './WhatsAppMark';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import ActionCardBase from './ActionCardBase';
 import CircleActionButton from './CircleActionButton';
+import FollowUpSchedulerSheet from './FollowUpSchedulerSheet';
 import PaymentCollectedModal from './PaymentCollectedModal';
 import { paymentFrequencyLabel } from '../../lib/paymentSchedule';
 
@@ -51,6 +53,7 @@ export default function PaymentCollectionCard({ event }) {
   const { updateEvent, removeEvent, addEvent } = useEvents();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [collectedOpen, setCollectedOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
@@ -144,6 +147,19 @@ export default function PaymentCollectionCard({ event }) {
           label={`Llamar a ${prospectName}`}
         />
 
+        {/*
+          La más importante de las tres: una prima que no se paga es el
+          caso que de verdad ocurre, y sin esta salida el asesor tenía que
+          registrar un cobro que no existió o borrar al cliente. Ahora
+          queda un seguimiento con el motivo y el monto intactos.
+        */}
+        <CircleActionButton
+          icon={CalendarClock}
+          tone="slate"
+          onClick={() => setFollowUpOpen(true)}
+          label={`Agendar seguimiento del cobro de ${prospectName}`}
+        />
+
         <button
           type="button"
           onClick={() => setCollectedOpen(true)}
@@ -162,6 +178,14 @@ export default function PaymentCollectionCard({ event }) {
         isOpen={rescheduleOpen}
         onClose={() => setRescheduleOpen(false)}
         initialReschedule
+      />
+
+      <FollowUpSchedulerSheet
+        isOpen={followUpOpen}
+        event={event}
+        stage={PIPELINE_STAGES.COBRO}
+        onClose={() => setFollowUpOpen(false)}
+        onScheduled={() => updateEvent(event.id, { completed: true })}
       />
 
       <PaymentCollectedModal

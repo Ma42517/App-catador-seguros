@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-  CheckCircle, RotateCcw, Clock, Trash2, ChevronRight, Check,
+  CheckCircle, RotateCcw, Clock, Trash2, ChevronRight, Check, CalendarClock,
 } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import { useEvents } from '../../context/EventContext';
+import { prospectNameFrom } from '../../lib/prospectText';
+import { buildFollowUpEvent, followUpReasonFor } from '../../lib/followUpEvent';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '
@@ -39,10 +41,23 @@ function OptionRow({ icon: Icon, label, tone, onClick }) {
  * se refleja al instante en las dos vistas.
  */
 export default function TaskOptionsSheet({ event, isOpen, onClose, initialReschedule = false }) {
-  const { completeEvent, reopenEvent, removeEvent, rescheduleEvent } = useEvents();
+  const { completeEvent, reopenEvent, removeEvent, rescheduleEvent, addEvent } = useEvents();
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  /*
+    Tercer paso de esta misma hoja, hermano de "Reprogramar": agendar un
+    Seguimiento. Va aquí y no en un modal aparte porque este menú es el
+    único punto que TODOS los eventos comparten —las tarjetas especiales de
+    "Hoy", las filas de la Agenda, los recordatorios y los eventos viejos de
+    antes de que existiera `tipo_actividad`—, así que conectarlo aquí es lo
+    que vuelve el Seguimiento alcanzable desde cualquier cosa de la app en
+    vez de sólo desde las etapas del embudo que ya tenían su router.
+  */
+  const [isFollowingUp, setIsFollowingUp] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState('');
+  const [followUpTime, setFollowUpTime] = useState('');
+  const [followUpReason, setFollowUpReason] = useState('');
 
   // Cada apertura arranca en el menú, con los valores actuales del evento —
   // salvo que se pida entrar directo a reprogramar (`initialReschedule`,
@@ -54,12 +69,43 @@ export default function TaskOptionsSheet({ event, isOpen, onClose, initialResche
     setIsRescheduling(Boolean(initialReschedule));
     setDate(event?.date ?? '');
     setTime(event?.time ?? '');
+
+    setIsFollowingUp(false);
+    setFollowUpReason('');
+    // El seguimiento arranca propuesto para mañana a la misma hora: casi
+    // nunca se retoma el mismo día en que se pospuso.
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    setFollowUpDate(
+      `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`,
+    );
+    setFollowUpTime(event?.time || `${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`);
   }, [isOpen, event, initialReschedule]);
 
   if (!event) return null;
 
   const act = (fn) => { fn(); onClose(); };
   const isDone = Boolean(event.completed);
+
+  const prospectName = prospectNameFrom(event.title);
+  const defaultFollowUpReason = followUpReasonFor(event.tipo_actividad);
+
+  /*
+    Crea el Seguimiento y completa la tarea original: la actividad de hoy ya
+    se resolvió —su desenlace fue "no se concretó, lo retomo tal día"—, y
+    dejarla viva además del seguimiento nuevo duplicaría al mismo prospecto
+    en la agenda. Un recordatorio suelto también se completa: su función era
+    avisar, y ya avisó.
+  */
+  const scheduleFollowUp = () => {
+    addEvent(buildFollowUpEvent(event, {
+      date: followUpDate,
+      time: followUpTime,
+      reason: followUpReason || defaultFollowUpReason,
+    }));
+    completeEvent(event.id);
+  };
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} label="Opciones de la tarea">
@@ -74,7 +120,72 @@ export default function TaskOptionsSheet({ event, isOpen, onClose, initialResche
         </h2>
       </div>
 
-      {isRescheduling ? (
+      {isFollowingUp ? (
+        <form
+          onSubmit={(e) => { e.preventDefault(); act(scheduleFollowUp); }}
+          className="flex flex-col gap-4"
+        >
+          <p className="text-sm leading-relaxed text-zinc-500">
+            Se crea un Seguimiento de {prospectName} y esta tarea se marca como resuelta.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL} htmlFor="follow-up-task-date">Fecha</label>
+              <input
+                id="follow-up-task-date"
+                type="date"
+                required
+                className={INPUT}
+                value={followUpDate}
+                onChange={(e) => setFollowUpDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={LABEL} htmlFor="follow-up-task-time">Hora</label>
+              <input
+                id="follow-up-task-time"
+                type="time"
+                required
+                className={INPUT}
+                value={followUpTime}
+                onChange={(e) => setFollowUpTime(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor="follow-up-task-reason">Motivo (opcional)</label>
+            <input
+              id="follow-up-task-reason"
+              className={INPUT}
+              value={followUpReason}
+              onChange={(e) => setFollowUpReason(e.target.value)}
+              placeholder={defaultFollowUpReason}
+              autoComplete="off"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3
+                       text-sm font-semibold text-white shadow-lg shadow-indigo-600/30
+                       transition-all hover:bg-indigo-500 active:scale-95"
+          >
+            <Check size={16} />
+            Agendar seguimiento
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsFollowingUp(false)}
+            className="rounded-xl px-4 py-3 text-sm font-semibold text-zinc-500
+                       transition-colors hover:bg-zinc-100 dark:hover:bg-white/5"
+          >
+            Volver
+          </button>
+        </form>
+      ) : isRescheduling ? (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -148,6 +259,28 @@ export default function TaskOptionsSheet({ event, isOpen, onClose, initialResche
                 label="Marcar como Completada"
                 tone="text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
                 onClick={() => act(() => completeEvent(event.id))}
+              />
+            )}
+
+            {/*
+              "Reprogramar" mueve ESTA tarea de fecha; "Requiere
+              Seguimiento" la cierra y crea una actividad nueva de
+              seguimiento. Se parecen, pero no son lo mismo y por eso
+              conviven: mover la cita de ayer a mañana borra el rastro de que
+              no se concretó, mientras que el seguimiento deja constancia del
+              motivo y arrastra el teléfono y la prima del prospecto.
+
+              No se ofrece en una tarea que ya es un Seguimiento: para eso
+              está "Retomar" en su propia tarjeta
+              (`FollowUpResolutionModal.jsx`), que además permite saltar a
+              cualquier etapa del embudo y no sólo a otro seguimiento.
+            */}
+            {!isDone && event.tipo_actividad !== 'seguimiento' && (
+              <OptionRow
+                icon={CalendarClock}
+                label="Requiere Seguimiento"
+                tone="text-indigo-600 hover:bg-indigo-500/10 dark:text-indigo-400"
+                onClick={() => setIsFollowingUp(true)}
               />
             )}
 

@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   PhoneOff, CalendarClock, PhoneMissed, CalendarCheck2, UserX, Check,
 } from 'lucide-react';
+
 import BottomSheet from '../Layout/BottomSheet';
 import { useEvents } from '../../context/EventContext';
 import { CALL_GAMIFICATION } from '../../lib/callGamification';
+import { buildFollowUpEvent, followUpReasonFor } from '../../lib/followUpEvent';
 
 /*
   El resultado de "Agendar Cita" tras una llamada es siempre una Cita
@@ -98,6 +100,8 @@ export default function CallFeedbackModal({
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
+  const [followUpDate, setFollowUpDate] = useState('');
+  const [followUpTime, setFollowUpTime] = useState('');
 
   // Cada apertura arranca siempre en el Paso 1: es un flujo nuevo por cada
   // llamada, nunca continúa donde quedó la anterior.
@@ -109,6 +113,15 @@ export default function CallFeedbackModal({
     setRescheduleTime(parts.time);
     setAppointmentDate(parts.date);
     setAppointmentTime(parts.time);
+    // El seguimiento se propone para mañana: quien pidió tiempo casi nunca
+    // quiere que le vuelvan a llamar el mismo día.
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    setFollowUpDate(
+      `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`,
+    );
+    setFollowUpTime(parts.time);
   }, [isOpen]);
 
   if (!event) return null;
@@ -144,6 +157,23 @@ export default function CallFeedbackModal({
       time: appointmentTime,
       priority: 'maxima',
     });
+    completeEvent(event.id);
+    onClose();
+  };
+
+  /*
+    Crea el Seguimiento con el motivo propio de esta etapa y cierra la
+    llamada como completada — la llamada sí ocurrió y sí produjo un
+    resultado, así que se premia con los puntos de una cita agendada: pactar
+    un siguiente contacto concreto es exactamente el trabajo que se busca
+    incentivar, no un fracaso.
+  */
+  const confirmFollowUp = () => {
+    onEarnPoints(CALL_GAMIFICATION.CITA_AGENDADA);
+    addEvent(buildFollowUpEvent(
+      { ...event, title: `Llamada: ${prospectName}` },
+      { date: followUpDate, time: followUpTime, reason: followUpReasonFor('llamada') },
+    ));
     completeEvent(event.id);
     onClose();
   };
@@ -214,6 +244,20 @@ export default function CallFeedbackModal({
                 tone="bg-indigo-600 text-white hover:bg-indigo-500"
                 onClick={() => setStep('cita')}
               />
+              {/*
+                El hueco que faltaba: alguien que contestó y está
+                interesado, pero todavía no puede agendar ("llámame el mes
+                que entra"), no cabía en ninguna de las dos opciones. La
+                única salida era "No está interesado", que ELIMINA al
+                prospecto de la agenda — se perdía a quien sólo pedía
+                tiempo, que es el caso más común de una llamada en frío.
+              */}
+              <OptionButton
+                icon={CalendarClock}
+                label="Requiere Seguimiento"
+                tone="text-zinc-600 hover:bg-zinc-500/10 dark:text-zinc-300"
+                onClick={() => setStep('seguimiento')}
+              />
               <OptionButton
                 icon={UserX}
                 label="No está interesado"
@@ -221,6 +265,58 @@ export default function CallFeedbackModal({
                 onClick={dismissNotInterested}
               />
             </div>
+          </motion.div>
+        )}
+
+        {step === 'seguimiento' && (
+          <motion.div
+            key="seguimiento"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <h2 className="mb-5 flex items-center gap-2 text-lg font-bold leading-snug
+                          text-zinc-900 dark:text-white"
+            >
+              <CalendarClock size={18} className="shrink-0 text-indigo-500" aria-hidden="true" />
+              ¿Cuándo retomas a {prospectName}?
+            </h2>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL} htmlFor="follow-up-call-date">Fecha</label>
+                <input
+                  id="follow-up-call-date"
+                  type="date"
+                  className={INPUT}
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="follow-up-call-time">Hora</label>
+                <input
+                  id="follow-up-call-time"
+                  type="time"
+                  className={INPUT}
+                  value={followUpTime}
+                  onChange={(e) => setFollowUpTime(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={confirmFollowUp}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl
+                         bg-indigo-600 px-4 py-3 text-sm font-semibold text-white
+                         shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500
+                         active:scale-95"
+            >
+              <Check size={16} aria-hidden="true" />
+              Agendar seguimiento
+            </button>
           </motion.div>
         )}
 
