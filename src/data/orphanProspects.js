@@ -58,3 +58,19 @@ export function addOrphanProspect(username, entry) {
   writeAll({ ...readAll(), [username]: [record, ...list] });
   return record;
 }
+
+/**
+ * Saca a un prospecto de la lista de Huérfanos.
+ *
+ * La usa `PausedProspects.jsx` en sus dos acciones: al reactivar (el
+ * prospecto vuelve al embudo como actividad real, así que ya no está en
+ * pausa) y al descartar definitivamente. Hasta que existió esa pantalla,
+ * esta lista sólo crecía y nadie podía leerla ni vaciarla — los huérfanos
+ * quedaban archivados para siempre sin ninguna forma de recuperarlos.
+ */
+export function removeOrphan(username, id) {
+  if (!username) return;
+  const all = readAll();
+  const list = Array.isArray(all[username]) ? all[username] : [];
+  writeAll({ ...all, [username]: list.filter((entry) => entry.id !== id) });
+}

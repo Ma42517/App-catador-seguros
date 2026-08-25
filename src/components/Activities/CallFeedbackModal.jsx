@@ -102,6 +102,14 @@ export default function CallFeedbackModal({
   const [appointmentTime, setAppointmentTime] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpTime, setFollowUpTime] = useState('');
+  /*
+    Si el prospecto tomó la llamada. Lo fija el Paso 1 y sólo sirve para
+    calibrar los puntos del seguimiento (ver `confirmFollowUp`): el mismo
+    mini-paso de fecha/hora se alcanza desde "Contestó → Requiere
+    Seguimiento" y desde "No contestó → Requiere Seguimiento", y esos dos
+    caminos no valen lo mismo.
+  */
+  const [answered, setAnswered] = useState(false);
 
   // Cada apertura arranca siempre en el Paso 1: es un flujo nuevo por cada
   // llamada, nunca continúa donde quedó la anterior.
@@ -122,6 +130,7 @@ export default function CallFeedbackModal({
       `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`,
     );
     setFollowUpTime(parts.time);
+    setAnswered(false);
   }, [isOpen]);
 
   if (!event) return null;
@@ -169,7 +178,14 @@ export default function CallFeedbackModal({
     incentivar, no un fracaso.
   */
   const confirmFollowUp = () => {
-    onEarnPoints(CALL_GAMIFICATION.CITA_AGENDADA);
+    /*
+      Los puntos dependen de si el prospecto contestó: pactar un siguiente
+      contacto con alguien que sí habló contigo vale como cita agendada,
+      pero agendar un seguimiento tras un teléfono que nadie tomó es sólo
+      esfuerzo. Sin esta distinción, marcar "no contestó → seguimiento" en
+      bucle pagaría igual que trabajar de verdad.
+    */
+    onEarnPoints(answered ? CALL_GAMIFICATION.CITA_AGENDADA : CALL_GAMIFICATION.LLAMADA_ESFUERZO);
     addEvent(buildFollowUpEvent(
       { ...event, title: `Llamada: ${prospectName}` },
       { date: followUpDate, time: followUpTime, reason: followUpReasonFor('llamada') },
@@ -207,13 +223,20 @@ export default function CallFeedbackModal({
                 icon={Check}
                 label="Contestó"
                 tone="bg-indigo-600 text-white hover:bg-indigo-500"
-                onClick={() => setStep('resultado')}
+                onClick={() => { setAnswered(true); setStep('resultado'); }}
               />
+              {/*
+                Antes esto completaba la llamada y ya: el prospecto
+                desaparecía de la agenda sin ningún siguiente paso, y no
+                contestar es justo lo que más pasa en prospección. Ahora
+                abre un paso que obliga a decidir qué hacer con él — nunca
+                se pierde por omisión.
+              */}
               <OptionButton
                 icon={PhoneMissed}
                 label="No contestó"
                 tone="text-zinc-600 hover:bg-zinc-500/10 dark:text-zinc-300"
-                onClick={finishWithEffort}
+                onClick={() => { setAnswered(false); setStep('sin_respuesta'); }}
               />
               <OptionButton
                 icon={CalendarClock}
@@ -263,6 +286,49 @@ export default function CallFeedbackModal({
                 label="No está interesado"
                 tone="text-zinc-600 hover:bg-zinc-500/10 dark:text-zinc-300"
                 onClick={dismissNotInterested}
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {step === 'sin_respuesta' && (
+          <motion.div
+            key="sin_respuesta"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <h2 className="mb-2 text-lg font-bold leading-snug text-zinc-900 dark:text-white">
+              No contestó. ¿Qué hacemos con {prospectName}?
+            </h2>
+            <p className="mb-5 text-xs leading-relaxed text-zinc-500">
+              Elige algo para no perderlo de vista.
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <OptionButton
+                icon={CalendarClock}
+                label="Volver a llamar"
+                tone="bg-indigo-600 text-white hover:bg-indigo-500"
+                onClick={() => setStep('reagendar')}
+              />
+              <OptionButton
+                icon={CalendarClock}
+                label="Requiere Seguimiento"
+                tone="text-zinc-600 hover:bg-zinc-500/10 dark:text-zinc-300"
+                onClick={() => setStep('seguimiento')}
+              />
+              {/*
+                Cerrar sin más pasos sigue siendo posible —a veces el número
+                simplemente ya no existe—, pero ahora es una decisión
+                explícita y no el desenlace por omisión.
+              */}
+              <OptionButton
+                icon={PhoneOff}
+                label="Cerrar sin más intentos"
+                tone="text-zinc-500 hover:bg-zinc-500/10 dark:text-zinc-400"
+                onClick={finishWithEffort}
               />
             </div>
           </motion.div>

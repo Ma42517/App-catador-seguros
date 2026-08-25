@@ -9,6 +9,7 @@ import UserProfile from '../Profile/UserProfile';
 import DigitalCardBuilder from '../Profile/DigitalCardBuilder';
 import DigitalCardScreen from '../Profile/DigitalCardScreen';
 import LeadsList from '../Profile/LeadsList';
+import PausedProspects from '../Profile/PausedProspects';
 import AdminPanel from '../Admin/AdminPanel';
 import UserApprovals from '../Admin/UserApprovals';
 import { useEvents } from '../../context/EventContext';
@@ -102,6 +103,9 @@ export default function AdminLayout({
   const [cardOpen, setCardOpen] = useState(false);
   const [cardEditOpen, setCardEditOpen] = useState(false);
   const [leadsOpen, setLeadsOpen] = useState(false);
+  // "Prospectos en pausa" (`PausedProspects.jsx`): se abre desde el perfil,
+  // igual que la lista de prospectos capturados.
+  const [pausedOpen, setPausedOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [approvalsOpen, setApprovalsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
@@ -218,12 +222,15 @@ export default function AdminLayout({
 
       <LeadsList isOpen={leadsOpen} onClose={() => setLeadsOpen(false)} />
 
+      <PausedProspects isOpen={pausedOpen} onClose={() => setPausedOpen(false)} />
+
       <UserProfile
         isOpen={profileOpen}
         onClose={() => setProfileOpen(false)}
         username={username}
         onEditCard={() => { setProfileOpen(false); setCardEditOpen(true); }}
         onOpenLeads={() => { setProfileOpen(false); setLeadsOpen(true); }}
+        onOpenPaused={() => { setProfileOpen(false); setPausedOpen(true); }}
       />
 
       {/* Sin permiso no se monta: perder el permiso con el panel abierto lo cierra. */}

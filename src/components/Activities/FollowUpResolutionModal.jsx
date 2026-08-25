@@ -2,7 +2,7 @@ import { useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Handshake, FileSignature, PackageCheck, CalendarClock, Archive, ArrowRight,
+  Handshake, FileSignature, PackageCheck, CalendarClock, Archive, ArrowRight, CheckCircle2,
 } from 'lucide-react';
 import { PRESENTATION_END_GAMIFICATION } from '../../lib/presentationGamification';
 import {
@@ -80,7 +80,8 @@ const TARGETS = [
  * @param {(amount: number) => void} onEarnPoints
  */
 export default function FollowUpResolutionModal({
-  isOpen, client, onClose, onRouteToActivity, onDiscardClient, onResolved, onEarnPoints,
+  isOpen, client, onClose, onRouteToActivity, onDiscardClient, onResolved, onComplete,
+  onEarnPoints,
 }) {
   const clientName = client?.name || 'este prospecto';
 
@@ -101,6 +102,17 @@ export default function FollowUpResolutionModal({
         reason: `Retomado desde un Seguimiento de ${clientName}`,
       });
     }
+    onClose?.();
+  };
+
+  /*
+    "Quedó resuelto" no pasa por `resolvePipelineStage`: no hay etapa
+    siguiente que calcular ni prospecto que archivar, sólo se cierra la
+    tarea. Tampoco paga puntos de resolución —no se movió el embudo— pero sí
+    completa la tarjeta, que es lo que la saca de "Hoy".
+  */
+  const onResolveWithoutNextStep = () => {
+    onComplete?.();
     onClose?.();
   };
 
@@ -169,6 +181,33 @@ export default function FollowUpResolutionModal({
                         />
                       </button>
                     ))}
+
+                    {/*
+                      Cerrar sin siguiente etapa: el seguimiento se resolvió
+                      solo (contestó una duda, ya no hacía falta nada más).
+                      Es un desenlace legítimo, pero antes era el
+                      comportamiento del botón de check de la tarjeta, que
+                      cerraba en silencio sin dejar constancia de que no
+                      hubo siguiente paso. Aquí, al menos, es una elección
+                      deliberada entre las demás.
+                    */}
+                    <button
+                      type="button"
+                      onClick={onResolveWithoutNextStep}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl
+                                 border border-slate-700 bg-slate-800 px-4 py-3 text-left
+                                 text-sm font-semibold text-slate-300 transition-colors
+                                 hover:bg-emerald-500/10 hover:text-emerald-300
+                                 active:scale-[0.98]"
+                    >
+                      <span>
+                        Quedó resuelto
+                        <span className="mt-0.5 block text-[11px] font-normal text-slate-500">
+                          Se cierra sin agendar nada más.
+                        </span>
+                      </span>
+                      <CheckCircle2 size={18} className="shrink-0" aria-hidden="true" />
+                    </button>
 
                     <button
                       type="button"

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Phone, CheckCircle2 } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
@@ -25,14 +25,19 @@ import FollowUpResolutionModal from './FollowUpResolutionModal';
  * `App.jsx`): sin ese dato la persona vería un nombre y una hora sin
  * ninguna pista de por qué existe esta tarea.
  *
- * Sus 4 acciones son siempre visibles, sin voltear nada: llamar, WhatsApp,
- * "Retomar" y completar. "Retomar" es lo que lo vuelve un puente de
- * verdad y no una nota suelta: abre `FollowUpResolutionModal.jsx`, desde
- * donde el prospecto puede saltar a CUALQUIER fase del embudo —no sólo a
- * la que seguía cuando se pausó—, porque alguien que pausó antes de la
- * Propuesta puede volver pidiendo directamente el cierre. Completar sigue
- * existiendo para el caso en que el seguimiento se resolvió sin generar una
- * etapa nueva (contestó una duda y nada más).
+ * Sus 3 acciones son siempre visibles, sin voltear nada: llamar, WhatsApp y
+ * "Retomar". "Retomar" es lo que lo vuelve un puente de verdad y no una
+ * nota suelta: abre `FollowUpResolutionModal.jsx`, desde donde el prospecto
+ * puede saltar a CUALQUIER fase del embudo —no sólo a la que seguía cuando
+ * se pausó—, porque alguien que pausó antes de la Propuesta puede volver
+ * pidiendo directamente el cierre.
+ *
+ * Ya no hay botón de check suelto. Cerraba el seguimiento en silencio, sin
+ * dejar constancia de si se resolvió o simplemente se abandonó, y era una
+ * de las fugas del embudo: el prospecto salía de la agenda sin que nada
+ * apareciera después. Ese desenlace sigue disponible —"Quedó resuelto",
+ * dentro del modal de Retomar— pero como una elección deliberada entre las
+ * demás, no como el camino de menor resistencia.
  */
 export default function FollowUpCard({ event, onRouteToActivity }) {
   const { completeEvent, removeEvent } = useEvents();
@@ -91,13 +96,6 @@ export default function FollowUpCard({ event, onRouteToActivity }) {
           <WhatsAppMark size={16} />
         </CircleActionButton>
 
-        <CircleActionButton
-          icon={CheckCircle2}
-          tone="slate"
-          onClick={() => completeEvent(event.id)}
-          label={`Completar seguimiento de ${prospectName}`}
-        />
-
         {/*
           Con texto y no sólo un ícono: es la acción que de verdad mueve el
           embudo desde aquí, y tiene que leerse distinta de los contactos
@@ -130,6 +128,7 @@ export default function FollowUpCard({ event, onRouteToActivity }) {
         onRouteToActivity={onRouteToActivity}
         onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
         onResolved={handleResolved}
+        onComplete={() => completeEvent(event.id)}
         onEarnPoints={addPoints}
       />
     </>

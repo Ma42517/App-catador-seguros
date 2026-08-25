@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users, Video } from 'lucide-react';
+import {
+  BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users, Video, PauseCircle,
+} from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
 import TextScaleControl from '../ui/TextScaleControl';
 import { readAdvisorProfile, saveAdvisorProfile, initialsFrom } from '../../data/advisorProfile';
 import { readLeads } from '../../data/leads';
+import { readOrphans } from '../../data/orphanProspects';
+import { readDiscardedProspects } from '../../data/prospectStatus';
 
 /** Campo minimalista: sin caja, sólo un filo inferior que se enciende al enfocar. */
 function MinimalField({ id, label, placeholder, value, onChange, icon: Icon, ...rest }) {
@@ -79,7 +83,9 @@ function ProfileRow({ icon: Icon, title, subtitle, badge, onClick }) {
   );
 }
 
-export default function UserProfile({ isOpen, onClose, username, onEditCard, onOpenLeads }) {
+export default function UserProfile({
+  isOpen, onClose, username, onEditCard, onOpenLeads, onOpenPaused,
+}) {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   // Enlace fijo de Zoom/Meet: lo usa `InitialMeetingCard.jsx` para las citas
@@ -87,6 +93,10 @@ export default function UserProfile({ isOpen, onClose, username, onEditCard, onO
   const [zoomLink, setZoomLink] = useState('');
   const [toast, setToast] = useState('');
   const [leadCount, setLeadCount] = useState(0);
+  // Prospectos que salieron del embudo sin cerrarse (citas archivadas por el
+  // Reloj de Arena + descartados). Se cuentan juntos porque la pantalla que
+  // abre esta fila también los muestra en una sola lista.
+  const [pausedCount, setPausedCount] = useState(0);
 
   // Cada apertura carga lo guardado, para editar en vez de volver a capturar.
   // El conteo se relee aquí y no con un temporizador: sólo cambia cuando alguien
@@ -98,6 +108,7 @@ export default function UserProfile({ isOpen, onClose, username, onEditCard, onO
     setPhone(saved.phone);
     setZoomLink(saved.zoomLink);
     setLeadCount(readLeads(username).length);
+    setPausedCount(readOrphans(username).length + readDiscardedProspects(username).length);
     setToast('');
   }, [isOpen, username]);
 
@@ -194,6 +205,25 @@ export default function UserProfile({ isOpen, onClose, username, onEditCard, onO
               : 'Aún nadie ha dejado sus datos'}
             badge={leadCount > 0 ? leadCount : undefined}
             onClick={onOpenLeads}
+          />
+        )}
+
+        {/*
+          Los prospectos que salieron del embudo sin cerrarse. Vive junto a
+          "Prospectos capturados" porque son las dos caras del mismo
+          inventario de contactos: los que entraron y los que se quedaron a
+          medias. Hasta que existió esta fila, las dos listas que alimenta
+          se escribían sin que nadie pudiera leerlas.
+        */}
+        {onOpenPaused && (
+          <ProfileRow
+            icon={PauseCircle}
+            title="Prospectos en pausa"
+            subtitle={pausedCount > 0
+              ? `${pausedCount} ${pausedCount === 1 ? 'salió' : 'salieron'} del embudo sin cerrarse`
+              : 'Ninguno quedó fuera del embudo'}
+            badge={pausedCount > 0 ? pausedCount : undefined}
+            onClick={onOpenPaused}
           />
         )}
       </div>

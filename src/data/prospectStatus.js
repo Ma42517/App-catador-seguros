@@ -57,3 +57,18 @@ export function markProspectDiscarded(username, client) {
   writeAll({ ...readAll(), [username]: [record, ...list] });
   return record;
 }
+
+/**
+ * Saca a un prospecto de la lista de descartados.
+ *
+ * Es lo que permite deshacer un "No califica": la usa
+ * `PausedProspects.jsx` al reactivar a alguien —vuelve al embudo como
+ * actividad real— y al borrarlo de la lista para siempre. Sin esto, un
+ * descarte por error no tenía marcha atrás.
+ */
+export function removeDiscardedProspect(username, id) {
+  if (!username) return;
+  const all = readAll();
+  const list = Array.isArray(all[username]) ? all[username] : [];
+  writeAll({ ...all, [username]: list.filter((entry) => entry.id !== id) });
+}
