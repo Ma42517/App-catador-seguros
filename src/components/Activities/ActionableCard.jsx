@@ -6,6 +6,7 @@ import InitialMeetingCard from './InitialMeetingCard';
 import PipelineCard from './PipelineCard';
 import ProposalCard from './ProposalCard';
 import IssuanceReminderCard from './IssuanceReminderCard';
+import PolicyDeliveryCard from './PolicyDeliveryCard';
 import FollowUpCard from './FollowUpCard';
 import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from './eventStatus';
@@ -38,7 +39,10 @@ import useNow from '../../lib/useNow';
  * (`'recordatorio_emision'`) —estado interno que sólo crea
  * `ProposalCard.jsx`, nunca aparece en el catálogo de "Nueva
  * Actividad"— cede a `IssuanceReminderCard.jsx`, reducida a un solo botón
- * ("Emitida") que crea de inmediato la "Entrega de Póliza" siguiente.
+ * ("Emitida") que crea de inmediato la "Entrega de Póliza" siguiente. Esa
+ * "Entrega de Póliza" (`'entrega_poliza'`) cede a
+ * `PolicyDeliveryCard.jsx`, con WhatsApp y teléfono ya listos a partir
+ * del `telefono` que viene arrastrándose desde la Cita de Propuesta.
  * "Seguimiento" (`'seguimiento'`) cede a `FollowUpCard.jsx`, compacta y
  * sin Flip. Cualquier otro tipo de evento (o uno viejo, de antes de que
  * existiera `tipo_actividad`) sigue el camino de siempre — y es justo esa
@@ -99,6 +103,10 @@ export default function ActionableCard({
 
   if (event.tipo_actividad === 'recordatorio_emision') {
     return <IssuanceReminderCard event={event} />;
+  }
+
+  if (event.tipo_actividad === 'entrega_poliza') {
+    return <PolicyDeliveryCard event={event} />;
   }
 
   if (event.tipo_actividad === 'seguimiento') {
