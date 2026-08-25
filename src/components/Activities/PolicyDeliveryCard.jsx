@@ -5,6 +5,7 @@ import { digits, prospectNameFrom } from '../../lib/prospectText';
 import WhatsAppMark from './WhatsAppMark';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import SwipeableCard from '../Layout/SwipeableCard';
+import PolicyDeliveryWhatsAppModal from './PolicyDeliveryWhatsAppModal';
 
 /** Fecha y hora de ahora mismo, en el formato que guarda el resto de la agenda. */
 function nowParts() {
@@ -35,6 +36,13 @@ function nowParts() {
  * (creado a mano desde "Nueva Actividad" sin ese campo), se dibujan
  * atenuados y sin acción, mismo criterio que las demás tarjetas.
  *
+ * El botón de WhatsApp es el único de todo el embudo que no sale directo
+ * a la app: abre primero `PolicyDeliveryWhatsAppModal.jsx` para capturar
+ * dos horarios que van dentro del mensaje. Es el único punto del flujo
+ * donde el asesor propone una cita en vez de confirmar una ya acordada,
+ * así que el texto no se puede armar de antemano como en el resto de las
+ * etapas (`lib/whatsappConfirm.js`).
+ *
  * "Entregada" cierra esta actividad y crea el `Recordatorio de Cobro` de
  * la primera prima — el último eslabón del "Efecto Dominó" que ya
  * describe `resolvePipelineStage` (`store/pipelineStore.js`): entregar la
@@ -44,18 +52,13 @@ function nowParts() {
 export default function PolicyDeliveryCard({ event }) {
   const { completeEvent, removeEvent, addEvent } = useEvents();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [whatsAppOpen, setWhatsAppOpen] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
   const hasPhone = phone.length > 0;
 
   const telHref = hasPhone ? `tel:${phone}` : null;
-  const whatsAppHref = hasPhone
-    ? `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(
-      `Hola ${prospectName}, ya tengo lista tu póliza para entregártela. `
-      + '¿Cuándo te queda bien que nos veamos para revisarla juntos?',
-    )}`
-    : null;
 
   const handleDelivered = () => {
     const parts = nowParts();
@@ -91,20 +94,26 @@ export default function PolicyDeliveryCard({ event }) {
             </p>
           </div>
 
-          <a
-            href={whatsAppHref ?? undefined}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-disabled={!hasPhone}
-            onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
+          {/*
+            No sale directo a WhatsApp: abre primero el paso de los dos
+            horarios (`PolicyDeliveryWhatsAppModal.jsx`), que es donde se
+            arma el mensaje. El enlace real vive dentro de ese modal, para
+            que la salida a la app siga siendo una navegación de verdad y
+            no un `window.open` que el escritorio bloquea.
+          */}
+          <button
+            type="button"
+            disabled={!hasPhone}
+            onClick={() => setWhatsAppOpen(true)}
             aria-label={`Enviar WhatsApp a ${prospectName}`}
             className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                        active:scale-95 ${hasPhone
+                        active:scale-95 disabled:cursor-not-allowed disabled:opacity-30
+                        ${hasPhone
                 ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
+                : 'bg-emerald-500/10 text-emerald-400'}`}
           >
             <WhatsAppMark size={16} />
-          </a>
+          </button>
 
           <a
             href={telHref ?? undefined}
@@ -138,6 +147,18 @@ export default function PolicyDeliveryCard({ event }) {
         isOpen={rescheduleOpen}
         onClose={() => setRescheduleOpen(false)}
         initialReschedule
+      />
+
+      {/*
+        Cerrar este modal —haya salido a WhatsApp o no— no toca el evento:
+        proponer horarios no es haber entregado la póliza, así que la
+        tarjeta sigue en la agenda hasta que se toque "Entregada".
+      */}
+      <PolicyDeliveryWhatsAppModal
+        isOpen={whatsAppOpen}
+        clientName={prospectName}
+        phone={phone}
+        onClose={() => setWhatsAppOpen(false)}
       />
     </>
   );
