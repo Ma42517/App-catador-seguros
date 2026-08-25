@@ -4,6 +4,7 @@ import TaskOptionsSheet from './TaskOptionsSheet';
 import CallActivityCard from './CallActivityCard';
 import InitialMeetingCard from './InitialMeetingCard';
 import ClosingCard from './ClosingCard';
+import AppointmentCard from './AppointmentCard';
 import ProposalCard from './ProposalCard';
 import IssuanceReminderCard from './IssuanceReminderCard';
 import PolicyDeliveryCard from './PolicyDeliveryCard';
@@ -50,8 +51,13 @@ import useNow from '../../lib/useNow';
  * cede a `PaymentCollectionCard.jsx` — la última etapa, donde además se
  * muestra `primaAnual` si el monto viajó hasta ahí.
  * "Seguimiento" (`'seguimiento'`) cede a `FollowUpCard.jsx`, compacta y
- * sin Flip. Cualquier otro tipo de evento (o uno viejo, de antes de que
- * existiera `tipo_actividad`) sigue el camino de siempre — y es justo esa
+ * sin Flip. Y una "Cita" genérica (`'cita'`) cede a `AppointmentCard.jsx`,
+ * que la deja avanzar a Cita Inicial — la transición que el motor ya
+ * declaraba y que ninguna pantalla disparaba.
+ *
+ * Con eso, los ocho tipos del catálogo tienen tarjeta propia: a la rama
+ * genérica de abajo sólo llegan los recordatorios y los eventos viejos, de
+ * antes de que existiera `tipo_actividad`. Ésa sigue el camino de siempre — y es justo esa
  * rama la que se envuelve en `SwipeableCard.jsx`: deslizar hacia la
  * izquierda revela "Reagendar" (abre `TaskOptionsSheet` directo en el paso
  * de reprogramar) y "Descartar" (`removeEvent`, mismo destino que
@@ -85,6 +91,10 @@ export default function ActionableCard({
 
   if (event.tipo_actividad === 'cita_inicial') {
     return <InitialMeetingCard event={event} onStartSession={onStartSession} />;
+  }
+
+  if (event.tipo_actividad === 'cita') {
+    return <AppointmentCard event={event} onRouteToActivity={onRouteToActivity} />;
   }
 
   if (event.tipo_actividad === 'cita_propuesta') {
@@ -128,10 +138,9 @@ export default function ActionableCard({
   /*
     Misma etiqueta de tipo que ya llevan las tarjetas especiales de arriba
     (Llamada, Cita Inicial, Seguimiento, Cita de Propuesta/Cierre): esta
-    rama genérica atiende "Cita", "Entrega de Póliza" y "Cobro" —los tres
-    valores de `tipo_actividad` que no tienen tarjeta propia—, además de
-    los recordatorios y de cualquier evento viejo de antes de que existiera
-    el catálogo cerrado.
+    rama genérica ya no atiende ningún tipo del catálogo —los ocho tienen
+    tarjeta propia—: queda sólo para los recordatorios y para cualquier
+    evento viejo de antes de que existiera `tipo_actividad`.
 
     `ActivityForm.jsx` ya guarda el título como `"Etiqueta: Nombre"` para
     toda actividad estructurada (`activityTypeLabel(tipoActividad)` +

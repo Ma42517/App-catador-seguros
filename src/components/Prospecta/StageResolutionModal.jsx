@@ -18,6 +18,18 @@ const INPUT =
 
 /** Texto por etapa: qué se pregunta y cómo se llama cada resolución. */
 const STAGE_COPY = {
+  /*
+    La "Cita" genérica del catálogo: el primer contacto informal que
+    todavía no es un Análisis de Necesidades. Avanzar la convierte en Cita
+    Inicial, que es la primera etapa formal del embudo — hasta que existió
+    `AppointmentCard.jsx` esa transición estaba escrita en el motor
+    (`ADVANCE_MAP`) pero ninguna pantalla la disparaba nunca.
+  */
+  [PIPELINE_STAGES.CITA]: {
+    eyebrow: 'Cierre de la Cita',
+    advanceLabel: 'Avanza a Cita Inicial',
+    advanceHint: 'Agenda el Análisis de Necesidades formal.',
+  },
   [PIPELINE_STAGES.PROPUESTA]: {
     eyebrow: 'Cierre de Propuesta',
     advanceLabel: 'Cierre Exitoso',
