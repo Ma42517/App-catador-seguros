@@ -49,7 +49,11 @@ function nowParts() {
  * expediente médico de las 3 Súper Preguntas) vía `onOpenRequirements`.
  * El mismo atajo se repite dentro de `ProposalResolutionModal.jsx`
  * ("Llenar Cuestionario"), para quien llega directo al router de ventas
- * sin haber tocado antes el ícono de la tarjeta.
+ * sin haber tocado antes el ícono de la tarjeta — `handleOpenRequirements`
+ * cierra primero el propio modal de resolución antes de abrir el
+ * cuestionario, porque los dos comparten pantalla vía portales con
+ * distinto `z-index` y, sin cerrarlo, el cuestionario quedaba tapado por
+ * el modal y no se podía tocar ni un campo.
  */
 export default function ProposalCard({ event, onOpenRequirements, onRouteToActivity }) {
   const { completeEvent, removeEvent, addEvent } = useEvents();
@@ -102,7 +106,20 @@ export default function ProposalCard({ event, onOpenRequirements, onRouteToActiv
     });
   };
 
-  const handleOpenRequirements = () => onOpenRequirements?.(event);
+  /*
+    El cuestionario (`UnderwritingDrawer.jsx`, montado en `App.jsx` con
+    `z-[75]`) queda por debajo del router de ventas
+    (`ProposalResolutionModal.jsx`, portal con `z-[90]`): sin cerrar este
+    modal primero, se abría "detrás" — visible sólo como un fondo
+    borroneado, sin poder tocar ni un campo. Se cierra el modal de
+    resolución al pedir el cuestionario, no al revés: al terminarlo, la
+    persona vuelve a la tarjeta y puede tocar "Iniciar" otra vez si sigue
+    queriendo resolver la cita.
+  */
+  const handleOpenRequirements = () => {
+    setResolutionOpen(false);
+    onOpenRequirements?.(event);
+  };
 
   return (
     <>
