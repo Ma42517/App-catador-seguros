@@ -37,8 +37,8 @@ import useNow from '../../lib/useNow';
  * 4 acciones en el reverso. Un "Recordatorio de Emisión"
  * (`'recordatorio_emision'`) —estado interno que sólo crea
  * `ProposalCard.jsx`, nunca aparece en el catálogo de "Nueva
- * Actividad"— cede a `IssuanceReminderCard.jsx`, donde WhatsApp y Llamada
- * quedan interceptados por `ScheduleClosingModal.jsx` antes de ejecutarse.
+ * Actividad"— cede a `IssuanceReminderCard.jsx`, reducida a un solo botón
+ * ("Emitida") que crea de inmediato la "Entrega de Póliza" siguiente.
  * "Seguimiento" (`'seguimiento'`) cede a `FollowUpCard.jsx`, compacta y
  * sin Flip. Cualquier otro tipo de evento (o uno viejo, de antes de que
  * existiera `tipo_actividad`) sigue el camino de siempre — y es justo esa

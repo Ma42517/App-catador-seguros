@@ -1,11 +1,19 @@
+import { CheckCircle2, Clock } from 'lucide-react';
 import { useState } from 'react';
-import { Phone, Clock, CheckCircle2 } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
-import { digits, prospectNameFrom } from '../../lib/prospectText';
-import WhatsAppMark from './WhatsAppMark';
+import { prospectNameFrom } from '../../lib/prospectText';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import SwipeableCard from '../Layout/SwipeableCard';
-import ScheduleClosingModal from './ScheduleClosingModal';
+
+/** Fecha y hora de ahora mismo, en el formato que guarda el resto de la agenda. */
+function nowParts() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return {
+    date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+  };
+}
 
 /**
  * src/components/Activities/IssuanceReminderCard.jsx
@@ -16,59 +24,33 @@ import ScheduleClosingModal from './ScheduleClosingModal';
  * catálogo de "Nueva Actividad" (`ActivityForm.jsx`) — así que aquí nunca
  * llega una de estas tarjetas que el asesor haya tecleado a mano.
  *
- * Misma "Pill" oscura de botones circulares que el resto de tarjetas de
- * actividad. La diferencia está en qué hacen sus dos primeros botones:
- * WhatsApp y Llamada no ejecutan nada de inmediato, abren
- * `ScheduleClosingModal.jsx` — la entrega de la póliza necesita una fecha
- * antes de poder escribirle o llamarle a nadie, y ese es justo el dato
- * que ese modal pregunta. `scheduleAction` guarda cuál de los dos disparó
- * la intercepción, para que el modal sepa qué texto y qué acción final
- * mostrar. "Emitida" (el check) no se intercepta: es la resolución directa
- * de esta tarjeta, no un canal de comunicación.
+ * Deliberadamente reducida a una sola acción dentro de la pastilla:
+ * "Emitida". No lleva WhatsApp ni Llamada —sí los tenía antes, con una
+ * intercepción que pedía fecha/hora de entrega, pero el pedido la
+ * descartó a favor de algo más directo—: mientras la póliza sigue en
+ * trámite no hay nada más que hacer con el prospecto desde esta tarjeta.
+ * Al tocar "Emitida", nace de inmediato la actividad de "Entrega de
+ * Póliza" (mismo `tipo_actividad`/etiqueta que ya usa el catálogo de
+ * `ActivityForm.jsx`, para que la agenda la trate igual sin importar si
+ * nació a mano o desde este router), y este Recordatorio se completa.
  */
 export default function IssuanceReminderCard({ event }) {
   const { completeEvent, removeEvent, addEvent } = useEvents();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  // 'whatsapp' | 'call' | null — qué botón disparó la intercepción.
-  const [scheduleAction, setScheduleAction] = useState(null);
 
   const prospectName = prospectNameFrom(event.title);
-  const phone = digits(event.telefono);
-  const hasPhone = phone.length > 0;
 
-  /*
-    Las 3 cosas que pide el pedido, en el mismo instante: se abre el
-    `href` de comunicación que corresponda, este Recordatorio se marca
-    completado (ya cumplió su función: agendar la entrega) y nace la Cita
-    de Cierre con la fecha/hora que la persona acaba de elegir en el
-    modal.
-  */
-  const handleScheduled = (date, time) => {
-    if (scheduleAction === 'whatsapp' && hasPhone) {
-      const message = `Hola ${prospectName}, tu póliza ya está en trámite de emisión. `
-        + `Te propongo vernos el ${date} a las ${time} para hacerte la entrega y revisar los `
-        + 'detalles. ¡Un saludo!';
-      window.open(
-        `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(message)}`,
-        '_blank',
-        'noopener',
-      );
-    } else if (scheduleAction === 'call' && hasPhone) {
-      window.location.href = `tel:${phone}`;
-    }
-
-    completeEvent(event.id);
-
+  const handleIssued = () => {
+    const parts = nowParts();
     addEvent({
-      tipo_actividad: 'cita_cierre',
-      title: `Cita de Cierre: ${prospectName}`,
+      tipo_actividad: 'entrega_poliza',
+      title: `Entrega de Póliza: ${prospectName}`,
       telefono: event.telefono ?? '',
-      date,
-      time,
+      date: parts.date,
+      time: parts.time,
       priority: 'maxima',
     });
-
-    setScheduleAction(null);
+    completeEvent(event.id);
   };
 
   return (
@@ -94,40 +76,14 @@ export default function IssuanceReminderCard({ event }) {
 
           <button
             type="button"
-            disabled={!hasPhone}
-            onClick={() => setScheduleAction('whatsapp')}
-            aria-label={`Enviar WhatsApp a ${prospectName}`}
-            className={`grid h-10 w-10 shrink-0 place-items-center rounded-full
-                        transition-colors active:scale-95 disabled:cursor-not-allowed
-                        disabled:opacity-30 ${hasPhone
-                ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                : 'bg-emerald-500/10 text-emerald-400'}`}
-          >
-            <WhatsAppMark size={16} />
-          </button>
-
-          <button
-            type="button"
-            disabled={!hasPhone}
-            onClick={() => setScheduleAction('call')}
-            aria-label={`Llamar a ${prospectName}`}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                       bg-indigo-500/10 text-indigo-400 transition-colors
-                       hover:bg-indigo-500/20 active:scale-95 disabled:cursor-not-allowed
-                       disabled:opacity-30"
-          >
-            <Phone size={16} aria-hidden="true" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => completeEvent(event.id)}
+            onClick={handleIssued}
             aria-label={`Marcar como emitida la póliza de ${prospectName}`}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                       bg-slate-500/10 text-slate-300 transition-colors
-                       hover:bg-slate-500/20 active:scale-95"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
+                       py-2 text-xs font-semibold text-white transition-colors
+                       hover:bg-indigo-500 active:scale-95"
           >
-            <CheckCircle2 size={16} aria-hidden="true" />
+            <CheckCircle2 size={15} aria-hidden="true" />
+            Emitida
           </button>
         </div>
       </SwipeableCard>
@@ -137,14 +93,6 @@ export default function IssuanceReminderCard({ event }) {
         isOpen={rescheduleOpen}
         onClose={() => setRescheduleOpen(false)}
         initialReschedule
-      />
-
-      <ScheduleClosingModal
-        isOpen={Boolean(scheduleAction)}
-        actionType={scheduleAction}
-        clientName={prospectName}
-        onClose={() => setScheduleAction(null)}
-        onSubmit={handleScheduled}
       />
     </>
   );
