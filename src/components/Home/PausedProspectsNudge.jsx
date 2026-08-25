@@ -1,10 +1,12 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, X, ArrowRight } from 'lucide-react';
+import { RotateCcw, X, CalendarClock, Archive } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
-import { readOrphans, removeOrphan } from '../../data/orphanProspects';
+import { readOrphans, removeOrphan, updateOrphan } from '../../data/orphanProspects';
+import { markProspectDiscarded } from '../../data/prospectStatus';
 import { buildFollowUpEvent } from '../../lib/followUpEvent';
+import { evaluateReactivation } from '../../lib/reactivationSchedule';
 
 /** Fecha de mañana a las 9: la hora en que un recontacto tiene sentido. */
 function tomorrowParts() {
@@ -17,19 +19,18 @@ function tomorrowParts() {
   };
 }
 
-/** Cuántos días lleva en pausa; sirve para decir "hace X días" sin librerías. */
+/** Cuántos días lleva en pausa. */
 function daysPaused(timestamp) {
   return Math.floor((Date.now() - timestamp) / 86400000);
 }
 
 /**
- * Por qué quedó en pausa, en una frase corta que quepa en la fila.
+ * Por qué quedó en pausa, en una frase corta.
  *
  * Cubre los dos motivos que hoy generan una pausa —y cualquiera futuro cae
- * en el texto neutro—: no contestar una llamada
- * (`CallFeedbackModal.jsx`, "Cerrar sin más intentos") y dejar vencer una
- * Cita Inicial sin iniciar la presentación (el "Reloj de Arena" de
- * `InitialMeetingCard.jsx`).
+ * en el texto neutro—: no contestar una llamada (`CallFeedbackModal.jsx`,
+ * "Cerrar sin más intentos") y dejar vencer una Cita Inicial sin iniciar la
+ * presentación (el "Reloj de Arena" de `InitialMeetingCard.jsx`).
  */
 function pauseReason(record) {
   if (record.reason === 'sin_respuesta') return 'no contestó y quedó sin seguimiento';
@@ -40,62 +41,119 @@ function pauseReason(record) {
 /**
  * src/components/Home/PausedProspectsNudge.jsx
  *
- * Recomendación de recontacto en "Hoy": la app vuelve a proponer a los
- * prospectos que quedaron en pausa sin que nadie les diera seguimiento.
+ * Recomendación de recontacto en "Hoy", gobernada por el calendario de
+ * `lib/reactivationSchedule.js`: tres oportunidades (días 3, 5 y 10 desde la
+ * pausa), cada una abierta 24 horas, y descarte automático si las tres se
+ * ignoran.
  *
- * Alcanza a TODOS los pausados **excepto los descartados**. Esa distinción
- * no necesita ningún filtro aquí porque son dos almacenes distintos: lo que
- * quedó en pausa vive en `data/orphanProspects.js` (citas archivadas por el
- * Reloj de Arena y llamadas sin respuesta que se cerraron sin más intentos),
- * y los "no califica" viven aparte, en `data/prospectStatus.js`. Leyendo
- * sólo el primero, la app nunca insiste con alguien a quien el asesor ya
- * descartó a propósito — insistir ahí sería desoír una decisión que ya
- * tomó, y es justo lo que vuelve creíble al resto de las sugerencias.
+ * La versión anterior mostraba al pausado más antiguo en cada entrada, sin
+ * límite. Era hostigante en los dos extremos: aparecía el mismo día en que
+ * alguien no contestó una llamada —cuando el asesor todavía lo tenía
+ * fresco— y seguía apareciendo indefinidamente aunque en la práctica ya
+ * hubiera decidido no retomarlo. Ahora la app propone poco, en momentos
+ * concretos, y **deja de preguntar** cuando la falta de respuesta ya es una
+ * respuesta.
  *
- * Muestra **uno a la vez**, el más antiguo: es el que lleva más tiempo
- * olvidado y el que más urge rescatar. Una lista de diez pausados en la
- * pantalla de inicio se leería como un reclamo y competiría con la agenda
- * del día; una sola fila delgada, con el mismo peso visual que
- * `DiagnosticPushNudge.jsx`, se lee como lo que es: un recordatorio.
+ * Alcanza a todos los pausados **excepto los descartados**, y eso no
+ * necesita ningún filtro aquí: son dos almacenes distintos. Lo que quedó en
+ * pausa vive en `data/orphanProspects.js`; los "no califica" viven en
+ * `data/prospectStatus.js`. Leyendo sólo el primero, la app nunca insiste
+ * con alguien a quien el asesor ya descartó a propósito.
  *
- * A diferencia de ese push, este no espera a que la agenda esté vacía. Un
- * prospecto olvidado no deja de estar olvidado porque hoy haya trabajo; el
- * punto de la recomendación es justamente que reaparezca hasta que se
- * atienda.
+ * ## Las tres salidas
  *
- * "Retomar" resuelve todo en un toque: crea el Seguimiento para mañana con
- * el teléfono que ya se tenía y lo saca de la pausa. La X descarta la
- * sugerencia sólo por esta visita —igual que el otro push, sin
- * persistencia—: el prospecto sigue en pausa y la app volverá a proponerlo
- * la próxima vez, que es exactamente lo que se pidió.
+ *  - **"Dar seguimiento"**: crea el Seguimiento para mañana con el teléfono
+ *    que ya se tenía y lo saca de la pausa. Es la decisión que mueve el
+ *    embudo.
+ *  - **"Descartar"**: lo manda a la lista de descartados, desde donde la app
+ *    ya no vuelve a proponerlo (sigue visible en el perfil para revertirlo).
+ *  - **La X**: "no ahora". Sólo esconde la fila en esta visita; la
+ *    oportunidad sigue abierta sus 24 horas y el prospecto no se pierde. Es
+ *    deliberadamente distinta de "Descartar": cerrar un aviso no debería
+ *    equivaler a desechar a una persona.
+ *
+ * Muestra **una sola** a la vez, la del prospecto que lleva más tiempo en
+ * pausa: varias filas en la pantalla de inicio se leerían como un reclamo y
+ * competirían con la agenda del día.
  */
 export default function PausedProspectsNudge() {
   const { addEvent } = useEvents();
   const { identity } = useSession();
   const username = identity?.key;
 
-  const [records, setRecords] = useState([]);
+  const [record, setRecord] = useState(null);
+  const [schedule, setSchedule] = useState(null);
   const [dismissed, setDismissed] = useState(false);
 
   /*
-    Se ordena del más antiguo al más reciente —`readOrphans` los devuelve al
-    revés, con los últimos primero— porque aquí interesa el olvidado hace
-    más tiempo, no el que acaba de entrar en pausa.
+    Se resuelve una sola vez por montaje —no en cada render— porque este
+    efecto tiene efectos secundarios que persisten: descarta a los agotados y
+    "consume" una oportunidad al abrirla. Repetirlo en cada render quemaría
+    los tres intentos de un prospecto en la misma visita.
   */
-  const load = useCallback(() => {
-    setRecords(readOrphans(username).slice().sort((a, b) => a.archivedAt - b.archivedAt));
+  useEffect(() => {
+    if (!username) return;
+    const now = Date.now();
+    const all = readOrphans(username);
+
+    const showing = [];
+    const due = [];
+
+    all.forEach((entry) => {
+      const state = evaluateReactivation(entry, now);
+
+      if (state.status === 'exhausted') {
+        /*
+          Descarte automático: tres oportunidades ignoradas en diez días. Se
+          conserva el registro en la lista de descartados —no se borra sin
+          más— para que el asesor pueda encontrarlo y revertirlo desde
+          "Prospectos en pausa" si resulta que sí le interesaba.
+        */
+        markProspectDiscarded(username, {
+          id: entry.prospectId ?? entry.id,
+          name: entry.name,
+          phone: entry.phone,
+        });
+        removeOrphan(username, entry.id);
+        return;
+      }
+
+      if (state.status === 'showing') showing.push([entry, state]);
+      else if (state.status === 'due') due.push([entry, state]);
+    });
+
+    const byOldest = (a, b) => a[0].archivedAt - b[0].archivedAt;
+
+    // Una oportunidad ya abierta manda sobre una nueva: su ventana de 24
+    // horas está corriendo y hay que terminarla antes de consumir otra.
+    const current = showing.sort(byOldest)[0] ?? due.sort(byOldest)[0] ?? null;
+    if (!current) return;
+
+    const [entry, state] = current;
+
+    if (state.status === 'due') {
+      // Abrir la oportunidad: se persiste para que la ventana de 24 horas
+      // corra de verdad y el intento quede contado entre recargas.
+      const offersShown = state.offersShown + 1;
+      updateOrphan(username, entry.id, { offersShown, lastOfferAt: now });
+      setRecord({ ...entry, offersShown, lastOfferAt: now });
+      setSchedule({ ...state, attempt: offersShown });
+      return;
+    }
+
+    setRecord(entry);
+    setSchedule(state);
   }, [username]);
 
-  useEffect(() => { load(); }, [load]);
+  if (!record || dismissed) return null;
 
-  if (dismissed || records.length === 0) return null;
-
-  const record = records[0];
-  const remaining = records.length - 1;
-  const days = daysPaused(record.archivedAt);
   const name = String(record.name ?? '').trim() || 'Un prospecto';
+  const days = daysPaused(record.archivedAt);
+  const attempt = schedule?.attempt ?? 1;
+  const total = schedule?.totalAttempts ?? 3;
+  const isLastChance = attempt >= total;
 
-  const retake = () => {
+  const resolveWithFollowUp = () => {
     const parts = tomorrowParts();
     addEvent(buildFollowUpEvent(
       // `title` sin dos puntos: `prospectNameFrom` devuelve el texto
@@ -110,9 +168,17 @@ export default function PausedProspectsNudge() {
       },
     ));
     removeOrphan(username, record.id);
-    // Se relee en vez de quitarlo del estado a mano: así la fila pasa sola
-    // al siguiente pausado, si queda alguno.
-    load();
+    setRecord(null);
+  };
+
+  const resolveWithDiscard = () => {
+    markProspectDiscarded(username, {
+      id: record.prospectId ?? record.id,
+      name: record.name,
+      phone: record.phone,
+    });
+    removeOrphan(username, record.id);
+    setRecord(null);
   };
 
   return (
@@ -123,14 +189,9 @@ export default function PausedProspectsNudge() {
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
         role="status"
-        className="group flex w-full items-center gap-2 rounded-xl border border-slate-800/50
-                   bg-slate-900 p-3 transition-colors hover:border-indigo-500/30"
+        className="w-full rounded-xl border border-slate-800/50 bg-slate-900 p-3"
       >
-        <button
-          type="button"
-          onClick={retake}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none"
-        >
+        <div className="flex items-start gap-3">
           <span
             className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border
                        border-indigo-500/30 bg-indigo-500/10 text-indigo-400"
@@ -139,38 +200,64 @@ export default function PausedProspectsNudge() {
             <RotateCcw size={14} strokeWidth={1.8} aria-hidden="true" />
           </span>
 
-          <span className="min-w-0 flex-1 break-words text-sm font-medium text-slate-200">
-            Retoma a {name}: {pauseReason(record)}
+          <p className="min-w-0 flex-1 break-words text-sm font-medium text-slate-200">
+            ¿Retomas a {name}? {pauseReason(record)}
             {days > 0 && (
               <span className="text-slate-500">
                 {' '}
                 (hace {days} {days === 1 ? 'día' : 'días'})
               </span>
             )}
-            {remaining > 0 && (
-              <span className="block text-[11px] font-normal text-slate-500">
-                Y {remaining} {remaining === 1 ? 'más' : 'más'} en pausa esperando.
-              </span>
-            )}
-          </span>
+          </p>
 
-          <ArrowRight
-            size={15}
-            className="shrink-0 text-slate-500 transition-colors group-hover:text-indigo-400"
-            aria-hidden="true"
-          />
-        </button>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            aria-label="No ahora"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-500
+                       transition-colors hover:bg-white/5 hover:text-slate-300
+                       focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+          >
+            <X size={12} aria-hidden="true" />
+          </button>
+        </div>
 
-        <button
-          type="button"
-          onClick={() => setDismissed(true)}
-          aria-label="Descartar la sugerencia por ahora"
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-500
-                     transition-colors hover:bg-white/5 hover:text-slate-300
-                     focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
-        >
-          <X size={12} aria-hidden="true" />
-        </button>
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={resolveWithFollowUp}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600
+                       px-3 py-2 text-xs font-semibold text-white transition-colors
+                       hover:bg-indigo-500 active:scale-95"
+          >
+            <CalendarClock size={13} aria-hidden="true" />
+            Dar seguimiento
+          </button>
+
+          <button
+            type="button"
+            onClick={resolveWithDiscard}
+            className="flex items-center justify-center gap-1.5 rounded-xl border
+                       border-slate-700 px-3 py-2 text-xs font-semibold text-slate-400
+                       transition-colors hover:bg-rose-500/10 hover:text-rose-300
+                       active:scale-95"
+          >
+            <Archive size={13} aria-hidden="true" />
+            Descartar
+          </button>
+        </div>
+
+        {/*
+          Se dice en voz alta cuántos avisos quedan y qué pasa si no se
+          decide nada. Un descarte automático que ocurre en silencio se
+          siente como un dato perdido; anunciado, se lee como lo que es —la
+          app dejando de insistir— y además empuja a resolver el último.
+        */}
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          {isLastChance
+            ? 'Último aviso: si no decides, se descarta solo.'
+            : `Aviso ${attempt} de ${total}. Si no decides, vuelve a aparecer más adelante.`}
+        </p>
       </motion.div>
     </AnimatePresence>
   );

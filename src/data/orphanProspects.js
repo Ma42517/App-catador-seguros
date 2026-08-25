@@ -74,3 +74,23 @@ export function removeOrphan(username, id) {
   const list = Array.isArray(all[username]) ? all[username] : [];
   writeAll({ ...all, [username]: list.filter((entry) => entry.id !== id) });
 }
+
+/**
+ * Fusiona campos sueltos en un registro en pausa.
+ *
+ * Existe para el calendario de reactivación
+ * (`lib/reactivationSchedule.js`): `PausedProspectsNudge.jsx` guarda aquí
+ * cuántas veces ya se propuso retomar al prospecto (`offersShown`) y cuándo
+ * empezó la propuesta abierta (`lastOfferAt`). Sin persistir esos dos datos,
+ * el conteo de intentos se reiniciaría en cada recarga y la app volvería a
+ * insistir para siempre, que es justo lo que el calendario viene a evitar.
+ */
+export function updateOrphan(username, id, patch) {
+  if (!username) return;
+  const all = readAll();
+  const list = Array.isArray(all[username]) ? all[username] : [];
+  writeAll({
+    ...all,
+    [username]: list.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)),
+  });
+}
