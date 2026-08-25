@@ -49,6 +49,8 @@ export default function IssuanceReminderCard({ event }) {
       date: parts.date,
       time: parts.time,
       priority: 'maxima',
+      // Sigue de largo hacia el Cobro, que es donde el monto importa.
+      ...(event.primaAnual && { primaAnual: event.primaAnual }),
     });
     completeEvent(event.id);
   };

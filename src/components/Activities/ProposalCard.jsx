@@ -103,6 +103,14 @@ export default function ProposalCard({ event, onOpenRequirements, onRouteToActiv
       date: parts.date,
       time: parts.time,
       priority: 'maxima',
+      /*
+        La Prima Anual, si esta Propuesta la traía, sigue viajando hacia
+        adelante: es el monto que `PaymentCollectionCard.jsx` muestra al
+        final del embudo ("cuánto hay que cobrar"). Sólo se escribe cuando
+        existe, para no dejar un campo en cero que se leería como "no debe
+        nada".
+      */
+      ...(event.primaAnual && { primaAnual: event.primaAnual }),
     });
   };
 

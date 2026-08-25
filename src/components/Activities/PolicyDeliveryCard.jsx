@@ -69,6 +69,8 @@ export default function PolicyDeliveryCard({ event }) {
       date: parts.date,
       time: parts.time,
       priority: 'maxima',
+      // Último salto del monto: aquí es donde de verdad se usa.
+      ...(event.primaAnual && { primaAnual: event.primaAnual }),
     });
     completeEvent(event.id);
   };

@@ -7,6 +7,7 @@ import PipelineCard from './PipelineCard';
 import ProposalCard from './ProposalCard';
 import IssuanceReminderCard from './IssuanceReminderCard';
 import PolicyDeliveryCard from './PolicyDeliveryCard';
+import PaymentCollectionCard from './PaymentCollectionCard';
 import FollowUpCard from './FollowUpCard';
 import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from './eventStatus';
@@ -42,7 +43,10 @@ import useNow from '../../lib/useNow';
  * ("Emitida") que crea de inmediato la "Entrega de Póliza" siguiente. Esa
  * "Entrega de Póliza" (`'entrega_poliza'`) cede a
  * `PolicyDeliveryCard.jsx`, con WhatsApp y teléfono ya listos a partir
- * del `telefono` que viene arrastrándose desde la Cita de Propuesta.
+ * del `telefono` que viene arrastrándose desde la Cita de Propuesta, y su
+ * botón "Entregada" cierra el embudo creando el "Cobro" (`'cobro'`), que
+ * cede a `PaymentCollectionCard.jsx` — la última etapa, donde además se
+ * muestra `primaAnual` si el monto viajó hasta ahí.
  * "Seguimiento" (`'seguimiento'`) cede a `FollowUpCard.jsx`, compacta y
  * sin Flip. Cualquier otro tipo de evento (o uno viejo, de antes de que
  * existiera `tipo_actividad`) sigue el camino de siempre — y es justo esa
@@ -107,6 +111,10 @@ export default function ActionableCard({
 
   if (event.tipo_actividad === 'entrega_poliza') {
     return <PolicyDeliveryCard event={event} />;
+  }
+
+  if (event.tipo_actividad === 'cobro') {
+    return <PaymentCollectionCard event={event} />;
   }
 
   if (event.tipo_actividad === 'seguimiento') {
