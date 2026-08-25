@@ -520,9 +520,9 @@ function Shell({
   }, []);
 
   /*
-    Botón ámbar (`Sparkles`) del reverso de `PipelineCard.jsx`,
-    "Asistente": abre una pantalla completa por encima de todo, igual que
-    Prospecta, pero cuál depende de la etapa de la tarjeta —
+    Botón ámbar (`Sparkles`), "Asistente", de `ProposalCard.jsx` y
+    `ClosingCard.jsx`: abre una pantalla completa por encima de todo, igual
+    que Prospecta, pero cuál depende de la etapa de la tarjeta —
     `UnderwritingDrawer.jsx` (expediente médico de las 3 Súper Preguntas)
     para "Cita de Propuesta", `DeliveryKitDrawer.jsx` (checklist de
     entrega) para "Cita de Cierre"—. Estaba conectado hasta aquí en la

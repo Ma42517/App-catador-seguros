@@ -3,7 +3,7 @@ import { Bell, Calendar as CalendarIcon } from 'lucide-react';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import CallActivityCard from './CallActivityCard';
 import InitialMeetingCard from './InitialMeetingCard';
-import PipelineCard from './PipelineCard';
+import ClosingCard from './ClosingCard';
 import ProposalCard from './ProposalCard';
 import IssuanceReminderCard from './IssuanceReminderCard';
 import PolicyDeliveryCard from './PolicyDeliveryCard';
@@ -35,8 +35,10 @@ import useNow from '../../lib/useNow';
  * `ProposalCard.jsx` — misma "Pill" de botones circulares que el resto,
  * con un botón "Iniciar" que abre su propio router de ventas
  * (`ProposalResolutionModal.jsx`) — y "Cita de Cierre" (`'cita_cierre'`)
- * sigue en `PipelineCard.jsx`, la tarjeta reversible ("Flip Card") con sus
- * 4 acciones en el reverso. Un "Recordatorio de Emisión"
+ * cede a `ClosingCard.jsx`, que reemplazó a la tarjeta reversible
+ * `PipelineCard.jsx`: sus mismas 4 acciones (Ubicación, WhatsApp, Kit de
+ * Entrega y Finalizar) caben en la pastilla sin voltear nada. Un
+ * "Recordatorio de Emisión"
  * (`'recordatorio_emision'`) —estado interno que sólo crea
  * `ProposalCard.jsx`, nunca aparece en el catálogo de "Nueva
  * Actividad"— cede a `IssuanceReminderCard.jsx`, reducida a un solo botón
@@ -97,7 +99,7 @@ export default function ActionableCard({
 
   if (event.tipo_actividad === 'cita_cierre') {
     return (
-      <PipelineCard
+      <ClosingCard
         event={event}
         onOpenRequirements={onOpenRequirements}
         onRouteToActivity={onRouteToActivity}
@@ -118,7 +120,7 @@ export default function ActionableCard({
   }
 
   if (event.tipo_actividad === 'seguimiento') {
-    return <FollowUpCard event={event} />;
+    return <FollowUpCard event={event} onRouteToActivity={onRouteToActivity} />;
   }
 
   const Icon = event.type === 'recordatorio' ? Bell : CalendarIcon;

@@ -1,103 +1,137 @@
-import { Phone, CheckCircle2, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { Phone, CheckCircle2 } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
+import { useSession } from '../../context/SessionContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
+import { markProspectDiscarded } from '../../data/prospectStatus';
+import useAdvisorPoints from '../../lib/useAdvisorPoints';
+import ActionCardBase from './ActionCardBase';
+import CircleActionButton from './CircleActionButton';
 import WhatsAppMark from './WhatsAppMark';
+import TaskOptionsSheet from './TaskOptionsSheet';
+import FollowUpResolutionModal from './FollowUpResolutionModal';
 
 /**
  * src/components/Activities/FollowUpCard.jsx
  *
- * Tarjeta de "Seguimiento" (`tipo_actividad === 'seguimiento'`): la
- * resolución "Pide más tiempo" del router de ventas
- * (`StageResolutionModal.jsx`/`PresentationEndModal.jsx`) siempre aterriza
- * aquí, sin importar de qué etapa venía. A propósito compacta y sin Flip
- * —a diferencia de `PipelineCard.jsx`—: no hay 4 acciones que esconder,
- * sólo 3 acciones directas siempre visibles (llamar, WhatsApp, completar),
- * así que no hace falta ganar espacio girando la tarjeta ni envolverla en
- * el gesto de deslizar de `SwipeableCard.jsx` — cada acción ya está a la
- * vista con un solo toque.
+ * Tarjeta de "Seguimiento" (`tipo_actividad === 'seguimiento'`): el puente
+ * universal del embudo. Toda resolución de "pidió más tiempo" aterriza
+ * aquí, sin importar de qué etapa venía
+ * (`StageResolutionModal.jsx`/`PresentationEndModal.jsx`/
+ * `ProposalResolutionModal.jsx`).
  *
- * El subtítulo muestra el origen/motivo del seguimiento
- * (`event.followUpReason`, escrito por quien enruta la actividad — ver
- * `App.jsx`, `handleRouteToActivity`): sin ese dato ("Seguimiento
- * pendiente" por defecto), la persona vería un nombre y una hora sin
+ * El subtítulo muestra el origen/motivo (`event.followUpReason`, escrito
+ * por quien enruta la actividad — ver `handleRouteToActivity` en
+ * `App.jsx`): sin ese dato la persona vería un nombre y una hora sin
  * ninguna pista de por qué existe esta tarea.
+ *
+ * Sus 4 acciones son siempre visibles, sin voltear nada: llamar, WhatsApp,
+ * "Retomar" y completar. "Retomar" es lo que lo vuelve un puente de
+ * verdad y no una nota suelta: abre `FollowUpResolutionModal.jsx`, desde
+ * donde el prospecto puede saltar a CUALQUIER fase del embudo —no sólo a
+ * la que seguía cuando se pausó—, porque alguien que pausó antes de la
+ * Propuesta puede volver pidiendo directamente el cierre. Completar sigue
+ * existiendo para el caso en que el seguimiento se resolvió sin generar una
+ * etapa nueva (contestó una duda y nada más).
  */
-export default function FollowUpCard({ event }) {
-  const { completeEvent } = useEvents();
+export default function FollowUpCard({ event, onRouteToActivity }) {
+  const { completeEvent, removeEvent } = useEvents();
+  const { identity } = useSession();
+  const [, addPoints] = useAdvisorPoints(identity?.key);
+  const [resolutionOpen, setResolutionOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
   const hasPhone = phone.length > 0;
   const reason = event.followUpReason || 'Seguimiento pendiente';
 
-  const telHref = hasPhone ? `tel:${phone}` : null;
+  const telHref = hasPhone ? `tel:${phone}` : undefined;
   const whatsAppHref = hasPhone
     ? `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(
       `Hola ${prospectName}, te escribo para dar seguimiento a lo que platicamos.`,
     )}`
-    : null;
+    : undefined;
+
+  /*
+    Retomar en una etapa nueva completa este seguimiento —ya cumplió su
+    función, hay una actividad real agendada—; "No califica" lo elimina
+    junto con el registro del prospecto. Mismo criterio que las demás
+    tarjetas del embudo.
+  */
+  const handleResolved = (resultType) => {
+    if (resultType === 'discard') removeEvent(event.id);
+    else completeEvent(event.id);
+  };
 
   return (
-    <div
-      className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900
-                 p-3.5"
-    >
-      <div className="min-w-0 flex-1">
+    <>
+      <ActionCardBase
+        label="Seguimiento"
+        title={prospectName}
+        subtitle={reason}
+        time={event.time}
+        onReschedule={() => setRescheduleOpen(true)}
+        onDiscard={() => removeEvent(event.id)}
+      >
+        <CircleActionButton
+          icon={Phone}
+          tone="indigo"
+          href={telHref}
+          disabled={!hasPhone}
+          label={`Llamar a ${prospectName}`}
+        />
+
+        <CircleActionButton
+          tone="emerald"
+          href={whatsAppHref}
+          disabled={!hasPhone}
+          label={`Enviar WhatsApp a ${prospectName}`}
+        >
+          <WhatsAppMark size={16} />
+        </CircleActionButton>
+
+        <CircleActionButton
+          icon={CheckCircle2}
+          tone="slate"
+          onClick={() => completeEvent(event.id)}
+          label={`Completar seguimiento de ${prospectName}`}
+        />
+
         {/*
-          Etiqueta del tipo de actividad, arriba del nombre — mismo patrón
-          que `CallActivityCard.jsx`/`InitialMeetingCard.jsx`: el
-          subtítulo con el motivo ya avisaba "por qué", pero no decía
-          "qué es esto" hasta leer el título completo del evento.
+          Con texto y no sólo un ícono: es la acción que de verdad mueve el
+          embudo desde aquí, y tiene que leerse distinta de los contactos
+          rápidos de la izquierda — mismo criterio que "Iniciar" en
+          `ProposalCard.jsx`.
         */}
-        <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
-          Seguimiento
-        </p>
-        <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
-        <p className="mt-0.5 truncate text-xs text-slate-500">{reason}</p>
-        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-          <Clock size={11} aria-hidden="true" />
-          {event.time || 'Sin hora'}
-        </p>
-      </div>
+        <button
+          type="button"
+          onClick={() => setResolutionOpen(true)}
+          aria-label={`Retomar el seguimiento de ${prospectName}`}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
+                     py-2 text-xs font-semibold text-white transition-colors
+                     hover:bg-indigo-500 active:scale-95"
+        >
+          Retomar
+        </button>
+      </ActionCardBase>
 
-      <a
-        href={telHref ?? undefined}
-        aria-disabled={!hasPhone}
-        onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
-        aria-label={`Llamar a ${prospectName}`}
-        className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                    active:scale-95 ${hasPhone
-            ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
-            : 'cursor-not-allowed bg-indigo-500/10 text-indigo-400 opacity-30'}`}
-      >
-        <Phone size={16} aria-hidden="true" />
-      </a>
+      <TaskOptionsSheet
+        event={event}
+        isOpen={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
+        initialReschedule
+      />
 
-      <a
-        href={whatsAppHref ?? undefined}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-disabled={!hasPhone}
-        onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
-        aria-label={`Enviar WhatsApp a ${prospectName}`}
-        className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                    active:scale-95 ${hasPhone
-            ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-            : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
-      >
-        <WhatsAppMark size={16} />
-      </a>
-
-      <button
-        type="button"
-        onClick={() => completeEvent(event.id)}
-        aria-label={`Completar seguimiento de ${prospectName}`}
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-full
-                   bg-slate-500/10 text-slate-300 transition-colors
-                   hover:bg-slate-500/20 active:scale-95"
-      >
-        <CheckCircle2 size={16} aria-hidden="true" />
-      </button>
-    </div>
+      <FollowUpResolutionModal
+        isOpen={resolutionOpen}
+        client={{ id: event.id, name: prospectName, phone: event.telefono }}
+        onClose={() => setResolutionOpen(false)}
+        onRouteToActivity={onRouteToActivity}
+        onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
+        onResolved={handleResolved}
+        onEarnPoints={addPoints}
+      />
+    </>
   );
 }

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Phone, Clock, CheckCircle2 } from 'lucide-react';
+import { Phone, CheckCircle2 } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
 import WhatsAppMark from './WhatsAppMark';
 import TaskOptionsSheet from './TaskOptionsSheet';
-import SwipeableCard from '../Layout/SwipeableCard';
+import ActionCardBase from './ActionCardBase';
+import CircleActionButton from './CircleActionButton';
 import PolicyDeliveryWhatsAppModal from './PolicyDeliveryWhatsAppModal';
 
 /** Fecha y hora de ahora mismo, en el formato que guarda el resto de la agenda. */
@@ -77,72 +78,49 @@ export default function PolicyDeliveryCard({ event }) {
 
   return (
     <>
-      <SwipeableCard
+      <ActionCardBase
+        label="Entrega de Póliza"
+        title={prospectName}
+        time={event.time}
         onReschedule={() => setRescheduleOpen(true)}
         onDiscard={() => removeEvent(event.id)}
       >
-        <div
-          className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900
-                     p-3.5"
+        {/*
+          No sale directo a WhatsApp: abre primero el paso de los dos
+          horarios (`PolicyDeliveryWhatsAppModal.jsx`), que es donde se
+          arma el mensaje. El enlace real vive dentro de ese modal, para
+          que la salida a la app siga siendo una navegación de verdad y
+          no un `window.open` que el escritorio bloquea.
+        */}
+        <CircleActionButton
+          tone="emerald"
+          onClick={() => setWhatsAppOpen(true)}
+          disabled={!hasPhone}
+          label={`Enviar WhatsApp a ${prospectName}`}
         >
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
-              Entrega de Póliza
-            </p>
-            <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-              <Clock size={11} aria-hidden="true" />
-              {event.time || 'Sin hora'}
-            </p>
-          </div>
+          <WhatsAppMark size={16} />
+        </CircleActionButton>
 
-          {/*
-            No sale directo a WhatsApp: abre primero el paso de los dos
-            horarios (`PolicyDeliveryWhatsAppModal.jsx`), que es donde se
-            arma el mensaje. El enlace real vive dentro de ese modal, para
-            que la salida a la app siga siendo una navegación de verdad y
-            no un `window.open` que el escritorio bloquea.
-          */}
-          <button
-            type="button"
-            disabled={!hasPhone}
-            onClick={() => setWhatsAppOpen(true)}
-            aria-label={`Enviar WhatsApp a ${prospectName}`}
-            className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                        active:scale-95 disabled:cursor-not-allowed disabled:opacity-30
-                        ${hasPhone
-                ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                : 'bg-emerald-500/10 text-emerald-400'}`}
-          >
-            <WhatsAppMark size={16} />
-          </button>
+        <CircleActionButton
+          icon={Phone}
+          tone="indigo"
+          href={telHref ?? undefined}
+          disabled={!hasPhone}
+          label={`Llamar a ${prospectName}`}
+        />
 
-          <a
-            href={telHref ?? undefined}
-            aria-disabled={!hasPhone}
-            onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
-            aria-label={`Llamar a ${prospectName}`}
-            className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                        active:scale-95 ${hasPhone
-                ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
-                : 'cursor-not-allowed bg-indigo-500/10 text-indigo-400 opacity-30'}`}
-          >
-            <Phone size={16} aria-hidden="true" />
-          </a>
-
-          <button
-            type="button"
-            onClick={handleDelivered}
-            aria-label={`Marcar como entregada la póliza de ${prospectName}`}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
-                       py-2 text-xs font-semibold text-white transition-colors
-                       hover:bg-indigo-500 active:scale-95"
-          >
-            <CheckCircle2 size={15} aria-hidden="true" />
-            Entregada
-          </button>
-        </div>
-      </SwipeableCard>
+        <button
+          type="button"
+          onClick={handleDelivered}
+          aria-label={`Marcar como entregada la póliza de ${prospectName}`}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
+                     py-2 text-xs font-semibold text-white transition-colors
+                     hover:bg-indigo-500 active:scale-95"
+        >
+          <CheckCircle2 size={15} aria-hidden="true" />
+          Entregada
+        </button>
+      </ActionCardBase>
 
       <TaskOptionsSheet
         event={event}

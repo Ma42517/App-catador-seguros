@@ -5,8 +5,8 @@ import { ArrowLeft, FileCheck2, PackageCheck, CalendarCheck2, Check } from 'luci
  * src/components/Prospecta/DeliveryKitDrawer.jsx
  *
  * Checklist de la etapa de Cierre: 3 pasos simples al entregar la póliza,
- * abierto desde el botón ámbar (`Sparkles`, "Asistente") del reverso de
- * `PipelineCard.jsx` cuando la tarjeta es de tipo `cita_cierre` — es el
+ * abierto desde el botón ámbar (`Sparkles`, "Asistente") de
+ * `ClosingCard.jsx` (`tipo_actividad === 'cita_cierre'`) — es el
  * equivalente de `UnderwritingDrawer.jsx` para esta etapa, sin la
  * complejidad de las Súper Preguntas: aquí no hay nada que capturar del
  * cliente, sólo tres pasos del propio asesor que conviene no dejar a la

@@ -81,7 +81,7 @@ function meetingPlaceLine(modality, location, zoomLink) {
 
 /**
  * Plantillas de confirmación por etapa del embudo, posteriores a la Cita
- * Inicial (`PipelineCard.jsx`, botón WhatsApp del reverso). El texto de
+ * Inicial (`ProposalCard.jsx`/`ClosingCard.jsx`, botón de WhatsApp). El texto de
  * cada etapa lo pidió el pedido tal cual; sólo la frase de lugar es
  * condicional, con la misma lógica de `meetingPlaceLine`.
  */

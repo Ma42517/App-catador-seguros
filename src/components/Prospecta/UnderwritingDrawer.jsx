@@ -26,8 +26,8 @@ import {
  * rastro al desmontarse. `backLabel` (por omisión "Etapas") es el único
  * ajuste de contexto que admite: `Shell` (`App.jsx`) lo abre como
  * pantalla completa aparte, fuera de Prospecta, desde el botón ámbar
- * (`Sparkles`, "Asistente de requisitos") del reverso de
- * `PipelineCard.jsx`, y ahí pasa `"Cerrar"` en vez del rótulo por
+ * (`Sparkles`, "Asistente de requisitos") de `ProposalCard.jsx`, y ahí
+ * pasa `"Cerrar"` en vez del rótulo por
  * omisión — el resto de la pantalla no sabe ni le importa desde dónde se
  * llegó.
  *

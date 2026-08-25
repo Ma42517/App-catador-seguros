@@ -1,9 +1,9 @@
-import { CheckCircle2, Clock } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { useEvents } from '../../context/EventContext';
 import { prospectNameFrom } from '../../lib/prospectText';
 import TaskOptionsSheet from './TaskOptionsSheet';
-import SwipeableCard from '../Layout/SwipeableCard';
+import ActionCardBase from './ActionCardBase';
 
 /** Fecha y hora de ahora mismo, en el formato que guarda el resto de la agenda. */
 function nowParts() {
@@ -57,38 +57,25 @@ export default function IssuanceReminderCard({ event }) {
 
   return (
     <>
-      <SwipeableCard
+      <ActionCardBase
+        label="Recordatorio de Emisión"
+        title={prospectName}
+        time={event.time}
         onReschedule={() => setRescheduleOpen(true)}
         onDiscard={() => removeEvent(event.id)}
       >
-        <div
-          className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900
-                     p-3.5"
+        <button
+          type="button"
+          onClick={handleIssued}
+          aria-label={`Marcar como emitida la póliza de ${prospectName}`}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
+                     py-2 text-xs font-semibold text-white transition-colors
+                     hover:bg-indigo-500 active:scale-95"
         >
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
-              Recordatorio de Emisión
-            </p>
-            <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-              <Clock size={11} aria-hidden="true" />
-              {event.time || 'Sin hora'}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleIssued}
-            aria-label={`Marcar como emitida la póliza de ${prospectName}`}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
-                       py-2 text-xs font-semibold text-white transition-colors
-                       hover:bg-indigo-500 active:scale-95"
-          >
-            <CheckCircle2 size={15} aria-hidden="true" />
-            Emitida
-          </button>
-        </div>
-      </SwipeableCard>
+          <CheckCircle2 size={15} aria-hidden="true" />
+          Emitida
+        </button>
+      </ActionCardBase>
 
       <TaskOptionsSheet
         event={event}

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Phone, Clock, CheckCircle2 } from 'lucide-react';
+import { Phone, CheckCircle2 } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
 import WhatsAppMark from './WhatsAppMark';
 import TaskOptionsSheet from './TaskOptionsSheet';
-import SwipeableCard from '../Layout/SwipeableCard';
+import ActionCardBase from './ActionCardBase';
+import CircleActionButton from './CircleActionButton';
 import PaymentCollectedModal from './PaymentCollectedModal';
 import { paymentFrequencyLabel } from '../../lib/paymentSchedule';
 
@@ -108,75 +109,53 @@ export default function PaymentCollectionCard({ event }) {
 
   return (
     <>
-      <SwipeableCard
+      <ActionCardBase
+        label="Cobro"
+        title={prospectName}
+        time={event.time}
+        meta={(
+          <>
+            {amount && <span className="font-semibold text-emerald-400">· {amount}</span>}
+            {/*
+              La frecuencia sólo aparece a partir del segundo cobro, que es
+              cuando ya se eligió: en el primero no hay nada que mostrar
+              todavía y el modal es quien la pregunta.
+            */}
+            {frequencyLabel && <span>· {frequencyLabel}</span>}
+          </>
+        )}
         onReschedule={() => setRescheduleOpen(true)}
         onDiscard={() => removeEvent(event.id)}
       >
-        <div
-          className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900
-                     p-3.5"
+        <CircleActionButton
+          tone="emerald"
+          href={whatsAppHref ?? undefined}
+          disabled={!hasPhone}
+          label={`Enviar WhatsApp a ${prospectName}`}
         >
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
-              Cobro
-            </p>
-            <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-              <Clock size={11} aria-hidden="true" />
-              {event.time || 'Sin hora'}
-              {amount && (
-                <span className="font-semibold text-emerald-400">· {amount}</span>
-              )}
-              {/*
-                La frecuencia sólo aparece a partir del segundo cobro, que
-                es cuando ya se eligió: en el primero no hay nada que
-                mostrar todavía y el modal es quien la pregunta.
-              */}
-              {frequencyLabel && <span>· {frequencyLabel}</span>}
-            </p>
-          </div>
+          <WhatsAppMark size={16} />
+        </CircleActionButton>
 
-          <a
-            href={whatsAppHref ?? undefined}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-disabled={!hasPhone}
-            onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
-            aria-label={`Enviar WhatsApp a ${prospectName}`}
-            className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                        active:scale-95 ${hasPhone
-                ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                : 'cursor-not-allowed bg-emerald-500/10 text-emerald-400 opacity-30'}`}
-          >
-            <WhatsAppMark size={16} />
-          </a>
+        <CircleActionButton
+          icon={Phone}
+          tone="indigo"
+          href={telHref ?? undefined}
+          disabled={!hasPhone}
+          label={`Llamar a ${prospectName}`}
+        />
 
-          <a
-            href={telHref ?? undefined}
-            aria-disabled={!hasPhone}
-            onClick={(e) => { if (!hasPhone) e.preventDefault(); }}
-            aria-label={`Llamar a ${prospectName}`}
-            className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors
-                        active:scale-95 ${hasPhone
-                ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
-                : 'cursor-not-allowed bg-indigo-500/10 text-indigo-400 opacity-30'}`}
-          >
-            <Phone size={16} aria-hidden="true" />
-          </a>
-
-          <button
-            type="button"
-            onClick={() => setCollectedOpen(true)}
-            aria-label={`Registrar el cobro de la prima de ${prospectName}`}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-3.5
-                       py-2 text-xs font-semibold text-white transition-colors
-                       hover:bg-emerald-500 active:scale-95"
-          >
-            <CheckCircle2 size={15} aria-hidden="true" />
-            Cobrado
-          </button>
-        </div>
-      </SwipeableCard>
+        <button
+          type="button"
+          onClick={() => setCollectedOpen(true)}
+          aria-label={`Registrar el cobro de la prima de ${prospectName}`}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-3.5
+                     py-2 text-xs font-semibold text-white transition-colors
+                     hover:bg-emerald-500 active:scale-95"
+        >
+          <CheckCircle2 size={15} aria-hidden="true" />
+          Cobrado
+        </button>
+      </ActionCardBase>
 
       <TaskOptionsSheet
         event={event}
