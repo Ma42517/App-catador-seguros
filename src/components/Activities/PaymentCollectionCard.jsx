@@ -5,6 +5,8 @@ import { digits, prospectNameFrom } from '../../lib/prospectText';
 import WhatsAppMark from './WhatsAppMark';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import SwipeableCard from '../Layout/SwipeableCard';
+import PaymentCollectedModal from './PaymentCollectedModal';
+import { paymentFrequencyLabel } from '../../lib/paymentSchedule';
 
 /** Monto en pesos, redondeado — mismo formato que usa `Prospecta/citaInicial.js`. */
 function formatMoney(amount) {
@@ -35,17 +37,65 @@ function formatMoney(amount) {
  * montos), simplemente no se dibuja: mejor omitir la cifra que inventar un
  * cero que se leería como "no debe nada".
  *
- * "Cobrado" cierra la actividad y no crea ninguna otra: aquí termina el
- * "Efecto Dominó", no hay una etapa siguiente que forzar.
+ * "Cobrado" no cierra la tarea de una vez: abre
+ * `PaymentCollectedModal.jsx`, que pregunta cuándo se cobró y cada cuánto
+ * se cobra esta póliza. Antes sí la cerraba en seco, y con eso una póliza
+ * de prima mensual desaparecía de la agenda tras el primer pago, sin nadie
+ * recordando los once cobros restantes del año. Ahora cada cobro agenda al
+ * siguiente, así que la cadena se sostiene sola indefinidamente sin
+ * ninguna tarea programada ni servidor: el próximo recordatorio es un
+ * evento normal de la agenda, como cualquier otro.
  */
 export default function PaymentCollectionCard({ event }) {
-  const { completeEvent, removeEvent } = useEvents();
+  const { updateEvent, removeEvent, addEvent } = useEvents();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [collectedOpen, setCollectedOpen] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
   const hasPhone = phone.length > 0;
   const amount = formatMoney(event.primaAnual);
+  const frequencyLabel = paymentFrequencyLabel(event.paymentFrequency);
+
+  /*
+    Cierra este cobro y, si la póliza es recurrente, agenda el siguiente en
+    la fecha que se confirmó en el modal. La frecuencia viaja al evento
+    nuevo (`paymentFrequency`) para que el próximo cobro ya no vuelva a
+    preguntarla: a partir del segundo, confirmar es sólo revisar la fecha.
+
+    Así la cadena se sostiene sola indefinidamente —cada cobro agenda al
+    que sigue— sin ninguna tarea programada ni servidor de por medio: el
+    recordatorio siguiente es un evento normal de la agenda, igual que
+    cualquier otro.
+  */
+  const handleCollected = ({ collectedOn, frequency, nextDate }) => {
+    if (nextDate) {
+      addEvent({
+        tipo_actividad: 'cobro',
+        title: `Cobro: ${prospectName}`,
+        telefono: event.telefono ?? '',
+        date: nextDate,
+        // Se conserva la hora del cobro actual: si el cargo corre a cierta
+        // hora del día, la siguiente vez conviene recordarlo a la misma.
+        time: event.time || '09:00',
+        priority: 'maxima',
+        paymentFrequency: frequency,
+        ...(event.primaAnual && { primaAnual: event.primaAnual }),
+      });
+    }
+    /*
+      `updateEvent` y no `completeEvent`: además de marcar la tarea como
+      hecha hay que guardar dos datos en el mismo evento —cuándo se cobró
+      de verdad (no cuándo estaba agendado) y con qué frecuencia—, y
+      `completeEvent` sólo recibe el id. Es justo el caso para el que
+      existe este ayudante genérico (ver su nota en `EventContext.jsx`).
+    */
+    updateEvent(event.id, {
+      completed: true,
+      collectedOn,
+      paymentFrequency: frequency,
+    });
+  };
 
   const telHref = hasPhone ? `tel:${phone}` : null;
   const whatsAppHref = hasPhone
@@ -77,6 +127,12 @@ export default function PaymentCollectionCard({ event }) {
               {amount && (
                 <span className="font-semibold text-emerald-400">· {amount}</span>
               )}
+              {/*
+                La frecuencia sólo aparece a partir del segundo cobro, que
+                es cuando ya se eligió: en el primero no hay nada que
+                mostrar todavía y el modal es quien la pregunta.
+              */}
+              {frequencyLabel && <span>· {frequencyLabel}</span>}
             </p>
           </div>
 
@@ -110,8 +166,8 @@ export default function PaymentCollectionCard({ event }) {
 
           <button
             type="button"
-            onClick={() => completeEvent(event.id)}
-            aria-label={`Marcar como cobrada la prima de ${prospectName}`}
+            onClick={() => setCollectedOpen(true)}
+            aria-label={`Registrar el cobro de la prima de ${prospectName}`}
             className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-3.5
                        py-2 text-xs font-semibold text-white transition-colors
                        hover:bg-emerald-500 active:scale-95"
@@ -127,6 +183,15 @@ export default function PaymentCollectionCard({ event }) {
         isOpen={rescheduleOpen}
         onClose={() => setRescheduleOpen(false)}
         initialReschedule
+      />
+
+      <PaymentCollectedModal
+        isOpen={collectedOpen}
+        clientName={prospectName}
+        amount={amount}
+        initialFrequency={event.paymentFrequency}
+        onClose={() => setCollectedOpen(false)}
+        onConfirm={handleCollected}
       />
     </>
   );
