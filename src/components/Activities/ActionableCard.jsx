@@ -197,13 +197,15 @@ export default function ActionableCard({
         >
           <span className="flex min-w-0 items-center gap-3">
             <Icon size={16} className={`shrink-0 ${tone.icon}`} aria-hidden="true" />
-            <span className="min-w-0 truncate">
+            {/* Sin `truncate`: el título completo se acomoda en varias
+                líneas — mismo criterio que `ActionCardBase.jsx`. */}
+            <span className="min-w-0">
               {typeLabel && (
                 <span className="block text-[10px] font-bold uppercase tracking-wide text-indigo-400">
                   {typeLabel}
                 </span>
               )}
-              <span className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">
+              <span className="break-words text-sm font-medium text-zinc-800 dark:text-zinc-100">
                 {displayTitle}
               </span>
             </span>

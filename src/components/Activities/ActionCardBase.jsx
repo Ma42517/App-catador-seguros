@@ -51,8 +51,21 @@ export default function ActionCardBase({
         <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
           {label}
         </p>
-        <p className="truncate text-sm font-semibold text-white">{title}</p>
-        {subtitle && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>}
+        {/*
+          Sin `truncate`: el texto se acomoda en varias líneas en vez de
+          cortarse con puntos suspensivos. Un nombre largo o el motivo de un
+          Seguimiento ("Pidió más tiempo en su Cita de Cierre") no caben en
+          una línea de teléfono, y recortarlos escondía justo el dato que
+          explica por qué existe la tarjeta.
+
+          La tarjeta crece de alto lo que haga falta, pero el diseño no se
+          rompe: los botones de la derecha llevan `shrink-0`, así que esta
+          columna se estrecha sin desplazarlos nunca. `break-words` cubre el
+          caso de una palabra sin espacios más ancha que la columna (un
+          correo, un teléfono pegado), que sí se saldría del borde.
+        */}
+        <p className="break-words text-sm font-semibold text-white">{title}</p>
+        {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
           <Clock size={11} aria-hidden="true" />
           {time || 'Sin hora'}

@@ -133,7 +133,15 @@ export default function DiagnosticPushNudge({
             <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
           </span>
 
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-200">
+          {/*
+            Sin `truncate`: en un celular angosto el mensaje se cortaba a
+            media frase ("Usa un Diagnóstico 360 con Moni...") y el nombre
+            del prospecto —que es justo lo que vuelve útil la sugerencia—
+            era lo primero en desaparecer. Ahora se acomoda en dos líneas;
+            la fila crece unos píxeles y conserva su escala de "aviso
+            delgado", que es lo que la distingue de una tarjeta.
+          */}
+          <span className="min-w-0 flex-1 break-words text-sm font-medium text-slate-200">
             {state.message}
           </span>
 

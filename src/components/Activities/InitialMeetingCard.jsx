@@ -201,7 +201,8 @@ export default function InitialMeetingCard({ event, onStartSession }) {
                   <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
                     Cita Inicial
                   </p>
-                  <p className="truncate text-sm font-semibold text-white">{prospectName}</p>
+                  {/* Sin `truncate`: ver la nota de `ActionCardBase.jsx`. */}
+                  <p className="break-words text-sm font-semibold text-white">{prospectName}</p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                     <Clock size={11} aria-hidden="true" />
                     {event.time || 'Sin hora'}

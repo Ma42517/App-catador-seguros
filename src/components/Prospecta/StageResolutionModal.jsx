@@ -27,16 +27,19 @@ const STAGE_COPY = {
   */
   [PIPELINE_STAGES.CITA]: {
     eyebrow: 'Cierre de la Cita',
+    stageName: 'Cita',
     advanceLabel: 'Avanza a Cita Inicial',
     advanceHint: 'Agenda el Análisis de Necesidades formal.',
   },
   [PIPELINE_STAGES.PROPUESTA]: {
     eyebrow: 'Cierre de Propuesta',
+    stageName: 'Cita de Propuesta',
     advanceLabel: 'Cierre Exitoso',
     advanceHint: 'Crea la Cita de Cierre con la Prima Anual ya validada.',
   },
   [PIPELINE_STAGES.CIERRE]: {
     eyebrow: 'Cierre de la Cita de Cierre',
+    stageName: 'Cita de Cierre',
     advanceLabel: 'Entregada',
     advanceHint: 'Crea el Recordatorio de Cobro de la primera prima.',
   },
@@ -108,8 +111,16 @@ export default function StageResolutionModal({
     if (result.type === 'discard') {
       onDiscardClient?.(client);
     } else {
+      /*
+        `stageName` y no `eyebrow`: el segundo es el encabezado del modal
+        ("Cierre de la Cita de Cierre") y al meterlo en la frase producía
+        "Pidió más tiempo en su Cierre de la Cita de Cierre" — redundante y
+        tan largo que no cabía en el subtítulo de `FollowUpCard.jsx`. Con el
+        nombre limpio de la etapa queda "Pidió más tiempo en su Cita de
+        Cierre".
+      */
       const reason = resolution === PIPELINE_RESOLUTIONS.MORE_TIME
-        ? `Pidió más tiempo en su ${copy.eyebrow}` : undefined;
+        ? `Pidió más tiempo en su ${copy.stageName}` : undefined;
       onRouteToActivity?.(result.tipoActividad, client, { primaAnual: result.primaAnual, reason });
     }
     reset();

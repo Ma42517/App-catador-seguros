@@ -167,7 +167,9 @@ export default function PriorityAlerts() {
                 Aviso
               </p>
 
-              <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900 dark:text-white">
+              {/* Sin `truncate`: el aviso del promotor se lee completo —
+                  ver la nota de `ActionCardBase.jsx`. */}
+              <p className="mt-0.5 break-words text-sm font-semibold text-zinc-900 dark:text-white">
                 {alert.title}
               </p>
 

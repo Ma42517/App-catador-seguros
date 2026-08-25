@@ -259,14 +259,15 @@ export default function CalendarView({
 
                           <div className="min-w-0 flex-1">
                             {typeLabel && (
-                              <p className="truncate text-[10px] font-bold uppercase tracking-wide
-                                            text-indigo-500 dark:text-indigo-400"
+                              <p className="break-words text-[10px] font-bold uppercase
+                                            tracking-wide text-indigo-500 dark:text-indigo-400"
                               >
                                 {typeLabel}
                               </p>
                             )}
+                            {/* Sin `truncate`: ver la nota de `ActionCardBase.jsx`. */}
                             <p
-                              className={`truncate text-sm font-semibold text-zinc-900
+                              className={`break-words text-sm font-semibold text-zinc-900
                                           dark:text-white
                                           ${event.completed ? 'line-through decoration-zinc-400' : ''}`}
                             >
