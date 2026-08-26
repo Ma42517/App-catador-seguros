@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, X, CalendarClock, Archive } from 'lucide-react';
+import { RotateCcw, X } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
 import { readOrphans, removeOrphan, updateOrphan } from '../../data/orphanProspects';
@@ -64,7 +64,8 @@ function pauseReason(record) {
  *
  *  - **"Dar seguimiento"**: crea el Seguimiento para mañana con el teléfono
  *    que ya se tenía y lo saca de la pausa. Es la decisión que mueve el
- *    embudo.
+ *    embudo. Va como texto y no como botón relleno a propósito: ver la nota
+ *    de jerarquía en el contenedor, más abajo.
  *  - **"Descartar"**: lo manda a la lista de descartados, desde donde la app
  *    ya no vuelve a proponerlo (sigue visible en el perfil para revertirlo).
  *  - **La X**: "no ahora". Sólo esconde la fila en esta visita; la
@@ -189,75 +190,100 @@ export default function PausedProspectsNudge() {
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
         role="status"
-        className="w-full rounded-xl border border-slate-800/50 bg-slate-900 p-3"
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border
-                       border-indigo-500/30 bg-indigo-500/10 text-indigo-400"
-            aria-hidden="true"
-          >
-            <RotateCcw size={14} strokeWidth={1.8} aria-hidden="true" />
-          </span>
+        /*
+          ── Jerarquía deliberadamente por debajo de las tarjetas del embudo ──
 
-          <p className="min-w-0 flex-1 break-words text-sm font-medium text-slate-200">
-            ¿Retomas a {name}? {pauseReason(record)}
-            {days > 0 && (
-              <span className="text-slate-500">
-                {' '}
-                (hace {days} {days === 1 ? 'día' : 'días'})
-              </span>
-            )}
-          </p>
+          Esto es una sugerencia de la app, no una actividad agendada, y no
+          debe competir con una Cita de Propuesta ni con un Cobro. La primera
+          versión sí competía: mismo `bg-slate-900`, mismo `rounded-xl`, mismo
+          `text-sm` y un botón `bg-indigo-600` idéntico al "Iniciar" de
+          `ProposalCard.jsx` — con tres filas de alto acababa pesando MÁS que
+          las tarjetas reales.
+
+          Cuatro cosas la bajan de nivel sin sacarla de la paleta:
+            · Fondo casi transparente (`bg-slate-900/30`) en vez de sólido.
+            · Borde punteado: en toda la app el trazo continuo es de
+              contenido real; el punteado ya se usa para lo opcional
+              (`ProposalResolutionModal.jsx`, "Llenar Cuestionario").
+            · Ícono suelto y gris, sin la píldora de color que llevan las
+              tarjetas.
+            · Texto `text-xs` y acciones como texto, nunca botones rellenos.
+        */
+        className="w-full rounded-xl border border-dashed border-slate-800 bg-slate-900/30 p-3"
+      >
+        <div className="flex items-start gap-2.5">
+          <RotateCcw
+            size={13}
+            className="mt-0.5 shrink-0 text-slate-500"
+            strokeWidth={1.8}
+            aria-hidden="true"
+          />
+
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-xs leading-relaxed text-slate-400">
+              ¿Retomas a <span className="font-medium text-slate-300">{name}</span>?
+              {' '}
+              {pauseReason(record)}
+              {days > 0 && (
+                <span className="text-slate-600">
+                  {' '}
+                  (hace {days} {days === 1 ? 'día' : 'días'})
+                </span>
+              )}
+            </p>
+
+            {/*
+              Acciones como texto, separadas por un punto medio: se leen como
+              dos enlaces de una sugerencia y no como los botones de una
+              tarjeta. Siguen siendo áreas táctiles cómodas —`py-1` más el
+              alto de línea— sin necesitar fondo ni borde para anunciarse.
+            */}
+            <div className="mt-1.5 flex items-center gap-2 text-[11px] font-semibold">
+              <button
+                type="button"
+                onClick={resolveWithFollowUp}
+                className="py-1 text-indigo-400 transition-colors hover:text-indigo-300
+                           focus-visible:outline-none focus-visible:underline"
+              >
+                Dar seguimiento
+              </button>
+
+              <span className="text-slate-700" aria-hidden="true">·</span>
+
+              <button
+                type="button"
+                onClick={resolveWithDiscard}
+                className="py-1 text-slate-500 transition-colors hover:text-rose-400
+                           focus-visible:outline-none focus-visible:underline"
+              >
+                Descartar
+              </button>
+            </div>
+
+            {/*
+              Se dice en voz alta cuántos avisos quedan y qué pasa si no se
+              decide nada. Un descarte automático que ocurre en silencio se
+              siente como un dato perdido; anunciado, se lee como lo que es
+              —la app dejando de insistir— y empuja a resolver el último.
+            */}
+            <p className="mt-0.5 text-[10px] leading-relaxed text-slate-600">
+              {isLastChance
+                ? 'Último aviso: si no decides, se descarta solo.'
+                : `Aviso ${attempt} de ${total}. Si no decides, vuelve más adelante.`}
+            </p>
+          </div>
 
           <button
             type="button"
             onClick={() => setDismissed(true)}
             aria-label="No ahora"
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-500
-                       transition-colors hover:bg-white/5 hover:text-slate-300
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-600
+                       transition-colors hover:bg-white/5 hover:text-slate-400
                        focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
           >
             <X size={12} aria-hidden="true" />
           </button>
         </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={resolveWithFollowUp}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600
-                       px-3 py-2 text-xs font-semibold text-white transition-colors
-                       hover:bg-indigo-500 active:scale-95"
-          >
-            <CalendarClock size={13} aria-hidden="true" />
-            Dar seguimiento
-          </button>
-
-          <button
-            type="button"
-            onClick={resolveWithDiscard}
-            className="flex items-center justify-center gap-1.5 rounded-xl border
-                       border-slate-700 px-3 py-2 text-xs font-semibold text-slate-400
-                       transition-colors hover:bg-rose-500/10 hover:text-rose-300
-                       active:scale-95"
-          >
-            <Archive size={13} aria-hidden="true" />
-            Descartar
-          </button>
-        </div>
-
-        {/*
-          Se dice en voz alta cuántos avisos quedan y qué pasa si no se
-          decide nada. Un descarte automático que ocurre en silencio se
-          siente como un dato perdido; anunciado, se lee como lo que es —la
-          app dejando de insistir— y además empuja a resolver el último.
-        */}
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-          {isLastChance
-            ? 'Último aviso: si no decides, se descarta solo.'
-            : `Aviso ${attempt} de ${total}. Si no decides, vuelve a aparecer más adelante.`}
-        </p>
       </motion.div>
     </AnimatePresence>
   );
