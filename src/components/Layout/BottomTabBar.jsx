@@ -36,16 +36,18 @@ function TabButton({ isActive, label, srLabel, onClick, children }) {
       aria-label={srLabel ?? label}
       className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full
                   transition-all will-change-transform active:scale-95
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400
                   ${isActive
         /*
-          Blanco sólido sobre el degradado: no es un color nuevo en la
-          paleta, es el mismo blanco de los rótulos de la barra pasado a
-          fondo. El texto toma el índigo que ya usa toda la app para lo
-          seleccionado.
+          El destino activo toma el degradado de marca de la app —los mismos
+          azul, índigo y violeta del botón "+"—, no un color nuevo. Sobre el
+          negro de la barra es lo único que tiene color saturado además del
+          "+", así que el estado activo se reconoce de un vistazo sin
+          necesitar bordes ni subrayados.
         */
-        ? 'bg-white px-3.5 py-2 text-indigo-600 shadow-sm'
-        : 'px-2.5 py-2 text-white/75 hover:text-white'}`}
+        ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 px-3.5 py-2 '
+          + 'text-white shadow-lg shadow-indigo-600/30'
+        : 'px-2.5 py-2 text-zinc-500 hover:text-zinc-300'}`}
     >
       {children}
       {/*
@@ -78,26 +80,28 @@ function TabButton({ isActive, label, srLabel, onClick, children }) {
 /**
  * Barra de navegación inferior.
  *
- * Píldora de degradado con el destino activo resaltado en blanco, y el "+"
- * de Agregar elevado en el centro.
+ * Píldora negra con el destino activo resaltado en el degradado de marca, y
+ * el "+" de Agregar elevado en el centro.
  *
- * ## El degradado no introduce colores nuevos
- * Son los mismos tres tonos que el botón "+" ya usaba —violeta, índigo y
- * azul— sólo que ahora recorren la barra completa en vez de vivir sólo en
- * ese botón. La barra pasó de ser un cristal translúcido
- * (`bg-white/80`/`dark:bg-zinc-950/90` con `backdrop-blur`) a una superficie
- * sólida de marca.
+ * ## El reparto de color
+ * La barra es negra (`zinc-950`, el mismo negro que ya usaba, ahora opaco) y
+ * el color queda reservado para tres cosas: el destino activo, el "+" y la
+ * pastilla de aviso de la Agenda. Ninguna introduce tonos nuevos —el
+ * degradado azul/índigo/violeta y los colores de prioridad ya existían en la
+ * app—, pero sobre negro respiran: se distinguen entre sí y del fondo sin
+ * necesitar bordes ni separadores.
+ *
+ * Antes se probó con la barra entera en degradado y el activo en blanco. Se
+ * descartó por dos problemas concretos: el "+" (que también es degradado)
+ * corría el riesgo de fundirse con el fondo, y la pastilla de prioridad de
+ * la Agenda no tenía un tono al que igualar su aro para recortarse.
  *
  * ## Por qué el "+" sigue elevado
- * En una barra de degradado, un botón de degradado encima corre el riesgo de
- * fundirse con el fondo. Se conserva igual —es el elemento con más
- * identidad de la app y el único acceso a "Agregar"— y se separa por
- * relieve, no por color: sube por encima del borde (`-mt-5`), lleva su
- * propia sombra y un aro blanco más marcado que antes. Un aro es un
- * contorno, no un cambio de paleta.
+ * Es el elemento con más identidad de la app y el único acceso a "Agregar".
+ * Se separa por relieve además de por color: sube por encima del borde
+ * (`-mt-5`) y lleva su propio resplandor violeta.
  *
- * Se mantiene `pb-6` por el Safe Area del iPhone (home indicator) y
- * `backdrop-blur-md` —no `xl`/`2xl`— para no saturar la GPU.
+ * Se mantiene `pb-6` por el Safe Area del iPhone (home indicator).
  */
 export default function BottomTabBar({
   activeSection = 'home',
@@ -152,9 +156,20 @@ export default function BottomTabBar({
                   ${revealed ? 'opacity-100' : 'opacity-0'}`}
       aria-hidden={!revealed}
     >
+      {/*
+        Barra negra sólida. `zinc-950` es el mismo negro que la barra ya usaba
+        (`dark:bg-zinc-950/90`), sólo que ahora sin transparencia ni
+        `backdrop-blur`: al ser opaca, nada del contenido que pasa por debajo
+        se alcanza a ver mientras se hace scroll.
+
+        El negro es además lo que deja respirar a los tres elementos de color
+        de la barra —la píldora del destino activo, el "+" y la pastilla de
+        aviso de la Agenda—: sobre un fondo de degradado, el "+" corría el
+        riesgo de fundirse con él, y la pastilla de prioridad no tenía un
+        tono al que igualar su aro.
+      */}
       <div
-        className="w-full rounded-full bg-gradient-to-r from-violet-600 via-indigo-500
-                   to-blue-500 px-2 py-2 shadow-lg shadow-indigo-950/40
+        className="w-full rounded-full bg-zinc-950 px-2 py-2 shadow-lg shadow-black/50
                    ring-1 ring-white/10"
       >
         <div className="flex w-full items-center justify-between gap-1">
@@ -190,10 +205,18 @@ export default function BottomTabBar({
             className="group flex shrink-0 flex-col items-center transition-transform
                        will-change-transform hover:scale-105 focus-visible:outline-none"
           >
+            {/*
+              Sobre el negro, la sombra vuelve a ser un resplandor violeta y
+              no una sombra oscura: es lo que hace que el botón parezca
+              encendido en vez de recortado. El aro se queda tenue —el
+              contraste ya lo da el propio degradado contra el fondo—; a más
+              opacidad se leía como un halo blanco alrededor.
+            */}
             <span
               className="-mt-5 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500
-                         to-violet-600 p-3 text-white shadow-lg shadow-violet-950/50
-                         ring-2 ring-white/40 transition-shadow group-hover:shadow-xl"
+                         to-violet-600 p-3 text-white shadow-lg shadow-violet-600/40
+                         ring-1 ring-white/15 transition-shadow
+                         group-hover:shadow-xl group-hover:shadow-violet-500/50"
               aria-hidden="true"
             >
               <Plus size={22} strokeWidth={2.3} />
@@ -225,15 +248,15 @@ export default function BottomTabBar({
 
               {hasAgendaAlert && (
                 /*
-                  El aro es blanco fijo y ya no toma el color del fondo de la
-                  barra: sobre un degradado no hay un solo tono al que
-                  igualarse, y el blanco recorta la pastilla contra los tres
-                  por igual.
+                  El aro toma el negro de la barra para que la pastilla se lea
+                  recortada sobre ella y no pegada encima del ícono. Cuando la
+                  Agenda es el destino activo queda sobre el degradado, donde
+                  el mismo aro oscuro sigue separándola igual de bien.
                 */
                 <span
                   className={`absolute -right-2 -top-1.5 grid h-[17px] min-w-[17px]
                               place-items-center rounded-full px-1 text-[9px] font-bold
-                              leading-none shadow-sm ring-2 ring-white ${agendaTone}`}
+                              leading-none shadow-sm ring-2 ring-zinc-950 ${agendaTone}`}
                 >
                   {agendaBadge}
                 </span>
