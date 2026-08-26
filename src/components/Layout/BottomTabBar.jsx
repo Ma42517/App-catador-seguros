@@ -2,20 +2,60 @@ import { CalendarDays, TrendingUp, Plus, Menu } from 'lucide-react';
 import { priorityByKey } from '../Activities/priorities';
 import { tapFeedback } from '../../lib/haptics';
 
+/*
+  ── Geometría del recorte ──
+
+  Las tres medidas están relacionadas y por eso viven juntas: cambiar una sin
+  las otras rompe el encaje del botón en el hueco.
+
+  `NOTCH_RADIUS` es el radio del semicírculo que se le quita al borde superior
+  de la barra; `FAB_SIZE` el diámetro del botón. La diferencia entre el radio
+  del hueco y el del botón (34 − 28) es el aire de 6px que queda alrededor:
+  sin ese margen el botón se vería encajado a presión, y con mucho más el
+  hueco dejaría de leerse como hecho a su medida.
+*/
+const NOTCH_RADIUS = 34;
+const FAB_SIZE = 56;
+
+/**
+ * Recorte cóncavo del borde superior de la barra.
+ *
+ * Se resuelve con una máscara radial y no con SVG ni con el truco de
+ * pseudo-elementos y `box-shadow`, por tres razones concretas:
+ *
+ *  1. **No se deforma.** Un SVG que abarque el ancho de la barra necesita
+ *     `preserveAspectRatio="none"` para estirarse, y eso deforma la curva en
+ *     vertical: el hueco se vuelve una elipse y el botón, que es un círculo
+ *     perfecto, deja de encajar. La alternativa —partir el fondo en tres
+ *     piezas con la del centro de ancho fijo— funciona, pero son tres
+ *     elementos que mantener alineados para dibujar un solo borde.
+ *  2. **Es un círculo de verdad.** La máscara describe una circunferencia
+ *     real, así que el hueco y el botón comparten geometría exacta.
+ *  3. **No se pixela.** El degradado de 33px a 34px es la banda de
+ *     suavizado; el navegador la compone en la GPU, y al no ser un mapa de
+ *     bits no hay resolución que se quede corta en una pantalla densa.
+ *
+ * `WebkitMaskImage` va junto a la propiedad estándar por Safari, que todavía
+ * la necesita con prefijo en varias versiones en uso.
+ */
+const NOTCH_MASK = {
+  WebkitMaskImage: `radial-gradient(circle ${NOTCH_RADIUS}px at 50% 0px, `
+    + `rgba(0,0,0,0) ${NOTCH_RADIUS - 1}px, rgb(0,0,0) ${NOTCH_RADIUS}px)`,
+  maskImage: `radial-gradient(circle ${NOTCH_RADIUS}px at 50% 0px, `
+    + `rgba(0,0,0,0) ${NOTCH_RADIUS - 1}px, rgb(0,0,0) ${NOTCH_RADIUS}px)`,
+};
+
 /**
  * Destino de la barra: ícono arriba, rótulo debajo.
  *
- * Los cinco rótulos están siempre visibles. Se probó antes esconderlos y
- * mostrar sólo el del destino activo dentro de una píldora, y traía dos
- * problemas: la píldora abierta desbordaba la fila en los teléfonos angostos
- * (un rótulo largo como "Productividad" sumaba ~138px), y los cuatro destinos
- * restantes quedaban reducidos a íconos sin nombre. Apilados —ícono sobre
- * rótulo— los cinco caben cómodos y ninguno pierde su nombre.
+ * Los cuatro rótulos están siempre visibles. Se probó antes mostrar sólo el
+ * del destino activo dentro de una píldora, y traía dos problemas: la píldora
+ * desbordaba la fila en los teléfonos angostos, y los otros destinos quedaban
+ * reducidos a íconos sin nombre.
  *
- * El estado activo se comunica sólo con color: el índigo de la app frente al
- * gris de los inactivos. Sin píldora ni fondo, porque en una fila de cinco
- * columnas iguales cualquier relleno desalinea la que lo lleva respecto a las
- * demás.
+ * El estado activo se comunica sólo con color —el índigo de la app frente al
+ * gris de los inactivos—, sin fondo ni píldora: en una fila de columnas
+ * iguales, cualquier relleno desalinea la que lo lleva respecto a las demás.
  */
 function TabButton({ isActive, label, srLabel, onClick, children }) {
   return (
@@ -34,7 +74,7 @@ function TabButton({ isActive, label, srLabel, onClick, children }) {
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400
                   ${isActive
         ? 'text-indigo-400'
-        : 'text-zinc-500 hover:text-zinc-300'}`}
+        : 'text-neutral-500 hover:text-neutral-300'}`}
     >
       {children}
       <span
@@ -49,24 +89,29 @@ function TabButton({ isActive, label, srLabel, onClick, children }) {
 }
 
 /**
- * Barra de navegación inferior.
+ * Barra de navegación inferior con recorte cóncavo central.
  *
- * Barra negra pegada al borde inferior, con las esquinas de arriba redondeadas
- * y el "+" de Agregar elevado en el centro.
+ * La barra es negra y pegada al borde inferior, con las esquinas de arriba
+ * redondeadas y un hueco semicircular en el centro del borde superior donde
+ * descansa el botón de Agregar.
  *
- * ## El aro del "+" no es decoración
- * El botón sube por encima del borde de la barra (`-mt-7`) y lleva un aro
- * grueso del mismo negro que ella (`ring-4 ring-zinc-950`). Eso es lo que
- * produce el efecto de estar recortado de la propia barra en vez de pegado
- * encima: el aro tapa el borde justo alrededor del círculo. Si el aro tomara
- * cualquier otro color, se leería como un halo.
+ * ## Tres capas apiladas, y el orden importa
+ *
+ *  1. **El fondo** (`absolute inset-0`), que es lo único enmascarado. Sólo él
+ *     lleva el recorte, así que ni los íconos ni el botón corren riesgo de que
+ *     la máscara les coma un borde.
+ *  2. **El botón**, hermano del fondo y no hijo. Es lo que le permite tener su
+ *     propio resplandor: una sombra dentro del elemento enmascarado se
+ *     recortaría con él y desaparecería, porque una máscara afecta a todo lo
+ *     que el elemento pinta, sombras incluidas.
+ *  3. **La fila de destinos**, con un hueco fijo en medio (`NOTCH_GAP`) más
+ *     ancho que el recorte, para que ningún ícono quede debajo del botón ni
+ *     aplastado contra él.
  *
  * ## El reparto de color
- * La barra es negra (`zinc-950`) y el color queda reservado para tres cosas: el
- * destino activo (índigo), el "+" (el degradado de marca) y la pastilla de
- * aviso de la Agenda (el color de su prioridad). Ninguna introduce tonos
- * nuevos, pero sobre negro se distinguen entre sí y del fondo sin necesitar
- * bordes ni separadores.
+ * Negro puro para la barra; el color queda reservado para tres cosas: el
+ * destino activo (índigo), el botón (el degradado de marca) y la pastilla de
+ * aviso de la Agenda (el color de su prioridad).
  *
  * Se mantiene `pb-6` por el Safe Area del iPhone (home indicator).
  */
@@ -124,18 +169,59 @@ export default function BottomTabBar({
       aria-hidden={!revealed}
     >
       {/*
-        Pegada al borde inferior y sin márgenes laterales, a diferencia de la
-        píldora flotante anterior: así el "+" elevado tiene de dónde sobresalir
-        y la barra se lee como el piso de la app.
-
-        `pt-3` deja el hueco por el que asoma el botón central sin que la fila
-        de destinos se desplace hacia abajo.
+        `relative` sin recorte propio: es el marco de referencia de las tres
+        capas y debe dejar que el botón sobresalga por arriba. Si llevara
+        `overflow-hidden` para redondear las esquinas, le cortaría la mitad
+        superior al botón — el redondeo va en la capa de fondo, que es la
+        única que lo necesita.
       */}
-      <div
-        className="rounded-t-[1.75rem] border-t border-white/10 bg-zinc-950 px-2 pb-6 pt-3
-                   shadow-[0_-8px_24px_rgba(0,0,0,0.5)] md:pb-4"
-      >
-        <div className="flex w-full items-end justify-between gap-0.5">
+      <div className="relative">
+        {/* ── Capa 1: el fondo negro con el recorte ── */}
+        <div
+          className="absolute inset-0 rounded-t-[1.75rem] bg-black"
+          style={NOTCH_MASK}
+          aria-hidden="true"
+        />
+
+        {/* ── Capa 2: el botón de Agregar, encajado en el hueco ── */}
+        <button
+          type="button"
+          onClick={withTap(onAdd)}
+          aria-label="Agregar"
+          /*
+            Centrado en el borde superior de la barra: `top-0` con
+            `-translate-y-1/2` deja la mitad del botón por encima y la otra
+            dentro del hueco, que es lo que produce la sensación de que
+            descansa en él en vez de flotar por delante.
+          */
+          className="group absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2
+                     rounded-full focus-visible:outline-none focus-visible:ring-2
+                     focus-visible:ring-indigo-400 focus-visible:ring-offset-2
+                     focus-visible:ring-offset-black"
+          style={{ width: FAB_SIZE, height: FAB_SIZE }}
+        >
+          {/*
+            El resplandor va desplazado hacia abajo (`0_10px_28px`) y no
+            centrado: al estar el botón medio fuera de la barra, una sombra
+            centrada se derramaría sobre el contenido de la pantalla; hacia
+            abajo cae sobre el negro de la barra, donde se lee como luz
+            propia del botón.
+          */}
+          <span
+            className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br
+                       from-indigo-500 via-indigo-500 to-violet-600 text-white
+                       shadow-[0_10px_28px_rgba(124,58,237,0.55)] transition-transform
+                       group-hover:scale-105 group-active:scale-95"
+            aria-hidden="true"
+          >
+            <Plus size={26} strokeWidth={2.4} />
+          </span>
+        </button>
+
+        {/* ── Capa 3: los destinos, dos a cada lado del hueco ── */}
+        <div className="relative flex w-full items-end justify-between gap-0.5 px-2 pb-6
+                        pt-3 md:pb-4"
+        >
           {/* Hoy — el número del día hace de ícono */}
           <TabButton
             isActive={activeSection === 'home'}
@@ -161,30 +247,15 @@ export default function BottomTabBar({
           </TabButton>
 
           {/*
-            Agregar — botón central elevado.
-
-            No es un `TabButton`: no navega a una sección (abre el menú de
-            agregar), no se marca como activo y no lleva rótulo, para no
-            estirar el alto de la barra. Su forma ya lo identifica.
+            Hueco del botón. Es un espaciador y no un destino más: mide algo
+            más que el diámetro del recorte para que los íconos vecinos no
+            queden pegados al botón ni por debajo de él.
           */}
-          <button
-            type="button"
-            onClick={withTap(onAdd)}
-            aria-label="Agregar"
-            className="group flex shrink-0 justify-center px-1 focus-visible:outline-none"
-          >
-            <span
-              className="-mt-7 grid h-14 w-14 place-items-center rounded-full
-                         bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600
-                         text-white shadow-lg shadow-violet-600/40 ring-4 ring-zinc-950
-                         transition-all group-hover:scale-105
-                         group-hover:shadow-xl group-hover:shadow-violet-500/50
-                         group-active:scale-95"
-              aria-hidden="true"
-            >
-              <Plus size={26} strokeWidth={2.3} />
-            </span>
-          </button>
+          <span
+            className="shrink-0"
+            style={{ width: NOTCH_RADIUS * 2 + 12 }}
+            aria-hidden="true"
+          />
 
           {/* Agenda — con el aviso de lo que queda pendiente hoy */}
           <TabButton
@@ -217,7 +288,7 @@ export default function BottomTabBar({
                 <span
                   className={`absolute -right-2 -top-1.5 grid h-[17px] min-w-[17px]
                               place-items-center rounded-full px-1 text-[9px] font-bold
-                              leading-none shadow-sm ring-2 ring-zinc-950 ${agendaTone}`}
+                              leading-none shadow-sm ring-2 ring-black ${agendaTone}`}
                 >
                   {agendaBadge}
                 </span>
