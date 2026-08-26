@@ -16,7 +16,7 @@ import { DASHBOARD_VERSIONS, useDashboardVersion } from '../../context/dashboard
  */
 function SectionTitle({ children }) {
   return (
-    <h3 className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+    <h3 className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">
       {children}
     </h3>
   );
@@ -35,8 +35,8 @@ function SectionTitle({ children }) {
 function SectionCard({ children }) {
   return (
     <div
-      className="divide-y divide-slate-800/50 overflow-hidden rounded-2xl border
-                 border-slate-800/60 bg-slate-900/50"
+      className="divide-y divide-zinc-800/50 overflow-hidden rounded-2xl border
+                 border-zinc-800/60 bg-zinc-900/50"
     >
       {children}
     </div>
@@ -73,7 +73,7 @@ function MenuRow({
         ${nested ? 'py-3 pl-3 pr-4' : 'px-4 py-3.5'}
         ${isDanger
           ? 'text-red-400 hover:bg-red-500/5 active:bg-red-500/10'
-          : 'text-slate-200 hover:bg-slate-800/60 active:bg-slate-800'}`}
+          : 'text-zinc-200 hover:bg-zinc-800/60 active:bg-zinc-800'}`}
     >
       <span className="flex min-w-0 flex-1 items-center gap-3">
         {/*
@@ -84,7 +84,7 @@ function MenuRow({
         <span
           className={`flex shrink-0 items-center justify-center rounded-lg
             ${nested ? 'h-7 w-7' : 'h-8 w-8'}
-            ${isDanger ? 'bg-red-500/10 text-red-400' : 'bg-slate-800 text-slate-300'}`}
+            ${isDanger ? 'bg-red-500/10 text-red-400' : 'bg-zinc-800 text-zinc-300'}`}
           aria-hidden="true"
         >
           <Icon size={nested ? 14 : 16} />
@@ -113,13 +113,13 @@ function MenuRow({
         ) : null}
 
         {hint ? (
-          <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px]
-                           font-semibold uppercase tracking-wide text-slate-500"
+          <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[10px]
+                           font-semibold uppercase tracking-wide text-zinc-500"
           >
             {hint}
           </span>
         ) : (
-          <ChevronRight size={16} className="text-slate-600" aria-hidden="true" />
+          <ChevronRight size={16} className="text-zinc-600" aria-hidden="true" />
         )}
       </span>
     </button>
@@ -144,23 +144,23 @@ function AccordionHeader({
       onClick={onClick}
       aria-expanded={isOpen}
       className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left
-                 transition-colors hover:bg-slate-800/60 active:bg-slate-800"
+                 transition-colors hover:bg-zinc-800/60 active:bg-zinc-800"
     >
       <span className="flex min-w-0 flex-1 items-center gap-3">
         <span
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg
             ${isAccent
             ? 'bg-indigo-500/15 text-indigo-300'
-            : 'bg-slate-800 text-slate-300'}`}
+            : 'bg-zinc-800 text-zinc-300'}`}
           aria-hidden="true"
         >
           <Icon size={16} />
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium text-slate-200">{label}</span>
+          <span className="block text-sm font-medium text-zinc-200">{label}</span>
           {sublabel && (
-            <span className="mt-0.5 block text-[11px] text-slate-500">{sublabel}</span>
+            <span className="mt-0.5 block text-[11px] text-zinc-500">{sublabel}</span>
           )}
         </span>
       </span>
@@ -178,7 +178,7 @@ function AccordionHeader({
 
         <ChevronDown
           size={16}
-          className={`text-slate-600 transition-transform duration-200
+          className={`text-zinc-600 transition-transform duration-200
                       ${isOpen ? 'rotate-180' : ''}`}
           aria-hidden="true"
         />
@@ -324,7 +324,7 @@ export default function MoreMenu({
       */}
       <div
         className="animate-rise absolute inset-x-0 bottom-0 mx-auto flex max-h-[88dvh] w-full
-                   max-w-lg flex-col rounded-t-3xl border-t border-slate-800 bg-slate-950"
+                   max-w-lg flex-col rounded-t-3xl border-t border-zinc-800 bg-zinc-950"
       >
         {/*
           ── Cabecera fija ──
@@ -333,7 +333,7 @@ export default function MoreMenu({
           detrás al desplazarse. Contiene sólo el cierre y la tarjeta, que son
           las dos cosas que deben estar siempre alcanzables.
         */}
-        <header className="relative z-50 shrink-0 rounded-t-3xl bg-slate-950 px-4 pb-3 pt-3">
+        <header className="relative z-50 shrink-0 rounded-t-3xl bg-zinc-950 px-4 pb-3 pt-3">
           {/*
             Asa y cierre en una fila real, no con `absolute`.
 
@@ -352,15 +352,15 @@ export default function MoreMenu({
             {/* Contrapeso invisible: mantiene el asa en el centro exacto. */}
             <span className="w-9 shrink-0" aria-hidden="true" />
 
-            <span className="h-1.5 w-10 rounded-full bg-slate-700" aria-hidden="true" />
+            <span className="h-1.5 w-10 rounded-full bg-zinc-700" aria-hidden="true" />
 
             <button
               type="button"
               onClick={onClose}
               aria-label="Cerrar"
               className="grid h-9 w-9 shrink-0 place-items-center rounded-full
-                         text-slate-400 transition-colors hover:bg-slate-800
-                         hover:text-slate-100 active:scale-90 focus-visible:outline-none
+                         text-zinc-400 transition-colors hover:bg-zinc-800
+                         hover:text-zinc-100 active:scale-90 focus-visible:outline-none
                          focus-visible:ring-2 focus-visible:ring-indigo-400"
             >
               <X size={18} />
@@ -377,14 +377,14 @@ export default function MoreMenu({
             El degradado hacia índigo y el borde `indigo-500/20` la separan de
             los grupos de abajo, que son grises: en una lista agrupada todo
             compite por parecer igual, y este bloque es el único que debe
-            destacar. Sigue siendo oscuro —de `slate-800` a `indigo-950`—, no un
+            destacar. Sigue siendo oscuro —de `zinc-800` a `indigo-950`—, no un
             bloque de color saturado que rompería el modo oscuro del panel.
           */}
           <button
             type="button"
             onClick={onOpenCard}
             className="flex w-full items-center gap-4 rounded-2xl border border-indigo-500/20
-                       bg-gradient-to-r from-slate-800 to-indigo-950 p-3.5 text-left
+                       bg-gradient-to-r from-zinc-800 to-indigo-950 p-3.5 text-left
                        text-white shadow-lg shadow-indigo-950/40 transition-transform
                        hover:scale-[1.01] active:scale-[0.99]"
           >
@@ -393,11 +393,11 @@ export default function MoreMenu({
               <span className="block text-[15px] font-bold leading-tight">
                 Mi Tarjeta Digital
               </span>
-              <span className="mt-0.5 block text-[11px] text-slate-400">
+              <span className="mt-0.5 block text-[11px] text-zinc-400">
                 Tu presentación profesional, lista para mostrar
               </span>
             </span>
-            <ChevronRight size={18} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <ChevronRight size={18} className="shrink-0 text-zinc-400" aria-hidden="true" />
           </button>
         </header>
 
@@ -455,8 +455,8 @@ export default function MoreMenu({
                 />
 
                 {isDiagOpen && (
-                  <div className="animate-rise divide-y divide-slate-800/50 border-t
-                                  border-slate-800/50 bg-slate-950/40"
+                  <div className="animate-rise divide-y divide-zinc-800/50 border-t
+                                  border-zinc-800/50 bg-zinc-950/40"
                   >
                     {DASHBOARD_VERSIONS.map((option) => (
                       <MenuRow
@@ -546,8 +546,8 @@ export default function MoreMenu({
                   />
 
                   {isAdminOpen && (
-                    <div className="animate-rise divide-y divide-slate-800/50 border-t
-                                    border-slate-800/50 bg-slate-950/40"
+                    <div className="animate-rise divide-y divide-zinc-800/50 border-t
+                                    border-zinc-800/50 bg-zinc-950/40"
                     >
                       <MenuRow
                         nested
