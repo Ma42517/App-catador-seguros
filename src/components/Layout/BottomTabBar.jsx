@@ -16,6 +16,8 @@ import { tapFeedback } from '../../lib/haptics';
 */
 const NOTCH_RADIUS = 34;
 const FAB_SIZE = 56;
+/** Grosor del contorno que dibuja la silueta de la barra, recorte incluido. */
+const OUTLINE = 1;
 
 /**
  * Recorte cóncavo del borde superior de la barra.
@@ -38,12 +40,38 @@ const FAB_SIZE = 56;
  * `WebkitMaskImage` va junto a la propiedad estándar por Safari, que todavía
  * la necesita con prefijo en varias versiones en uso.
  */
-const NOTCH_MASK = {
-  WebkitMaskImage: `radial-gradient(circle ${NOTCH_RADIUS}px at 50% 0px, `
-    + `rgba(0,0,0,0) ${NOTCH_RADIUS - 1}px, rgb(0,0,0) ${NOTCH_RADIUS}px)`,
-  maskImage: `radial-gradient(circle ${NOTCH_RADIUS}px at 50% 0px, `
-    + `rgba(0,0,0,0) ${NOTCH_RADIUS - 1}px, rgb(0,0,0) ${NOTCH_RADIUS}px)`,
-};
+function notchMask(radius, centerY = 0) {
+  const image = `radial-gradient(circle ${radius}px at 50% ${centerY}px, `
+    + `rgba(0,0,0,0) ${radius - 1}px, rgb(0,0,0) ${radius}px)`;
+  return { WebkitMaskImage: image, maskImage: image };
+}
+
+/*
+  ── El contorno, y por qué son dos capas ──
+
+  Un `border-top` no sirve aquí: sigue el rectángulo del elemento, así que al
+  llegar al recorte se corta en seco y deja el hueco sin línea — la curva, que
+  es justo lo que hay que insinuar, se queda sin dibujar. Y como el borde forma
+  parte de lo que el elemento pinta, la máscara también se lo come.
+
+  La solución son dos capas enmascaradas, una encima de la otra:
+
+    · La de abajo lleva el color del contorno y el recorte de radio `R`.
+    · La de arriba es el negro de la barra, bajada 1px y con el recorte 1px más
+      grande (`R + OUTLINE`), centrado en el mismo punto.
+
+  Donde la de arriba no llega —la franja de 1px del borde superior y el anillo
+  de 1px alrededor del recorte— asoma la de abajo. Eso es el contorno: una
+  línea de grosor constante que recorre toda la silueta, curva incluida, sin
+  una sola coordenada escrita a mano.
+
+  El desplazamiento vertical obliga a corregir el centro del recorte de la capa
+  de arriba (`-OUTLINE`): si se quedara en `0`, su hueco bajaría ese píxel junto
+  con ella y los dos círculos dejarían de ser concéntricos, así que el anillo
+  saldría más gordo abajo que arriba.
+*/
+const OUTLINE_MASK = notchMask(NOTCH_RADIUS);
+const FILL_MASK = notchMask(NOTCH_RADIUS + OUTLINE, -OUTLINE);
 
 /**
  * Destino de la barra: ícono arriba, rótulo debajo.
@@ -97,9 +125,10 @@ function TabButton({ isActive, label, srLabel, onClick, children }) {
  *
  * ## Tres capas apiladas, y el orden importa
  *
- *  1. **El fondo** (`absolute inset-0`), que es lo único enmascarado. Sólo él
- *     lleva el recorte, así que ni los íconos ni el botón corren riesgo de que
- *     la máscara les coma un borde.
+ *  1. **El fondo**, que son las dos únicas capas enmascaradas: el contorno y,
+ *     1px por debajo, el relleno negro (ver la nota de `OUTLINE_MASK`). Sólo
+ *     ellas llevan el recorte, así que ni los íconos ni el botón corren riesgo
+ *     de que la máscara les coma un borde.
  *  2. **El botón**, hermano del fondo y no hijo. Es lo que le permite tener su
  *     propio resplandor: una sombra dentro del elemento enmascarado se
  *     recortaría con él y desaparecería, porque una máscara afecta a todo lo
@@ -176,10 +205,25 @@ export default function BottomTabBar({
         única que lo necesita.
       */}
       <div className="relative">
-        {/* ── Capa 1: el fondo negro con el recorte ── */}
+        {/*
+          ── Capa 1a: el contorno ──
+
+          Va debajo del relleno y asoma sólo por el píxel que éste no cubre.
+          `white/12` es apenas perceptible sobre el negro, y es lo que hace que
+          la barra exista visualmente: sin él, negro puro sobre el fondo oscuro
+          de la app deja la silueta invisible y el botón parece flotar sin
+          ningún hueco donde encajar.
+        */}
         <div
-          className="absolute inset-0 rounded-t-[1.75rem] bg-black"
-          style={NOTCH_MASK}
+          className="absolute inset-0 rounded-t-[1.75rem] bg-white/[0.12]"
+          style={OUTLINE_MASK}
+          aria-hidden="true"
+        />
+
+        {/* ── Capa 1b: el relleno negro, 1px por debajo del contorno ── */}
+        <div
+          className="absolute inset-x-0 bottom-0 rounded-t-[1.7rem] bg-black"
+          style={{ top: OUTLINE, ...FILL_MASK }}
           aria-hidden="true"
         />
 
@@ -201,17 +245,22 @@ export default function BottomTabBar({
           style={{ width: FAB_SIZE, height: FAB_SIZE }}
         >
           {/*
-            El resplandor va desplazado hacia abajo (`0_10px_28px`) y no
-            centrado: al estar el botón medio fuera de la barra, una sombra
-            centrada se derramaría sobre el contenido de la pantalla; hacia
-            abajo cae sobre el negro de la barra, donde se lee como luz
-            propia del botón.
+            El resplandor va desplazado hacia abajo y no centrado: al estar el
+            botón medio fuera de la barra, una sombra centrada se derramaría
+            sobre el contenido de la pantalla; hacia abajo cae sobre el negro
+            de la barra, donde se lee como luz propia del botón.
+
+            Se bajó de `28px/0.55` a `18px/0.35` porque a plena intensidad el
+            halo teñía de violeta el contorno del recorte —lo único que
+            dibuja la curva— y el hueco volvía a desaparecer. El aro tenue
+            remata el canto del botón para que no se funda con su propio
+            resplandor.
           */}
           <span
             className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br
                        from-indigo-500 via-indigo-500 to-violet-600 text-white
-                       shadow-[0_10px_28px_rgba(124,58,237,0.55)] transition-transform
-                       group-hover:scale-105 group-active:scale-95"
+                       shadow-[0_6px_18px_rgba(124,58,237,0.35)] ring-1 ring-white/15
+                       transition-transform group-hover:scale-105 group-active:scale-95"
             aria-hidden="true"
           >
             <Plus size={26} strokeWidth={2.4} />
