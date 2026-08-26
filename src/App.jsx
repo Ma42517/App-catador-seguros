@@ -647,6 +647,13 @@ function Shell({
   const content = (
     <AdminLayout
       onNavigate={setSection}
+      /*
+        Qué pestaña está abierta. La barra inferior lo necesita para marcar
+        el destino activo con su píldora: hasta ahora no lo recibía, así que
+        la barra se dibujaba idéntica en las tres secciones y no había forma
+        de saber dónde estabas parado.
+      */
+      activeSection={activeSection}
       onLogout={onLogout}
       canUsePreview={canUsePreview}
       /*

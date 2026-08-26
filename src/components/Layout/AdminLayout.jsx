@@ -50,6 +50,12 @@ export default function AdminLayout({
     desde el menú "Agregar" no reaparezca con el mismo prellenado.
   */
   activityPrefill = null, onActivityPrefillConsumed,
+  /*
+    Sección abierta ahora mismo, para que `BottomTabBar` pueda marcar su
+    destino activo. Sólo viaja de paso: esta carcasa no decide nada con ella
+    —quien navega sigue siendo `onNavigate`/`goTo`—, únicamente la reenvía.
+  */
+  activeSection = 'home',
 }) {
   const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday, highPriorityToday } = useEvents();
 
@@ -165,6 +171,7 @@ export default function AdminLayout({
 
       {!immersive && (
         <BottomTabBar
+          activeSection={activeSection}
           onToday={() => goTo('home')}
           onProductivity={() => goTo('productivity')}
           onAgenda={() => goTo('agenda')}
