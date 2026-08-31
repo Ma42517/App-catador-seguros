@@ -1,7 +1,7 @@
 import { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, CalendarClock, Archive, Ticket } from 'lucide-react';
+import { ArrowRight, CalendarClock, Archive, Gift } from 'lucide-react';
 import { PRESENTATION_END_GAMIFICATION } from '../../lib/presentationGamification';
 import { useSession } from '../../context/SessionContext';
 import {
@@ -190,9 +190,16 @@ export default function PresentationEndModal({
                     barra del navegador, misma razón documentada en
                     `MoreMenu.jsx`.
                   */
+                  /*
+                    Negro puro y no `slate-900`: el paso 2 se le muestra al
+                    cliente, y sobre negro los campos y el botón blanco son lo
+                    único que tiene presencia. El borde baja a `neutral-900`,
+                    apenas un filo, porque un marco marcado devuelve la
+                    sensación de recuadro de sistema.
+                  */
                   className="max-h-[88dvh] w-full max-w-sm overflow-y-auto overscroll-contain
-                             rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl
-                             shadow-black/50"
+                             rounded-2xl border border-neutral-900 bg-black p-6 shadow-2xl
+                             shadow-black/70"
                 >
                   {pending ? (
                     /*
@@ -204,134 +211,99 @@ export default function PresentationEndModal({
                       al cliente, y una pantalla que se parece a las demás no
                       ayuda a que se sienta un regalo con valor.
                     */
+                    /*
+                      ── Paso 2: vista para el cliente ──
+
+                      Esta pantalla se le muestra físicamente al cliente, con el
+                      teléfono girado hacia él, así que está escrita para él y no
+                      para el asesor. Nada de "prospectos", "llegar en frío" ni
+                      puntos: eso es instrumentación interna y leerla desde el
+                      otro lado de la mesa convierte un obsequio en una cuota de
+                      ventas.
+
+                      Aquí había antes un bloque con degradado morado y franjas
+                      diagonales. Se fue por lo mismo: en una app de gestión
+                      patrimonial, una textura de banner es lo que separa una
+                      herramienta profesional de una promoción.
+                    */
                     <div className="animate-rise">
-                      <div className="relative mb-5 overflow-hidden rounded-2xl
-                                      bg-gradient-to-br from-indigo-600 via-indigo-700
-                                      to-violet-900 p-5"
-                      >
-                        {/*
-                          Franjas diagonales tenues: la textura de un pase de
-                          entrada. Se dibujan con un degradado repetido, sin
-                          imagen ni SVG.
-                        */}
-                        <div
-                          className="pointer-events-none absolute inset-0 opacity-[0.13]"
-                          style={{
-                            backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px,'
-                              + ' transparent 2px 12px)',
-                          }}
+                      <header className="mb-7">
+                        <Gift
+                          size={22}
+                          strokeWidth={1.5}
+                          className="mb-4 text-neutral-400"
                           aria-hidden="true"
                         />
-
-                        {/*
-                          Sin el número gigante que había antes: leía como una
-                          cuota por cumplir. El regalo va primero y la cantidad
-                          queda en los talones de los boletos, donde se lee como
-                          entrada numerada y no como meta.
-
-                          El regalo es el Diagnóstico, que es la herramienta de
-                          prospección: es la llave para sentarse con alguien
-                          nuevo sin llegar en frío. Antes este texto decía
-                          "regálale este diagnóstico" dando por hecho que el
-                          cliente acababa de ver uno, y no es así — en la Cita
-                          Inicial vio su Análisis de Necesidades, que es otra
-                          cosa. Lo que se regala aquí es el Diagnóstico para
-                          quienes todavía no son nada.
-                        */}
-                        <div className="relative">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.2em]
-                                        text-indigo-200"
-                          >
-                            Pasa la cortesía
-                          </p>
-
-                          <h3 className="mt-2 text-xl font-bold leading-tight text-white">
-                            Un Diagnóstico de regalo,
-                            <br />
-                            de parte de {clientName}
-                          </h3>
-
-                          <p className="mt-2.5 text-[11px] leading-relaxed text-indigo-100">
-                            Es tu llave para sentarte con alguien nuevo sin llegar en frío.
-                            Pídele {REQUIRED_PASSES} nombres: la invitación va de su parte,
-                            no tuya.
-                          </p>
-                        </div>
-                      </div>
+                        <h2 className="text-2xl font-light tracking-wide text-white">
+                          Invitaciones de Cortesía
+                        </h2>
+                        <p className="mt-3 text-sm font-light leading-relaxed text-neutral-400">
+                          Tu sesión incluye {REQUIRED_PASSES} pases exclusivos sin costo.
+                          Compártelos con personas que valores para que reciban este
+                          análisis patrimonial a tu nombre.
+                        </p>
+                      </header>
 
                       <VIPPassFields passes={passes} onChange={setPasses} />
 
                       {/*
-                        Qué se va a ejecutar al confirmar, siempre a la vista.
-                        Sin esto, en el segundo paso ya no habría rastro de la
-                        resolución elegida y habría que recordarla de memoria.
+                        Blanco sobre negro, sin degradado ni sombra de color: en
+                        una pantalla de puro negro es el contraste el que hace
+                        de énfasis, y cualquier color saturado aquí rompería la
+                        sobriedad que sostiene toda la vista.
                       */}
-                      <button
-                        type="button"
-                        onClick={() => setPending(null)}
-                        className="mt-4 flex w-full items-center justify-between gap-2
-                                   rounded-xl border border-slate-800 bg-slate-950/60 px-3
-                                   py-2.5 text-left transition-colors hover:bg-slate-800/60"
-                      >
-                        <span className="min-w-0">
-                          <span className="block text-[10px] font-bold uppercase
-                                           tracking-widest text-slate-500"
-                          >
-                            Resolución
-                          </span>
-                          <span className="block text-xs font-semibold text-slate-200">
-                            {RESOLUTIONS[pending].label}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-[10px] font-semibold text-indigo-400">
-                          Cambiar
-                        </span>
-                      </button>
-
                       <button
                         type="button"
                         onClick={finish}
                         disabled={!passesComplete}
-                        className="mt-3 flex w-full items-center justify-center gap-2
-                                   rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold
-                                   text-white shadow-lg shadow-indigo-600/30
-                                   transition-colors hover:bg-indigo-500 active:scale-[0.98]
-                                   disabled:cursor-not-allowed disabled:opacity-40
-                                   disabled:shadow-none"
+                        className="mt-6 w-full rounded-lg bg-neutral-100 px-4 py-3.5 text-sm
+                                   font-medium text-black transition-colors
+                                   hover:bg-white active:scale-[0.99]
+                                   disabled:cursor-not-allowed disabled:bg-neutral-800
+                                   disabled:text-neutral-500"
                       >
-                        <Ticket size={16} aria-hidden="true" />
-                        Entregar las cortesías
-                        {/*
-                          El bono, discreto. Es un incentivo, no el motivo: en
-                          grande competía con el regalo y devolvía la pantalla al
-                          terreno de los puntos.
-                        */}
-                        <span className="text-[10px] font-semibold text-indigo-300/80">
-                          +{PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS}
-                        </span>
+                        Activar pases de cortesía
                       </button>
 
                       {/*
-                        La salida, con su costo dicho en voz alta. Un candado sin
-                        salida deja atrapada una cita real cuando el cliente se
-                        niega a dar referidos: el prospecto quedaría sin
-                        siguiente paso y la tarjeta vencida en la agenda — justo
-                        la clase de fuga que se cerró en el resto del embudo.
+                        ── Franja del asesor ──
+
+                        Lo único de esta pantalla que no le habla al cliente,
+                        reducido al mínimo y separado por una línea: son los dos
+                        controles que el asesor todavía necesita.
+
+                        La resolución NO se nombra a propósito. Antes esta fila
+                        decía "RESOLUCIÓN: Avanza a Propuesta", y con la misma
+                        plantilla habría dicho "No califica" delante de la
+                        persona a la que se acaba de descartar. El asesor ya
+                        sabe qué eligió en el paso anterior; el cliente no tiene
+                        por qué leer el veredicto.
+
+                        La salida sigue existiendo: un candado sin salida deja
+                        atrapada una cita real cuando el cliente no quiere dar
+                        nombres, y el prospecto se quedaría sin siguiente paso.
                       */}
-                      <button
-                        type="button"
-                        onClick={finish}
-                        className="mx-auto mt-3 block text-[11px] text-slate-500
-                                   underline-offset-2 transition-colors hover:text-slate-300
-                                   hover:underline"
+                      <div className="mt-8 flex items-center justify-between gap-3 border-t
+                                      border-neutral-900 pt-3"
                       >
-                        {/*
-                          Antes decía "hoy no soltó nombres": culpaba al
-                          cliente. Que no quiera dar referidos es una respuesta
-                          legítima, no una falta.
-                        */}
-                        Prefiere pensarlo, cerrar sin cortesías
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setPending(null)}
+                          className="text-[10px] tracking-wide text-neutral-700
+                                     transition-colors hover:text-neutral-400"
+                        >
+                          Cambiar resolución
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={finish}
+                          className="text-[10px] tracking-wide text-neutral-700
+                                     transition-colors hover:text-neutral-400"
+                        >
+                          Omitir
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     /* ── Paso 1: la resolución ── */

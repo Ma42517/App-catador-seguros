@@ -1,53 +1,39 @@
-import { User, Phone, Check } from 'lucide-react';
 import { isPassComplete } from '../../data/vipPasses';
 
-/**
- * Troquelado del boleto: las dos muescas semicirculares de los costados.
- *
- * Son dos máscaras radiales que se intersecan —una por lado—, la misma técnica
- * con la que `BottomTabBar.jsx` recorta el hueco de su botón central. Se
- * intersecan y no se suman: cada máscara oculta su propio círculo y deja
- * visible el resto, así que sólo lo que ambas dejan pasar sobrevive.
- *
- * `maskComposite: 'intersect'` es el estándar; el `-webkit-` con `source-in`
- * es su equivalente en Safari, que todavía lo necesita con prefijo.
- */
-const PUNCH = {
-  WebkitMaskImage: 'radial-gradient(circle 7px at 0 50%, rgba(0,0,0,0) 6px, rgb(0,0,0) 7px),'
-    + 'radial-gradient(circle 7px at 100% 50%, rgba(0,0,0,0) 6px, rgb(0,0,0) 7px)',
-  maskImage: 'radial-gradient(circle 7px at 0 50%, rgba(0,0,0,0) 6px, rgb(0,0,0) 7px),'
-    + 'radial-gradient(circle 7px at 100% 50%, rgba(0,0,0,0) 6px, rgb(0,0,0) 7px)',
-  WebkitMaskComposite: 'source-in',
-  maskComposite: 'intersect',
-};
+/*
+  Campo del formulario. Fondo casi negro con un filo apenas visible que se
+  aclara al enfocar: no hay caja gris, sólo la línea que delimita dónde se
+  escribe.
 
-/** Campo del boleto. Sin borde propio: el marco lo pone el boleto. */
-const INPUT = 'w-full min-w-0 border-none bg-white/[0.04] py-2 pl-8 pr-2.5 text-sm '
-  + 'text-neutral-100 placeholder:text-neutral-600 rounded-lg '
-  + 'focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  Es el detalle que decide si el formulario se ve caro. Un `bg-neutral-800`
+  —el gris de relleno habitual— convierte cada campo en un bloque que compite
+  con el texto; a `neutral-950` sobre negro el campo casi desaparece y lo único
+  que se lee es lo que la persona escribe.
+*/
+const INPUT = 'w-full min-w-0 rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-3 '
+  + 'text-sm text-neutral-200 placeholder-neutral-600 transition-colors '
+  + 'focus:border-neutral-500 focus:outline-none';
 
 /**
  * src/components/Prospecta/VIPPassFields.jsx
  *
- * Los pases de cortesía, dibujados como boletos de verdad.
+ * Los tres pases de cortesía: nombre y WhatsApp de cada invitado.
  *
- * Se comparte entre los dos flujos que los piden —el generador del menú
- * (`VIPPassGenerator.jsx`) y el cierre de una Cita Inicial
- * (`PresentationEndModal.jsx`)— para que un pase se capture igual sin importar
- * de dónde venga.
+ * Se comparte entre el generador del menú (`VIPPassGenerator.jsx`) y el cierre
+ * de una Cita Inicial (`PresentationEndModal.jsx`).
  *
- * ## Por qué un boleto y no una tarjeta más
- * La versión anterior era un rectángulo redondeado con borde punteado, igual
- * que las otras veinte tarjetas de la app: el nombre decía "pase" pero la
- * forma no. Aquí el objeto se parece a lo que es —talón numerado en
- * monoespaciada, línea de rasgado vertical, muescas troqueladas en los
- * costados— porque el candado se sostiene en que esto se sienta un regalo con
- * valor, no un formulario de tres contactos.
+ * ## Por qué es tan sobrio
+ * Aquí hubo antes un boleto troquelado, con talón numerado en monoespaciada,
+ * línea de rasgado y muescas en los costados. Se quitó por una razón que pesa
+ * más que el ingenio del objeto: en el cierre de la Cita Inicial esta pantalla
+ * **se le muestra al cliente**, y un "01 CORTESÍA" gigante junto a cada campo
+ * convertía un obsequio en un talonario de rifa. El invitado no es el boleto
+ * número uno de una serie.
  *
- * El talón es la parte que cambia de estado: apagado mientras el boleto está
- * en blanco, con degradado índigo y su marca de verificación al completarse.
- * Así el avance se lee en la forma del objeto y no hace falta una barra de
- * progreso aparte.
+ * Lo que queda es sólo lo que la persona tiene que llenar. El avance se marca
+ * con el filo del campo al completarse —sin marcas de verificación ni
+ * contadores—, porque en una pantalla que un tercero está mirando, cada
+ * elemento de más se lee como instrumentación del asesor.
  */
 export default function VIPPassFields({ passes, onChange }) {
   const patch = (index, field, value) => {
@@ -55,7 +41,7 @@ export default function VIPPassFields({ passes, onChange }) {
   };
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {passes.map((pass, index) => {
         const isComplete = isPassComplete(pass);
 
@@ -65,85 +51,33 @@ export default function VIPPassFields({ passes, onChange }) {
             // de un formulario, no una lista que se reordene o filtre.
             // eslint-disable-next-line react/no-array-index-key
             key={index}
-            className="relative"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-[1.2fr_1fr]"
           >
-            {/*
-              Fondo troquelado. Va en su propia capa, como en la barra
-              inferior: si la máscara se aplicara al contenedor de los campos,
-              recortaría el aro de foco de los inputs al acercarse al borde.
-            */}
-            <div
-              className={`absolute inset-0 rounded-xl transition-colors ${isComplete
-                ? 'bg-indigo-500/[0.07] ring-1 ring-inset ring-indigo-500/40'
-                : 'bg-white/[0.02] ring-1 ring-inset ring-neutral-800'}`}
-              style={PUNCH}
-              aria-hidden="true"
+            <input
+              className={`${INPUT} ${isComplete ? 'border-neutral-700' : ''}`}
+              value={pass.name}
+              onChange={(e) => patch(index, 'name', e.target.value)}
+              placeholder="Nombre"
+              /*
+                El número sólo vive en el nombre accesible: sin él, un lector
+                de pantalla anunciaría seis campos llamados "Nombre" y
+                "WhatsApp" sin forma de saber a cuál de los tres invitados
+                pertenece cada uno.
+              */
+              aria-label={`Nombre del invitado ${index + 1}`}
+              autoComplete="off"
             />
 
-            <div className="relative flex items-stretch">
-              {/*
-                ── Talón ──
-
-                Ancho fijo y línea de rasgado punteada: es el gesto que
-                convierte el rectángulo en boleto. El número va en
-                monoespaciada y a dos dígitos, como una entrada numerada.
-              */}
-              <div
-                className={`flex w-14 shrink-0 flex-col items-center justify-center gap-0.5
-                            border-r border-dashed py-3 transition-colors ${isComplete
-                  ? 'border-indigo-500/40 text-indigo-300'
-                  : 'border-neutral-800 text-neutral-600'}`}
-              >
-                {isComplete ? (
-                  <Check size={16} strokeWidth={3} aria-hidden="true" />
-                ) : (
-                  <span className="font-mono text-base font-bold leading-none tabular-nums">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                )}
-                <span className="text-[7px] font-bold uppercase tracking-[0.12em]">
-                  Cortesía
-                </span>
-              </div>
-
-              <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 p-2.5 sm:grid-cols-2">
-                <div className="relative">
-                  <User
-                    size={14}
-                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2
-                               text-neutral-600"
-                    aria-hidden="true"
-                  />
-                  <input
-                    className={INPUT}
-                    value={pass.name}
-                    onChange={(e) => patch(index, 'name', e.target.value)}
-                    placeholder="Nombre"
-                    aria-label={`Nombre del pase ${index + 1}`}
-                    autoComplete="off"
-                  />
-                </div>
-
-                <div className="relative">
-                  <Phone
-                    size={14}
-                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2
-                               text-neutral-600"
-                    aria-hidden="true"
-                  />
-                  <input
-                    className={INPUT}
-                    value={pass.phone}
-                    onChange={(e) => patch(index, 'phone', e.target.value)}
-                    placeholder="WhatsApp"
-                    aria-label={`WhatsApp del pase ${index + 1}`}
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
-            </div>
+            <input
+              className={`${INPUT} ${isComplete ? 'border-neutral-700' : ''}`}
+              value={pass.phone}
+              onChange={(e) => patch(index, 'phone', e.target.value)}
+              placeholder="WhatsApp"
+              aria-label={`WhatsApp del invitado ${index + 1}`}
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+            />
           </div>
         );
       })}
