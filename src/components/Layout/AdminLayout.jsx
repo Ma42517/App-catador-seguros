@@ -10,6 +10,9 @@ import DigitalCardBuilder from '../Profile/DigitalCardBuilder';
 import DigitalCardScreen from '../Profile/DigitalCardScreen';
 import LeadsList from '../Profile/LeadsList';
 import PausedProspects from '../Profile/PausedProspects';
+import VIPPassGenerator from '../Prospecta/VIPPassGenerator';
+import { isVipUnlocked } from '../../data/vipPasses';
+import { DASHBOARD_VERSIONS } from '../../context/dashboardVersion';
 import AdminPanel from '../Admin/AdminPanel';
 import UserApprovals from '../Admin/UserApprovals';
 import { useEvents } from '../../context/EventContext';
@@ -112,6 +115,9 @@ export default function AdminLayout({
   // "Prospectos en pausa" (`PausedProspects.jsx`): se abre desde el perfil,
   // igual que la lista de prospectos capturados.
   const [pausedOpen, setPausedOpen] = useState(false);
+  // Candado de Pases VIP (`VIPPassGenerator.jsx`): se abre desde la fila
+  // "Pases VIP 360" del menú, y sólo si la herramienta sigue bloqueada.
+  const [vipPassesOpen, setVipPassesOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [approvalsOpen, setApprovalsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
@@ -231,6 +237,21 @@ export default function AdminLayout({
 
       <PausedProspects isOpen={pausedOpen} onClose={() => setPausedOpen(false)} />
 
+      {/*
+        Candado de Pases VIP. Al desbloquear, entra al Diagnóstico en la misma
+        acción: el asesor pidió la herramienta, los pases eran el peaje — no
+        tiene por qué volver al menú y tocar otra vez.
+      */}
+      <VIPPassGenerator
+        isOpen={vipPassesOpen}
+        onClose={() => setVipPassesOpen(false)}
+        onUnlocked={() => {
+          setVipPassesOpen(false);
+          setVersion(DASHBOARD_VERSIONS[0].value);
+          goTo('wizard');
+        }}
+      />
+
       <UserProfile
         isOpen={profileOpen}
         onClose={() => setProfileOpen(false)}
@@ -261,6 +282,20 @@ export default function AdminLayout({
           del diagnóstico que no se pidió.
         */
         onOpenDiagnostico={(version) => { setVersion(version); goTo('wizard'); }}
+        /*
+          La fila del menú abre el candado de Pases VIP, no el Diagnóstico. Si
+          el asesor ya lo desbloqueó antes, el propio generador entra directo
+          —el peaje se cobra una vez, no en cada visita.
+        */
+        onOpenVipPasses={() => {
+          setMoreOpen(false);
+          if (isVipUnlocked(username)) {
+            setVersion(DASHBOARD_VERSIONS[0].value);
+            goTo('wizard');
+            return;
+          }
+          setVipPassesOpen(true);
+        }}
         onOpenPreview={() => goTo('preview')}
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onOpenProfile={() => { setMoreOpen(false); setProfileOpen(true); }}

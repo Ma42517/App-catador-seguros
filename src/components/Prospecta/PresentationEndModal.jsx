@@ -1,8 +1,13 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, CalendarClock, Archive } from 'lucide-react';
+import { ArrowRight, CalendarClock, Archive, Ticket } from 'lucide-react';
 import { PRESENTATION_END_GAMIFICATION } from '../../lib/presentationGamification';
+import { useSession } from '../../context/SessionContext';
+import {
+  saveVipPasses, REQUIRED_PASSES, arePassesComplete, emptyPasses,
+} from '../../data/vipPasses';
+import VIPPassFields from './VIPPassFields';
 
 /**
  * src/components/Prospecta/PresentationEndModal.jsx
@@ -59,6 +64,15 @@ export default function PresentationEndModal({
   isOpen, client, onClose, onRouteToActivity, onDiscardClient, onEarnPoints, onResolved,
 }) {
   const clientName = client?.name || 'este prospecto';
+  const { identity } = useSession();
+
+  /*
+    Los 3 Pases VIP que el cliente entrega al cerrar la cita. `skipped` es la
+    salida explícita: sin ella el modal sería un callejón cuando el cliente se
+    niega a dar referidos (ver la nota de `canResolve`, más abajo).
+  */
+  const [passes, setPasses] = useState(emptyPasses);
+  const [skipped, setSkipped] = useState(false);
 
   /*
     El tema no se hereda a través de un portal (ver la nota de
@@ -72,8 +86,47 @@ export default function PresentationEndModal({
     if (isOpen) setDarkContext(!!anchorRef.current?.closest('.dark'));
   }, [isOpen]);
 
+  // Cada cita arranca con sus boletos en blanco: son los referidos de este
+  // cliente, no los del anterior.
+  useEffect(() => {
+    if (!isOpen) return;
+    setPasses(emptyPasses());
+    setSkipped(false);
+  }, [isOpen]);
+
+  const passesComplete = arePassesComplete(passes);
+  /*
+    El "peaje" de los pases: hay que llenarlos o saltarlos a propósito, pero
+    nunca bloquea de forma definitiva.
+
+    Se eligió esta variante y no deshabilitar "Finalizar" para siempre. Un
+    bloqueo duro deja atrapada una cita real cuando el cliente se niega a dar
+    referidos: el asesor no podría cerrarla, el prospecto quedaría sin
+    siguiente paso y la tarjeta se quedaría vencida en la agenda — justo la
+    clase de fuga que se cerró en el resto del embudo. Aquí la fricción es
+    hacer explícita la decisión, no impedir el trabajo.
+  */
+  const canResolve = passesComplete || skipped;
+
   const resolve = (action) => {
+    if (!canResolve) return;
+
     onEarnPoints?.(PRESENTATION_END_GAMIFICATION.RESOLUTION_BASE);
+
+    /*
+      Los pases se guardan antes de enrutar y con el nombre del cliente que
+      los dio (`fromClient`): al revisar la lista, un pase que salió de una
+      cita se escribe distinto que uno que el asesor sacó de su propia red.
+      El bono sólo se paga si de verdad hay tres contactos capturados.
+    */
+    if (passesComplete) {
+      saveVipPasses(identity?.key, passes, {
+        origin: 'cita_inicial',
+        fromClient: client?.name ?? '',
+      });
+      onEarnPoints?.(PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS);
+    }
+
     action();
     // Sin importar cuál de las 3 resoluciones se elija, la Cita Inicial ya
     // se llevó a cabo: su tarjeta debe salir de "Hoy" en las tres, no sólo
@@ -113,8 +166,17 @@ export default function PresentationEndModal({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 16, scale: 0.97 }}
                   transition={{ duration: 0.25, ease: 'easeOut' }}
-                  className="w-full max-w-sm rounded-3xl border border-slate-800 bg-slate-900
-                             p-6 shadow-2xl shadow-black/50"
+                  /*
+                    Desplazable: con la sección de Pases el contenido pasa del
+                    alto de la pantalla en un teléfono, y sin esto las tres
+                    resoluciones quedaban por debajo del borde inferior,
+                    imposibles de alcanzar. `dvh` y no `vh` para descontar la
+                    barra del navegador, misma razón documentada en
+                    `MoreMenu.jsx`.
+                  */
+                  className="max-h-[88dvh] w-full max-w-sm overflow-y-auto overscroll-contain
+                             rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl
+                             shadow-black/50"
                 >
                   <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
                     Cierre de Presentación
@@ -126,14 +188,86 @@ export default function PresentationEndModal({
                     Elige una resolución para continuar. La cita no se cierra sin decidir esto.
                   </p>
 
-                  <div className="mt-5 flex flex-col gap-2.5">
+                  {/*
+                    ── Pases VIP de cortesía ──
+
+                    Va ANTES de las resoluciones, no después: pedir referidos
+                    es parte de cerrar la cita, y puesto al final se leería
+                    como un trámite opcional que se salta con el pulgar ya
+                    encima del botón de finalizar.
+                  */}
+                  <section className="mt-5 rounded-2xl border border-indigo-500/20
+                                      bg-indigo-500/[0.04] p-3.5"
+                  >
+                    <div className="mb-2.5 flex items-start gap-2.5">
+                      <span
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg
+                                   bg-indigo-500/15 text-indigo-300"
+                        aria-hidden="true"
+                      >
+                        <Ticket size={16} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold uppercase tracking-widest
+                                      text-indigo-300"
+                        >
+                          Pases VIP de Cortesía
+                        </p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                          Pídele a {clientName} {REQUIRED_PASSES} personas a quienes también
+                          les regalarías un Diagnóstico 360.
+                        </p>
+                      </div>
+                    </div>
+
+                    <VIPPassFields passes={passes} onChange={setPasses} disabled={skipped} />
+
+                    {passesComplete && (
+                      <p className="mt-2.5 text-[11px] font-semibold text-emerald-400">
+                        +{PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS} puntos de bono al
+                        finalizar.
+                      </p>
+                    )}
+
+                    {/*
+                      La salida, con su costo dicho en voz alta. No esconde
+                      que se pierde el bono: es lo que la vuelve una decisión
+                      informada en vez de un atajo silencioso.
+                    */}
+                    {!passesComplete && (
+                      <button
+                        type="button"
+                        onClick={() => setSkipped((v) => !v)}
+                        className={`mt-2.5 block text-[11px] underline-offset-2
+                                    transition-colors hover:underline ${skipped
+                          ? 'font-semibold text-amber-400'
+                          : 'text-slate-500 hover:text-slate-300'}`}
+                      >
+                        {skipped
+                          ? `Sin pases: cierro sin el bono de +${PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS}. Cambiar de opinión`
+                          : 'Hoy no dio referidos, cerrar sin pases'}
+                      </button>
+                    )}
+                  </section>
+
+                  {/*
+                    Las tres resoluciones quedan atenuadas y sin acción hasta
+                    que los pases estén llenos o se haya elegido cerrar sin
+                    ellos. La cita siempre se puede cerrar; lo que no se puede
+                    es pasar de largo por la pregunta sin verla.
+                  */}
+                  <div
+                    className={`mt-4 flex flex-col gap-2.5 transition-opacity
+                                ${canResolve ? 'opacity-100' : 'opacity-40'}`}
+                  >
                     <button
                       type="button"
                       onClick={handleAdvanceToProposal}
+                      disabled={!canResolve}
                       className="flex w-full items-center justify-between gap-3 rounded-xl
                                  bg-indigo-600 px-4 py-3.5 text-left text-sm font-semibold
                                  text-white transition-colors hover:bg-indigo-500
-                                 active:scale-[0.98]"
+                                 active:scale-[0.98] disabled:cursor-not-allowed"
                     >
                       Avanzamos a Propuesta
                       <ArrowRight size={18} className="shrink-0" aria-hidden="true" />
@@ -142,10 +276,12 @@ export default function PresentationEndModal({
                     <button
                       type="button"
                       onClick={handleNeedsFollowUp}
+                      disabled={!canResolve}
                       className="flex w-full items-center justify-between gap-3 rounded-xl
                                  border border-slate-700 bg-slate-800 px-4 py-3.5 text-left
                                  text-sm font-semibold text-slate-200 transition-colors
-                                 hover:bg-slate-700 active:scale-[0.98]"
+                                 hover:bg-slate-700 active:scale-[0.98]
+                                 disabled:cursor-not-allowed"
                     >
                       Requiere Seguimiento
                       <CalendarClock
@@ -158,10 +294,12 @@ export default function PresentationEndModal({
                     <button
                       type="button"
                       onClick={handleNotQualified}
+                      disabled={!canResolve}
                       className="flex w-full items-center justify-between gap-3 rounded-xl
                                  border border-slate-700 bg-slate-800 px-4 py-3.5 text-left
                                  text-sm font-semibold text-slate-400 transition-colors
-                                 hover:bg-rose-500/10 hover:text-rose-300 active:scale-[0.98]"
+                                 hover:bg-rose-500/10 hover:text-rose-300 active:scale-[0.98]
+                                 disabled:cursor-not-allowed"
                     >
                       No califica
                       <Archive size={18} className="shrink-0" aria-hidden="true" />

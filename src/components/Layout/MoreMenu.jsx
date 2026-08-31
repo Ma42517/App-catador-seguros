@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, ChevronDown, X, MonitorSmartphone,
   StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard, ShieldCheck,
-  Users, FlaskConical,
+  Users, FlaskConical, Ticket,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import { DASHBOARD_VERSIONS, useDashboardVersion } from '../../context/dashboardVersion';
+
 
 /**
  * Título de un grupo de opciones ("HERRAMIENTAS", "CUENTA"...).
@@ -265,9 +266,9 @@ function CardAvatar({ url }) {
  * quitándole la clase desde el inspector.
  */
 export default function MoreMenu({
-  open, onClose, onOpenDiagnostico, onOpenPreview, onOpenNotes, onOpenProfile,
-  onOpenAdmin, onOpenApprovals, onOpenCard, onLogout, onLoadDemo, onClearAgenda,
-  canUsePreview = false, isAdminUser = false, isPromoterUser = false,
+  open, onClose, onOpenDiagnostico, onOpenVipPasses, onOpenPreview, onOpenNotes,
+  onOpenProfile, onOpenAdmin, onOpenApprovals, onOpenCard, onLogout, onLoadDemo,
+  onClearAgenda, canUsePreview = false, isAdminUser = false, isPromoterUser = false,
   onOpenPromotoria, pendingCount = 0,
 }) {
   const { identity } = useSession();
@@ -423,10 +424,21 @@ export default function MoreMenu({
               control con una sola salida no es una elección, es ruido.
             */}
             {DASHBOARD_VERSIONS.length <= 1 ? (
+              /*
+                "Pases VIP 360" y no "Diagnóstico 360": la herramienta ya no se
+                abre directo, primero pasa por el candado de pases de cortesía
+                (`VIPPassGenerator.jsx`). El nombre nombra la puerta, no lo que
+                hay detrás — llamarla "Diagnóstico" y encontrar un formulario de
+                referidos se leería como un obstáculo inesperado.
+
+                El ícono de boleto sustituye al emoji del pedido: la app tiene
+                prohibidos los emojis en la interfaz, y `lucide-react` ya trae
+                el glifo.
+              */
               <MenuRow
-                icon={Gauge}
-                label="Diagnóstico 360"
-                onClick={() => onOpenDiagnostico(DASHBOARD_VERSIONS[0].value)}
+                icon={Ticket}
+                label="Pases VIP 360"
+                onClick={onOpenVipPasses}
               />
             ) : (
               /*

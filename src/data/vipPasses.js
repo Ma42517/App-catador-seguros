@@ -1,0 +1,171 @@
+/**
+ * src/data/vipPasses.js
+ *
+ * "Pases VIP 360": los pases de cortesía del Diagnóstico que el asesor regala
+ * para desbloquear la herramienta.
+ *
+ * ## Por qué no reutiliza `ReferralContext`
+ * Ese contexto ya existe y también guarda referidos, pero resuelve otro
+ * candado: el del PROSPECTO dentro del propio diagnóstico
+ * (`ReferralGate.jsx`, envuelto en `OptimizationPanel.jsx`), que pide 2
+ * contactos para liberar el plan de optimización. Éste es el candado del
+ * ASESOR y pide 3.
+ *
+ * Compartir almacén habría atado los dos: desbloquear uno desbloquearía el
+ * otro, porque `isUnlocked` es una sola bandera. Son dos intercambios
+ * distintos, con distinto umbral y distinta persona dando los contactos, así
+ * que viven separados. Mismo patrón de persistencia por usuario que
+ * `leads.js`/`orphanProspects.js`.
+ */
+const KEY = 'df360:vipPasses:v1';
+
+/** Cuántos pases hay que generar para desbloquear la herramienta. */
+export const REQUIRED_PASSES = 3;
+
+function newId() {
+  return globalThis.crypto?.randomUUID?.()
+    ?? `pass-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function readAll() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeAll(data) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+  } catch {
+    // Sin persistencia el desbloqueo dura la sesión: degradación aceptable.
+  }
+}
+
+function readUser(username) {
+  const bucket = readAll()[username];
+  return {
+    passes: Array.isArray(bucket?.passes) ? bucket.passes : [],
+    unlocked: Boolean(bucket?.unlocked),
+  };
+}
+
+/** Pases generados por el asesor, los más recientes primero. */
+export function readVipPasses(username) {
+  if (!username) return [];
+  return readUser(username).passes.slice().sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/** ¿La herramienta ya está desbloqueada para este asesor? */
+export function isVipUnlocked(username) {
+  if (!username) return false;
+  return readUser(username).unlocked;
+}
+
+/**
+ * Guarda un lote de pases y desbloquea la herramienta.
+ *
+ * `origin` distingue de dónde salieron —del menú (`'menu'`) o del cierre de una
+ * Cita Inicial (`'cita_inicial'`)— porque son dos conversaciones distintas: en
+ * el primero los contactos los pone el asesor de su propia red, en el segundo
+ * los da el cliente que acaba de ver la presentación. Al revisar la lista, esa
+ * diferencia cambia por completo cómo se escribe el primer mensaje.
+ */
+export function saveVipPasses(username, entries, { origin = 'menu', fromClient = '' } = {}) {
+  if (!username) return [];
+
+  const clean = (entries ?? [])
+    .map((entry) => ({
+      name: String(entry?.name ?? '').trim(),
+      phone: String(entry?.phone ?? '').trim(),
+    }))
+    .filter((entry) => entry.name && entry.phone)
+    .map((entry) => ({
+      id: newId(),
+      ...entry,
+      origin,
+      fromClient,
+      createdAt: Date.now(),
+    }));
+
+  if (!clean.length) return [];
+
+  const all = readAll();
+  const bucket = readUser(username);
+  writeAll({
+    ...all,
+    [username]: { passes: [...bucket.passes, ...clean], unlocked: true },
+  });
+  return clean;
+}
+
+/**
+ * Desbloquea sin generar pases.
+ *
+ * Existe porque un candado sin salida no es un intercambio, es un muro: un
+ * asesor que hoy no tiene a quién invitar —o cuyo cliente se negó a dar
+ * referidos— no puede quedarse sin poder trabajar. El desbloqueo queda
+ * registrado igual, así que la app no vuelve a preguntar.
+ */
+/**
+ * Lote vacío de pases, para inicializar el estado de un formulario.
+ *
+ * Vive aquí y no junto al componente que lo dibuja (`VIPPassFields.jsx`)
+ * porque `oxlint` marca como advertencia exportar funciones desde un archivo
+ * que también exporta un componente (`react/only-export-components`, rompe el
+ * Fast Refresh). Además es su sitio natural: la forma de un pase es un asunto
+ * de los datos, no de la interfaz.
+ */
+export function emptyPasses() {
+  return Array.from({ length: REQUIRED_PASSES }, () => ({ name: '', phone: '' }));
+}
+
+/** ¿Un pase tiene nombre y un teléfono verosímil? */
+export function isPassComplete(pass) {
+  return String(pass?.name ?? '').trim().length > 1
+    && String(pass?.phone ?? '').replace(/\D/g, '').length >= 10;
+}
+
+/**
+ * ¿Está el lote completo?
+ *
+ * Es la única definición de "ya está lleno" en toda la app: la usan el
+ * generador del menú y el cierre de la Cita Inicial, y con dos copias bastaba
+ * que una aceptara un teléfono de 9 dígitos para que un pase quedara
+ * inservible según por dónde se hubiera capturado.
+ */
+export function arePassesComplete(passes) {
+  return Array.isArray(passes)
+    && passes.length === REQUIRED_PASSES
+    && passes.every(isPassComplete);
+}
+
+export function unlockVipWithoutPasses(username) {
+  if (!username) return;
+  const all = readAll();
+  const bucket = readUser(username);
+  writeAll({ ...all, [username]: { ...bucket, unlocked: true } });
+}
+
+/**
+ * Enlace de WhatsApp con la invitación de un pase.
+ *
+ * Devuelve `null` sin teléfono, mismo criterio que el resto de la app: sin
+ * dato no hay acción, no un enlace roto.
+ */
+export function vipPassLink(pass, advisorName) {
+  const phone = String(pass?.phone ?? '').replace(/[^\d+]/g, '');
+  if (!phone) return null;
+
+  const firstName = String(pass?.name ?? '').trim().split(/\s+/)[0] || '';
+  const from = advisorName ? ` Soy ${advisorName}` : '';
+  const text = `Hola ${firstName}, tengo un pase de cortesía para ti.${from} y trabajo con `
+    + 'un Diagnóstico Financiero 360 que normalmente hago solo con clientes. '
+    + 'Me gustaría regalarte uno: son 45 minutos y sales con tu diagnóstico completo, '
+    + 'sin ningún compromiso. ¿Te late que agendemos?';
+
+  return `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(text)}`;
+}
