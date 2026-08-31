@@ -264,6 +264,20 @@ export default function PresentationEndModal({
                       */}
                       <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-6">
                         {/*
+                          Columna de ancho acotado y centrada. Sin ella, en un
+                          monitor el título y los campos se estiraban a todo el
+                          ancho de la pantalla: una línea de texto de 1500px es
+                          ilegible, y el botón de agregar quedaba como una barra
+                          de lado a lado.
+
+                          En móvil no cambia nada —el ancho disponible es menor
+                          que el máximo, así que el contenedor simplemente lo
+                          ocupa entero respetando el `px-6` del padre—, y en
+                          escritorio queda la columna centrada de un formulario
+                          de acceso.
+                        */}
+                        <div className="mx-auto w-full max-w-lg">
+                        {/*
                           La flecha es la única salida hacia atrás, y con ella
                           desapareció el enlace "Cambiar resolución" que había
                           aquí. Dos razones: el gesto de volver ya se entiende
@@ -305,8 +319,9 @@ export default function PresentationEndModal({
                           </span>
                         </p>
 
-                        <div className="mt-10 pb-6">
-                          <VIPPassFields passes={passes} onChange={setPasses} />
+                          <div className="mt-10 pb-6">
+                            <VIPPassFields passes={passes} onChange={setPasses} />
+                          </div>
                         </div>
                       </div>
 
@@ -317,9 +332,16 @@ export default function PresentationEndModal({
                         principal siga alcanzable con el teclado abierto, que es
                         exactamente cuando se acaba de escribir el último dato.
                       */}
-                      <div className="shrink-0 space-y-2 border-t border-neutral-900 px-6
-                                      pb-8 pt-4"
-                      >
+                      <div className="shrink-0 border-t border-neutral-900 px-6 pb-8 pt-4">
+                        {/*
+                          La línea divisoria se queda a todo el ancho —marca la
+                          separación entre lo que se desplaza y lo que no— pero
+                          los botones se centran en la misma columna que el
+                          contenido de arriba. Así el botón principal queda
+                          exactamente debajo del de agregar en vez de estirarse
+                          hasta las esquinas del monitor.
+                        */}
+                        <div className="mx-auto w-full max-w-lg space-y-2">
                         {/*
                           Aparece en cuanto hay UNA invitación completa, no al
                           llegar a tres: el cliente decide cuántas regala, y
@@ -359,8 +381,9 @@ export default function PresentationEndModal({
                           className="w-full bg-transparent px-4 py-3 text-sm font-medium
                                      text-neutral-500 transition-colors hover:text-neutral-300"
                         >
-                          {readyCount > 0 ? 'Continuar sin activar' : 'Omitir invitaciones'}
-                        </button>
+                            {readyCount > 0 ? 'Continuar sin activar' : 'Omitir invitaciones'}
+                          </button>
+                        </div>
                       </div>
                     </>
                   ) : (
