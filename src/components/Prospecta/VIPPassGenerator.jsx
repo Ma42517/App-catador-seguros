@@ -167,11 +167,11 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
               <Ticket size={24} />
             </span>
             <h2 className="text-lg font-bold leading-snug text-white">
-              Genera tus {REQUIRED_PASSES} pases de cortesía
+              Regala {REQUIRED_PASSES} Diagnósticos
             </h2>
             <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-neutral-400">
-              Regala un Diagnóstico 360 a tres personas y desbloquea la herramienta
-              para ti. Ellas ganan su diagnóstico; tú, tres conversaciones nuevas.
+              El Diagnóstico es tu llave para sentarte con alguien nuevo sin llegar en
+              frío. Regálalo a tres personas y desbloquea la herramienta para ti.
             </p>
           </div>
 

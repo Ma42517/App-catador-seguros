@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Check, Phone, MapPin, Video } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import { PRIORITIES, DEFAULT_PRIORITY } from './priorities';
+import { ACTIVITY_TYPE_OPTIONS, activityTypeLabel } from '../../lib/activityTypes';
 
 /*
   Modalidad de la cita: sólo aplica a los tipos que de verdad se encuentran
@@ -62,21 +63,10 @@ const LABEL = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider t
   porque son dos catálogos con propósito distinto (esa lista es del
   Onboarding, "descarga tu mente"; ésta es el registro del día a día).
 */
-const ACTIVITY_TYPE_OPTIONS = [
-  { value: 'llamada', label: 'Llamada' },
-  { value: 'seguimiento', label: 'Seguimiento' },
-  { value: 'cita', label: 'Cita' },
-  { value: 'cita_inicial', label: 'Cita Inicial' },
-  { value: 'cita_propuesta', label: 'Cita de Propuesta' },
-  { value: 'cita_cierre', label: 'Cita de Cierre' },
-  { value: 'entrega_poliza', label: 'Entrega de Póliza' },
-  { value: 'cobro', label: 'Cobro' },
-];
-
-/** Etiqueta legible de una actividad del catálogo; respaldo al valor crudo si alguna vez llega uno fuera de la lista (dato viejo). */
-function activityTypeLabel(value) {
-  return ACTIVITY_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
-}
+// El catálogo y su traductor de etiquetas viven en `lib/activityTypes.js`
+// (import de arriba): los comparten `prospectText.js` —para distinguir un
+// rótulo de un nombre de persona— y `CallFeedbackModal.jsx`, que antes
+// duplicaba a mano el valor y el rótulo de "Cita Inicial".
 
 /** Fecha y hora de hoy en el formato que esperan los inputs nativos. */
 function todayParts() {

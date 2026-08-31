@@ -9,18 +9,22 @@ import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
 import { CALL_GAMIFICATION } from '../../lib/callGamification';
 import { buildFollowUpEvent, followUpReasonFor } from '../../lib/followUpEvent';
+import { activityTypeLabel } from '../../lib/activityTypes';
 import { addOrphanProspect } from '../../data/orphanProspects';
 
 /*
   El resultado de "Agendar Cita" tras una llamada es siempre una Cita
-  Inicial —el primer encuentro con el prospecto, nunca una cita genérica
-  ni de cierre—, con el mismo `value`/etiqueta que ya usa el catálogo
-  cerrado de `ActivityForm.jsx` (`ACTIVITY_TYPE_OPTIONS`): así la Agenda
-  ve el mismo tipo sin importar por cuál de los dos caminos se creó el
-  evento. No se importa ese módulo entero sólo por estas dos constantes.
+  Inicial —el primer encuentro con el prospecto, nunca una cita genérica ni de
+  cierre—, con el mismo valor y rótulo del catálogo compartido
+  (`lib/activityTypes.js`): así la Agenda ve el mismo tipo sin importar por
+  cuál de los dos caminos se creó el evento.
+
+  Antes estaban copiados a mano aquí, porque el catálogo era privado de
+  `ActivityForm.jsx`. Ya no hace falta: si algún día ese rótulo cambia, cambia
+  en un solo sitio.
 */
 const CITA_INICIAL_VALUE = 'cita_inicial';
-const CITA_INICIAL_LABEL = 'Cita Inicial';
+const CITA_INICIAL_LABEL = activityTypeLabel(CITA_INICIAL_VALUE);
 
 const INPUT =
   'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 '

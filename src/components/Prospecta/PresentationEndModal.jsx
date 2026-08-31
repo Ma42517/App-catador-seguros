@@ -223,29 +223,38 @@ export default function PresentationEndModal({
                           aria-hidden="true"
                         />
 
+                        {/*
+                          Sin el número gigante que había antes: leía como una
+                          cuota por cumplir. El regalo va primero y la cantidad
+                          queda en los talones de los boletos, donde se lee como
+                          entrada numerada y no como meta.
+
+                          El regalo es el Diagnóstico, que es la herramienta de
+                          prospección: es la llave para sentarse con alguien
+                          nuevo sin llegar en frío. Antes este texto decía
+                          "regálale este diagnóstico" dando por hecho que el
+                          cliente acababa de ver uno, y no es así — en la Cita
+                          Inicial vio su Análisis de Necesidades, que es otra
+                          cosa. Lo que se regala aquí es el Diagnóstico para
+                          quienes todavía no son nada.
+                        */}
                         <div className="relative">
                           <p className="text-[10px] font-bold uppercase tracking-[0.2em]
                                         text-indigo-200"
                           >
-                            Antes de cerrar
+                            Pasa la cortesía
                           </p>
 
-                          <div className="mt-2 flex items-end gap-3">
-                            <span className="font-mono text-5xl font-black leading-none
-                                             text-white"
-                            >
-                              {REQUIRED_PASSES}
-                            </span>
-                            <span className="pb-1 text-sm font-bold leading-tight text-white">
-                              pases de
-                              <br />
-                              cortesía
-                            </span>
-                          </div>
+                          <h3 className="mt-2 text-xl font-bold leading-tight text-white">
+                            Un Diagnóstico de regalo,
+                            <br />
+                            de parte de {clientName}
+                          </h3>
 
-                          <p className="mt-3 text-[11px] leading-relaxed text-indigo-100">
-                            Pregúntale a {clientName}: ¿a quién más le caería bien
-                            este diagnóstico? Regálale uno de tu parte.
+                          <p className="mt-2.5 text-[11px] leading-relaxed text-indigo-100">
+                            Es tu llave para sentarte con alguien nuevo sin llegar en frío.
+                            Pídele {REQUIRED_PASSES} nombres: la invitación va de su parte,
+                            no tuya.
                           </p>
                         </div>
                       </div>
@@ -291,8 +300,13 @@ export default function PresentationEndModal({
                                    disabled:shadow-none"
                       >
                         <Ticket size={16} aria-hidden="true" />
-                        Enviar pases y finalizar
-                        <span className="text-[11px] font-bold text-indigo-200">
+                        Entregar las cortesías
+                        {/*
+                          El bono, discreto. Es un incentivo, no el motivo: en
+                          grande competía con el regalo y devolvía la pantalla al
+                          terreno de los puntos.
+                        */}
+                        <span className="text-[10px] font-semibold text-indigo-300/80">
                           +{PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS}
                         </span>
                       </button>
@@ -311,7 +325,12 @@ export default function PresentationEndModal({
                                    underline-offset-2 transition-colors hover:text-slate-300
                                    hover:underline"
                       >
-                        Hoy no soltó nombres, cerrar sin pases
+                        {/*
+                          Antes decía "hoy no soltó nombres": culpaba al
+                          cliente. Que no quiera dar referidos es una respuesta
+                          legítima, no una falta.
+                        */}
+                        Prefiere pensarlo, cerrar sin cortesías
                       </button>
                     </div>
                   ) : (

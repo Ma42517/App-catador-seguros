@@ -101,8 +101,8 @@ export default function VIPPassFields({ passes, onChange }) {
                     {String(index + 1).padStart(2, '0')}
                   </span>
                 )}
-                <span className="text-[8px] font-bold uppercase tracking-[0.15em]">
-                  Pase
+                <span className="text-[7px] font-bold uppercase tracking-[0.12em]">
+                  Cortesía
                 </span>
               </div>
 
