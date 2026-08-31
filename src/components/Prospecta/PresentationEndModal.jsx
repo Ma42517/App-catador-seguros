@@ -67,12 +67,20 @@ export default function PresentationEndModal({
   const { identity } = useSession();
 
   /*
-    Los 3 Pases VIP que el cliente entrega al cerrar la cita. `skipped` es la
-    salida explícita: sin ella el modal sería un callejón cuando el cliente se
-    niega a dar referidos (ver la nota de `canResolve`, más abajo).
+    Dos pasos: primero se resuelve la cita, después se piden los pases.
+
+    Antes los pases iban en la misma pantalla que las resoluciones, arriba de
+    ellas, y bloqueaban los tres botones hasta llenarlos. Estaba al revés de
+    como ocurre la conversación real: el asesor cierra el tema con el cliente
+    —"avanzamos", "lo vemos luego"— y sólo entonces pide referidos. Puestos
+    antes, los boletos parecían un requisito para poder opinar sobre la cita.
+
+    `pending` guarda la resolución elegida y la ejecuta al final: nada se
+    escribe hasta que el segundo paso termina, así que salir a medias no deja
+    la cita medio resuelta.
   */
+  const [pending, setPending] = useState(null);
   const [passes, setPasses] = useState(emptyPasses);
-  const [skipped, setSkipped] = useState(false);
 
   /*
     El tema no se hereda a través de un portal (ver la nota de
@@ -86,31 +94,17 @@ export default function PresentationEndModal({
     if (isOpen) setDarkContext(!!anchorRef.current?.closest('.dark'));
   }, [isOpen]);
 
-  // Cada cita arranca con sus boletos en blanco: son los referidos de este
-  // cliente, no los del anterior.
+  // Cada cita arranca en el primer paso y con sus boletos en blanco: son los
+  // referidos de este cliente, no los del anterior.
   useEffect(() => {
     if (!isOpen) return;
+    setPending(null);
     setPasses(emptyPasses());
-    setSkipped(false);
   }, [isOpen]);
 
   const passesComplete = arePassesComplete(passes);
-  /*
-    El "peaje" de los pases: hay que llenarlos o saltarlos a propósito, pero
-    nunca bloquea de forma definitiva.
-
-    Se eligió esta variante y no deshabilitar "Finalizar" para siempre. Un
-    bloqueo duro deja atrapada una cita real cuando el cliente se niega a dar
-    referidos: el asesor no podría cerrarla, el prospecto quedaría sin
-    siguiente paso y la tarjeta se quedaría vencida en la agenda — justo la
-    clase de fuga que se cerró en el resto del embudo. Aquí la fricción es
-    hacer explícita la decisión, no impedir el trabajo.
-  */
-  const canResolve = passesComplete || skipped;
 
   const resolve = (action) => {
-    if (!canResolve) return;
-
     onEarnPoints?.(PRESENTATION_END_GAMIFICATION.RESOLUTION_BASE);
 
     /*
@@ -137,9 +131,31 @@ export default function PresentationEndModal({
     onClose?.();
   };
 
-  const handleAdvanceToProposal = () => resolve(() => onRouteToActivity?.('cita_propuesta', client));
-  const handleNeedsFollowUp = () => resolve(() => onRouteToActivity?.('seguimiento', client));
-  const handleNotQualified = () => resolve(() => onDiscardClient?.(client));
+  /*
+    Las 3 resoluciones ya no ejecutan nada: apuntan la elección y pasan al
+    segundo paso. Cada una guarda su etiqueta para poder recordarle al asesor
+    qué está por confirmar mientras llena los boletos.
+  */
+  const RESOLUTIONS = {
+    propuesta: {
+      label: 'Avanza a Propuesta',
+      run: () => onRouteToActivity?.('cita_propuesta', client),
+    },
+    seguimiento: {
+      label: 'Requiere Seguimiento',
+      run: () => onRouteToActivity?.('seguimiento', client),
+    },
+    descartado: {
+      label: 'No califica',
+      run: () => onDiscardClient?.(client),
+    },
+  };
+
+  const finish = () => {
+    const chosen = RESOLUTIONS[pending];
+    if (!chosen) return;
+    resolve(chosen.run);
+  };
 
   const anchor = <span ref={anchorRef} className="hidden" aria-hidden="true" />;
 
@@ -178,133 +194,186 @@ export default function PresentationEndModal({
                              rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl
                              shadow-black/50"
                 >
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
-                    Cierre de Presentación
-                  </p>
-                  <h2 className="mt-1.5 text-lg font-bold leading-snug text-white">
-                    ¿Qué sigue con {clientName}?
-                  </h2>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                    Elige una resolución para continuar. La cita no se cierra sin decidir esto.
-                  </p>
+                  {pending ? (
+                    /*
+                      ── Paso 2: los pases ──
 
-                  {/*
-                    ── Pases VIP de cortesía ──
-
-                    Va ANTES de las resoluciones, no después: pedir referidos
-                    es parte de cerrar la cita, y puesto al final se leería
-                    como un trámite opcional que se salta con el pulgar ya
-                    encima del botón de finalizar.
-                  */}
-                  <section className="mt-5 rounded-2xl border border-indigo-500/20
-                                      bg-indigo-500/[0.04] p-3.5"
-                  >
-                    <div className="mb-2.5 flex items-start gap-2.5">
-                      <span
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg
-                                   bg-indigo-500/15 text-indigo-300"
-                        aria-hidden="true"
+                      El diseño rompe con el resto de los modales a propósito:
+                      número gigante, franja diagonal de fondo y boletos
+                      troquelados. Es el momento en que el asesor pide un favor
+                      al cliente, y una pantalla que se parece a las demás no
+                      ayuda a que se sienta un regalo con valor.
+                    */
+                    <div className="animate-rise">
+                      <div className="relative mb-5 overflow-hidden rounded-2xl
+                                      bg-gradient-to-br from-indigo-600 via-indigo-700
+                                      to-violet-900 p-5"
                       >
-                        <Ticket size={16} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold uppercase tracking-widest
-                                      text-indigo-300"
-                        >
-                          Pases VIP de Cortesía
-                        </p>
-                        <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                          Pídele a {clientName} {REQUIRED_PASSES} personas a quienes también
-                          les regalarías un Diagnóstico 360.
-                        </p>
+                        {/*
+                          Franjas diagonales tenues: la textura de un pase de
+                          entrada. Se dibujan con un degradado repetido, sin
+                          imagen ni SVG.
+                        */}
+                        <div
+                          className="pointer-events-none absolute inset-0 opacity-[0.13]"
+                          style={{
+                            backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px,'
+                              + ' transparent 2px 12px)',
+                          }}
+                          aria-hidden="true"
+                        />
+
+                        <div className="relative">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.2em]
+                                        text-indigo-200"
+                          >
+                            Antes de cerrar
+                          </p>
+
+                          <div className="mt-2 flex items-end gap-3">
+                            <span className="font-mono text-5xl font-black leading-none
+                                             text-white"
+                            >
+                              {REQUIRED_PASSES}
+                            </span>
+                            <span className="pb-1 text-sm font-bold leading-tight text-white">
+                              pases de
+                              <br />
+                              cortesía
+                            </span>
+                          </div>
+
+                          <p className="mt-3 text-[11px] leading-relaxed text-indigo-100">
+                            Pregúntale a {clientName}: ¿a quién más le caería bien
+                            este diagnóstico? Regálale uno de tu parte.
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <VIPPassFields passes={passes} onChange={setPasses} disabled={skipped} />
+                      <VIPPassFields passes={passes} onChange={setPasses} />
 
-                    {passesComplete && (
-                      <p className="mt-2.5 text-[11px] font-semibold text-emerald-400">
-                        +{PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS} puntos de bono al
-                        finalizar.
-                      </p>
-                    )}
-
-                    {/*
-                      La salida, con su costo dicho en voz alta. No esconde
-                      que se pierde el bono: es lo que la vuelve una decisión
-                      informada en vez de un atajo silencioso.
-                    */}
-                    {!passesComplete && (
+                      {/*
+                        Qué se va a ejecutar al confirmar, siempre a la vista.
+                        Sin esto, en el segundo paso ya no habría rastro de la
+                        resolución elegida y habría que recordarla de memoria.
+                      */}
                       <button
                         type="button"
-                        onClick={() => setSkipped((v) => !v)}
-                        className={`mt-2.5 block text-[11px] underline-offset-2
-                                    transition-colors hover:underline ${skipped
-                          ? 'font-semibold text-amber-400'
-                          : 'text-slate-500 hover:text-slate-300'}`}
+                        onClick={() => setPending(null)}
+                        className="mt-4 flex w-full items-center justify-between gap-2
+                                   rounded-xl border border-slate-800 bg-slate-950/60 px-3
+                                   py-2.5 text-left transition-colors hover:bg-slate-800/60"
                       >
-                        {skipped
-                          ? `Sin pases: cierro sin el bono de +${PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS}. Cambiar de opinión`
-                          : 'Hoy no dio referidos, cerrar sin pases'}
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-bold uppercase
+                                           tracking-widest text-slate-500"
+                          >
+                            Resolución
+                          </span>
+                          <span className="block text-xs font-semibold text-slate-200">
+                            {RESOLUTIONS[pending].label}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-[10px] font-semibold text-indigo-400">
+                          Cambiar
+                        </span>
                       </button>
-                    )}
-                  </section>
 
-                  {/*
-                    Las tres resoluciones quedan atenuadas y sin acción hasta
-                    que los pases estén llenos o se haya elegido cerrar sin
-                    ellos. La cita siempre se puede cerrar; lo que no se puede
-                    es pasar de largo por la pregunta sin verla.
-                  */}
-                  <div
-                    className={`mt-4 flex flex-col gap-2.5 transition-opacity
-                                ${canResolve ? 'opacity-100' : 'opacity-40'}`}
-                  >
-                    <button
-                      type="button"
-                      onClick={handleAdvanceToProposal}
-                      disabled={!canResolve}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl
-                                 bg-indigo-600 px-4 py-3.5 text-left text-sm font-semibold
-                                 text-white transition-colors hover:bg-indigo-500
-                                 active:scale-[0.98] disabled:cursor-not-allowed"
-                    >
-                      Avanzamos a Propuesta
-                      <ArrowRight size={18} className="shrink-0" aria-hidden="true" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={finish}
+                        disabled={!passesComplete}
+                        className="mt-3 flex w-full items-center justify-center gap-2
+                                   rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold
+                                   text-white shadow-lg shadow-indigo-600/30
+                                   transition-colors hover:bg-indigo-500 active:scale-[0.98]
+                                   disabled:cursor-not-allowed disabled:opacity-40
+                                   disabled:shadow-none"
+                      >
+                        <Ticket size={16} aria-hidden="true" />
+                        Enviar pases y finalizar
+                        <span className="text-[11px] font-bold text-indigo-200">
+                          +{PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS}
+                        </span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={handleNeedsFollowUp}
-                      disabled={!canResolve}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl
-                                 border border-slate-700 bg-slate-800 px-4 py-3.5 text-left
-                                 text-sm font-semibold text-slate-200 transition-colors
-                                 hover:bg-slate-700 active:scale-[0.98]
-                                 disabled:cursor-not-allowed"
-                    >
-                      Requiere Seguimiento
-                      <CalendarClock
-                        size={18}
-                        className="shrink-0 text-slate-400"
-                        aria-hidden="true"
-                      />
-                    </button>
+                      {/*
+                        La salida, con su costo dicho en voz alta. Un candado sin
+                        salida deja atrapada una cita real cuando el cliente se
+                        niega a dar referidos: el prospecto quedaría sin
+                        siguiente paso y la tarjeta vencida en la agenda — justo
+                        la clase de fuga que se cerró en el resto del embudo.
+                      */}
+                      <button
+                        type="button"
+                        onClick={finish}
+                        className="mx-auto mt-3 block text-[11px] text-slate-500
+                                   underline-offset-2 transition-colors hover:text-slate-300
+                                   hover:underline"
+                      >
+                        Hoy no soltó nombres, cerrar sin pases
+                      </button>
+                    </div>
+                  ) : (
+                    /* ── Paso 1: la resolución ── */
+                    <>
+                      <p className="text-[11px] font-bold uppercase tracking-widest
+                                    text-indigo-400"
+                      >
+                        Cierre de Presentación
+                      </p>
+                      <h2 className="mt-1.5 text-lg font-bold leading-snug text-white">
+                        ¿Qué sigue con {clientName}?
+                      </h2>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                        Elige una resolución para continuar. La cita no se cierra sin
+                        decidir esto.
+                      </p>
 
-                    <button
-                      type="button"
-                      onClick={handleNotQualified}
-                      disabled={!canResolve}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl
-                                 border border-slate-700 bg-slate-800 px-4 py-3.5 text-left
-                                 text-sm font-semibold text-slate-400 transition-colors
-                                 hover:bg-rose-500/10 hover:text-rose-300 active:scale-[0.98]
-                                 disabled:cursor-not-allowed"
-                    >
-                      No califica
-                      <Archive size={18} className="shrink-0" aria-hidden="true" />
-                    </button>
-                  </div>
+                      <div className="mt-5 flex flex-col gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setPending('propuesta')}
+                          className="flex w-full items-center justify-between gap-3 rounded-xl
+                                     bg-indigo-600 px-4 py-3.5 text-left text-sm font-semibold
+                                     text-white transition-colors hover:bg-indigo-500
+                                     active:scale-[0.98]"
+                        >
+                          Avanzamos a Propuesta
+                          <ArrowRight size={18} className="shrink-0" aria-hidden="true" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPending('seguimiento')}
+                          className="flex w-full items-center justify-between gap-3 rounded-xl
+                                     border border-slate-700 bg-slate-800 px-4 py-3.5
+                                     text-left text-sm font-semibold text-slate-200
+                                     transition-colors hover:bg-slate-700 active:scale-[0.98]"
+                        >
+                          Requiere Seguimiento
+                          <CalendarClock
+                            size={18}
+                            className="shrink-0 text-slate-400"
+                            aria-hidden="true"
+                          />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPending('descartado')}
+                          className="flex w-full items-center justify-between gap-3 rounded-xl
+                                     border border-slate-700 bg-slate-800 px-4 py-3.5
+                                     text-left text-sm font-semibold text-slate-400
+                                     transition-colors hover:bg-rose-500/10
+                                     hover:text-rose-300 active:scale-[0.98]"
+                        >
+                          No califica
+                          <Archive size={18} className="shrink-0" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </motion.div>
               </motion.div>
             )}
