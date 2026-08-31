@@ -1,11 +1,11 @@
 import { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, CalendarClock, Archive, Gift } from 'lucide-react';
+import { ArrowRight, CalendarClock, Archive, Gift, ArrowLeft } from 'lucide-react';
 import { PRESENTATION_END_GAMIFICATION } from '../../lib/presentationGamification';
 import { useSession } from '../../context/SessionContext';
 import {
-  saveVipPasses, REQUIRED_PASSES, arePassesComplete, emptyPasses,
+  saveVipPasses, REQUIRED_PASSES, arePassesComplete, completePasses,
 } from '../../data/vipPasses';
 import VIPPassFields from './VIPPassFields';
 
@@ -80,7 +80,8 @@ export default function PresentationEndModal({
     la cita medio resuelta.
   */
   const [pending, setPending] = useState(null);
-  const [passes, setPasses] = useState(emptyPasses);
+  // Arranca vacío: las invitaciones se agregan de una en una.
+  const [passes, setPasses] = useState([]);
 
   /*
     El tema no se hereda a través de un portal (ver la nota de
@@ -99,9 +100,22 @@ export default function PresentationEndModal({
   useEffect(() => {
     if (!isOpen) return;
     setPending(null);
-    setPasses(emptyPasses());
+    setPasses([]);
   }, [isOpen]);
 
+  /*
+    Dos medidas distintas, y conviene no confundirlas:
+
+      · `ready` son las invitaciones que ya se pueden guardar, una o tres. Es
+        lo que decide si aparece el botón principal.
+      · `passesComplete` es el lote entero, y sólo gobierna el bono.
+
+    Antes se guardaba únicamente con las tres completas, así que un cliente que
+    daba un solo nombre veía cómo ese contacto se perdía al cerrar la cita. Un
+    referido de verdad vale aunque venga solo.
+  */
+  const ready = completePasses(passes);
+  const readyCount = ready.length;
   const passesComplete = arePassesComplete(passes);
 
   const resolve = (action) => {
@@ -111,13 +125,15 @@ export default function PresentationEndModal({
       Los pases se guardan antes de enrutar y con el nombre del cliente que
       los dio (`fromClient`): al revisar la lista, un pase que salió de una
       cita se escribe distinto que uno que el asesor sacó de su propia red.
-      El bono sólo se paga si de verdad hay tres contactos capturados.
+      Se guarda lo que haya; el bono es lo que exige el lote completo.
     */
-    if (passesComplete) {
-      saveVipPasses(identity?.key, passes, {
+    if (readyCount > 0) {
+      saveVipPasses(identity?.key, ready, {
         origin: 'cita_inicial',
         fromClient: client?.name ?? '',
       });
+    }
+    if (passesComplete) {
       onEarnPoints?.(PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS);
     }
 
@@ -174,32 +190,44 @@ export default function PresentationEndModal({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70
-                           p-4 backdrop-blur-sm"
+                /*
+                  Los dos pasos ocupan la pantalla de forma distinta a
+                  propósito.
+
+                  El paso 1 —la resolución— es una decisión rápida del asesor:
+                  tarjeta centrada sobre el fondo atenuado, como cualquier
+                  diálogo. El paso 2 se le muestra al cliente con el teléfono
+                  girado hacia él, y ahí una tarjeta flotando sobre un velo
+                  translúcido delata que hay una app detrás; a pantalla completa
+                  y en negro, lo único que existe es el contenido.
+                */
+                className={pending
+                  ? 'fixed inset-0 z-[90] bg-black'
+                  : 'fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4'
+                    + ' backdrop-blur-sm'}
               >
                 <motion.div
-                  initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                  initial={pending
+                    ? { opacity: 0, y: 12 }
+                    : { opacity: 0, y: 16, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 16, scale: 0.97 }}
+                  exit={pending ? { opacity: 0, y: 12 } : { opacity: 0, y: 16, scale: 0.97 }}
                   transition={{ duration: 0.25, ease: 'easeOut' }}
                   /*
-                    Desplazable: con la sección de Pases el contenido pasa del
-                    alto de la pantalla en un teléfono, y sin esto las tres
-                    resoluciones quedaban por debajo del borde inferior,
-                    imposibles de alcanzar. `dvh` y no `vh` para descontar la
-                    barra del navegador, misma razón documentada en
-                    `MoreMenu.jsx`.
+                    En el paso 2 la columna ocupa el alto completo y se divide en
+                    dos: el contenido se desplaza y la zona de acciones queda
+                    fija abajo. Sin esa división, en un teléfono con el teclado
+                    abierto el botón principal se iba fuera de la pantalla justo
+                    cuando se acaba de escribir el último dato.
+
+                    `dvh` y no `vh` para descontar la barra del navegador, misma
+                    razón documentada en `MoreMenu.jsx`.
                   */
-                  /*
-                    Negro puro y no `slate-900`: el paso 2 se le muestra al
-                    cliente, y sobre negro los campos y el botón blanco son lo
-                    único que tiene presencia. El borde baja a `neutral-900`,
-                    apenas un filo, porque un marco marcado devuelve la
-                    sensación de recuadro de sistema.
-                  */
-                  className="max-h-[88dvh] w-full max-w-sm overflow-y-auto overscroll-contain
-                             rounded-2xl border border-neutral-900 bg-black p-6 shadow-2xl
-                             shadow-black/70"
+                  className={pending
+                    ? 'flex h-[100dvh] w-full flex-col'
+                    : 'max-h-[88dvh] w-full max-w-sm overflow-y-auto overscroll-contain'
+                      + ' rounded-2xl border border-neutral-900 bg-black p-6 shadow-2xl'
+                      + ' shadow-black/70'}
                 >
                   {pending ? (
                     /*
@@ -226,85 +254,115 @@ export default function PresentationEndModal({
                       patrimonial, una textura de banner es lo que separa una
                       herramienta profesional de una promoción.
                     */
-                    <div className="animate-rise">
-                      <header className="mb-7">
-                        <Gift
-                          size={22}
-                          strokeWidth={1.5}
-                          className="mb-4 text-neutral-400"
-                          aria-hidden="true"
-                        />
-                        <h2 className="text-2xl font-light tracking-wide text-white">
-                          Invitaciones de Cortesía
-                        </h2>
-                        <p className="mt-3 text-sm font-light leading-relaxed text-neutral-400">
-                          Tu sesión incluye {REQUIRED_PASSES} pases exclusivos sin costo.
-                          Compártelos con personas que valores para que reciban este
-                          análisis patrimonial a tu nombre.
-                        </p>
-                      </header>
-
-                      <VIPPassFields passes={passes} onChange={setPasses} />
-
+                    <>
                       {/*
-                        Blanco sobre negro, sin degradado ni sombra de color: en
-                        una pantalla de puro negro es el contraste el que hace
-                        de énfasis, y cualquier color saturado aquí rompería la
-                        sobriedad que sostiene toda la vista.
+                        ── Zona desplazable ──
+
+                        Alineada a la izquierda con margen amplio: el espacio
+                        vacío a la derecha del título es lo que le da el aire de
+                        documento y no de formulario.
                       */}
-                      <button
-                        type="button"
-                        onClick={finish}
-                        disabled={!passesComplete}
-                        className="mt-6 w-full rounded-lg bg-neutral-100 px-4 py-3.5 text-sm
-                                   font-medium text-black transition-colors
-                                   hover:bg-white active:scale-[0.99]
-                                   disabled:cursor-not-allowed disabled:bg-neutral-800
-                                   disabled:text-neutral-500"
-                      >
-                        Activar pases de cortesía
-                      </button>
-
-                      {/*
-                        ── Franja del asesor ──
-
-                        Lo único de esta pantalla que no le habla al cliente,
-                        reducido al mínimo y separado por una línea: son los dos
-                        controles que el asesor todavía necesita.
-
-                        La resolución NO se nombra a propósito. Antes esta fila
-                        decía "RESOLUCIÓN: Avanza a Propuesta", y con la misma
-                        plantilla habría dicho "No califica" delante de la
-                        persona a la que se acaba de descartar. El asesor ya
-                        sabe qué eligió en el paso anterior; el cliente no tiene
-                        por qué leer el veredicto.
-
-                        La salida sigue existiendo: un candado sin salida deja
-                        atrapada una cita real cuando el cliente no quiere dar
-                        nombres, y el prospecto se quedaría sin siguiente paso.
-                      */}
-                      <div className="mt-8 flex items-center justify-between gap-3 border-t
-                                      border-neutral-900 pt-3"
-                      >
+                      <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-6">
+                        {/*
+                          La flecha es la única salida hacia atrás, y con ella
+                          desapareció el enlace "Cambiar resolución" que había
+                          aquí. Dos razones: el gesto de volver ya se entiende
+                          sin rótulo, y ese texto obligaba a nombrar la
+                          resolución elegida —"Avanza a Propuesta", pero también
+                          "No califica"— en una pantalla que el cliente está
+                          mirando. El asesor sabe qué eligió hace un momento; el
+                          cliente no tiene por qué leer el veredicto.
+                        */}
                         <button
                           type="button"
                           onClick={() => setPending(null)}
-                          className="text-[10px] tracking-wide text-neutral-700
-                                     transition-colors hover:text-neutral-400"
+                          aria-label="Volver"
+                          className="-ml-2 grid h-9 w-9 place-items-center rounded-lg
+                                     text-neutral-400 transition-colors hover:text-neutral-100
+                                     focus-visible:outline-none focus-visible:ring-1
+                                     focus-visible:ring-neutral-600"
                         >
-                          Cambiar resolución
+                          <ArrowLeft size={20} strokeWidth={1.75} aria-hidden="true" />
                         </button>
 
+                        <h2 className="mt-8 text-3xl font-semibold tracking-tight
+                                       text-neutral-100"
+                        >
+                          Invitaciones de cortesía
+                        </h2>
+
+                        <p className="mt-3 flex items-start gap-2 text-sm text-neutral-400">
+                          <Gift
+                            size={15}
+                            strokeWidth={1.75}
+                            className="mt-0.5 shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span>
+                            Tu sesión incluye {REQUIRED_PASSES} pases sin costo. Compártelos
+                            con personas que valores para que reciban este análisis
+                            patrimonial a tu nombre.
+                          </span>
+                        </p>
+
+                        <div className="mt-10 pb-6">
+                          <VIPPassFields passes={passes} onChange={setPasses} />
+                        </div>
+                      </div>
+
+                      {/*
+                        ── Zona de acciones, fija ──
+
+                        Queda fuera del área que se desplaza para que el botón
+                        principal siga alcanzable con el teclado abierto, que es
+                        exactamente cuando se acaba de escribir el último dato.
+                      */}
+                      <div className="shrink-0 space-y-2 border-t border-neutral-900 px-6
+                                      pb-8 pt-4"
+                      >
+                        {/*
+                          Aparece en cuanto hay UNA invitación completa, no al
+                          llegar a tres: el cliente decide cuántas regala, y
+                          exigir las tres para poder continuar convertiría el
+                          obsequio en una cuota. Los tres siguen siendo lo que la
+                          sesión incluye —y lo que paga el bono—, no un mínimo.
+
+                          Blanco sobre negro, sin degradado ni sombra de color:
+                          en una pantalla de puro negro el contraste es el
+                          énfasis, y cualquier color saturado rompería la
+                          sobriedad que sostiene la vista.
+                        */}
+                        {readyCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={finish}
+                            className="w-full rounded-lg bg-neutral-100 px-4 py-3.5 text-sm
+                                       font-medium text-black transition-colors
+                                       hover:bg-white active:scale-[0.99]"
+                          >
+                            {readyCount === 1
+                              ? 'Activar pase de cortesía'
+                              : `Activar ${readyCount} pases de cortesía`}
+                          </button>
+                        )}
+
+                        {/*
+                          Botón fantasma, del todo desaturado: es la salida y no
+                          debe competir con la acción principal. Existe porque un
+                          paso sin salida deja atrapada una cita real cuando el
+                          cliente no quiere dar nombres, y el prospecto se
+                          quedaría sin siguiente paso en la agenda.
+                        */}
                         <button
                           type="button"
                           onClick={finish}
-                          className="text-[10px] tracking-wide text-neutral-700
-                                     transition-colors hover:text-neutral-400"
+                          className="w-full bg-transparent px-4 py-3 text-sm font-medium
+                                     text-neutral-500 transition-colors hover:text-neutral-300"
                         >
-                          Omitir
+                          {readyCount > 0 ? 'Continuar sin activar' : 'Omitir invitaciones'}
                         </button>
                       </div>
-                    </div>
+                    </>
                   ) : (
                     /* ── Paso 1: la resolución ── */
                     <>

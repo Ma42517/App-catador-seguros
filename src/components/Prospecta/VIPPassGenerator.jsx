@@ -4,7 +4,7 @@ import FullScreenView from '../Layout/FullScreenView';
 import { useSession } from '../../context/SessionContext';
 import {
   REQUIRED_PASSES, saveVipPasses, unlockVipWithoutPasses, isVipUnlocked, vipPassLink,
-  arePassesComplete, emptyPasses,
+  arePassesComplete,
 } from '../../data/vipPasses';
 import VIPPassFields from './VIPPassFields';
 import WhatsAppMark from '../Activities/WhatsAppMark';
@@ -39,7 +39,8 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
   const { identity } = useSession();
   const username = identity?.key;
 
-  const [passes, setPasses] = useState(emptyPasses);
+  // Arranca vacío: las invitaciones se agregan de una en una.
+  const [passes, setPasses] = useState([]);
   const [saved, setSaved] = useState(null);
   const [sentIds, setSentIds] = useState([]);
 
@@ -47,7 +48,7 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
   // de los de la vez pasada.
   useEffect(() => {
     if (!isOpen) return;
-    setPasses(emptyPasses());
+    setPasses([]);
     setSaved(null);
     setSentIds([]);
   }, [isOpen]);

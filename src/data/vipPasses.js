@@ -110,18 +110,19 @@ export function saveVipPasses(username, entries, { origin = 'menu', fromClient =
  * referidos— no puede quedarse sin poder trabajar. El desbloqueo queda
  * registrado igual, así que la app no vuelve a preguntar.
  */
-/**
- * Lote vacío de pases, para inicializar el estado de un formulario.
- *
- * Vive aquí y no junto al componente que lo dibuja (`VIPPassFields.jsx`)
- * porque `oxlint` marca como advertencia exportar funciones desde un archivo
- * que también exporta un componente (`react/only-export-components`, rompe el
- * Fast Refresh). Además es su sitio natural: la forma de un pase es un asunto
- * de los datos, no de la interfaz.
- */
-export function emptyPasses() {
-  return Array.from({ length: REQUIRED_PASSES }, () => ({ name: '', phone: '' }));
-}
+/*
+  Ya no existe un `emptyPasses()` que devuelva tres filas en blanco: los
+  formularios arrancan con el arreglo vacío y las invitaciones se agregan de
+  una en una ("divulgación progresiva", ver `VIPPassFields.jsx`). Tres campos
+  dobles vacíos de entrada se leen como un trámite obligatorio; una invitación
+  que se agrega a voluntad se lee como lo que es.
+
+  Estas funciones viven aquí y no junto al componente que las dibuja porque
+  `oxlint` marca como advertencia exportar funciones desde un archivo que
+  también exporta un componente (`react/only-export-components`, rompe el Fast
+  Refresh). Además es su sitio natural: la forma de un pase es un asunto de los
+  datos, no de la interfaz.
+*/
 
 /** ¿Un pase tiene nombre y un teléfono verosímil? */
 export function isPassComplete(pass) {
@@ -130,12 +131,28 @@ export function isPassComplete(pass) {
 }
 
 /**
- * ¿Está el lote completo?
+ * Los pases del lote que están listos para guardarse.
+ *
+ * Existe para no tirar contactos reales. Antes sólo se guardaba si los tres
+ * estaban completos, así que un cliente que daba un solo nombre veía cómo ese
+ * contacto se perdía al cerrar la cita. Un referido de verdad vale aunque
+ * venga solo.
+ */
+export function completePasses(passes) {
+  return (Array.isArray(passes) ? passes : []).filter(isPassComplete);
+}
+
+/**
+ * ¿Está el lote entero, con los tres pases?
  *
  * Es la única definición de "ya está lleno" en toda la app: la usan el
  * generador del menú y el cierre de la Cita Inicial, y con dos copias bastaba
  * que una aceptara un teléfono de 9 dígitos para que un pase quedara
  * inservible según por dónde se hubiera capturado.
+ *
+ * Cuidado con lo que decide cada cosa: esto gobierna el desbloqueo de la
+ * herramienta y el bono, no si se puede continuar. Para eso se usa
+ * `completePasses(...).length`, que acepta uno o dos.
  */
 export function arePassesComplete(passes) {
   return Array.isArray(passes)
