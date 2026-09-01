@@ -1,22 +1,10 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X } from 'lucide-react';
-import { REQUIRED_PASSES, isPassComplete } from '../../data/vipPasses';
+import { Plus, X, Ticket } from 'lucide-react';
+import { REQUIRED_PASSES } from '../../data/vipPasses';
+import AddInvitationSheet from './AddInvitationSheet';
 
-/*
-  Campo del formulario. Fondo casi negro con un filo apenas visible que se
-  aclara al enfocar: no hay caja gris, sólo la línea que delimita dónde se
-  escribe.
-
-  Es el detalle que decide si el formulario se ve caro. Un `bg-neutral-800`
-  —el gris de relleno habitual— convierte cada campo en un bloque que compite
-  con el texto; a `neutral-950` sobre negro el campo casi desaparece y lo único
-  que se lee es lo que la persona escribe.
-*/
-const INPUT = 'w-full min-w-0 rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-3 '
-  + 'text-sm text-neutral-200 placeholder-neutral-600 transition-colors '
-  + 'focus:border-neutral-500 focus:outline-none';
-
-/** Entrada y salida de una invitación. Corta, sin rebote: es un campo, no un aviso. */
+/** Entrada y salida de una invitación ya agregada. Corta, sin rebote: es una fila, no un aviso. */
 const REVEAL = {
   initial: { opacity: 0, y: -6, height: 0 },
   animate: { opacity: 1, y: 0, height: 'auto' },
@@ -37,11 +25,19 @@ const REVEAL = {
  * porque alguien decidió sumarlo. El límite (`REQUIRED_PASSES`) sigue ahí: el
  * botón desaparece al llegar al tercero.
  *
+ * ## Por qué la captura vive en una hoja y no en línea
+ * Antes cada "+ Agregar invitación" desplegaba un par de campos dentro de la
+ * misma vista, y al crecer deformaban el layout —una lista de cajas a medio
+ * llenar en medio de la pantalla del cliente—. Ahora el botón abre una hoja
+ * inferior (`AddInvitationSheet`) que captura un contacto de una vez; al
+ * confirmar, el contacto baja a esta lista como una fila limpia de sólo
+ * lectura. La captura y la lista quedan separadas: aquí sólo se ve lo ya
+ * agregado.
+ *
  * ## Por qué se puede quitar una invitación
- * La `X` de cada fila no es un adorno: en un formulario que crece, agregar de
- * más es tan fácil como agregar de menos, y sin forma de deshacerlo la única
- * salida sería dejar una fila vacía —que además bloquearía el conteo de
- * completos—.
+ * La `X` de cada fila no es un adorno: en una lista que crece, agregar de más
+ * es tan fácil como agregar de menos, y sin forma de deshacerlo la única
+ * salida sería dejar un contacto que no se quería.
  *
  * ## Historia del diseño
  * Aquí hubo un boleto troquelado con talón numerado en monoespaciada. Se quitó
@@ -50,13 +46,10 @@ const REVEAL = {
  * talonario de rifa. Lo que queda es sólo lo que hay que llenar.
  */
 export default function VIPPassFields({ passes, onChange }) {
+  const [sheetOpen, setSheetOpen] = useState(false);
   const canAddMore = passes.length < REQUIRED_PASSES;
 
-  const patch = (index, field, value) => {
-    onChange(passes.map((pass, i) => (i === index ? { ...pass, [field]: value } : pass)));
-  };
-
-  const add = () => onChange([...passes, { name: '', phone: '' }]);
+  const add = (contact) => onChange([...passes, contact]);
   const remove = (index) => onChange(passes.filter((_, i) => i !== index));
 
   return (
@@ -72,44 +65,40 @@ export default function VIPPassFields({ passes, onChange }) {
             {...REVEAL}
             className="overflow-hidden"
           >
-            <div className="flex items-center gap-2 pb-3">
-              <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[1.2fr_1fr]">
-                <input
-                  className={`${INPUT} ${isPassComplete(pass) ? 'border-neutral-700' : ''}`}
-                  value={pass.name}
-                  onChange={(e) => patch(index, 'name', e.target.value)}
-                  placeholder="Nombre"
-                  /*
-                    El número sólo vive en el nombre accesible: sin él, un lector
-                    de pantalla anunciaría campos llamados "Nombre" y "WhatsApp"
-                    sin forma de saber a cuál invitado pertenece cada uno.
-                  */
-                  aria-label={`Nombre del invitado ${index + 1}`}
-                  autoComplete="off"
-                  autoFocus={!pass.name && !pass.phone}
-                />
+            {/*
+              Fila de sólo lectura de una invitación ya agregada. La captura se
+              hizo en la hoja; aquí sólo se muestra a quién se invitó, con la
+              `X` para quitarlo.
+            */}
+            <div className="mb-2 flex items-center gap-3 rounded-xl border border-neutral-800
+                            bg-neutral-900/60 px-4 py-3"
+            >
+              <span
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg
+                           bg-neutral-800 text-neutral-400"
+                aria-hidden="true"
+              >
+                <Ticket size={16} />
+              </span>
 
-                <input
-                  className={`${INPUT} ${isPassComplete(pass) ? 'border-neutral-700' : ''}`}
-                  value={pass.phone}
-                  onChange={(e) => patch(index, 'phone', e.target.value)}
-                  placeholder="WhatsApp"
-                  aria-label={`WhatsApp del invitado ${index + 1}`}
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="off"
-                />
-              </div>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-neutral-100">
+                  {pass.name}
+                </span>
+                <span className="block truncate text-xs text-neutral-500">
+                  {pass.phone}
+                </span>
+              </span>
 
               <button
                 type="button"
                 onClick={() => remove(index)}
                 aria-label={`Quitar la invitación ${index + 1}`}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-neutral-700
-                           transition-colors hover:text-neutral-400 focus-visible:outline-none
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-neutral-600
+                           transition-colors hover:text-neutral-300 focus-visible:outline-none
                            focus-visible:ring-1 focus-visible:ring-neutral-600"
               >
-                <X size={15} aria-hidden="true" />
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
           </motion.div>
@@ -117,15 +106,15 @@ export default function VIPPassFields({ passes, onChange }) {
       </AnimatePresence>
 
       {/*
-        El botón queda debajo de las invitaciones ya agregadas, así que la
-        siguiente se escribe justo donde estaba el pulgar. Desaparece al llegar
-        al tercero en vez de quedarse deshabilitado: un botón apagado invita a
+        El botón queda debajo de las invitaciones ya agregadas. Ya no despliega
+        campos en línea: abre la hoja de captura. Desaparece al llegar al
+        tercero en vez de quedarse deshabilitado: un botón apagado invita a
         preguntarse qué falta, y aquí no falta nada.
       */}
       {canAddMore && (
         <button
           type="button"
-          onClick={add}
+          onClick={() => setSheetOpen(true)}
           className="flex w-full items-center justify-center gap-2 rounded-lg border
                      border-neutral-800 bg-neutral-900 px-4 py-3.5 text-sm font-medium
                      text-neutral-200 transition-colors hover:border-neutral-700
@@ -133,9 +122,15 @@ export default function VIPPassFields({ passes, onChange }) {
                      focus-visible:ring-1 focus-visible:ring-neutral-600"
         >
           <Plus size={16} strokeWidth={2} aria-hidden="true" />
-          Agregar invitación
+          Invitar a un amigo
         </button>
       )}
+
+      <AddInvitationSheet
+        isOpen={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onAdd={add}
+      />
     </div>
   );
 }
