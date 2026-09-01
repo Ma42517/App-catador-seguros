@@ -57,7 +57,13 @@ function ExpedienteDetailSheet({ lead, onClose }) {
   const data = lead?.expediente;
 
   return (
-    <BottomSheet isOpen={Boolean(lead)} onClose={onClose} label="Expediente Previo a Emisión">
+    /* Misma capa que la hoja del pase: sobre el `z-[70]` de esta pantalla. */
+    <BottomSheet
+      isOpen={Boolean(lead)}
+      onClose={onClose}
+      label="Expediente Previo a Emisión"
+      zIndexClass="z-[80]"
+    >
       {data && (
         <div className="dark">
           <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
