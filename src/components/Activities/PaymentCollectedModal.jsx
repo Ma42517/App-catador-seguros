@@ -54,6 +54,7 @@ export default function PaymentCollectedModal({
     cobro le pisaría encima la fecha que acaba de escribir.
   */
   const [nextDateTouched, setNextDateTouched] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const anchorRef = useRef(null);
   const [isDarkContext, setDarkContext] = useState(false);
@@ -69,6 +70,7 @@ export default function PaymentCollectedModal({
     setCollectedOn(todayKey());
     setFrequency(initialFrequency || DEFAULT_PAYMENT_FREQUENCY);
     setNextDateTouched(false);
+    setIsSubmitting(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -81,15 +83,21 @@ export default function PaymentCollectedModal({
   const isRecurring = frequency !== 'unico';
   const canConfirm = Boolean(collectedOn) && (!isRecurring || Boolean(nextDate));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!canConfirm) return;
-    onConfirm?.({
-      collectedOn,
-      frequency,
-      nextDate: isRecurring ? nextDate : '',
-    });
-    onClose?.();
+    if (!canConfirm || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = await onConfirm?.({
+        collectedOn,
+        frequency,
+        nextDate: isRecurring ? nextDate : '',
+      });
+      if (result?.status === 'committed' || result?.status === 'already_resolved') onClose?.();
+      else setIsSubmitting(false);
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   const anchor = <span ref={anchorRef} className="hidden" aria-hidden="true" />;
@@ -115,7 +123,7 @@ export default function PaymentCollectedModal({
                 <button
                   type="button"
                   aria-label="Cerrar"
-                  onClick={onClose}
+                  onClick={() => { if (!isSubmitting) onClose?.(); }}
                   className="absolute inset-0 h-full w-full cursor-default"
                 />
 
@@ -205,7 +213,7 @@ export default function PaymentCollectedModal({
 
                     <button
                       type="submit"
-                      disabled={!canConfirm}
+                      disabled={!canConfirm || isSubmitting}
                       className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl
                                  bg-emerald-600 px-4 py-3 text-sm font-semibold text-white
                                  transition-colors hover:bg-emerald-500 active:scale-[0.98]
@@ -217,9 +225,11 @@ export default function PaymentCollectedModal({
 
                     <button
                       type="button"
-                      onClick={onClose}
+                      onClick={() => { if (!isSubmitting) onClose?.(); }}
+                      disabled={isSubmitting}
                       className="mt-2 w-full rounded-xl px-4 py-2.5 text-xs font-semibold
-                                 text-slate-500 transition-colors hover:text-slate-300"
+                                 text-slate-500 transition-colors hover:text-slate-300
+                                 disabled:cursor-wait disabled:opacity-60"
                     >
                       Cancelar
                     </button>

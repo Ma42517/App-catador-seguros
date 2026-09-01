@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Handshake, FileSignature, PackageCheck, CalendarClock, Archive, ArrowRight, CheckCircle2,
 } from 'lucide-react';
-import { PRESENTATION_END_GAMIFICATION } from '../../lib/presentationGamification';
+import { GAMIFICATION_ACTIONS } from '../../store/gamificationStore';
 import {
   PIPELINE_STAGES, PIPELINE_RESOLUTIONS, resolvePipelineStage,
 } from '../../store/pipelineStore';
@@ -76,14 +76,12 @@ const TARGETS = [
  * @param {() => void} onClose
  * @param {(tipoActividad: string, client: object, extra?: object) => void} onRouteToActivity
  * @param {(client: object) => void} onDiscardClient
- * @param {(resultType: 'schedule'|'discard') => void} [onResolved]
- * @param {(amount: number) => void} onEarnPoints
  */
 export default function FollowUpResolutionModal({
-  isOpen, client, onClose, onRouteToActivity, onDiscardClient, onResolved, onComplete,
-  onEarnPoints,
+  isOpen, client, onClose, onRouteToActivity, onDiscardClient, onComplete,
 }) {
   const clientName = client?.name || 'este prospecto';
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const anchorRef = useRef(null);
   const [isDarkContext, setDarkContext] = useState(false);
@@ -91,18 +89,30 @@ export default function FollowUpResolutionModal({
     if (isOpen) setDarkContext(!!anchorRef.current?.closest('.dark'));
   }, [isOpen]);
 
-  const resolve = (resolution, payload) => {
-    const result = resolvePipelineStage(PIPELINE_STAGES.SEGUIMIENTO, resolution, payload);
-    onEarnPoints?.(PRESENTATION_END_GAMIFICATION.RESOLUTION_BASE);
-    onResolved?.(result.type);
-    if (result.type === 'discard') {
-      onDiscardClient?.(client);
-    } else {
-      onRouteToActivity?.(result.tipoActividad, client, {
-        reason: `Retomado desde un Seguimiento de ${clientName}`,
-      });
+  const resolve = async (resolution, payload) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = resolvePipelineStage(PIPELINE_STAGES.SEGUIMIENTO, resolution, payload);
+      if (result.type === 'discard') {
+        await onDiscardClient?.(client);
+      } else {
+        const awardsContact = [
+          PIPELINE_STAGES.CITA_INICIAL,
+          PIPELINE_STAGES.PROPUESTA,
+          PIPELINE_STAGES.CIERRE,
+        ].includes(payload?.targetStage);
+        onRouteToActivity?.(result.tipoActividad, client, {
+          reason: `Retomado desde un Seguimiento de ${clientName}`,
+          resolvingEventId: client?.id,
+          resolveMode: 'complete',
+          awardAction: awardsContact ? GAMIFICATION_ACTIONS.CONTACTO_EFECTIVO : null,
+        });
+      }
+      onClose?.();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose?.();
   };
 
   /*
@@ -111,9 +121,15 @@ export default function FollowUpResolutionModal({
     tarea. Tampoco paga puntos de resolución —no se movió el embudo— pero sí
     completa la tarjeta, que es lo que la saca de "Hoy".
   */
-  const onResolveWithoutNextStep = () => {
-    onComplete?.();
-    onClose?.();
+  const onResolveWithoutNextStep = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onComplete?.();
+      onClose?.();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const anchor = <span ref={anchorRef} className="hidden" aria-hidden="true" />;
@@ -159,6 +175,7 @@ export default function FollowUpResolutionModal({
                       <button
                         key={value}
                         type="button"
+                        disabled={isSubmitting}
                         onClick={() => resolve(PIPELINE_RESOLUTIONS.ADVANCE, { targetStage: value })}
                         className={`flex w-full items-center justify-between gap-3 rounded-xl
                                     px-4 py-3 text-left text-sm font-semibold transition-colors
@@ -193,6 +210,7 @@ export default function FollowUpResolutionModal({
                     */}
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={onResolveWithoutNextStep}
                       className="flex w-full items-center justify-between gap-3 rounded-xl
                                  border border-slate-700 bg-slate-800 px-4 py-3 text-left
@@ -211,6 +229,7 @@ export default function FollowUpResolutionModal({
 
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => resolve(PIPELINE_RESOLUTIONS.DISQUALIFY)}
                       className="flex w-full items-center justify-between gap-3 rounded-xl
                                  border border-slate-700 bg-slate-800 px-4 py-3 text-left
@@ -224,6 +243,7 @@ export default function FollowUpResolutionModal({
 
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={onClose}
                     className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl
                                px-4 py-2.5 text-xs font-semibold text-slate-500

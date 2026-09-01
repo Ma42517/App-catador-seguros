@@ -2,10 +2,12 @@ import { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CalendarClock, Archive, Gift, ArrowLeft } from 'lucide-react';
-import { PRESENTATION_END_GAMIFICATION } from '../../lib/presentationGamification';
+import {
+  GAMIFICATION_ACTIONS, awardGamification,
+} from '../../store/gamificationStore';
 import { useSession } from '../../context/SessionContext';
 import {
-  saveVipPasses, REQUIRED_PASSES, arePassesComplete, completePasses,
+  saveVipPasses, REQUIRED_PASSES, completePasses,
 } from '../../data/vipPasses';
 import VIPPassFields from './VIPPassFields';
 
@@ -39,29 +41,23 @@ import VIPPassFields from './VIPPassFields';
  * contra la ventana real sin importar qué transform tenga cualquier
  * ancestro.
  *
- * Las 3 resoluciones no le hablan directamente a `EventContext` ni a
- * Supabase: cada una llama a la prop correspondiente (`onRouteToActivity`,
- * `onDiscardClient`) y es quien monta este modal el que decide cómo
- * ejecutarlo — mismo desacople que ya usa `CallFeedbackModal.jsx` con
- * `onEarnPoints`.
+ * Las resoluciones delegan la transición al nivel que conoce EventContext:
+ * avanzar abre ActivityForm con el id de la cita origen, y descartar ejecuta
+ * una eliminación atómica antes de archivar al prospecto. Cancelar el
+ * formulario de la actividad siguiente nunca toca la cita original.
  *
- * No hay pregunta de referidos: pedirla aquí, de memoria y después de la
- * cita, no tiene ninguna certeza de que en verdad se solicitaron durante la
- * conversación — es un dato que se presta a inventarse para sumar puntos, y
- * ese es justo el fraude que el Reloj de Arena (`InitialMeetingCard.jsx`)
- * ya viene a evitar en otra parte del flujo. Los 3 puntos base de la
- * resolución no dependen de nada más que de haber cerrado el expediente.
+ * Los referidos sólo se guardan si se elige explícitamente activar los pases.
+ * Cada pase guardado puede otorgar un punto, con límite idempotente de tres
+ * por sesión aplicado por el store de gamificación.
  *
  * @param {boolean} isOpen
  * @param {{id?: string, name?: string, phone?: string}} client
  * @param {() => void} onClose
- * @param {(activityType: 'cita_propuesta'|'seguimiento', client: object) => void} onRouteToActivity
- * @param {(client: object) => void} onDiscardClient
- * @param {(amount: number) => void} onEarnPoints
- * @param {() => void} [onResolved] Se llama siempre, sin importar la resolución elegida: la Cita Inicial que se está cerrando ya se llevó a cabo, así que quien monta el modal debe quitarla de la agenda sin importar a dónde se enrutó el prospecto después.
+ * @param {(activityType: 'cita_propuesta'|'seguimiento', client: object, metadata: object) => void} onRouteToActivity
+ * @param {(client: object) => Promise<{status: string}>} onDiscardClient
  */
 export default function PresentationEndModal({
-  isOpen, client, onClose, onRouteToActivity, onDiscardClient, onEarnPoints, onResolved,
+  isOpen, client, onClose, onRouteToActivity, onDiscardClient,
 }) {
   const clientName = client?.name || 'este prospecto';
   const { identity } = useSession();
@@ -80,8 +76,10 @@ export default function PresentationEndModal({
     la cita medio resuelta.
   */
   const [pending, setPending] = useState(null);
-  // Arranca vacío: las invitaciones se agregan de una en una.
   const [passes, setPasses] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const referralSessionRef = useRef('');
 
   /*
     El tema no se hereda a través de un portal (ver la nota de
@@ -101,7 +99,12 @@ export default function PresentationEndModal({
     if (!isOpen) return;
     setPending(null);
     setPasses([]);
-  }, [isOpen]);
+    setIsSubmitting(false);
+    submittingRef.current = false;
+    referralSessionRef.current = client?.id
+      ? `cita-inicial:${client.id}`
+      : `cita-inicial:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
+  }, [isOpen, client?.id]);
 
   /*
     Dos medidas distintas, y conviene no confundirlas:
@@ -116,61 +119,62 @@ export default function PresentationEndModal({
   */
   const ready = completePasses(passes);
   const readyCount = ready.length;
-  const passesComplete = arePassesComplete(passes);
 
-  const resolve = (action) => {
-    onEarnPoints?.(PRESENTATION_END_GAMIFICATION.RESOLUTION_BASE);
-
-    /*
-      Los pases se guardan antes de enrutar y con el nombre del cliente que
-      los dio (`fromClient`): al revisar la lista, un pase que salió de una
-      cita se escribe distinto que uno que el asesor sacó de su propia red.
-      Se guarda lo que haya; el bono es lo que exige el lote completo.
-    */
-    if (readyCount > 0) {
-      saveVipPasses(identity?.key, ready, {
-        origin: 'cita_inicial',
-        fromClient: client?.name ?? '',
+  const persistAndRewardReferrals = () => {
+    if (readyCount === 0) return [];
+    const saved = saveVipPasses(identity?.key, ready, {
+      origin: 'cita_inicial',
+      fromClient: client?.name ?? '',
+    });
+    saved.forEach((pass) => {
+      awardGamification(GAMIFICATION_ACTIONS.NUEVO_REFERIDO_AGREGADO, {
+        userKey: identity?.key,
+        sessionId: referralSessionRef.current,
+        referralId: pass.id,
       });
-    }
-    if (passesComplete) {
-      onEarnPoints?.(PRESENTATION_END_GAMIFICATION.REFERRAL_BONUS);
-    }
-
-    action();
-    // Sin importar cuál de las 3 resoluciones se elija, la Cita Inicial ya
-    // se llevó a cabo: su tarjeta debe salir de "Hoy" en las tres, no sólo
-    // en "No califica" (que la borraba de rebote al descartar al
-    // prospecto). "Avanzamos a Propuesta" y "Requiere Seguimiento" sólo
-    // creaban la siguiente actividad y dejaban ésta huérfana en la lista.
-    onResolved?.();
-    onClose?.();
+    });
+    return saved;
   };
 
-  /*
-    Las 3 resoluciones ya no ejecutan nada: apuntan la elección y pasan al
-    segundo paso. Cada una guarda su etiqueta para poder recordarle al asesor
-    qué está por confirmar mientras llena los boletos.
-  */
   const RESOLUTIONS = {
     propuesta: {
-      label: 'Avanza a Propuesta',
-      run: () => onRouteToActivity?.('cita_propuesta', client),
+      activityType: 'cita_propuesta',
+      awardAction: GAMIFICATION_ACTIONS.CITA_INICIAL_REALIZADA,
     },
     seguimiento: {
-      label: 'Requiere Seguimiento',
-      run: () => onRouteToActivity?.('seguimiento', client),
+      activityType: 'seguimiento',
+      awardAction: GAMIFICATION_ACTIONS.CITA_INICIAL_REALIZADA,
     },
-    descartado: {
-      label: 'No califica',
-      run: () => onDiscardClient?.(client),
-    },
+    descartado: { activityType: null, awardAction: null },
   };
 
-  const finish = () => {
+  const finish = async (activatePasses) => {
     const chosen = RESOLUTIONS[pending];
-    if (!chosen) return;
-    resolve(chosen.run);
+    if (!chosen || submittingRef.current) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      if (pending === 'descartado') {
+        const result = await onDiscardClient?.(client);
+        if (result?.status !== 'committed' && result?.status !== 'already_resolved') {
+          throw new Error('No fue posible descartar la cita');
+        }
+        if (result.status === 'committed' && activatePasses) persistAndRewardReferrals();
+        onClose?.();
+      } else {
+        onRouteToActivity?.(chosen.activityType, client, {
+          resolvingEventId: client?.id,
+          resolveMode: 'remove',
+          awardAction: chosen.awardAction,
+          afterCommit: activatePasses ? persistAndRewardReferrals : null,
+        });
+        onClose?.();
+      }
+    } catch {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   const anchor = <span ref={anchorRef} className="hidden" aria-hidden="true" />;
@@ -289,7 +293,8 @@ export default function PresentationEndModal({
                         */}
                         <button
                           type="button"
-                          onClick={() => setPending(null)}
+                          onClick={() => { if (!isSubmitting) setPending(null); }}
+                          disabled={isSubmitting}
                           aria-label="Volver"
                           className="-ml-2 grid h-9 w-9 place-items-center rounded-lg
                                      text-neutral-400 transition-colors hover:text-neutral-100
@@ -357,10 +362,12 @@ export default function PresentationEndModal({
                         {readyCount > 0 && (
                           <button
                             type="button"
-                            onClick={finish}
+                            onClick={() => finish(true)}
+                            disabled={isSubmitting}
                             className="w-full rounded-lg bg-neutral-100 px-4 py-3.5 text-sm
                                        font-medium text-black transition-colors
-                                       hover:bg-white active:scale-[0.99]"
+                                       hover:bg-white active:scale-[0.99] disabled:cursor-wait
+                                       disabled:opacity-60"
                           >
                             {readyCount === 1
                               ? 'Activar pase de cortesía'
@@ -377,9 +384,11 @@ export default function PresentationEndModal({
                         */}
                         <button
                           type="button"
-                          onClick={finish}
+                          onClick={() => finish(false)}
+                          disabled={isSubmitting}
                           className="w-full bg-transparent px-4 py-3 text-sm font-medium
-                                     text-neutral-500 transition-colors hover:text-neutral-300"
+                                     text-neutral-500 transition-colors hover:text-neutral-300
+                                     disabled:cursor-wait disabled:opacity-60"
                         >
                             {readyCount > 0 ? 'Continuar sin activar' : 'Omitir invitaciones'}
                           </button>

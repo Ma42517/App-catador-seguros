@@ -136,6 +136,7 @@ export default function ActivityForm({
   const [time, setTime] = useState('');
   const [priority, setPriority] = useState(DEFAULT_PRIORITY);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [contactPickerSupported] = useState(isContactPickerSupported);
 
@@ -154,6 +155,7 @@ export default function ActivityForm({
     setTime(parts.time);
     setPriority(DEFAULT_PRIORITY);
     setError('');
+    setIsSubmitting(false);
     // Sólo reacciona a `isOpen`: los valores iniciales se leen en el
     // instante de abrir, no deben reprogramar la limpieza cada vez que el
     // padre re-renderice con la misma prop.
@@ -179,69 +181,63 @@ export default function ActivityForm({
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     if (isReminder && !title.trim()) {
       setError('Escribe un título para continuar.');
       return;
     }
 
-    // Los inputs nativos de fecha y hora se pueden vaciar. Sin este respaldo,
-    // el evento quedaría fuera de la agenda del día, agrupado en "Sin fecha".
     const parts = todayParts();
-
-    if (isReminder) {
-      onSave?.({
+    const payload = isReminder
+      ? {
         type,
         title: title.trim(),
         date: date || parts.date,
         time: time || parts.time,
         priority,
-      });
-      onClose();
-      return;
-    }
+      }
+      : (() => {
+        const label = activityTypeLabel(tipoActividad);
+        const cleanName = prospectName.trim();
+        return {
+          type,
+          tipo_actividad: tipoActividad,
+          title: cleanName ? `${label}: ${cleanName}` : label,
+          telefono: prospectPhone.trim(),
+          date: date || parts.date,
+          time: time || parts.time,
+          priority: ACTIVITY_PRIORITY,
+          ...(isMeeting && {
+            modality,
+            location: modality === 'presencial' ? location.trim() : '',
+          }),
+          ...initialExtraFields,
+        };
+      })();
 
-    /*
-      El título que ven `CalendarView.jsx`/`ActionableCard.jsx` sigue
-      siendo un texto legible —esas pantallas no saben nada de
-      `tipo_actividad`—, pero ya no lo teclea la persona como título
-      libre: se deriva de la opción elegida más el nombre escrito, si lo
-      hay (mismo patrón que ya usa `FirstLoginIntro.jsx` para sus tareas:
-      `"${etiqueta}: ${nombre}"`). `tipo_actividad` viaja aparte, como el
-      valor estructurado y consistente que este cambio vino a garantizar.
-    */
-    const label = activityTypeLabel(tipoActividad);
-    const cleanName = prospectName.trim();
-    onSave?.({
-      type,
-      tipo_actividad: tipoActividad,
-      title: cleanName ? `${label}: ${cleanName}` : label,
-      telefono: prospectPhone.trim(),
-      date: date || parts.date,
-      time: time || parts.time,
-      priority: ACTIVITY_PRIORITY,
-      /*
-        Sólo se guardan si el tipo elegido es de encuentro con el
-        prospecto; para el resto (`llamada`, `cobro`...) no aplican y no
-        se escriben, en vez de dejar campos vacíos sin sentido en esos
-        eventos.
-      */
-      ...(isMeeting && {
-        modality,
-        // Sólo tiene sentido cuando es presencial: virtual ya no pide texto.
-        location: modality === 'presencial' ? location.trim() : '',
-      }),
-      ...initialExtraFields,
-    });
-    onClose();
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const result = await Promise.resolve(onSave?.(payload));
+      if (result?.status === 'already_resolved') {
+        setError('Esta actividad ya fue resuelta. Puedes cerrar este formulario.');
+        setIsSubmitting(false);
+        return;
+      }
+      onClose();
+    } catch (saveError) {
+      setError(saveError?.message || 'No fue posible guardar. Inténtalo nuevamente.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <BottomSheet
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => { if (!isSubmitting) onClose(); }}
       label={isReminder ? 'Nuevo recordatorio' : 'Nueva actividad'}
     >
       <h2 className="mb-5 text-lg font-bold text-zinc-900 dark:text-white">
@@ -487,13 +483,15 @@ export default function ActivityForm({
 
         <button
           type="submit"
+          disabled={isSubmitting}
           className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3
                      text-sm font-semibold text-white shadow-lg shadow-indigo-600/30
-                     transition-all hover:bg-indigo-500 active:scale-95
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                     transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-wait
+                     disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2
+                     focus-visible:ring-indigo-500"
         >
           <Check size={16} />
-          Guardar
+          {isSubmitting ? 'Guardando…' : 'Guardar'}
         </button>
       </form>
     </BottomSheet>

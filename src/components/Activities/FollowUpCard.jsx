@@ -4,7 +4,6 @@ import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
 import { digits, prospectNameFrom } from '../../lib/prospectText';
 import { markProspectDiscarded } from '../../data/prospectStatus';
-import useAdvisorPoints from '../../lib/useAdvisorPoints';
 import ActionCardBase from './ActionCardBase';
 import CircleActionButton from './CircleActionButton';
 import WhatsAppMark from './WhatsAppMark';
@@ -40,9 +39,8 @@ import FollowUpResolutionModal from './FollowUpResolutionModal';
  * demás, no como el camino de menor resistencia.
  */
 export default function FollowUpCard({ event, onRouteToActivity }) {
-  const { completeEvent, removeEvent } = useEvents();
+  const { resolveEvent, removeEvent } = useEvents();
   const { identity } = useSession();
-  const [, addPoints] = useAdvisorPoints(identity?.key);
   const [resolutionOpen, setResolutionOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
@@ -58,16 +56,16 @@ export default function FollowUpCard({ event, onRouteToActivity }) {
     )}`
     : undefined;
 
-  /*
-    Retomar en una etapa nueva completa este seguimiento —ya cumplió su
-    función, hay una actividad real agendada—; "No califica" lo elimina
-    junto con el registro del prospecto. Mismo criterio que las demás
-    tarjetas del embudo.
-  */
-  const handleResolved = (resultType) => {
-    if (resultType === 'discard') removeEvent(event.id);
-    else completeEvent(event.id);
+  const handleDiscardClient = (client) => {
+    const result = resolveEvent({ resolvingEventId: event.id, resolveMode: 'remove' });
+    if (result.status === 'committed') markProspectDiscarded(identity?.key, client);
+    return result;
   };
+
+  const handleCompleteWithoutNext = () => resolveEvent({
+    resolvingEventId: event.id,
+    resolveMode: 'complete',
+  });
 
   return (
     <>
@@ -126,10 +124,8 @@ export default function FollowUpCard({ event, onRouteToActivity }) {
         client={{ id: event.id, name: prospectName, phone: event.telefono }}
         onClose={() => setResolutionOpen(false)}
         onRouteToActivity={onRouteToActivity}
-        onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
-        onResolved={handleResolved}
-        onComplete={() => completeEvent(event.id)}
-        onEarnPoints={addPoints}
+        onDiscardClient={handleDiscardClient}
+        onComplete={handleCompleteWithoutNext}
       />
     </>
   );

@@ -10,7 +10,6 @@ import { BigResult, MiniStat, YesNoRow, StepHeading } from './ProspectaParts';
 import PresentationEndModal from './PresentationEndModal';
 import { useSession } from '../../context/SessionContext';
 import { useEvents } from '../../context/EventContext';
-import useAdvisorPoints from '../../lib/useAdvisorPoints';
 import { markProspectDiscarded } from '../../data/prospectStatus';
 import {
   COMPANY_FACTS, PYRAMID_LEVELS, THERMOMETER_AMOUNTS, PAYMENT_METHODS,
@@ -650,24 +649,19 @@ export default function CitaInicialWizard({
   const [showEndModal, setShowEndModal] = useState(false);
 
   const { identity } = useSession();
-  const { removeEvent } = useEvents();
-  const [, addPoints] = useAdvisorPoints(identity?.key);
+  const { resolveEvent } = useEvents();
 
-  /*
-    Cierra el ciclo de la Cita Inicial: sin importar cuál de las 3
-    resoluciones eligió el asesor en `PresentationEndModal.jsx`, la cita
-    que se está reportando en vivo ya se llevó a cabo, así que su tarjeta
-    debe salir de "Hoy" — quedaba huérfana ahí (visible junto con la
-    actividad nueva que el router de ventas acaba de crear) porque nadie
-    llamaba nunca a `removeEvent` para ella; sólo se descartaba de rebote
-    cuando la resolución era "No califica", porque esa sí borra al
-    prospecto. `client?.id` es el `id` del propio evento (ver
-    `handleStartSession`, `App.jsx`) y sólo existe cuando la cita llegó por
-    notificación (`requireResolution`); entrando a mano no hay evento real
-    que borrar.
-  */
-  const handleInitialMeetingResolved = () => {
-    if (client?.id) removeEvent(client.id);
+  const handleDiscardClient = async (discardedClient) => {
+    if (!client?.id) return { status: 'missing_source', activity: null };
+
+    const result = await resolveEvent({
+      resolvingEventId: client.id,
+      resolveMode: 'remove',
+    });
+    if (result.status === 'committed') {
+      markProspectDiscarded(identity?.key, discardedClient);
+    }
+    return result;
   };
 
   const update = (patch) => setData((prev) => ({ ...prev, ...patch }));
@@ -780,9 +774,7 @@ export default function CitaInicialWizard({
         client={client ?? { name: '', phone: '' }}
         onClose={() => { setShowEndModal(false); onBack(); }}
         onRouteToActivity={onRouteToActivity}
-        onDiscardClient={(discardedClient) => markProspectDiscarded(identity?.key, discardedClient)}
-        onResolved={handleInitialMeetingResolved}
-        onEarnPoints={addPoints}
+        onDiscardClient={handleDiscardClient}
       />
     </div>
   );

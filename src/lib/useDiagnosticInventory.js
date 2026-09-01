@@ -4,12 +4,9 @@ import { readDiagnosticsCount, writeDiagnosticsCount } from '../data/diagnosticI
 /**
  * src/lib/useDiagnosticInventory.js
  *
- * Inventario de Diagnósticos 360, reactivo y persistido por usuario. Mismo
- * patrón que `useAdvisorPoints.js` (leer al montar, releer si cambia
- * `username`, y un `useRef` que evita escribir con el estado inicial antes
- * de que `username` esté resuelto): son dos economías distintas del mismo
- * asesor —puntos que se ganan, Diagnósticos que se gastan—, así que viven
- * en dos hooks separados en vez de fundirse en uno solo.
+ * Inventario de Diagnósticos 360, reactivo y persistido por usuario. Lee al
+ * montar, relee al cambiar `username` y usa un `useRef` para no escribir el
+ * estado inicial antes de que la identidad esté resuelta.
  *
  * @param {string} username - Clave de la persona (`identity.key` o `PREVIEW_KEY`).
  * @returns {[number, () => void]} Cantidad disponible y una función para

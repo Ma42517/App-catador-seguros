@@ -15,9 +15,8 @@ import BottomSheet from '../Layout/BottomSheet';
 /** Cuánto tarda cada fundido de esta pantalla (el de la recompensa hacia "Iniciar", y el del overlay completo al presionarlo), en ms — usado tanto en las clases de Tailwind como en los temporizadores que esperan a que termine antes de avanzar. */
 const FADE_OUT_MS = 700;
 /*
-  Cuánto se queda la Recompensa en pantalla —confeti y "+1 Punto"— antes de
-  desvanecerse sola y dejar sólo el botón "Iniciar". El valor es el pedido
-  exacto de la especificación (4.5s), no un número redondeado a ojo.
+  Cuánto se queda el logro en pantalla antes de desvanecerse solo y dejar
+  el botón "Iniciar". El valor conserva la pausa visual de la experiencia.
 */
 const REWARD_AUTO_MS = 4500;
 /*
@@ -374,8 +373,8 @@ function taskSlotCountFor(mercado) {
 const MIN_FILLED_TASKS = 3;
 
 const TASK_STEP_TITLE = 'Descarga tu mente';
-const TASK_STEP_TEXT = 'Vamos a ganar tus primeros puntos. Vacía esos pendientes que tienes '
-  + 'en tu libreta y pásalos a tu nuevo asistente.';
+const TASK_STEP_TEXT = 'Vacía esos pendientes que tienes en tu libreta y pásalos a tu nuevo '
+  + 'asistente.';
 const TASK_STEP_SUBTEXT = 'Agilicemos tu horario. Escribe tus próximas acciones y nosotros '
   + 'nos encargamos de acomodarlas en tu agenda.';
 
@@ -452,13 +451,6 @@ function defaultTaskTime(index) {
   const minutes = totalMinutes % 60;
   const pad = (n) => String(n).padStart(2, '0');
   return `${pad(hours)}:${pad(minutes)}`;
-}
-
-/** "+ 1 Punto", "+ 2.5 Puntos": entero sin decimales, fracción con uno solo; singular sólo cuando vale exactamente 1. */
-function formatPoints(amount) {
-  const value = Number.isInteger(amount) ? String(amount) : amount.toFixed(1);
-  const label = amount === 1 ? 'Punto' : 'Puntos';
-  return `+ ${value} ${label}`;
 }
 
 /*
@@ -1087,10 +1079,8 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
  * de capturar prospectos, la persona vacía sus pendientes en `slotCount`
  * filas (`taskSlotCountFor(mercado)`, según la cartera declarada en el
  * Onboarding). Cada fila se llena abriendo `TaskEditorSheet` (categoría,
- * nombre, teléfono y hora) — agendar la acción no otorga puntos por sí
- * sola (el punto de esta introducción se otorga en
- * `continueTaskCapture`/`skipTaskCapture`, siempre fijo en 1, sin
- * depender de cuántas tareas se hayan capturado aquí).
+ * nombre, teléfono y hora). Agendar prepara la agenda pero no suma al
+ * objetivo diario: los puntos sólo nacen de resultados del diccionario.
  *
  * Cada slot arranca ya con una hora sugerida (`defaultTaskTime(index)`,
  * escalonada de media hora en media hora desde las 9:00) para que la
@@ -1228,9 +1218,7 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
  *
  * "CONTINUAR" se habilita con cualquier interacción real en la pantalla
  * —al menos un prospecto o una acción con datos—, y "Saltar paso" queda
- * siempre libre para quien prefiere no capturar nada ahora: mismo criterio
- * de las otras dos ramas, el punto de bienvenida no depende de lo que se
- * haya llenado aquí (ver `continueHybridCapture`/`skipHybridCapture`).
+ * siempre libre para quien prefiere no capturar nada ahora.
  */
 function HybridCaptureStep({ onContinue, onSkip }) {
   const { typed, isTyping } = useTypewriter(HYBRID_STEP3_TEXT);
@@ -1846,7 +1834,7 @@ const TASK_ACHIEVEMENT = {
   label: () => 'Agenda Optimizada',
 };
 
-function RewardStep({ capturedCount, pointsEarned, achievement, onDone }) {
+function RewardStep({ capturedCount, achievement, onDone }) {
   const [visible, setVisible] = useState(false);
   const AchievementIcon = achievement.icon;
 
@@ -1875,7 +1863,7 @@ function RewardStep({ capturedCount, pointsEarned, achievement, onDone }) {
           className="text-3xl font-bold text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]
                      sm:text-4xl"
         >
-          {formatPoints(pointsEarned)}
+          Logro desbloqueado
         </p>
 
         <div
@@ -1885,7 +1873,7 @@ function RewardStep({ capturedCount, pointsEarned, achievement, onDone }) {
           <AchievementIcon size={20} className="shrink-0 text-amber-400" aria-hidden="true" />
           <div className="text-left">
             <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">
-              Logro desbloqueado
+              Primera misión completada
             </p>
             <p className="text-sm font-semibold text-white">
               {achievement.label(capturedCount)}
@@ -2045,17 +2033,16 @@ function JoinTeamStep({ onContinue }) {
  * vez del botón flotante genérico que compartía forma con el resto de
  * botones de avance del recorrido (`GLOW_BUTTON_CLASS`, índigo, angosto).
  * Éste es deliberadamente distinto: ancho (`w-[85%] max-w-sm`), en ámbar
- * —el mismo color que ya usa `RewardStep` para "+1 Punto", así el último
- * gesto de la introducción se siente como continuación de la recompensa,
- * no como un botón de avance más— y con un texto de ancla arriba
+ * —el mismo color que ya usa `RewardStep`, así el último gesto de la
+ * introducción se siente como continuación del logro— y con un texto de ancla arriba
  * ("Tu entorno de trabajo está listo.") para que la pantalla no se lea
  * como un botón perdido en el centro de un fondo negro.
  *
  * Aparece solo, sin confeti ni texto de logro —esos ya se desvanecieron
  * con `RewardStep`—. Al presionarlo arranca el fundido de todo el overlay
  * (`closing`, en `FirstLoginIntro`) y sólo cuando ese fundido termina se
- * avisa al padre (`onComplete`) para sumar el punto de verdad y montar
- * "Hoy" por detrás.
+ * avisa al padre (`onComplete`) para registrar que el intro terminó y
+ * montar "Hoy" por detrás.
  */
 function StartStep({ onStart }) {
   const [visible, setVisible] = useState(false);
@@ -2088,12 +2075,10 @@ function StartStep({ onStart }) {
 }
 
 /**
- * Introducción de la primera entrada a la app. Se muestra sólo para quien
- * declaró alguna inquietud en el Onboarding (ver `advisorOnboarding.js`) y
- * sólo mientras sus puntos sigan en 0 — es `TodayView.jsx` quien decide esa
- * condición antes de montar este componente, no algo que se compruebe aquí
- * adentro. `inquietud`, `mercado` y `perfil` sí se usan aquí, para calibrar
- * el tono del Paso 2 y qué se captura y cuánto en el Paso 3.
+ * Introducción de la primera entrada a la app. `TodayView.jsx` la muestra
+ * mientras no exista la bandera persistente de finalización; la gamificación
+ * diaria no participa en esa decisión. `inquietud`, `mercado` y `perfil` se
+ * usan para calibrar el tono del Paso 2 y qué se captura en el Paso 3.
  *
  * Seis momentos en un único estado local (`step`), sin enrutador ni pila
  * de historial: es un recorrido lineal, sin "Atrás".
@@ -2126,31 +2111,20 @@ function StartStep({ onStart }) {
  *   4. Recompensa automática (`RewardStep`) — confeti + logro,
  *      `REWARD_AUTO_MS`. El logro cambia según la rama ("Proyecto 200",
  *      "Agenda Optimizada", "Armería Desbloqueada", "Motor de Referidos"
- *      o "Modo Escala"), pero el punto es siempre "+1 Punto", igual en
- *      todas las ramas y sin importar si se llenó, se saltó o se
- *      agendaron varias tareas: es el premio de bienvenida por completar
- *      el Onboarding, no un cálculo sobre lo capturado en el Paso 3
- *      (agendar una acción no otorga puntos por sí sola: el resultado
- *      real se reporta después, en otro flujo).
+ *      o "Modo Escala") y no otorga puntos del objetivo diario.
  *   5. Unirse a un equipo de trabajo (`JoinTeamStep`) — código real de
  *      promotoría, o "Hacerlo después"
  *   6. Botón final (`StartStep`) — la persona decide cuándo cruzar
  *
- * `onComplete(pointsEarned)` se llama cuando termina el fundido de salida
- * de todo el overlay, disparado por el toque en "Iniciar" — no antes, y no
- * por un temporizador: quien llama a este componente (`TodayView`) usa esa
- * señal para sumar el punto de verdad (`useAdvisorPoints`) y sólo entonces
- * monta "Hoy" por detrás. `pointsEarned` es siempre `1`: si alguna rama lo
- * dejara en `0`, `TodayView` seguiría viendo `effectivePoints === 0` y
- * volvería a montar esta introducción en cada apertura, sin que la persona
- * pudiera salir nunca de la pantalla de bienvenida.
+ * `onComplete()` se llama cuando termina el fundido de salida disparado por
+ * "Iniciar". El padre registra una bandera de intro independiente y monta
+ * "Hoy"; no existe ningún premio numérico de onboarding.
  */
 export default function FirstLoginIntro({
   name, username, inquietud, mercado, perfil, onComplete,
 }) {
   const [step, setStep] = useState(1);
   const [capturedCount, setCapturedCount] = useState(0);
-  const [pointsEarned, setPointsEarned] = useState(1);
   const [closing, setClosing] = useState(false);
   const { addEvent } = useEvents();
 
@@ -2180,14 +2154,12 @@ export default function FirstLoginIntro({
   const continueProspectCapture = (entries) => {
     writeSafeZone(username, entries);
     setCapturedCount(entries.length);
-    setPointsEarned(1);
     setStep(4);
   };
 
   const skipProspectCapture = () => {
     writeSafeZone(username, []);
     setCapturedCount(0);
-    setPointsEarned(1);
     setStep(4);
   };
 
@@ -2211,19 +2183,8 @@ export default function FirstLoginIntro({
     como el resto de la app: esto no es una actividad cualquiera capturada
     sin pensar mucho, es lo que la propia persona eligió vaciar de su
     libreta al arrancar — el pendiente más urgente que trae encima, y el
-    primero que su asistente debe mostrarle. Tratarlo igual que cualquier
-    otra tarea del día a día le restaría el peso que tiene.
-
-    `pointsEarned` siempre queda en `1`, sea cual sea el número de tareas
-    agendadas: agendar no otorga puntos por sí solo, así que este "+1
-    Punto" es el mismo premio de bienvenida por completar el Onboarding
-    que ya recibe la rama de prospectos, no una suma de lo capturado aquí.
-    Antes se calculaba con `taskPointsFor(entries)` sumando el valor de
-    cada tarea —y como cada tarea vale 0, siempre daba 0—, dejando a quien
-    terminaba esta rama sin el punto de bienvenida y, por lo tanto, sin
-    que `TodayView` dejara de mostrar esta pantalla la próxima vez que
-    abriera la app (pantalla negra repetida: ver `skipTaskCapture`, mismo
-    arreglo).
+    primero que su asistente debe mostrarle. Crear estas tareas no otorga
+    puntos; el intro se completa mediante su bandera persistente propia.
   */
   const continueTaskCapture = (entries) => {
     entries.forEach((entry) => {
@@ -2237,7 +2198,6 @@ export default function FirstLoginIntro({
       });
     });
     setCapturedCount(entries.length);
-    setPointsEarned(1);
     setStep(4);
   };
 
@@ -2254,7 +2214,6 @@ export default function FirstLoginIntro({
   */
   const skipTaskCapture = () => {
     setCapturedCount(0);
-    setPointsEarned(1);
     setStep(4);
   };
 
@@ -2283,15 +2242,13 @@ export default function FirstLoginIntro({
       });
     });
     setCapturedCount(prospectEntries.length + taskEntries.length);
-    setPointsEarned(1);
     setStep(4);
   };
 
-  /** "Saltar paso" de la rama híbrida — mismo criterio que las otras dos: nunca deja el punto de bienvenida en 0. */
+  /** "Saltar paso" de la rama híbrida: conserva la salida sin capturas. */
   const skipHybridCapture = () => {
     writeSafeZone(username, []);
     setCapturedCount(0);
-    setPointsEarned(1);
     setStep(4);
   };
 
@@ -2322,33 +2279,28 @@ export default function FirstLoginIntro({
       });
     });
     setCapturedCount(entries.length);
-    setPointsEarned(1);
     setStep(4);
   };
 
-  /** "Saltar paso" de las ramas secuenciales — mismo criterio: nunca deja el punto de bienvenida en 0. */
+  /** "Saltar paso" de las ramas secuenciales: conserva la salida sin capturas. */
   const skipSequentialCapture = () => {
     writeSafeZone(username, []);
     setCapturedCount(0);
-    setPointsEarned(1);
     setStep(4);
   };
 
   /*
     Rama Consolidado — "Alfombra Roja": no captura nada, sólo informa e
-    inspira. El CTA lleva directo a la recompensa (step 4) sin pasar por
-    el Paso 3 de captura. El punto de bienvenida (+1) se otorga igual:
-    haber completado la lectura ya es el logro, no hay nada que "llenar".
+    inspira. El CTA lleva directo al logro (step 4) sin pasar por el Paso 3.
   */
   const continueConsolidated = () => {
     setCapturedCount(0);
-    setPointsEarned(1);
     setStep(4);
   };
 
   const handleStart = () => {
     setClosing(true);
-    setTimeout(() => onComplete(pointsEarned), FADE_OUT_MS);
+    setTimeout(() => onComplete(), FADE_OUT_MS);
   };
 
   return (
@@ -2358,7 +2310,7 @@ export default function FirstLoginIntro({
                   ${closing ? 'opacity-0' : 'opacity-100'}`}
       role="dialog"
       aria-modal="true"
-      aria-label="Bienvenida a tu primer punto"
+      aria-label="Bienvenida"
       onClick={() => setFastTyping(true)}
     >
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
@@ -2380,7 +2332,6 @@ export default function FirstLoginIntro({
             {step === 4 && (
               <RewardStep
                 capturedCount={capturedCount}
-                pointsEarned={pointsEarned}
                 achievement={CONSOLIDATED_ACHIEVEMENT}
                 onDone={() => setStep(6)}
               />
@@ -2426,7 +2377,6 @@ export default function FirstLoginIntro({
             {step === 4 && (
               <RewardStep
                 capturedCount={capturedCount}
-                pointsEarned={pointsEarned}
                 achievement={
                   isSequential ? sequentialConfig.achievement
                     : isHybridBranch ? HYBRID_ACHIEVEMENT

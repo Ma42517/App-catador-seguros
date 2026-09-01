@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Ticket, Unlock, ArrowRight, Send, Check, ShieldCheck } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import { useSession } from '../../context/SessionContext';
@@ -8,6 +8,9 @@ import {
 } from '../../data/vipPasses';
 import VIPPassFields from './VIPPassFields';
 import WhatsAppMark from '../Activities/WhatsAppMark';
+import {
+  GAMIFICATION_ACTIONS, awardGamification,
+} from '../../store/gamificationStore';
 
 /**
  * src/components/Prospecta/VIPPassGenerator.jsx
@@ -44,6 +47,8 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
   const [passes, setPasses] = useState([]);
   const [saved, setSaved] = useState(null);
   const [sentIds, setSentIds] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const sessionIdRef = useRef('');
 
   // Cada apertura arranca en limpio: son tres pases nuevos, no la continuación
   // de los de la vez pasada.
@@ -52,6 +57,8 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
     setPasses([]);
     setSaved(null);
     setSentIds([]);
+    setIsSubmitting(false);
+    sessionIdRef.current = `pases-menu:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
   }, [isOpen]);
 
   const isComplete = arePassesComplete(passes);
@@ -59,11 +66,26 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
 
   const handleGenerate = (e) => {
     e.preventDefault();
-    if (!isComplete) return;
-    setSaved(saveVipPasses(username, passes, { origin: 'menu' }));
+    if (!isComplete || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const created = saveVipPasses(username, passes, { origin: 'menu' });
+      created.forEach((pass) => {
+        awardGamification(GAMIFICATION_ACTIONS.NUEVO_REFERIDO_AGREGADO, {
+          userKey: username,
+          sessionId: sessionIdRef.current,
+          referralId: pass.id,
+        });
+      });
+      setSaved(created);
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSkip = () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     unlockVipWithoutPasses(username);
     onUnlocked?.();
   };
@@ -182,7 +204,7 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
 
           <button
             type="submit"
-            disabled={!isComplete}
+            disabled={!isComplete || isSubmitting}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl
                        bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white
                        shadow-lg shadow-indigo-600/30 transition-colors hover:bg-indigo-500
@@ -211,8 +233,10 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
           <button
             type="button"
             onClick={handleSkip}
+            disabled={isSubmitting}
             className="mx-auto mt-5 block text-[11px] text-neutral-500 underline-offset-2
-                       transition-colors hover:text-neutral-300 hover:underline"
+                       transition-colors hover:text-neutral-300 hover:underline
+                       disabled:cursor-wait disabled:opacity-50"
           >
             {alreadyUnlocked
               ? 'Entrar sin generar pases nuevos'

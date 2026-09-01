@@ -7,7 +7,9 @@ import {
 import BottomSheet from '../Layout/BottomSheet';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
-import { CALL_GAMIFICATION } from '../../lib/callGamification';
+import {
+  GAMIFICATION_ACTIONS, awardGamification,
+} from '../../store/gamificationStore';
 import { buildFollowUpEvent, followUpReasonFor } from '../../lib/followUpEvent';
 import { activityTypeLabel } from '../../lib/activityTypes';
 import { addOrphanProspect } from '../../data/orphanProspects';
@@ -72,24 +74,16 @@ function OptionButton({ icon: Icon, label, tone, onClick }) {
  * flujo — la única excepción es "Reagendar", que abre un segundo paso
  * interno con dos inputs nativos de fecha/hora, todavía sin texto libre.
  *
- * `onEarnPoints(amount)` es lo único que este componente no puede hacer
- * por sí mismo —sumar al marcador de puntos del asesor (`useAdvisorPoints`,
- * un hook con su propio estado, no un contexto)— y viaja hacia arriba
- * hasta `CallActivityCard`, que es quien orquesta el toast, el sonido y la
- * vibración de recompensa. Agendar la cita nueva sí lo hace este mismo
- * componente, con `addEvent` de `EventContext`: "Agendar Cita" (Paso 2)
- * siempre crea una Cita Inicial (`CITA_INICIAL_VALUE`/`CITA_INICIAL_LABEL`,
- * nunca una cita genérica ni de cierre), y abre un mini-paso interno con
- * fecha y hora —mismo patrón que "Reagendar"— en vez de cerrar este flujo
- * y abrir por separado el formulario completo de "Nueva Actividad"; la
- * persona ya dijo a quién y para qué, sólo falta el cuándo, y eso se
- * resuelve sin salir de aquí.
+ * Sólo una conducta suma: confirmar una Cita Inicial. El modal escribe la
+ * acción semántica `CONTACTO_EFECTIVO` en el store diario; `onReward` sólo
+ * permite que la tarjeta muestre sonido, vibración y toast cuando el store
+ * confirmó un premio nuevo.
  */
 export default function CallFeedbackModal({
-  event, prospectName, isOpen, onClose, onEarnPoints,
+  event, prospectName, isOpen, onClose, onReward,
 }) {
   const {
-    completeEvent, removeEvent, rescheduleEvent, addEvent,
+    completeEvent, removeEvent, rescheduleEvent, resolveEvent,
   } = useEvents();
   const { identity } = useSession();
 
@@ -109,6 +103,7 @@ export default function CallFeedbackModal({
   const [appointmentTime, setAppointmentTime] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpTime, setFollowUpTime] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   /*
     Si el prospecto tomó la llamada. Lo fija el Paso 1 y sólo sirve para
     calibrar los puntos del seguimiento (ver `confirmFollowUp`): el mismo
@@ -116,13 +111,12 @@ export default function CallFeedbackModal({
     Seguimiento" y desde "No contestó → Requiere Seguimiento", y esos dos
     caminos no valen lo mismo.
   */
-  const [answered, setAnswered] = useState(false);
-
   // Cada apertura arranca siempre en el Paso 1: es un flujo nuevo por cada
   // llamada, nunca continúa donde quedó la anterior.
   useEffect(() => {
     if (!isOpen) return;
     setStep('estado');
+    setIsSubmitting(false);
     const parts = todayParts();
     setRescheduleDate(parts.date);
     setRescheduleTime(parts.time);
@@ -137,7 +131,6 @@ export default function CallFeedbackModal({
       `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`,
     );
     setFollowUpTime(parts.time);
-    setAnswered(false);
   }, [isOpen]);
 
   if (!event) return null;
@@ -157,7 +150,8 @@ export default function CallFeedbackModal({
     app no debe volver a insistir con ellos.
   */
   const finishWithEffort = () => {
-    onEarnPoints(CALL_GAMIFICATION.LLAMADA_ESFUERZO);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     addOrphanProspect(identity?.key, {
       prospectId: event.id,
       name: prospectName,
@@ -169,7 +163,8 @@ export default function CallFeedbackModal({
   };
 
   const confirmReschedule = () => {
-    onEarnPoints(CALL_GAMIFICATION.LLAMADA_ESFUERZO);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     rescheduleEvent(event.id, { date: rescheduleDate, time: rescheduleTime });
     onClose();
   };
@@ -182,19 +177,35 @@ export default function CallFeedbackModal({
     transforma en la cita, porque son dos actividades distintas del
     embudo: la llamada ya ocurrió, la cita es lo que viene después.
   */
-  const confirmAppointment = () => {
-    onEarnPoints(CALL_GAMIFICATION.CITA_AGENDADA);
-    addEvent({
-      type: 'actividad',
-      tipo_actividad: CITA_INICIAL_VALUE,
-      title: `${CITA_INICIAL_LABEL}: ${prospectName}`,
-      telefono: event.telefono ?? '',
-      date: appointmentDate,
-      time: appointmentTime,
-      priority: 'maxima',
-    });
-    completeEvent(event.id);
-    onClose();
+  const confirmAppointment = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = await resolveEvent({
+        resolvingEventId: event.id,
+        resolveMode: 'complete',
+        nextActivity: {
+          type: 'actividad',
+          tipo_actividad: CITA_INICIAL_VALUE,
+          title: `${CITA_INICIAL_LABEL}: ${prospectName}`,
+          telefono: event.telefono ?? '',
+          date: appointmentDate,
+          time: appointmentTime,
+          priority: 'maxima',
+        },
+      });
+      if (result.status === 'committed') {
+        const reward = awardGamification(GAMIFICATION_ACTIONS.CONTACTO_EFECTIVO, {
+          userKey: identity?.key,
+          eventId: event.id,
+        });
+        if (reward.awarded) onReward?.(reward);
+      }
+      if (result.status === 'committed' || result.status === 'already_resolved') onClose();
+      else setIsSubmitting(false);
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   /*
@@ -204,25 +215,28 @@ export default function CallFeedbackModal({
     un siguiente contacto concreto es exactamente el trabajo que se busca
     incentivar, no un fracaso.
   */
-  const confirmFollowUp = () => {
-    /*
-      Los puntos dependen de si el prospecto contestó: pactar un siguiente
-      contacto con alguien que sí habló contigo vale como cita agendada,
-      pero agendar un seguimiento tras un teléfono que nadie tomó es sólo
-      esfuerzo. Sin esta distinción, marcar "no contestó → seguimiento" en
-      bucle pagaría igual que trabajar de verdad.
-    */
-    onEarnPoints(answered ? CALL_GAMIFICATION.CITA_AGENDADA : CALL_GAMIFICATION.LLAMADA_ESFUERZO);
-    addEvent(buildFollowUpEvent(
-      { ...event, title: `Llamada: ${prospectName}` },
-      { date: followUpDate, time: followUpTime, reason: followUpReasonFor('llamada') },
-    ));
-    completeEvent(event.id);
-    onClose();
+  const confirmFollowUp = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = await resolveEvent({
+        resolvingEventId: event.id,
+        resolveMode: 'complete',
+        nextActivity: buildFollowUpEvent(
+          { ...event, title: `Llamada: ${prospectName}` },
+          { date: followUpDate, time: followUpTime, reason: followUpReasonFor('llamada') },
+        ),
+      });
+      if (result.status === 'committed' || result.status === 'already_resolved') onClose();
+      else setIsSubmitting(false);
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   const dismissNotInterested = () => {
-    onEarnPoints(CALL_GAMIFICATION.LLAMADA_ESFUERZO);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     // "Descarta al prospecto de la vista diaria": se elimina el evento en
     // vez de completarlo — no es que la llamada haya fallado, es que ese
     // prospecto ya no debe volver a aparecer en la agenda de hoy.
@@ -231,7 +245,12 @@ export default function CallFeedbackModal({
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} label="Resultado de la llamada">
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={() => { if (!isSubmitting) onClose(); }}
+      label="Resultado de la llamada"
+    >
+      <div className={isSubmitting ? 'pointer-events-none opacity-60' : undefined}>
       <AnimatePresence mode="wait">
         {step === 'estado' && (
           <motion.div
@@ -250,7 +269,7 @@ export default function CallFeedbackModal({
                 icon={Check}
                 label="Contestó"
                 tone="bg-indigo-600 text-white hover:bg-indigo-500"
-                onClick={() => { setAnswered(true); setStep('resultado'); }}
+                onClick={() => setStep('resultado')}
               />
               {/*
                 Antes esto completaba la llamada y ya: el prospecto
@@ -263,7 +282,7 @@ export default function CallFeedbackModal({
                 icon={PhoneMissed}
                 label="No contestó"
                 tone="text-zinc-600 hover:bg-zinc-500/10 dark:text-zinc-300"
-                onClick={() => { setAnswered(false); setStep('sin_respuesta'); }}
+                onClick={() => setStep('sin_respuesta')}
               />
               <OptionButton
                 icon={CalendarClock}
@@ -517,6 +536,7 @@ export default function CallFeedbackModal({
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </BottomSheet>
   );
 }

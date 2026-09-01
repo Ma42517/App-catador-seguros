@@ -12,6 +12,7 @@
  *
  *   node scripts/verifica-demo-limpio.mjs
  */
+import process from 'node:process';
 import { purgeDemoState } from '../src/lib/demoSession.js';
 import { createEmptyState, hasCapturedData } from '../src/data/defaults.js';
 import { createDemoState } from '../src/data/demoData.js';
@@ -39,9 +40,9 @@ function check(nombre, condicion) {
 
 function conStorage(entries, fn) {
   const store = fakeStorage(entries);
-  global.window = { localStorage: store };
+  globalThis.window = { localStorage: store };
   fn(store);
-  delete global.window;
+  delete globalThis.window;
 }
 
 console.log('\nLimpieza del estado de ejemplo\n');
@@ -98,7 +99,7 @@ conStorage(
 
 // 6. Sin window (SSR) no truena.
 try {
-  delete global.window;
+  delete globalThis.window;
   purgeDemoState();
   check('sin window no lanza', true);
 } catch {
