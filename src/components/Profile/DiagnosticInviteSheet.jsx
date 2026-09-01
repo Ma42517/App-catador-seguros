@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  Check, Coins, Copy, ExternalLink, KeyRound, Link2, Loader2, RotateCcw, ShieldCheck, Ticket,
+  Check, Copy, ExternalLink, FileText, KeyRound, LifeBuoy, Link2, Loader2,
+  RotateCcw, ShieldCheck, Ticket,
 } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import WhatsAppMark from '../Activities/WhatsAppMark';
@@ -12,7 +13,7 @@ import {
 import { publicDiagnosticUrl } from '../../lib/diagnosticPublicRoute';
 import { whatsAppLink } from '../../lib/advisorPhone';
 import { leadSourceLabel } from '../../data/leadsRepo';
-import { fetchStorePrice, fetchWalletSummary } from '../../data/walletRepo';
+import { fetchWalletSummary } from '../../data/walletRepo';
 
 function invitationMessage(lead, advisorName, url, code) {
   const firstName = String(lead?.name ?? '').trim().split(/\s+/)[0] || 'Hola';
@@ -45,12 +46,13 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState('');
-  // Precio del diagnóstico y saldo, para mostrar el costo antes de cobrar y
-  // avisar cuánto se descontó. `charged` guarda lo cobrado en esta creación:
-  // 0 si el pase ya existía (no se cobra dos veces por el mismo prospecto).
-  const [price, setPrice] = useState(null);
-  const [balance, setBalance] = useState(null);
-  const [charged, setCharged] = useState(0);
+  // Inventario de diagnósticos y estado del pase creado. `source` dice de dónde
+  // salió: inventario o fondo de emergencia, para avisarlo al asesor.
+  const [inventory, setInventory] = useState(null);
+  const [source, setSource] = useState('');
+  // Cuando el inventario está vacío pero hay emergencia, el servidor pide
+  // confirmación: aquí se guarda para mostrar el diálogo de "usar tu colchón".
+  const [askEmergency, setAskEmergency] = useState(false);
 
   const leadId = lead?.id;
   useEffect(() => {
@@ -61,26 +63,36 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
     setMessage('');
     setError('');
     setCopied('');
-    setCharged(0);
+    setSource('');
+    setAskEmergency(false);
     if (!leadId) return;
-    fetchStorePrice('diagnostic').then((value) => setPrice(value));
     fetchWalletSummary().then(({ data }) => {
-      if (data?.outcome === 'READY') setBalance(data.coinsBalance);
+      if (data?.outcome === 'READY') {
+        setInventory({
+          diagnostics: data.invDiagnostics,
+          hasEmergency: data.hasEmergencyDiagnostics,
+        });
+      }
     });
   }, [leadId]);
 
-  const prepare = async () => {
+  const prepare = async (useEmergency = false) => {
     if (!lead?.id || phase === 'preparing') return;
     setPhase('preparing');
     setError('');
+    setAskEmergency(false);
 
-    const { data, error: requestError } = await getOrCreateDiagnosticForLead(lead.id);
+    const { data, error: requestError } = await getOrCreateDiagnosticForLead(
+      lead.id, useEmergency,
+    );
     if (requestError || data?.outcome !== 'READY') {
       setPhase('idle');
-      if (data?.outcome === 'INSUFFICIENT') {
-        setBalance(data.coinsBalance);
-        setError(`Necesitas ${data.price} monedas para crear este pase y tienes `
-          + `${data.coinsBalance}. Gana más puntos trabajando tus actividades.`);
+      if (data?.outcome === 'NEEDS_EMERGENCY') {
+        // Sin inventario pero con colchón: se ofrece, no se consume solo.
+        setAskEmergency(true);
+      } else if (data?.outcome === 'EMPTY') {
+        setError('Ya no tienes diagnósticos ni fondo de emergencia. Compra un paquete '
+          + 'en la Tienda para seguir enviando pases.');
       } else if (data?.outcome === 'INVALID_CONTACT') {
         setError('Este prospecto necesita un WhatsApp válido de 10 dígitos.');
       } else {
@@ -89,7 +101,7 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
       return;
     }
 
-    setCharged(data.charged ?? 0);
+    setSource(data.source ?? '');
 
     const { data: codeData, error: codeError } = await issueDiagnosticAccessCode(
       data.diagnosticId,
@@ -224,44 +236,70 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
                 </div>
               </div>
 
-              {/* El precio, claro antes de cobrar. Con saldo, el botón se apaga. */}
-              {price > 0 && (
+              {/* Inventario disponible: se consume 1 al crear el pase. */}
+              {inventory && (
                 <div className="mt-3 flex items-center justify-between rounded-xl border
-                                border-amber-500/25 bg-amber-500/5 px-4 py-3"
+                                border-indigo-500/25 bg-indigo-500/5 px-4 py-3"
                 >
                   <span className="flex items-center gap-1.5 text-xs font-semibold
-                                   text-amber-700 dark:text-amber-300"
+                                   text-indigo-700 dark:text-indigo-300"
                   >
-                    <Coins size={14} /> Costo del pase
+                    <FileText size={14} /> Tus diagnósticos
                   </span>
                   <span className="text-sm font-bold text-zinc-900 dark:text-white">
-                    {price} monedas
-                    {balance !== null && (
-                      <span className="ml-1 text-[10px] font-medium text-zinc-500">
-                        · tienes {balance}
-                      </span>
-                    )}
+                    {inventory.diagnostics} disponibles
                   </span>
                 </div>
               )}
 
-              {error && <p className="mt-3 text-xs text-rose-500" role="alert">{error}</p>}
-
-              <button
-                type="button"
-                onClick={prepare}
-                disabled={busy || (price > 0 && balance !== null && balance < price)}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl
-                           bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white
-                           transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed
-                           disabled:opacity-50"
-              >
-                {phase === 'preparing'
-                  ? <><Loader2 size={16} className="animate-spin" /> Preparando…</>
-                  : price > 0
-                    ? <><Link2 size={16} /> Crear pase por {price} monedas</>
-                    : <><Link2 size={16} /> Crear enlace y código</>}
-              </button>
+              {askEmergency ? (
+                <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-amber-700
+                                dark:text-amber-300"
+                  >
+                    <LifeBuoy size={16} /> Se te acabaron los diagnósticos
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-amber-700/90 dark:text-amber-200/80">
+                    Puedes usar tu fondo de emergencia para no frenar tu prospección.
+                    Se repone cada mes.
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAskEmergency(false)}
+                      className="flex-1 rounded-xl border border-zinc-300 py-2.5 text-xs
+                                 font-semibold text-zinc-600 dark:border-zinc-700 dark:text-zinc-300"
+                    >
+                      Ahora no
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => prepare(true)}
+                      className="flex-[2] rounded-xl bg-amber-500 py-2.5 text-xs font-bold
+                                 text-white transition-colors hover:bg-amber-400"
+                    >
+                      Usar mi fondo de emergencia
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {error && <p className="mt-3 text-xs text-rose-500" role="alert">{error}</p>}
+                  <button
+                    type="button"
+                    onClick={() => prepare(false)}
+                    disabled={busy}
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl
+                               bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white
+                               transition-colors hover:bg-indigo-500 disabled:cursor-wait
+                               disabled:opacity-60"
+                  >
+                    {phase === 'preparing'
+                      ? <><Loader2 size={16} className="animate-spin" /> Preparando…</>
+                      : <><Link2 size={16} /> Crear enlace y código</>}
+                  </button>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -271,9 +309,14 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
                 >
                   <Check size={15} />
                   {diagnosticStatus === 'COMPLETADO' ? 'Diagnóstico completado' : 'Pase listo'}
-                  {charged > 0 && (
+                  {source === 'EMERGENCY' && (
+                    <span className="ml-auto font-normal text-amber-600 dark:text-amber-400">
+                      Fondo de emergencia
+                    </span>
+                  )}
+                  {source === 'INVENTORY' && (
                     <span className="ml-auto font-normal text-emerald-600 dark:text-emerald-400">
-                      −{charged} monedas
+                      −1 diagnóstico
                     </span>
                   )}
                 </p>

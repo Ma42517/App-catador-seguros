@@ -1,113 +1,214 @@
 import { useEffect, useState } from 'react';
 import {
-  Coins, CreditCard, FileText, IdCard, Loader2,
+  Coins, FileText, IdCard, Loader2, Check, X,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
-import { fetchStorePrice } from '../../data/walletRepo';
+import BottomSheet from '../Layout/BottomSheet';
+import { fetchStorePacks, buyPack } from '../../data/walletRepo';
 import { useWallet } from '../../data/useWallet';
 
-/**
- * La tienda del asesor.
- *
- * No se compra desde aquí directamente: cada producto se adquiere en el flujo
- * donde se usa —el diagnóstico al preparar el pase de un prospecto, la tarjeta
- * al regalarla—. Esta pantalla es el catálogo: para qué sirven las monedas,
- * cuánto cuesta cada cosa y cuántas tienes. Concentrar el precio aquí evita que
- * el asesor descubra el costo sólo al momento de cobrar.
- */
-function ProductCard({
-  icon: Icon, title, description, price, available, where,
-}) {
+const KIND_META = {
+  diagnostic: {
+    icon: FileText,
+    accent: 'from-indigo-500/20 to-indigo-500/5 border-indigo-500/30',
+    chip: 'text-indigo-500 dark:text-indigo-300',
+  },
+  card: {
+    icon: IdCard,
+    accent: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
+    chip: 'text-amber-600 dark:text-amber-300',
+  },
+};
+
+/** Carta de paquete, estilo Clash Royale: se toca y abre la confirmación. */
+function PackCard({ pack, onPick }) {
+  const meta = KIND_META[pack.kind] ?? KIND_META.diagnostic;
+  const Icon = meta.icon;
   return (
-    <li className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800
-                   dark:bg-zinc-900"
+    <button
+      type="button"
+      onClick={() => onPick(pack)}
+      className={`group relative flex flex-col items-center gap-3 rounded-3xl border
+                  bg-gradient-to-b p-5 text-center transition-transform active:scale-95
+                  ${meta.accent}`}
     >
-      <div className="flex items-start gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-indigo-500/15
-                         text-indigo-500 dark:text-indigo-300"
-        >
-          <Icon size={20} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-white">{title}</h3>
-            <span className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs
-                              font-bold ${available
-              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
-              : 'bg-zinc-500/15 text-zinc-500'}`}
-            >
-              <Coins size={12} />
-              {price === null ? '—' : price}
-            </span>
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500">{description}</p>
-          <p className="mt-2 text-[11px] font-medium text-indigo-500 dark:text-indigo-400">
-            {where}
-          </p>
-        </div>
-      </div>
-    </li>
+      <span className="grid h-16 w-16 place-items-center rounded-2xl bg-white/70 shadow-inner
+                       dark:bg-black/30"
+      >
+        <Icon size={30} className={meta.chip} aria-hidden="true" />
+      </span>
+      <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-sm font-black
+                       text-zinc-900 shadow dark:bg-zinc-100"
+      >
+        ×{pack.quantity}
+      </span>
+      <span className="text-sm font-bold leading-tight text-zinc-900 dark:text-white">
+        {pack.title}
+      </span>
+      <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-3 py-1 text-sm
+                       font-bold text-amber-600 dark:text-amber-300"
+      >
+        <Coins size={14} /> {pack.coins}
+      </span>
+    </button>
   );
 }
 
 export default function StoreView({ isOpen, onClose }) {
-  const { summary, loading } = useWallet();
-  const [diagnosticPrice, setDiagnosticPrice] = useState(null);
-  const [cardPrice, setCardPrice] = useState(null);
+  const { summary, loading, reload } = useWallet();
+  const [packs, setPacks] = useState([]);
+  const [picked, setPicked] = useState(null);
+  const [status, setStatus] = useState('idle');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    fetchStorePrice('diagnostic').then(setDiagnosticPrice);
-    fetchStorePrice('referral_card').then(setCardPrice);
+    fetchStorePacks().then(setPacks);
   }, [isOpen]);
 
+  const balance = summary?.coinsBalance ?? 0;
+  const canAfford = picked ? balance >= picked.coins : false;
+
+  const confirm = async () => {
+    if (!picked || status === 'buying') return;
+    setStatus('buying');
+    setError('');
+    const { data } = await buyPack(picked.code);
+    if (data?.outcome === 'BOUGHT') {
+      setStatus('done');
+      await reload();
+    } else if (data?.outcome === 'INSUFFICIENT') {
+      setStatus('idle');
+      setError(`Te faltan monedas: cuesta ${data.price} y tienes ${data.coinsBalance}.`);
+    } else {
+      setStatus('idle');
+      setError('No pudimos completar la compra. Inténtalo nuevamente.');
+    }
+  };
+
+  const closeSheet = () => { setPicked(null); setStatus('idle'); setError(''); };
+
   return (
-    <FullScreenView isOpen={isOpen} onClose={onClose} title="Tienda" label="Tienda de monedas">
+    <FullScreenView isOpen={isOpen} onClose={onClose} title="Tienda" label="Tienda de paquetes">
+      {/* Saldo e inventario, arriba. */}
       <section className="mb-6 rounded-2xl border border-amber-500/25 bg-gradient-to-br
                           from-amber-500/10 to-transparent p-5"
       >
-        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest
-                      text-amber-600 dark:text-amber-400"
-        >
-          <Coins size={13} /> Tu saldo
-        </p>
-        <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">
-          {loading
-            ? <Loader2 size={22} className="animate-spin text-zinc-400" />
-            : (summary?.coinsBalance ?? 0).toLocaleString('es-MX')}
-          <span className="ml-2 text-sm font-medium text-zinc-500">monedas</span>
-        </p>
-        <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
-          Ganas 1 moneda por cada punto de tus actividades. Las monedas se gastan aquí;
-          tus puntos del ranking no bajan al comprar.
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase
+                          tracking-widest text-amber-600 dark:text-amber-400"
+            >
+              <Coins size={13} /> Saldo
+            </p>
+            <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">
+              {loading
+                ? <Loader2 size={22} className="animate-spin text-zinc-400" />
+                : balance.toLocaleString('es-MX')}
+              <span className="ml-2 text-sm font-medium text-zinc-500">monedas</span>
+            </p>
+          </div>
+          <div className="text-right text-xs text-zinc-500">
+            <p className="flex items-center justify-end gap-1">
+              <FileText size={12} className="text-indigo-500" />
+              {summary?.invDiagnostics ?? 0} diagnósticos
+            </p>
+            <p className="mt-1 flex items-center justify-end gap-1">
+              <IdCard size={12} className="text-amber-500" />
+              {summary?.invCards ?? 0} tarjetas
+            </p>
+          </div>
+        </div>
+        <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+          Ganas 1 moneda por cada punto de tus actividades. Compra paquetes y úsalos
+          cuando quieras; tus puntos del ranking no bajan al comprar.
         </p>
       </section>
 
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-white">
-        <CreditCard size={16} className="text-indigo-500" aria-hidden="true" />
-        Qué puedes comprar
-      </h2>
+      {packs.length === 0 ? (
+        <div className="grid place-items-center py-12">
+          <Loader2 size={20} className="animate-spin text-zinc-400" aria-label="Cargando" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {packs.map((pack) => <PackCard key={pack.code} pack={pack} onPick={setPicked} />)}
+        </div>
+      )}
 
-      <ul className="flex flex-col gap-3">
-        <ProductCard
-          icon={FileText}
-          title="Pase de diagnóstico"
-          description="Un enlace personal de Radiografía Patrimonial para un prospecto,
-                       protegido con código de acceso."
-          price={diagnosticPrice}
-          available
-          where="Prospectos capturados → Enviar diagnóstico"
-        />
-        <ProductCard
-          icon={IdCard}
-          title="Tarjeta digital de regalo"
-          description="Una tarjeta digital que el cliente personaliza con sus datos, a
-                       cambio de referidos. Próximamente."
-          price={cardPrice}
-          available={false}
-          where="Disponible pronto"
-        />
-      </ul>
+      <BottomSheet
+        isOpen={Boolean(picked)}
+        onClose={closeSheet}
+        label="Confirmar compra"
+        zIndexClass="z-[80]"
+      >
+        {picked && (
+          <div className="text-center">
+            {status === 'done' ? (
+              <>
+                <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl
+                                 bg-emerald-500/15 text-emerald-500"
+                >
+                  <Check size={26} />
+                </span>
+                <h2 className="mt-4 text-lg font-bold text-zinc-900 dark:text-white">
+                  ¡Listo! Se añadió a tu inventario
+                </h2>
+                <p className="mt-1 text-sm text-zinc-500">
+                  {picked.quantity} {picked.kind === 'card' ? 'tarjetas' : 'diagnósticos'} ·
+                  saldo {balance.toLocaleString('es-MX')} monedas
+                </p>
+                <button
+                  type="button"
+                  onClick={closeSheet}
+                  className="mt-6 w-full rounded-xl bg-indigo-600 py-3.5 text-sm font-semibold
+                             text-white transition-colors hover:bg-indigo-500"
+                >
+                  Seguir en la tienda
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                  {picked.title}
+                </h2>
+                <p className="mt-1 flex items-center justify-center gap-1 text-sm text-zinc-500">
+                  <Coins size={14} className="text-amber-500" />
+                  {picked.coins} monedas · tienes {balance.toLocaleString('es-MX')}
+                </p>
+
+                {error && <p className="mt-3 text-xs text-rose-500" role="alert">{error}</p>}
+
+                <div className="mt-6 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={closeSheet}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border
+                               border-zinc-300 py-3.5 text-sm font-semibold text-zinc-600
+                               dark:border-zinc-700 dark:text-zinc-300"
+                  >
+                    <X size={16} /> Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirm}
+                    disabled={!canAfford || status === 'buying'}
+                    className="flex flex-[2] items-center justify-center gap-1.5 rounded-xl
+                               bg-indigo-600 py-3.5 text-sm font-semibold text-white
+                               transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed
+                               disabled:opacity-50"
+                  >
+                    {status === 'buying'
+                      ? <><Loader2 size={16} className="animate-spin" /> Comprando…</>
+                      : canAfford
+                        ? <><Coins size={16} /> Comprar por {picked.coins}</>
+                        : 'Saldo insuficiente'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </BottomSheet>
     </FullScreenView>
   );
 }

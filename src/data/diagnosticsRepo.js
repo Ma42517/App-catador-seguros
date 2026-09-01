@@ -12,13 +12,22 @@ async function callRpc(name, params) {
 
 // ─── Lado del asesor, con sesión ────────────────────────────────────────────
 
-/** Crea el pase sólo cuando el asesor lo decide; después devuelve siempre el mismo UUID. */
-export function getOrCreateDiagnosticForLead(leadId) {
+/**
+ * Crea el pase consumiendo un diagnóstico del inventario.
+ *
+ * `useEmergency` es el segundo toque: si el inventario está vacío pero queda
+ * fondo de emergencia, el servidor responde NEEDS_EMERGENCY y la app vuelve a
+ * llamar con true si el asesor acepta usar su colchón.
+ */
+export function getOrCreateDiagnosticForLead(leadId, useEmergency = false) {
   if (!leadId) return Promise.resolve({
     data: null,
     error: { message: 'Falta el prospecto.' },
   });
-  return callRpc('get_or_create_diagnostic_for_lead', { p_lead_id: leadId });
+  return callRpc('get_or_create_diagnostic_for_lead', {
+    p_lead_id: leadId,
+    p_use_emergency: Boolean(useEmergency),
+  });
 }
 
 /**
