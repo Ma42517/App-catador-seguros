@@ -122,7 +122,7 @@ export default function VIPPassFields({ passes, onChange }) {
                      focus-visible:ring-1 focus-visible:ring-neutral-600"
         >
           <Plus size={16} strokeWidth={2} aria-hidden="true" />
-          Agregar invitación
+          Invitar a un amigo
         </button>
       )}
 

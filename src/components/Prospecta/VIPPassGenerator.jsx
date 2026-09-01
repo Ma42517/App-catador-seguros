@@ -168,11 +168,12 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
               <Ticket size={24} />
             </span>
             <h2 className="text-lg font-bold leading-snug text-white">
-              Regala {REQUIRED_PASSES} Diagnósticos
+              Regala {REQUIRED_PASSES} Pases VIP a tus amigos
             </h2>
             <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-neutral-400">
-              El Diagnóstico es tu llave para sentarte con alguien nuevo sin llegar en
-              frío. Regálalo a tres personas y desbloquea la herramienta para ti.
+              Antes de entrar al Diagnóstico 360, invita a tres personas que valores
+              a recibir un análisis patrimonial sin costo. Tú les abres la puerta;
+              ellos obtienen claridad para tomar mejores decisiones financieras.
             </p>
           </div>
 
@@ -188,7 +189,7 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
                        disabled:shadow-none"
           >
             <Send size={16} aria-hidden="true" />
-            Enviar Pases y Desbloquear
+            Crear Pases VIP y desbloquear
           </button>
 
           <div className="mt-4 flex items-start gap-2 rounded-xl border border-neutral-800

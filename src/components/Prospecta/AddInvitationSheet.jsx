@@ -116,7 +116,7 @@ export default function AddInvitationSheet({ isOpen, onClose, onAdd }) {
                 className="fixed inset-0 z-[95] flex items-end justify-center sm:items-center sm:p-4"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Agregar invitación"
+                aria-label="Regalar un Pase VIP"
               >
                 {/* Overlay oscuro con desenfoque. */}
                 <motion.button
@@ -153,7 +153,7 @@ export default function AddInvitationSheet({ isOpen, onClose, onAdd }) {
                     aria-hidden="true"
                   />
 
-                  <h2 className="mb-6 text-xl font-medium text-white">Agregar invitación</h2>
+                  <h2 className="mb-6 text-xl font-medium text-white">Regalar un Pase VIP</h2>
 
                   <form onSubmit={submit} className="space-y-3">
                     {/* Campo 1: nombre limpio. */}
