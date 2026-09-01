@@ -168,10 +168,11 @@ function LeadRow({ lead, onRemove, onOpenDetail, onInvite }) {
 
   return (
     <li
-      className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-3
+      className="rounded-2xl border border-zinc-200 bg-white p-3
                  dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <span
+      <div className="flex items-center gap-3">
+        <span
         className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100
                    text-sm font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
         aria-hidden="true"
@@ -252,18 +253,6 @@ function LeadRow({ lead, onRemove, onOpenDetail, onInvite }) {
             <Phone size={15} />
           </a>
 
-          {lead.storage === 'cloud' && !isExpediente && (
-            <button
-              type="button"
-              onClick={onInvite}
-              aria-label={`Preparar pase personal para ${lead.name}`}
-              className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 text-white
-                         transition-colors hover:bg-indigo-500 active:scale-90"
-            >
-              <Ticket size={15} />
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => setConfirming(true)}
@@ -274,6 +263,21 @@ function LeadRow({ lead, onRemove, onOpenDetail, onInvite }) {
             <Trash2 size={15} />
           </button>
         </span>
+      )}
+      </div>
+
+      {lead.storage === 'cloud' && !isExpediente && !confirming && (
+        <button
+          type="button"
+          onClick={onInvite}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl
+                     bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white
+                     shadow-sm shadow-indigo-600/20 transition-colors hover:bg-indigo-500
+                     active:scale-[0.99]"
+        >
+          <Ticket size={15} aria-hidden="true" />
+          Enviar diagnóstico
+        </button>
       )}
     </li>
   );
@@ -345,8 +349,20 @@ export default function LeadsList({ isOpen, onClose }) {
           {leads.length} {leads.length === 1 ? 'prospecto' : 'prospectos'}
         </h2>
         <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
-          Quien recibe tu tarjeta y pide tu contacto deja aquí su nombre y WhatsApp.
+          Aquí están nombre, WhatsApp y origen de cada persona. El envío nunca es automático.
         </p>
+        {leads.some((lead) => lead.storage === 'cloud' && lead.kind !== 'underwriting') && (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-indigo-500/20
+                          bg-indigo-500/5 p-3 text-xs leading-relaxed text-indigo-700
+                          dark:text-indigo-300"
+          >
+            <Ticket size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <p>
+              Para compartirlo: toca <strong>Enviar diagnóstico</strong> en la persona,
+              crea su enlace, personaliza el mensaje y después abre WhatsApp.
+            </p>
+          </div>
+        )}
       </div>
 
       {leads.length === 0 ? (

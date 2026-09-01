@@ -94,8 +94,8 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
                 <div className="flex items-start gap-2">
                   <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-500" />
                   <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-                    Se creará un enlace único protegido por el WhatsApp de esta persona.
-                    No se enviará nada hasta que tú abras WhatsApp.
+                    El proceso tiene tres pasos: crear el enlace exclusivo, personalizar el
+                    mensaje y abrir WhatsApp. Nada se envía antes del último paso.
                   </p>
                 </div>
               </div>
@@ -113,7 +113,7 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
               >
                 {phase === 'preparing'
                   ? <><Loader2 size={16} className="animate-spin" /> Preparando…</>
-                  : <><Link2 size={16} /> Preparar pase personal</>}
+                  : <><Link2 size={16} /> Crear enlace del diagnóstico</>}
               </button>
             </>
           ) : (
@@ -176,7 +176,7 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
                            transition-colors hover:bg-emerald-500"
               >
                 <WhatsAppMark size={16} />
-                Abrir WhatsApp
+                Enviar por WhatsApp
                 <ExternalLink size={14} />
               </a>
               <p className="mt-2 text-center text-[10px] leading-relaxed text-zinc-500">

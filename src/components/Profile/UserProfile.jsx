@@ -208,8 +208,8 @@ export default function UserProfile({
             icon={Users}
             title="Prospectos capturados"
             subtitle={leadCount > 0
-              ? `${leadCount} ${leadCount === 1 ? 'persona dejó' : 'personas dejaron'} sus datos`
-              : 'Aún nadie ha dejado sus datos'}
+              ? `${leadCount} ${leadCount === 1 ? 'persona' : 'personas'} · envía diagnósticos aquí`
+              : 'Aquí aparecerán las personas y sus pases'}
             badge={leadCount > 0 ? leadCount : undefined}
             onClick={onOpenLeads}
           />
