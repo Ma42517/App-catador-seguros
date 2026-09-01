@@ -8,6 +8,7 @@ import { FinanceProvider, useFinance } from '../../context/FinanceContext';
 import StepWizard from '../Wizard/StepWizard';
 import { STEPS, FIRST_INSIGHT_STEP } from '../Wizard/steps';
 import { ExecutiveDashboardV1 } from '../Dashboard/ExecutiveDashboard';
+import PublicDiagnosticReferrals from './PublicDiagnosticReferrals';
 import { publicDiagnosticRoute } from '../../lib/diagnosticPublicRoute';
 import {
   capturePublicDiagnosticLead,
@@ -394,6 +395,10 @@ export default function DiagnosticSecurityGuard() {
               </div>
             </div>
           </section>
+          <PublicDiagnosticReferrals
+            diagnosticId={diagnosticId}
+            ownerWhatsapp={whatsapp}
+          />
           <FinanceProvider initialState={initialState} persist={false}>
             <ExecutiveDashboardV1 />
           </FinanceProvider>

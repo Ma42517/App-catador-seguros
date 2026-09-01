@@ -38,6 +38,7 @@ export async function createLead(advisorId, lead, source = 'public_card') {
 
   const name = String(lead?.name ?? '').trim();
   const whatsapp = String(lead?.whatsapp ?? '').trim();
+  const referredByName = String(lead?.referredByName ?? '').trim();
   if (!name) return { data: null, error: { message: 'Falta el nombre.' } };
 
   const { data, error } = await supabase
@@ -47,6 +48,7 @@ export async function createLead(advisorId, lead, source = 'public_card') {
       name,
       whatsapp,
       source,
+      ...(referredByName && { referred_by_name: referredByName }),
     }])
     /*
       No se pide `select()` de vuelta. La política sólo concede inserción a quien
@@ -81,11 +83,21 @@ export async function createLead(advisorId, lead, source = 'public_card') {
 export async function listMyLeads() {
   if (!isSupabaseConfigured || !supabase) return { data: [], error: null };
 
-  const { data, error } = await supabase
+  let result = await supabase
     .from(TABLE)
-    .select('id, name, whatsapp, source, created_at')
+    .select('id, name, whatsapp, source, referred_by_name, referrer_diagnostic_id, created_at')
     .order('created_at', { ascending: false });
 
+  // Durante un despliegue la UI puede llegar segundos antes que la migración.
+  // La lista anterior sigue funcionando y evita ocultar prospectos existentes.
+  if (result.error?.code === '42703') {
+    result = await supabase
+      .from(TABLE)
+      .select('id, name, whatsapp, source, created_at')
+      .order('created_at', { ascending: false });
+  }
+
+  const { data, error } = result;
   if (error) return { data: [], error };
 
   return {
@@ -94,10 +106,28 @@ export async function listMyLeads() {
       name: row.name ?? '',
       whatsapp: row.whatsapp ?? '',
       source: row.source ?? '',
+      referredByName: row.referred_by_name ?? '',
+      referrerDiagnosticId: row.referrer_diagnostic_id ?? null,
       capturedAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
     })),
     error: null,
   };
+}
+
+const SOURCE_LABELS = {
+  public_card: 'Tarjeta digital compartida',
+  public_diagnostic: 'Solicitó un pase desde un enlace reenviado',
+  diagnostic_referral: 'Referido desde una Radiografía Patrimonial',
+  vip_menu: 'Pase VIP creado por ti',
+  cita_inicial_referral: 'Referido al cerrar una Cita Inicial',
+};
+
+/** Origen legible y, cuando existe, la persona que hizo la recomendación. */
+export function leadSourceLabel(lead) {
+  const origin = SOURCE_LABELS[lead?.source] || (lead?.storage === 'local'
+    ? 'Capturado en este dispositivo'
+    : 'Prospecto capturado');
+  return lead?.referredByName ? `${origin} · por ${lead.referredByName}` : origin;
 }
 
 

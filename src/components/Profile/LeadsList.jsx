@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Users, Trash2, Phone, Check, X, IdCard, FileText, Mail, Scale, Ruler,
-  Briefcase, AlertTriangle, Stethoscope, Cigarette, Ban,
+  Briefcase, AlertTriangle, Stethoscope, Cigarette, Ban, Ticket,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import BottomSheet from '../Layout/BottomSheet';
 import { useSession } from '../../context/SessionContext';
 import {
-  readLeads, removeLead, capturedLabel, followUpLink, expedienteSummary,
+  readLeads, removeLead, capturedLabel, expedienteSummary,
 } from '../../data/leads';
-import { listMyLeads, deleteLead } from '../../data/leadsRepo';
+import { listMyLeads, deleteLead, leadSourceLabel } from '../../data/leadsRepo';
+import DiagnosticInviteSheet from './DiagnosticInviteSheet';
 import {
   RISK_FREQUENCY_OPTIONS, MEDICAL_CATEGORIES, HEALTH_STATUS_OPTIONS, HABIT_TYPES,
 } from '../Prospecta/underwritingOptions';
@@ -150,16 +151,6 @@ function ExpedienteDetailSheet({ lead, onClose }) {
   );
 }
 
-/** Icono de WhatsApp: lucide no lo trae, así que va como trazo propio. */
-function WhatsAppMark({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38c1.45.79 3.08 1.2 4.79 1.2 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.02c-1.55 0-3.07-.42-4.4-1.2l-.32-.19-3.26.86.87-3.18-.2-.33a8.09 8.09 0 0 1-1.24-4.32c0-4.47 3.64-8.11 8.11-8.11s8.11 3.64 8.11 8.11-3.64 8.11-8.11 8.11z" />
-      <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.64.07-.3-.15-1.13-.42-2.15-1.33-.8-.71-1.34-1.6-1.5-1.9-.15-.3-.01-.46.13-.61.16-.16.3-.35.45-.53.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.65-1.57-.89-2.15-.23-.56-.47-.49-.65-.5h-.55c-.2 0-.5.07-.77.37-.27.3-1.02 1-1.02 2.42s1.04 2.8 1.19 3c.15.2 2.05 3.13 4.96 4.27 2.42.95 2.9.76 3.42.71.52-.05 1.68-.68 1.92-1.35.24-.66.24-1.23.17-1.35-.07-.12-.27-.2-.57-.35z" />
-    </svg>
-  );
-}
-
 /**
  * Fila de un prospecto.
  *
@@ -167,9 +158,8 @@ function WhatsAppMark({ size = 15 }) {
  * perdido no se recupera —vive sólo en este teléfono— y un toque accidental en
  * una lista que se recorre con el pulgar es demasiado fácil.
  */
-function LeadRow({ lead, advisorName, onRemove, onOpenDetail }) {
+function LeadRow({ lead, onRemove, onOpenDetail, onInvite }) {
   const [confirming, setConfirming] = useState(false);
-  const fromLink = lead.storage === 'cloud';
   // Filas que vinieron del Expediente Previo a Emisión
   // (`UnderwritingDrawer.jsx`, "Guardar Expediente"): muestran el resumen
   // de las 3 Súper Preguntas en vez del origen de captura, que es lo que
@@ -220,12 +210,11 @@ function LeadRow({ lead, advisorName, onRemove, onOpenDetail }) {
           </p>
           <p className="truncate text-[11px] text-zinc-500">
             {lead.whatsapp} · {capturedLabel(lead.capturedAt)}
-            {/*
-              Se distingue de dónde vino. No es un detalle técnico: quien llegó por
-              el enlace no conoce al asesor en persona, y el primer mensaje se
-              escribe distinto que a quien acaba de tener el teléfono en la mano.
-            */}
-            {fromLink && ' · por tu enlace'}
+          </p>
+          <p className="mt-0.5 truncate text-[10px] font-medium text-indigo-500
+                        dark:text-indigo-400"
+          >
+            {leadSourceLabel(lead)}
           </p>
         </div>
       )}
@@ -263,17 +252,17 @@ function LeadRow({ lead, advisorName, onRemove, onOpenDetail }) {
             <Phone size={15} />
           </a>
 
-          {/* Escribir es la acción principal: va en color y con el mensaje listo. */}
-          <a
-            href={followUpLink(lead, advisorName)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Escribir a ${lead.name} por WhatsApp`}
-            className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500 text-white
-                       transition-transform hover:bg-emerald-400 active:scale-90"
-          >
-            <WhatsAppMark />
-          </a>
+          {lead.storage === 'cloud' && !isExpediente && (
+            <button
+              type="button"
+              onClick={onInvite}
+              aria-label={`Preparar pase personal para ${lead.name}`}
+              className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-600 text-white
+                         transition-colors hover:bg-indigo-500 active:scale-90"
+            >
+              <Ticket size={15} />
+            </button>
+          )}
 
           <button
             type="button"
@@ -303,6 +292,8 @@ export default function LeadsList({ isOpen, onClose }) {
   // Expediente cuyo detalle completo se está mostrando en la hoja de abajo;
   // `null` cuando está cerrada.
   const [detailLead, setDetailLead] = useState(null);
+  // El pase se prepara desde esta hoja; capturar un prospecto nunca la abre.
+  const [inviteLead, setInviteLead] = useState(null);
 
   /**
    * Junta las dos procedencias de un prospecto.
@@ -382,9 +373,9 @@ export default function LeadsList({ isOpen, onClose }) {
             <LeadRow
               key={lead.id}
               lead={lead}
-              advisorName={identity?.name}
               onRemove={() => remove(lead)}
               onOpenDetail={() => setDetailLead(lead)}
+              onInvite={() => setInviteLead(lead)}
             />
           ))}
         </ul>
@@ -410,6 +401,11 @@ export default function LeadsList({ isOpen, onClose }) {
       )}
 
       <ExpedienteDetailSheet lead={detailLead} onClose={() => setDetailLead(null)} />
+      <DiagnosticInviteSheet
+        lead={inviteLead}
+        advisorName={identity?.name}
+        onClose={() => setInviteLead(null)}
+      />
     </FullScreenView>
   );
 }

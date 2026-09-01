@@ -10,6 +10,7 @@ import {
   saveVipPasses, REQUIRED_PASSES, completePasses,
 } from '../../data/vipPasses';
 import VIPPassFields from './VIPPassFields';
+import { createLead } from '../../data/leadsRepo';
 
 /**
  * src/components/Prospecta/PresentationEndModal.jsx
@@ -120,8 +121,22 @@ export default function PresentationEndModal({
   const ready = completePasses(passes);
   const readyCount = ready.length;
 
-  const persistAndRewardReferrals = () => {
+  const persistAndRewardReferrals = async () => {
     if (readyCount === 0) return [];
+
+    const results = await Promise.all(ready.map((pass) => createLead(
+      identity?.key,
+      {
+        name: pass.name,
+        whatsapp: pass.phone,
+        referredByName: client?.name ?? '',
+      },
+      'cita_inicial_referral',
+    )));
+    if (results.some((result) => result.error)) {
+      throw new Error('No fue posible guardar los referidos');
+    }
+
     const saved = saveVipPasses(identity?.key, ready, {
       origin: 'cita_inicial',
       fromClient: client?.name ?? '',
@@ -155,19 +170,22 @@ export default function PresentationEndModal({
     setIsSubmitting(true);
 
     try {
+      // Los contactos son valiosos por sí mismos: se guardan antes de cerrar
+      // esta pantalla, no como efecto auxiliar que pueda fallar en silencio.
+      if (activatePasses) await persistAndRewardReferrals();
+
       if (pending === 'descartado') {
         const result = await onDiscardClient?.(client);
         if (result?.status !== 'committed' && result?.status !== 'already_resolved') {
           throw new Error('No fue posible descartar la cita');
         }
-        if (result.status === 'committed' && activatePasses) persistAndRewardReferrals();
         onClose?.();
       } else {
         onRouteToActivity?.(chosen.activityType, client, {
           resolvingEventId: client?.id,
           resolveMode: 'remove',
           awardAction: chosen.awardAction,
-          afterCommit: activatePasses ? persistAndRewardReferrals : null,
+          afterCommit: null,
         });
         onClose?.();
       }

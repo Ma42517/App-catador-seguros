@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { Ticket, Unlock, ArrowRight, Send, Check, ShieldCheck } from 'lucide-react';
+import { Ticket, Unlock, ArrowRight, Send, ShieldCheck } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import { useSession } from '../../context/SessionContext';
 import {
-  REQUIRED_PASSES, saveVipPasses, unlockVipWithoutPasses, isVipUnlocked, vipPassLink,
+  REQUIRED_PASSES, saveVipPasses, unlockVipWithoutPasses, isVipUnlocked,
   arePassesComplete,
 } from '../../data/vipPasses';
 import VIPPassFields from './VIPPassFields';
-import WhatsAppMark from '../Activities/WhatsAppMark';
+import { createLead } from '../../data/leadsRepo';
 import {
   GAMIFICATION_ACTIONS, awardGamification,
 } from '../../store/gamificationStore';
@@ -46,7 +46,7 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
   // Arranca vacío: las invitaciones se agregan de una en una.
   const [passes, setPasses] = useState([]);
   const [saved, setSaved] = useState(null);
-  const [sentIds, setSentIds] = useState([]);
+  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const sessionIdRef = useRef('');
 
@@ -56,7 +56,7 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
     if (!isOpen) return;
     setPasses([]);
     setSaved(null);
-    setSentIds([]);
+    setError('');
     setIsSubmitting(false);
     sessionIdRef.current = `pases-menu:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
   }, [isOpen]);
@@ -64,11 +64,21 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
   const isComplete = arePassesComplete(passes);
   const alreadyUnlocked = isVipUnlocked(username);
 
-  const handleGenerate = (e) => {
+  const handleGenerate = async (e) => {
     e.preventDefault();
     if (!isComplete || isSubmitting) return;
     setIsSubmitting(true);
+    setError('');
     try {
+      const results = await Promise.all(passes.map((pass) => createLead(
+        username,
+        { name: pass.name, whatsapp: pass.phone },
+        'vip_menu',
+      )));
+      if (results.some((result) => result.error)) {
+        throw new Error('No fue posible guardar los prospectos');
+      }
+
       const created = saveVipPasses(username, passes, { origin: 'menu' });
       created.forEach((pass) => {
         awardGamification(GAMIFICATION_ACTIONS.NUEVO_REFERIDO_AGREGADO, {
@@ -78,7 +88,9 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
         });
       });
       setSaved(created);
+      setIsSubmitting(false);
     } catch {
+      setError('No pudimos guardar los pases. Revisa tu conexión e inténtalo nuevamente.');
       setIsSubmitting(false);
     }
   };
@@ -111,60 +123,36 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
             </span>
             <h2 className="text-lg font-bold text-white">Herramienta desbloqueada</h2>
             <p className="mx-auto mt-1.5 max-w-xs text-xs leading-relaxed text-neutral-400">
-              Envía sus pases cuando quieras. Ya puedes entrar al Diagnóstico.
+              Los contactos quedaron en Mi Perfil → Prospectos capturados. Desde ahí
+              preparas su enlace personal, editas el mensaje y decides cuándo abrir WhatsApp.
             </p>
           </div>
 
           <ul className="space-y-2">
-            {saved.map((pass) => {
-              const href = vipPassLink(pass, identity?.name);
-              const wasSent = sentIds.includes(pass.id);
-
-              return (
-                <li
-                  key={pass.id}
-                  className="flex items-center gap-3 rounded-xl border border-neutral-800
-                             bg-neutral-900/60 p-3"
+            {saved.map((pass) => (
+              <li
+                key={pass.id}
+                className="flex items-center gap-3 rounded-xl border border-neutral-800
+                           bg-neutral-900/60 p-3"
+              >
+                <span
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg
+                             bg-neutral-800 text-neutral-400"
+                  aria-hidden="true"
                 >
-                  <span
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-lg
-                               bg-neutral-800 text-neutral-400"
-                    aria-hidden="true"
-                  >
-                    <Ticket size={15} />
-                  </span>
+                  <Ticket size={15} />
+                </span>
 
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-neutral-100">
-                      {pass.name}
-                    </span>
-                    <span className="block truncate text-[11px] text-neutral-500">
-                      {pass.phone}
-                    </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-neutral-100">
+                    {pass.name}
                   </span>
-
-                  {/*
-                    Enlace real y no `window.open`: es lo que garantiza que
-                    el mensaje salga también en computadora.
-                  */}
-                  <a
-                    href={href ?? undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setSentIds((prev) => [...prev, pass.id])}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2
-                                text-[11px] font-semibold transition-colors ${wasSent
-                      ? 'bg-neutral-800 text-neutral-400'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}
-                  >
-                    {wasSent
-                      ? <Check size={13} aria-hidden="true" />
-                      : <WhatsAppMark size={13} />}
-                    {wasSent ? 'Enviado' : 'Enviar'}
-                  </a>
-                </li>
-              );
-            })}
+                  <span className="block truncate text-[11px] text-neutral-500">
+                    {pass.phone} · Guardado en Prospectos capturados
+                  </span>
+                </span>
+              </li>
+            ))}
           </ul>
 
           <button
@@ -202,6 +190,14 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
 
           <VIPPassFields passes={passes} onChange={setPasses} />
 
+          {error && (
+            <p role="alert" className="mt-3 rounded-lg bg-rose-500/10 px-3 py-2 text-xs
+                                       text-rose-300 ring-1 ring-rose-500/25"
+            >
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
             disabled={!isComplete || isSubmitting}
@@ -220,8 +216,8 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
           >
             <ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-400" aria-hidden="true" />
             <p className="text-[10px] leading-relaxed text-neutral-500">
-              Los pases se guardan sólo en este dispositivo. Nada se envía hasta que tú
-              toques el botón de WhatsApp de cada uno.
+              Los contactos se guardan en Prospectos capturados. No se crea ningún enlace
+              ni se abre WhatsApp hasta que tú lo decidas desde Mi Perfil.
             </p>
           </div>
 
