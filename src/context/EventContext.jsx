@@ -2,7 +2,7 @@ import {
   createContext, useContext, useState, useEffect, useCallback, useMemo,
 } from 'react';
 import {
-  readActivities, addActivity, resolveActivity,
+  readActivities, addActivity, resolveActivity, reconcileOrphanedInitialMeetings,
   updateActivity as persistUpdate,
   removeActivity as persistRemoveActivity,
   readNotes, addNote as persistNote,
@@ -55,10 +55,12 @@ export function EventProvider({ username, children }) {
     refresh();
   }, [username, refresh]);
 
-  // Al cambiar de usuario se recarga su información.
+  // Al cambiar de usuario, primero repara las Citas Iniciales residuales de
+  // la versión que perdía la metadata A→B y después publica su agenda real.
   useEffect(() => {
+    reconcileOrphanedInitialMeetings(username);
     refresh();
-  }, [refresh]);
+  }, [username, refresh]);
 
   /*
     La cuenta de demostración arranca poblada: una agenda vacía no permite

@@ -48,9 +48,9 @@ export default function ProductivityDashboard({
     resolver la cita ya terminó aquí, y `ActivityForm` (montado más arriba,
     en `AdminLayout.jsx`) se abre por encima de lo que quede debajo.
   */
-  const handleRouteToActivity = (activityType, client) => {
+  const handleRouteToActivity = (...args) => {
     setProspectaOpen(false);
-    onRouteToActivity?.(activityType, client);
+    onRouteToActivity?.(...args);
   };
   const [isWorkplaceOpen, setWorkplaceOpen] = useState(false);
   const [isGoalsOpen, setGoalsOpen] = useState(false);

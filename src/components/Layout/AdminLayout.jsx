@@ -148,7 +148,12 @@ export default function AdminLayout({
    * después de un commit real; cancelar el formulario no llama esta función.
    */
   const handleActivitySave = async (activity) => {
-    if (!activityPrefill?.resolvingEventId) return addEvent(activity);
+    if (!activityPrefill) return addEvent(activity);
+    if (!activityPrefill.resolvingEventId) {
+      throw new Error(
+        'No se encontró la actividad de origen. Cierra este formulario y vuelve a resolverla.',
+      );
+    }
 
     const result = resolveEvent({
       resolvingEventId: activityPrefill.resolvingEventId,

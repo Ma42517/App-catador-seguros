@@ -86,6 +86,61 @@ export function readActivities(username) {
   return readUser(username).activities.slice().sort((a, b) => b.createdAt - a.createdAt);
 }
 
+/**
+ * Repara las Citas Iniciales que quedaron huérfanas por la versión que
+ * descartaba la metadata del Dominó entre Productividad y ActivityForm.
+ *
+ * El patrón es deliberadamente estrecho: A sigue pendiente, ya fue iniciada y
+ * existe una Propuesta o Seguimiento posterior del mismo prospecto. En ese
+ * caso B demuestra que la resolución ya se guardó y A sólo es la notificación
+ * residual del bug. Las demás actividades no se tocan.
+ *
+ * @returns {number} cantidad de notificaciones huérfanas eliminadas.
+ */
+export function reconcileOrphanedInitialMeetings(username) {
+  if (!username) return 0;
+  const all = readAll();
+  const bucket = normalizeBucket(all[username]);
+  const nextTypes = new Set(['cita_propuesta', 'seguimiento']);
+
+  const identityOf = (activity) => {
+    const phone = String(activity?.telefono ?? '').replace(/\D/g, '');
+    const rawTitle = String(activity?.title ?? '').trim();
+    const name = (rawTitle.split(/:\s*/)[1] || rawTitle)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+    return { phone, name };
+  };
+  const sameProspect = (left, right) => {
+    const a = identityOf(left);
+    const b = identityOf(right);
+    if (a.phone && b.phone) return a.phone === b.phone;
+    return Boolean(a.name && b.name && a.name === b.name);
+  };
+
+  const orphanIds = new Set(
+    bucket.activities
+      .filter((activity) => (
+        activity.tipo_actividad === 'cita_inicial'
+        && activity.sessionStarted
+        && !activity.completed
+      ))
+      .filter((initialMeeting) => bucket.activities.some((candidate) => (
+        candidate.id !== initialMeeting.id
+        && nextTypes.has(candidate.tipo_actividad)
+        && Number(candidate.createdAt ?? 0) >= Number(initialMeeting.createdAt ?? 0)
+        && sameProspect(initialMeeting, candidate)
+      )))
+      .map((activity) => activity.id),
+  );
+
+  if (orphanIds.size === 0) return 0;
+  const activities = bucket.activities.filter((activity) => !orphanIds.has(activity.id));
+  return writeAll({ ...all, [username]: { ...bucket, activities } }) ? orphanIds.size : 0;
+}
+
 export function addActivity(username, activity) {
   const bucket = readUser(username);
   // Los identificadores son del repositorio, nunca del formulario/caller.
