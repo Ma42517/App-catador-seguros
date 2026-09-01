@@ -30,21 +30,21 @@ function GlowingLock() {
   );
 }
 
-/** Indicador de avance de los dos contactos. */
-function Progress({ filled }) {
+/** Indicador de avance. El mínimo es uno; el resto es voluntario. */
+function Progress({ filled, total }) {
   return (
     <div className="mx-auto mb-6 flex max-w-md items-center gap-3">
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-800">
         <div
           className="h-full rounded-full bg-gradient-to-r from-amber-400 to-indigo-600 transition-all duration-500"
           style={{
-            width: `${(filled / 2) * 100}%`,
+            width: `${Math.min(100, (filled / Math.max(1, total)) * 100)}%`,
             boxShadow: filled > 0 ? '0 0 10px rgb(245 158 11 / 0.6)' : 'none',
           }}
         />
       </div>
       <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-        {filled} de 2
+        {filled} de {total}
       </span>
     </div>
   );
@@ -53,11 +53,18 @@ function Progress({ filled }) {
 
 /**
  * Candado de referidos. Envuelve contenido de alto valor y lo libera
- * cuando el usuario comparte dos contactos.
+ * cuando el usuario comparte un contacto.
  */
 export default function ReferralGate({ children, title, description }) {
   const { isUnlocked, addReferral, unlockDirectly } = useReferral();
-  const [rows, setRows] = useState([{ ...EMPTY }, { ...EMPTY }]);
+  /*
+    Arranca con UNA fila, y una basta para desbloquear.
+
+    Antes pedía dos contactos completos y no había forma de continuar con uno:
+    quien sólo tenía una persona a quien recomendar se quedaba mirando un
+    formulario que no podía cerrar. Se pueden agregar más, pero es voluntario.
+  */
+  const [rows, setRows] = useState([{ ...EMPTY }]);
   const [error, setError] = useState('');
 
   if (isUnlocked) return children;
@@ -70,14 +77,21 @@ export default function ReferralGate({ children, title, description }) {
 
   const submit = (e) => {
     e.preventDefault();
-    const clean = rows.map((r) => ({ name: r.name.trim(), phone: r.phone.trim() }));
+    /*
+      Sólo se envían las filas completas. Una fila extra a medio llenar no es un
+      error del que haya que avisar: es una invitación que la persona empezó y
+      decidió no dar, y bloquear por eso sería volver al muro anterior.
+    */
+    const clean = rows
+      .map((r) => ({ name: r.name.trim(), phone: r.phone.trim() }))
+      .filter((r) => r.name && r.phone);
 
-    if (clean.some((r) => !r.name || !r.phone)) {
-      setError('Completa el nombre y el teléfono de ambos contactos.');
+    if (clean.length < 1) {
+      setError('Escribe el nombre y el teléfono de al menos una persona.');
       return;
     }
     if (clean.some((r) => r.phone.replace(/\D/g, '').length < 10)) {
-      setError('Verifica que ambos teléfonos tengan 10 dígitos.');
+      setError('Verifica que el teléfono tenga 10 dígitos.');
       return;
     }
 
@@ -110,13 +124,13 @@ export default function ReferralGate({ children, title, description }) {
             {title || 'Desbloquea tu Plan de Optimización 360'}
           </h3>
           <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-zinc-400">
-            {description || 'Para liberar tu estrategia completa de optimización, comparte el contacto de 2 personas a quienes también les pueda servir este diagnóstico gratuito.'}
+            {description || 'Para liberar tu estrategia completa de optimización, comparte el contacto de 1 persona a quien también le pueda servir este diagnóstico gratuito.'}
           </p>
         </div>
 
 
         <form onSubmit={submit} className="mx-auto mt-7 max-w-md">
-          <Progress filled={filled} />
+          <Progress filled={filled} total={rows.length} />
 
           <div className="space-y-3">
             {rows.map((row, i) => {
@@ -170,6 +184,22 @@ export default function ReferralGate({ children, title, description }) {
           </div>
 
 
+          {/*
+            Agregar más es voluntario y por eso es un enlace discreto, no un
+            campo que aparezca solo: quien tiene una sola persona no debe ver
+            huecos vacíos que parezcan pendientes.
+          */}
+          {rows.length < 3 && (
+            <button
+              type="button"
+              onClick={() => setRows((prev) => [...prev, { ...EMPTY }])}
+              className="mt-3 text-[11px] font-semibold text-indigo-300 underline-offset-2
+                         transition-colors hover:text-indigo-200 hover:underline"
+            >
+              + Agregar otra persona (opcional)
+            </button>
+          )}
+
           {error && (
             <p
               role="alert"
@@ -180,7 +210,7 @@ export default function ReferralGate({ children, title, description }) {
           )}
 
           <div className="mt-5">
-            <Button type="submit" icon={Unlock} full size="lg" disabled={filled < 2}>
+            <Button type="submit" icon={Unlock} full size="lg" disabled={filled < 1}>
               Desbloquear mi Diagnóstico 360
             </Button>
           </div>
