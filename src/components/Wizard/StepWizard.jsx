@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   ChevronLeft, ChevronRight, Check,
 } from 'lucide-react';
@@ -37,6 +37,27 @@ export default function StepWizard({
     return () => window.removeEventListener('hashchange', onHashChange);
   }, [isControlled, steps.length]);
 
+  /*
+    La tira de módulos y su cápsula activa.
+
+    Se desplaza la tira con `scrollTo` en vez de usar `scrollIntoView` sobre la
+    cápsula: eso último arrastra también el scroll vertical de la página y pelea
+    con el `window.scrollTo` que hace `go`, así que al cambiar de paso la pantalla
+    daba un salto. Aquí sólo se mueve el eje horizontal de la propia tira.
+  */
+  const stripRef = useRef(null);
+  const activeChipRef = useRef(null);
+
+  useEffect(() => {
+    const chip = activeChipRef.current;
+    const strip = stripRef.current;
+    if (!chip || !strip) return;
+    strip.scrollTo({
+      left: chip.offsetLeft - (strip.clientWidth - chip.clientWidth) / 2,
+      behavior: 'smooth',
+    });
+  }, [step]);
+
   const go = useCallback((next) => {
     const target = Math.min(steps.length - 1, Math.max(0, next));
     if (isControlled) {
@@ -56,7 +77,17 @@ export default function StepWizard({
   // Diagnóstico y Optimización son lectura; cualquier catálogo recortado a
   // captura (como el público) mantiene LiveTotals en todos sus pasos.
   const isInputStep = !['diagnosis', 'optimization'].includes(current.key);
-  const progressPct = steps.length > 1 ? (step / (steps.length - 1)) * 100 : 100;
+  /*
+    Dos medidas distintas, y confundirlas era el error.
+
+    `railPct` une los puntos del riel de escritorio: en el primer paso vale 0
+    porque el riel arranca EN ese punto. `progressPct` es cuánto se ha avanzado
+    del cuestionario, y ahí el paso actual sí cuenta: con la fórmula del riel, la
+    barra del teléfono se veía completamente vacía en el paso 1 de 7 —parecía que
+    no había barra, o que el indicador se saltaba el primer paso—.
+  */
+  const railPct = steps.length > 1 ? (step / (steps.length - 1)) * 100 : 100;
+  const progressPct = ((step + 1) / steps.length) * 100;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -81,21 +112,38 @@ export default function StepWizard({
         </div>
       </div>
 
-      {/* Tablet/Desktop: barra horizontal con cápsulas e iconos. */}
-      <nav aria-label="Pasos del diagnóstico" className="relative mb-6 hidden sm:block">
+      {/*
+        Las cápsulas con el nombre de cada módulo, en todos los tamaños.
+
+        Estaban en `hidden sm:block`, así que en un teléfono —donde se llena el
+        cuestionario de verdad— no existían: sólo quedaba el contador "Paso 1 de
+        7", sin forma de ver qué módulos hay ni de volver a uno anterior. La tira
+        se desplaza en horizontal y el paso activo se centra solo, que es lo que
+        permite tenerla en pantalla sin robarle ancho al formulario.
+
+        Los rieles siguen siendo de escritorio: unen puntos repartidos a lo largo
+        de todo el ancho, y sobre una tira que se desplaza dibujarían una línea
+        que no corresponde con lo que se ve.
+      */}
+      <nav aria-label="Pasos del diagnóstico" className="relative mb-6">
         {/* Riel de fondo */}
         <div
-          className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-zinc-800"
+          className="absolute left-0 right-0 top-1/2 hidden h-px -translate-y-1/2 bg-zinc-800 sm:block"
           aria-hidden="true"
         />
         {/* Progreso recorrido, con degradado índigo -> violeta */}
         <div
-          className="absolute left-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500"
-          style={{ width: `${progressPct}%` }}
+          className="absolute left-0 top-1/2 hidden h-px -translate-y-1/2 bg-gradient-to-r from-indigo-600 to-violet-500 transition-all duration-500 sm:block"
+          style={{ width: `${railPct}%` }}
           aria-hidden="true"
         />
 
-        <ol className="relative flex items-center justify-between gap-1 overflow-x-auto pb-0.5">
+        <ol
+          ref={stripRef}
+          className="relative flex items-center gap-1.5 overflow-x-auto pb-0.5
+                     [scrollbar-width:none] sm:justify-between sm:gap-1
+                     [&::-webkit-scrollbar]:hidden"
+        >
           {steps.map((s, i) => {
             const done = i < step;
             const active = i === step;
@@ -104,6 +152,7 @@ export default function StepWizard({
               <li key={s.key} className="shrink-0">
                 <button
                   type="button"
+                  ref={active ? activeChipRef : undefined}
                   onClick={() => go(i)}
                   aria-current={active ? 'step' : undefined}
                   className={`group flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-all duration-200 ${
