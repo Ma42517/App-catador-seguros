@@ -70,7 +70,20 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
   };
 
   return (
-    <BottomSheet isOpen={Boolean(lead)} onClose={onClose} label="Pase de Radiografía Patrimonial">
+    /*
+      `z-[80]` y no el `z-[60]` por omisión: esta hoja se abre dentro de
+      `LeadsList`, que es un `FullScreenView` en `z-[70]`. Con la capa normal
+      quedaba dibujada DEBAJO de esa pantalla, así que "Enviar diagnóstico"
+      parecía no hacer nada — el panel sí se montaba, pero detrás del fondo
+      opaco. Mismo criterio que ya documentan `LeadCaptureModal.jsx` y la
+      hoja de tareas de `FirstLoginIntro.jsx`.
+    */
+    <BottomSheet
+      isOpen={Boolean(lead)}
+      onClose={onClose}
+      label="Pase de Radiografía Patrimonial"
+      zIndexClass="z-[80]"
+    >
       {lead && (
         <div>
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-500/15
