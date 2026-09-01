@@ -10,6 +10,7 @@ import DigitalCardBuilder from '../Profile/DigitalCardBuilder';
 import DigitalCardScreen from '../Profile/DigitalCardScreen';
 import LeadsList from '../Profile/LeadsList';
 import PausedProspects from '../Profile/PausedProspects';
+import RankingView from '../Profile/RankingView';
 import VIPPassGenerator from '../Prospecta/VIPPassGenerator';
 import { DASHBOARD_VERSIONS } from '../../context/dashboardVersion';
 import AdminPanel from '../Admin/AdminPanel';
@@ -117,6 +118,8 @@ export default function AdminLayout({
   // "Prospectos en pausa" (`PausedProspects.jsx`): se abre desde el perfil,
   // igual que la lista de prospectos capturados.
   const [pausedOpen, setPausedOpen] = useState(false);
+  // "Ranking" (`RankingView.jsx`): se abre desde el perfil, junto al monedero.
+  const [rankingOpen, setRankingOpen] = useState(false);
   // "Pases VIP 360" del menú. Siempre se abre antes del Diagnóstico para
   // presentar la invitación, incluso si el asesor ya generó pases anteriormente.
   const [vipPassesOpen, setVipPassesOpen] = useState(false);
@@ -277,6 +280,8 @@ export default function AdminLayout({
 
       <PausedProspects isOpen={pausedOpen} onClose={() => setPausedOpen(false)} />
 
+      <RankingView isOpen={rankingOpen} onClose={() => setRankingOpen(false)} />
+
       {/*
         Candado de Pases VIP. Al desbloquear, entra al Diagnóstico en la misma
         acción: el asesor pidió la herramienta, los pases eran el peaje — no
@@ -299,6 +304,7 @@ export default function AdminLayout({
         onEditCard={() => { setProfileOpen(false); setCardEditOpen(true); }}
         onOpenLeads={() => { setProfileOpen(false); setLeadsOpen(true); }}
         onOpenPaused={() => { setProfileOpen(false); setPausedOpen(true); }}
+        onOpenRanking={() => { setProfileOpen(false); setRankingOpen(true); }}
       />
 
       {/* Sin permiso no se monta: perder el permiso con el panel abierto lo cierra. */}
