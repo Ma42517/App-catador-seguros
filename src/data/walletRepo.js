@@ -56,3 +56,11 @@ export function fetchPromotoriaRanking(scope = 'month', limit = 20) {
     p_limit: Math.trunc(Number(limit) || 20),
   });
 }
+
+/** Precio en monedas de un producto de la tienda ('diagnostic', 'referral_card'). */
+export async function fetchStorePrice(product) {
+  if (!isSupabaseConfigured || !supabase) return null;
+  const { data, error } = await supabase.rpc('store_price', { p_product: product });
+  if (error) return null;
+  return typeof data === 'number' ? data : null;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Check, Copy, ExternalLink, KeyRound, Link2, Loader2, RotateCcw, ShieldCheck, Ticket,
+  Check, Coins, Copy, ExternalLink, KeyRound, Link2, Loader2, RotateCcw, ShieldCheck, Ticket,
 } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import WhatsAppMark from '../Activities/WhatsAppMark';
@@ -12,6 +12,7 @@ import {
 import { publicDiagnosticUrl } from '../../lib/diagnosticPublicRoute';
 import { whatsAppLink } from '../../lib/advisorPhone';
 import { leadSourceLabel } from '../../data/leadsRepo';
+import { fetchStorePrice, fetchWalletSummary } from '../../data/walletRepo';
 
 function invitationMessage(lead, advisorName, url, code) {
   const firstName = String(lead?.name ?? '').trim().split(/\s+/)[0] || 'Hola';
@@ -44,7 +45,14 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState('');
+  // Precio del diagnóstico y saldo, para mostrar el costo antes de cobrar y
+  // avisar cuánto se descontó. `charged` guarda lo cobrado en esta creación:
+  // 0 si el pase ya existía (no se cobra dos veces por el mismo prospecto).
+  const [price, setPrice] = useState(null);
+  const [balance, setBalance] = useState(null);
+  const [charged, setCharged] = useState(0);
 
+  const leadId = lead?.id;
   useEffect(() => {
     setPhase('idle');
     setDiagnosticId('');
@@ -53,7 +61,13 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
     setMessage('');
     setError('');
     setCopied('');
-  }, [lead?.id]);
+    setCharged(0);
+    if (!leadId) return;
+    fetchStorePrice('diagnostic').then((value) => setPrice(value));
+    fetchWalletSummary().then(({ data }) => {
+      if (data?.outcome === 'READY') setBalance(data.coinsBalance);
+    });
+  }, [leadId]);
 
   const prepare = async () => {
     if (!lead?.id || phase === 'preparing') return;
@@ -63,11 +77,19 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
     const { data, error: requestError } = await getOrCreateDiagnosticForLead(lead.id);
     if (requestError || data?.outcome !== 'READY') {
       setPhase('idle');
-      setError(data?.outcome === 'INVALID_CONTACT'
-        ? 'Este prospecto necesita un WhatsApp válido de 10 dígitos.'
-        : 'No pudimos preparar el pase. Revisa tu conexión e inténtalo nuevamente.');
+      if (data?.outcome === 'INSUFFICIENT') {
+        setBalance(data.coinsBalance);
+        setError(`Necesitas ${data.price} monedas para crear este pase y tienes `
+          + `${data.coinsBalance}. Gana más puntos trabajando tus actividades.`);
+      } else if (data?.outcome === 'INVALID_CONTACT') {
+        setError('Este prospecto necesita un WhatsApp válido de 10 dígitos.');
+      } else {
+        setError('No pudimos preparar el pase. Revisa tu conexión e inténtalo nuevamente.');
+      }
       return;
     }
+
+    setCharged(data.charged ?? 0);
 
     const { data: codeData, error: codeError } = await issueDiagnosticAccessCode(
       data.diagnosticId,
@@ -202,20 +224,43 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
                 </div>
               </div>
 
+              {/* El precio, claro antes de cobrar. Con saldo, el botón se apaga. */}
+              {price > 0 && (
+                <div className="mt-3 flex items-center justify-between rounded-xl border
+                                border-amber-500/25 bg-amber-500/5 px-4 py-3"
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-semibold
+                                   text-amber-700 dark:text-amber-300"
+                  >
+                    <Coins size={14} /> Costo del pase
+                  </span>
+                  <span className="text-sm font-bold text-zinc-900 dark:text-white">
+                    {price} monedas
+                    {balance !== null && (
+                      <span className="ml-1 text-[10px] font-medium text-zinc-500">
+                        · tienes {balance}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+
               {error && <p className="mt-3 text-xs text-rose-500" role="alert">{error}</p>}
 
               <button
                 type="button"
                 onClick={prepare}
-                disabled={busy}
+                disabled={busy || (price > 0 && balance !== null && balance < price)}
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl
                            bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white
-                           transition-colors hover:bg-indigo-500 disabled:cursor-wait
-                           disabled:opacity-60"
+                           transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed
+                           disabled:opacity-50"
               >
                 {phase === 'preparing'
                   ? <><Loader2 size={16} className="animate-spin" /> Preparando…</>
-                  : <><Link2 size={16} /> Crear enlace y código</>}
+                  : price > 0
+                    ? <><Link2 size={16} /> Crear pase por {price} monedas</>
+                    : <><Link2 size={16} /> Crear enlace y código</>}
               </button>
             </>
           ) : (
@@ -226,6 +271,11 @@ export default function DiagnosticInviteSheet({ lead, advisorName, onClose }) {
                 >
                   <Check size={15} />
                   {diagnosticStatus === 'COMPLETADO' ? 'Diagnóstico completado' : 'Pase listo'}
+                  {charged > 0 && (
+                    <span className="ml-auto font-normal text-emerald-600 dark:text-emerald-400">
+                      −{charged} monedas
+                    </span>
+                  )}
                 </p>
               </div>
 
