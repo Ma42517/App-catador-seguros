@@ -3,8 +3,8 @@ import { Ticket, Unlock, ArrowRight, Send, ShieldCheck } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import { useSession } from '../../context/SessionContext';
 import {
-  REQUIRED_PASSES, saveVipPasses, unlockVipWithoutPasses, isVipUnlocked,
-  arePassesComplete,
+  MAX_PASSES, saveVipPasses, unlockVipWithoutPasses, isVipUnlocked,
+  hasEnoughPasses, completePasses,
 } from '../../data/vipPasses';
 import VIPPassFields from './VIPPassFields';
 import { createLead } from '../../data/leadsRepo';
@@ -61,16 +61,18 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
     sessionIdRef.current = `pases-menu:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
   }, [isOpen]);
 
-  const isComplete = arePassesComplete(passes);
+  // Con una invitación válida basta. Las incompletas no bloquean ni se guardan.
+  const ready = completePasses(passes);
+  const canContinue = hasEnoughPasses(passes);
   const alreadyUnlocked = isVipUnlocked(username);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
-    if (!isComplete || isSubmitting) return;
+    if (!canContinue || isSubmitting) return;
     setIsSubmitting(true);
     setError('');
     try {
-      const results = await Promise.all(passes.map((pass) => createLead(
+      const results = await Promise.all(ready.map((pass) => createLead(
         username,
         { name: pass.name, whatsapp: pass.phone },
         'vip_menu',
@@ -79,7 +81,7 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
         throw new Error('No fue posible guardar los prospectos');
       }
 
-      const created = saveVipPasses(username, passes, { origin: 'menu' });
+      const created = saveVipPasses(username, ready, { origin: 'menu' });
       created.forEach((pass) => {
         awardGamification(GAMIFICATION_ACTIONS.NUEVO_REFERIDO_AGREGADO, {
           userKey: username,
@@ -179,12 +181,12 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
               <Ticket size={24} />
             </span>
             <h2 className="text-lg font-bold leading-snug text-white">
-              Regala {REQUIRED_PASSES} Pases VIP a tus amigos
+              Regala un Pase VIP a alguien que valoras
             </h2>
             <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-neutral-400">
-              Antes de entrar al Diagnóstico 360, invita a tres personas que valores
-              a recibir un análisis patrimonial sin costo. Tú les abres la puerta;
-              ellos obtienen claridad para tomar mejores decisiones financieras.
+              Con una sola persona basta para entrar al Diagnóstico 360. Si quieres,
+              puedes invitar hasta {MAX_PASSES}. Tú les abres la puerta; ellos obtienen
+              claridad para tomar mejores decisiones financieras.
             </p>
           </div>
 
@@ -200,7 +202,7 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
 
           <button
             type="submit"
-            disabled={!isComplete || isSubmitting}
+            disabled={!canContinue || isSubmitting}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl
                        bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white
                        shadow-lg shadow-indigo-600/30 transition-colors hover:bg-indigo-500
@@ -208,7 +210,9 @@ export default function VIPPassGenerator({ isOpen, onClose, onUnlocked }) {
                        disabled:shadow-none"
           >
             <Send size={16} aria-hidden="true" />
-            Crear Pases VIP y desbloquear
+            {ready.length > 1
+              ? `Crear ${ready.length} pases y desbloquear`
+              : 'Crear pase y desbloquear'}
           </button>
 
           <div className="mt-4 flex items-start gap-2 rounded-xl border border-neutral-800
