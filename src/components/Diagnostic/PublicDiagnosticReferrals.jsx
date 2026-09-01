@@ -26,12 +26,18 @@ export default function PublicDiagnosticReferrals({ diagnosticId, ownerWhatsapp 
   const submit = async (event) => {
     event.preventDefault();
     if (phase === 'submitting') return;
-    const clean = rows.map((row) => ({
-      name: row.name.trim(),
-      whatsapp: row.whatsapp.trim(),
-    }));
+    // Una persona es suficiente. Las filas vacías que se agregaron y no se
+    // llenaron simplemente se descartan, en vez de bloquear el envío.
+    const clean = rows
+      .map((row) => ({ name: row.name.trim(), whatsapp: row.whatsapp.trim() }))
+      .filter((row) => row.name || row.whatsapp);
+
+    if (clean.length < 1) {
+      setError('Escribe el nombre y el WhatsApp de al menos una persona.');
+      return;
+    }
     if (clean.some((row) => row.name.length < 2 || digits(row.whatsapp).length < 10)) {
-      setError('Completa el nombre y un WhatsApp de 10 dígitos para cada persona.');
+      setError('Revisa que cada persona tenga nombre y un WhatsApp de 10 dígitos.');
       return;
     }
 
@@ -83,8 +89,8 @@ export default function PublicDiagnosticReferrals({ diagnosticId, ownerWhatsapp 
             Regala una Radiografía Patrimonial
           </h2>
           <p className="mt-2 text-xs font-light leading-relaxed text-neutral-500">
-            Déjanos el contacto de hasta tres personas. Sólo guardaremos sus datos para
-            tu asesor; no se les enviará ningún mensaje ahora.
+            Con una persona es suficiente; puedes agregar hasta tres si quieres. Sólo
+            guardaremos sus datos para tu asesor; no se les enviará ningún mensaje ahora.
           </p>
         </div>
       </div>

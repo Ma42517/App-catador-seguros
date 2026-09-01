@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Ticket } from 'lucide-react';
-import { REQUIRED_PASSES } from '../../data/vipPasses';
+import { MAX_PASSES } from '../../data/vipPasses';
 import AddInvitationSheet from './AddInvitationSheet';
 
 /** Entrada y salida de una invitación ya agregada. Corta, sin rebote: es una fila, no un aviso. */
@@ -22,8 +22,8 @@ const REVEAL = {
  * comunicaba lo contrario de lo que se busca: tres casillas dobles en blanco se
  * leen como un requisito que hay que rellenar para poder seguir. Ahora la
  * pantalla empieza con una sola invitación a agregar, y cada nombre se suma
- * porque alguien decidió sumarlo. El límite (`REQUIRED_PASSES`) sigue ahí: el
- * botón desaparece al llegar al tercero.
+ * porque alguien decidió sumarlo. `MAX_PASSES` es sólo un techo —el botón
+ * desaparece al llegar al tercero—, nunca un mínimo: con una basta.
  *
  * ## Por qué la captura vive en una hoja y no en línea
  * Antes cada "+ Agregar invitación" desplegaba un par de campos dentro de la
@@ -47,7 +47,7 @@ const REVEAL = {
  */
 export default function VIPPassFields({ passes, onChange }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const canAddMore = passes.length < REQUIRED_PASSES;
+  const canAddMore = passes.length < MAX_PASSES;
 
   const add = (contact) => onChange([...passes, contact]);
   const remove = (index) => onChange(passes.filter((_, i) => i !== index));

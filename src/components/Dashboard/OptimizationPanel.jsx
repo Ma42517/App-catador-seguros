@@ -569,7 +569,7 @@ export default function OptimizationPanel({ advisorPhone }) {
 
       <ReferralGate
         title="Desbloquea tu Plan de Optimización 360"
-        description="Ya viste las palancas. Para liberar la comparación completa de escenarios y tu plan de acción priorizado, comparte el contacto de 2 personas a quienes también les pueda servir este diagnóstico gratuito."
+        description="Ya viste las palancas. Para liberar la comparación completa de escenarios y tu plan de acción priorizado, comparte el contacto de 1 persona a quien también le pueda servir este diagnóstico gratuito."
       >
         <div className="space-y-4">
           <ScenarioComparison />

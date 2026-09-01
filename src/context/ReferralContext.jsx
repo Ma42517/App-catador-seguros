@@ -49,16 +49,14 @@ export function ReferralProvider({ children }) {
 
   /**
    * Agrega un referido { name, phone }.
-   * Si la lista alcanza 2 o más referidos, desbloquea automáticamente.
+   *
+   * Con UNO basta para desbloquear. Antes hacían falta dos, y quien sólo tenía
+   * una persona a quien recomendar entregaba su contacto sin recibir nada: el
+   * intercambio quedaba a medias y el candado seguía cerrado.
    */
   const addReferral = useCallback((referral) => {
-    setReferrals((prev) => {
-      const updated = [...prev, referral];
-      if (updated.length >= 2) {
-        setIsUnlocked(true);
-      }
-      return updated;
-    });
+    setReferrals((prev) => [...prev, referral]);
+    setIsUnlocked(true);
   }, []);
 
   /**

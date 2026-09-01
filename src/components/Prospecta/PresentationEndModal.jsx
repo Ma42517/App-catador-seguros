@@ -7,7 +7,7 @@ import {
 } from '../../store/gamificationStore';
 import { useSession } from '../../context/SessionContext';
 import {
-  saveVipPasses, REQUIRED_PASSES, completePasses,
+  saveVipPasses, MAX_PASSES, completePasses,
 } from '../../data/vipPasses';
 import VIPPassFields from './VIPPassFields';
 import { createLead } from '../../data/leadsRepo';
@@ -325,7 +325,7 @@ export default function PresentationEndModal({
                         <h2 className="mt-8 text-3xl font-semibold tracking-tight
                                        text-neutral-100"
                         >
-                          Regala claridad financiera a {REQUIRED_PASSES} personas que te importan
+                          Regala claridad financiera a alguien que te importa
                         </h2>
 
                         <p className="mt-3 flex items-start gap-2 text-sm text-neutral-400">
@@ -336,9 +336,9 @@ export default function PresentationEndModal({
                             aria-hidden="true"
                           />
                           <span>
-                            Antes de terminar, comparte tus {REQUIRED_PASSES} Pases VIP con
-                            amigos que valores. Cada uno recibirá sin costo este análisis
-                            patrimonial completo, como un regalo de tu parte.
+                            Antes de terminar, comparte un Pase VIP con alguien que valores
+                            —o hasta {MAX_PASSES}, si quieres—. Cada persona recibirá sin costo
+                            este análisis patrimonial completo, como un regalo de tu parte.
                           </span>
                         </p>
 

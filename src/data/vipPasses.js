@@ -7,9 +7,8 @@
  * ## Por qué no reutiliza `ReferralContext`
  * Ese contexto ya existe y también guarda referidos, pero resuelve otro
  * candado: el del PROSPECTO dentro del propio diagnóstico
- * (`ReferralGate.jsx`, envuelto en `OptimizationPanel.jsx`), que pide 2
- * contactos para liberar el plan de optimización. Éste es el candado del
- * ASESOR y pide 3.
+ * (`ReferralGate.jsx`, envuelto en `OptimizationPanel.jsx`). Éste es el candado
+ * del ASESOR. Los dos piden lo mismo: un contacto.
  *
  * Compartir almacén habría atado los dos: desbloquear uno desbloquearía el
  * otro, porque `isUnlocked` es una sola bandera. Son dos intercambios
@@ -19,8 +18,16 @@
  */
 const KEY = 'df360:vipPasses:v1';
 
-/** Cuántos pases hay que generar para desbloquear la herramienta. */
-export const REQUIRED_PASSES = 3;
+/**
+ * Cuántas invitaciones se pueden agregar como máximo, y cuántas hacen falta.
+ *
+ * El mínimo es UNO, no tres. Exigir tres nombres alargaba el paso y castigaba a
+ * quien de verdad no tiene tres personas a quien invitar: la salida era inventar
+ * contactos o abandonar. Tres sigue siendo el techo de lo que la sesión incluye;
+ * uno es suficiente para completar el intercambio.
+ */
+export const MAX_PASSES = 3;
+export const MIN_PASSES = 1;
 
 function newId() {
   return globalThis.crypto?.randomUUID?.()
@@ -143,21 +150,18 @@ export function completePasses(passes) {
 }
 
 /**
- * ¿Está el lote entero, con los tres pases?
+ * ¿Hay lo suficiente para completar el intercambio?
  *
- * Es la única definición de "ya está lleno" en toda la app: la usan el
+ * Es la única definición de "ya se puede continuar" en toda la app: la usan el
  * generador del menú y el cierre de la Cita Inicial, y con dos copias bastaba
  * que una aceptara un teléfono de 9 dígitos para que un pase quedara
  * inservible según por dónde se hubiera capturado.
  *
- * Cuidado con lo que decide cada cosa: esto gobierna el desbloqueo de la
- * herramienta y el bono, no si se puede continuar. Para eso se usa
- * `completePasses(...).length`, que acepta uno o dos.
+ * Basta una invitación válida. Las incompletas no bloquean: simplemente no
+ * cuentan, y `completePasses` es lo único que se guarda.
  */
-export function arePassesComplete(passes) {
-  return Array.isArray(passes)
-    && passes.length === REQUIRED_PASSES
-    && passes.every(isPassComplete);
+export function hasEnoughPasses(passes) {
+  return completePasses(passes).length >= MIN_PASSES;
 }
 
 export function unlockVipWithoutPasses(username) {
