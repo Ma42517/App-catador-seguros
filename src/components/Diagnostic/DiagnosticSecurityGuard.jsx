@@ -2,7 +2,7 @@ import {
   useCallback, useEffect, useRef, useState,
 } from 'react';
 import {
-  ArrowRight, CheckCircle2, Loader2, LockKeyhole, ShieldCheck, UserPlus,
+  ArrowRight, CheckCircle2, KeyRound, Loader2, LockKeyhole, ShieldCheck, UserPlus,
 } from 'lucide-react';
 import { FinanceProvider, useFinance } from '../../context/FinanceContext';
 import StepWizard from '../Wizard/StepWizard';
@@ -11,10 +11,14 @@ import { ExecutiveDashboardV1 } from '../Dashboard/ExecutiveDashboard';
 import PublicDiagnosticReferrals from './PublicDiagnosticReferrals';
 import { publicDiagnosticRoute } from '../../lib/diagnosticPublicRoute';
 import {
+  readDeviceSecret, saveDeviceSecret, clearDeviceSecret,
+} from '../../lib/diagnosticDevice';
+import {
   capturePublicDiagnosticLead,
+  claimPublicDiagnosticDevice,
   completePublicDiagnostic,
+  openPublicDiagnostic,
   savePublicDiagnosticProgress,
-  unlockPublicDiagnostic,
 } from '../../data/diagnosticsRepo';
 
 const QUESTIONNAIRE_STEPS = STEPS.slice(0, FIRST_INSIGHT_STEP);
@@ -80,7 +84,15 @@ function QuestionnaireBody({ onSnapshot, onComplete, isCompleting, saveStatus })
   );
 }
 
-function LeadCapture({ diagnosticId, recipientName }) {
+/**
+ * Registro de quien recibió un enlace que no es suyo.
+ *
+ * Ya no se le dice a quién pertenece el pase. Antes el mensaje nombraba al dueño
+ * —"este pase pertenece a Marco"—, y eso le confirmaba a un tercero que Marco
+ * tiene un análisis patrimonial en curso con un asesor: un dato de su vida
+ * financiera que no le corresponde conocer.
+ */
+function LeadCapture({ diagnosticId, onBack }) {
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [status, setStatus] = useState('idle');
@@ -89,7 +101,7 @@ function LeadCapture({ diagnosticId, recipientName }) {
   const submit = async (event) => {
     event.preventDefault();
     if (status === 'submitting') return;
-    if (!name.trim() || digits(whatsapp).length < 10) {
+    if (name.trim().length < 2 || digits(whatsapp).length < 10) {
       setError('Escribe tu nombre y un WhatsApp de 10 dígitos.');
       return;
     }
@@ -131,15 +143,14 @@ function LeadCapture({ diagnosticId, recipientName }) {
           <UserPlus size={21} strokeWidth={1.5} />
         </span>
         <p className="text-[10px] uppercase tracking-[0.24em] text-neutral-600">
-          Pase protegido
+          Análisis de cortesía
         </p>
         <h1 className="mt-2 text-2xl font-light leading-tight text-white">
           Solicita tu propio análisis
         </h1>
         <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
-          Este pase pertenece a {recipientName || 'otra persona'}. Por seguridad de sus
-          datos, el acceso está restringido. Si deseas solicitar un análisis patrimonial
-          propio de cortesía, regístrate aquí.
+          Este pase es personal y su contenido está protegido. Si deseas solicitar un
+          análisis patrimonial propio de cortesía, regístrate aquí.
         </p>
 
         <form onSubmit={submit} className="mt-8 space-y-3">
@@ -177,6 +188,15 @@ function LeadCapture({ diagnosticId, recipientName }) {
             {status !== 'submitting' && <ArrowRight size={16} aria-hidden="true" />}
           </button>
         </form>
+
+        <button
+          type="button"
+          onClick={onBack}
+          className="mx-auto mt-6 block text-[11px] font-light text-neutral-600
+                     underline-offset-2 transition-colors hover:text-neutral-400 hover:underline"
+        >
+          Tengo un código de acceso
+        </button>
       </section>
     </main>
   );
@@ -185,18 +205,32 @@ function LeadCapture({ diagnosticId, recipientName }) {
 /**
  * Candado público de la Radiografía Patrimonial.
  *
- * La comparación sensible ocurre en `unlock_public_diagnostic`; este componente
- * nunca recibe el WhatsApp original. React sólo conduce los estados de UX.
+ * ## Qué acredita el acceso
+ * El dispositivo, no un número de teléfono. La primera entrada canjea un código
+ * de seis dígitos que el asesor entrega por WhatsApp; a cambio, el servidor
+ * emite una llave que queda en este navegador y con la que se entra directo de
+ * ahí en adelante.
+ *
+ * Antes se comparaba el WhatsApp del dueño, y eso era un secreto adivinable:
+ * quien conociera su número entraba, y reenviar el enlace propagaba el pase.
+ * Ahora reenviarlo no alcanza —el código caduca, se agota y autorizar otro
+ * dispositivo exige un código nuevo que sólo el asesor puede emitir—.
+ *
+ * ## Qué NO hace este componente
+ * No decide nada sensible. El código se compara contra su hash dentro de
+ * Postgres y la llave del dispositivo se genera allí: aquí no hay ningún valor
+ * que sirva para entrar si se inspecciona el navegador.
  */
 export default function DiagnosticSecurityGuard() {
   const [{ diagnosticId }] = useState(() => publicDiagnosticRoute());
-  const [phase, setPhase] = useState(diagnosticId ? 'identity' : 'invalid');
-  const [whatsapp, setWhatsapp] = useState('');
+  const [phase, setPhase] = useState(diagnosticId ? 'checking' : 'invalid');
   const [record, setRecord] = useState(null);
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved');
   const [isCompleting, setIsCompleting] = useState(false);
 
+  const secretRef = useRef('');
   const revisionRef = useRef(0);
   const latestSnapshotRef = useRef(null);
   const lastSavedRef = useRef('');
@@ -205,8 +239,54 @@ export default function DiagnosticSecurityGuard() {
 
   useEffect(() => () => clearTimeout(saveTimerRef.current), []);
 
+  /** Deja el pase listo tras una apertura o un canje autorizado. */
+  const adopt = useCallback((data) => {
+    setRecord(data);
+    revisionRef.current = Number(data.revision) || 0;
+    lastSavedRef.current = JSON.stringify(data.responses ?? {});
+    setPhase(data.status === 'COMPLETADO' ? 'readonly' : 'questionnaire');
+  }, []);
+
+  /*
+    Apertura silenciosa al montar: si este dispositivo ya tiene llave, entra sin
+    preguntar nada. Es justo lo que se pidió —que en su propio teléfono el dueño
+    no vuelva a teclear nada— y también lo que evita que el código tenga que
+    viajar más de una vez.
+  */
+  useEffect(() => {
+    if (!diagnosticId) return;
+
+    let active = true;
+    const stored = readDeviceSecret(diagnosticId);
+    secretRef.current = stored;
+
+    openPublicDiagnostic(diagnosticId, stored).then(({ data, error: requestError }) => {
+      if (!active) return;
+      if (requestError) {
+        setPhase('offline');
+        return;
+      }
+      if (data?.outcome === 'NOT_FOUND') {
+        setPhase('invalid');
+        return;
+      }
+      if (data?.outcome === 'AUTHORIZED') {
+        adopt(data);
+        return;
+      }
+      // La llave guardada ya no vale —el asesor revocó los dispositivos—, así que
+      // se olvida: conservarla haría que cada apertura intentara con una llave
+      // muerta y el estado de la pantalla dejaría de corresponder con la realidad.
+      if (stored) clearDeviceSecret(diagnosticId);
+      secretRef.current = '';
+      setPhase('code');
+    });
+
+    return () => { active = false; };
+  }, [diagnosticId, adopt]);
+
   const persistSnapshot = useCallback((snapshot) => {
-    if (!snapshot || !diagnosticId) return saveChainRef.current;
+    if (!snapshot || !diagnosticId || !secretRef.current) return saveChainRef.current;
     const serialized = JSON.stringify(snapshot.responses);
     if (serialized === lastSavedRef.current) return saveChainRef.current;
 
@@ -214,7 +294,7 @@ export default function DiagnosticSecurityGuard() {
       setSaveStatus('saving');
       const { data, error: requestError } = await savePublicDiagnosticProgress({
         diagnosticId,
-        whatsapp,
+        deviceSecret: secretRef.current,
         responses: snapshot.responses,
         revision: revisionRef.current,
       });
@@ -229,7 +309,7 @@ export default function DiagnosticSecurityGuard() {
     });
 
     return saveChainRef.current;
-  }, [diagnosticId, whatsapp]);
+  }, [diagnosticId]);
 
   const handleSnapshot = useCallback((snapshot) => {
     latestSnapshotRef.current = snapshot;
@@ -237,41 +317,45 @@ export default function DiagnosticSecurityGuard() {
     saveTimerRef.current = setTimeout(() => persistSnapshot(snapshot), 900);
   }, [persistSnapshot]);
 
-  const unlock = async (event) => {
+  const claim = async (event) => {
     event.preventDefault();
-    if (phase === 'unlocking') return;
-    if (digits(whatsapp).length < 10) {
-      setError('Escribe el número de WhatsApp con 10 dígitos.');
+    if (phase === 'claiming') return;
+    if (digits(code).length !== 6) {
+      setError('El código tiene 6 dígitos.');
       return;
     }
 
-    setPhase('unlocking');
+    setPhase('claiming');
     setError('');
-    const { data, error: requestError } = await unlockPublicDiagnostic(diagnosticId, whatsapp);
+    const { data, error: requestError } = await claimPublicDiagnosticDevice(diagnosticId, code);
+
     if (requestError) {
-      setPhase('identity');
-      setError('No pudimos validar el pase. Revisa tu conexión e inténtalo nuevamente.');
+      setPhase('code');
+      setError('No pudimos validar el código. Revisa tu conexión e inténtalo nuevamente.');
       return;
     }
-    if (data?.outcome === 'NOT_FOUND') {
-      setPhase('invalid');
+    if (data?.outcome === 'CODE_INVALID') {
+      setPhase('code');
+      setError(data.attemptsLeft > 0
+        ? `Código incorrecto. Te quedan ${data.attemptsLeft} intentos.`
+        : 'Código incorrecto. Pide uno nuevo a tu asesor.');
       return;
     }
-    if (data?.outcome === 'MISMATCH') {
-      setRecord(data);
-      setPhase('mismatch');
+    if (data?.outcome === 'CODE_EXPIRED' || data?.outcome === 'TOO_MANY_ATTEMPTS') {
+      setPhase('code');
+      setError('Este código ya no es válido. Pide uno nuevo a tu asesor.');
       return;
     }
-    if (data?.outcome !== 'MATCH') {
-      setPhase('identity');
-      setError('No pudimos validar el pase. Inténtalo nuevamente.');
+    if (data?.outcome !== 'AUTHORIZED' || !data?.deviceSecret) {
+      setPhase('code');
+      setError('No pudimos validar el código. Inténtalo nuevamente.');
       return;
     }
 
-    setRecord(data);
-    revisionRef.current = Number(data.revision) || 0;
-    lastSavedRef.current = JSON.stringify(data.responses ?? {});
-    setPhase(data.status === 'COMPLETADO' ? 'readonly' : 'questionnaire');
+    secretRef.current = data.deviceSecret;
+    saveDeviceSecret(diagnosticId, data.deviceSecret);
+    setCode('');
+    adopt(data);
   };
 
   const complete = async () => {
@@ -284,7 +368,7 @@ export default function DiagnosticSecurityGuard() {
     const snapshot = latestSnapshotRef.current;
     const { data, error: requestError } = await completePublicDiagnostic({
       diagnosticId,
-      whatsapp,
+      deviceSecret: secretRef.current,
       responses: snapshot.responses,
       results: snapshot.results,
       revision: revisionRef.current,
@@ -301,6 +385,14 @@ export default function DiagnosticSecurityGuard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  if (phase === 'checking') {
+    return (
+      <main className="grid min-h-[100dvh] place-items-center bg-black">
+        <Loader2 size={22} className="animate-spin text-neutral-700" aria-label="Abriendo" />
+      </main>
+    );
+  }
+
   if (phase === 'invalid') {
     return (
       <FullScreenState icon={LockKeyhole} title="Este pase no está disponible">
@@ -311,11 +403,21 @@ export default function DiagnosticSecurityGuard() {
     );
   }
 
-  if (phase === 'mismatch') {
-    return <LeadCapture diagnosticId={diagnosticId} recipientName={record?.recipientName} />;
+  if (phase === 'offline') {
+    return (
+      <FullScreenState icon={LockKeyhole} title="Sin conexión">
+        <p className="mt-3 text-sm font-light leading-relaxed text-neutral-500">
+          No pudimos abrir tu pase. Revisa tu conexión y vuelve a cargar la página.
+        </p>
+      </FullScreenState>
+    );
   }
 
-  if (phase === 'identity' || phase === 'unlocking') {
+  if (phase === 'lead') {
+    return <LeadCapture diagnosticId={diagnosticId} onBack={() => setPhase('code')} />;
+  }
+
+  if (phase === 'code' || phase === 'claiming') {
     return (
       <main className="grid min-h-[100dvh] place-items-center bg-black px-5 text-neutral-100">
         <section className="w-full max-w-sm">
@@ -330,46 +432,61 @@ export default function DiagnosticSecurityGuard() {
             Acceso privado
           </p>
           <h1 className="mt-3 text-3xl font-light tracking-tight text-white">
-            Desbloquea tu pase
+            Ingresa tu código
           </h1>
           <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
-            Confirma el número de WhatsApp con el que recibiste esta Radiografía
-            Patrimonial. No enviaremos ningún mensaje.
+            Tu asesor te compartió un código de 6 dígitos. Se pide una sola vez: este
+            dispositivo quedará autorizado y después entrarás directo.
           </p>
 
-          <form onSubmit={unlock} className="mt-9">
+          <form onSubmit={claim} className="mt-9">
             <label className="block">
               <span className="mb-2 block text-[11px] font-light uppercase tracking-widest
                                text-neutral-600"
               >
-                WhatsApp
+                Código de acceso
               </span>
               <input
                 autoFocus
-                className={INPUT}
-                value={whatsapp}
-                onChange={(event) => setWhatsapp(event.target.value)}
-                placeholder="55 1234 5678"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
+                className={`${INPUT} text-center text-2xl tracking-[0.5em]`}
+                value={code}
+                onChange={(event) => setCode(digits(event.target.value).slice(0, 6))}
+                placeholder="––––––"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
               />
             </label>
             {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
             <button
               type="submit"
-              disabled={phase === 'unlocking'}
+              disabled={phase === 'claiming'}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl
                          bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black
                          transition-colors hover:bg-white disabled:cursor-wait disabled:opacity-50"
             >
-              {phase === 'unlocking' ? (
+              {phase === 'claiming' ? (
                 <><Loader2 size={16} className="animate-spin" /> Validando…</>
               ) : (
-                <>Desbloquear el pase <ArrowRight size={16} /></>
+                <>Autorizar este dispositivo <KeyRound size={16} /></>
               )}
             </button>
           </form>
+
+          <p className="mt-7 border-t border-neutral-900 pt-5 text-[11px] font-light
+                        leading-relaxed text-neutral-600"
+          >
+            ¿Te reenviaron este enlace y no tienes código?{' '}
+            <button
+              type="button"
+              onClick={() => { setError(''); setPhase('lead'); }}
+              className="text-neutral-400 underline underline-offset-2
+                         transition-colors hover:text-neutral-200"
+            >
+              Solicita tu propio análisis de cortesía
+            </button>
+          </p>
         </section>
       </main>
     );
@@ -397,7 +514,7 @@ export default function DiagnosticSecurityGuard() {
           </section>
           <PublicDiagnosticReferrals
             diagnosticId={diagnosticId}
-            ownerWhatsapp={whatsapp}
+            deviceSecret={secretRef.current}
           />
           <FinanceProvider initialState={initialState} persist={false}>
             <ExecutiveDashboardV1 />

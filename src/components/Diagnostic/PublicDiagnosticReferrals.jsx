@@ -12,7 +12,7 @@ function digits(value) {
 }
 
 /** Captura opcional: guarda contactos para el asesor, pero jamás abre WhatsApp. */
-export default function PublicDiagnosticReferrals({ diagnosticId, ownerWhatsapp }) {
+export default function PublicDiagnosticReferrals({ diagnosticId, deviceSecret }) {
   const [rows, setRows] = useState([{ ...EMPTY }]);
   const [phase, setPhase] = useState('idle');
   const [error, setError] = useState('');
@@ -45,7 +45,7 @@ export default function PublicDiagnosticReferrals({ diagnosticId, ownerWhatsapp 
     setError('');
     const { data, error: requestError } = await capturePublicDiagnosticReferrals({
       diagnosticId,
-      whatsapp: ownerWhatsapp,
+      deviceSecret,
       referrals: clean,
     });
     if (requestError || data?.outcome !== 'CAPTURED') {
