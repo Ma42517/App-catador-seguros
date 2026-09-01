@@ -166,23 +166,3 @@ export function unlockVipWithoutPasses(username) {
   const bucket = readUser(username);
   writeAll({ ...all, [username]: { ...bucket, unlocked: true } });
 }
-
-/**
- * Enlace de WhatsApp con la invitación de un pase.
- *
- * Devuelve `null` sin teléfono, mismo criterio que el resto de la app: sin
- * dato no hay acción, no un enlace roto.
- */
-export function vipPassLink(pass, advisorName) {
-  const phone = String(pass?.phone ?? '').replace(/[^\d+]/g, '');
-  if (!phone) return null;
-
-  const firstName = String(pass?.name ?? '').trim().split(/\s+/)[0] || '';
-  const from = advisorName ? ` Soy ${advisorName}` : '';
-  const text = `Hola ${firstName}, tengo un pase de cortesía para ti.${from} y trabajo con `
-    + 'un Diagnóstico Financiero 360 que normalmente hago solo con clientes. '
-    + 'Me gustaría regalarte uno: son 45 minutos y sales con tu diagnóstico completo, '
-    + 'sin ningún compromiso. ¿Te late que agendemos?';
-
-  return `https://wa.me/${phone.replace(/^\+/, '')}?text=${encodeURIComponent(text)}`;
-}

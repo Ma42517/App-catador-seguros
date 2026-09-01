@@ -10,6 +10,27 @@ async function callRpc(name, params) {
   return { data: data ?? null, error: error ?? null };
 }
 
+/** Crea el pase sólo cuando el asesor lo decide; después devuelve siempre el mismo UUID. */
+export function getOrCreateDiagnosticForLead(leadId) {
+  if (!leadId) return Promise.resolve({
+    data: null,
+    error: { message: 'Falta el prospecto.' },
+  });
+  return callRpc('get_or_create_diagnostic_for_lead', { p_lead_id: leadId });
+}
+
+/** Valida el WhatsApp del dueño y guarda sus referidos en la cuenta del asesor. */
+export function capturePublicDiagnosticReferrals({ diagnosticId, whatsapp, referrals }) {
+  return callRpc('capture_public_diagnostic_referrals', {
+    p_diagnostic_id: diagnosticId,
+    p_whatsapp: String(whatsapp ?? '').trim(),
+    p_referrals: (referrals ?? []).map((referral) => ({
+      name: String(referral?.name ?? '').trim(),
+      whatsapp: String(referral?.whatsapp ?? referral?.phone ?? '').trim(),
+    })),
+  });
+}
+
 /** Valida el WhatsApp en servidor antes de exponer respuestas o resultados. */
 export function unlockPublicDiagnostic(diagnosticId, whatsapp) {
   if (!diagnosticId) return Promise.resolve({

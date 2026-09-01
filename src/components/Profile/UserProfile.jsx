@@ -7,6 +7,7 @@ import Toast from '../Layout/Toast';
 import TextScaleControl from '../ui/TextScaleControl';
 import { readAdvisorProfile, saveAdvisorProfile, initialsFrom } from '../../data/advisorProfile';
 import { readLeads } from '../../data/leads';
+import { listMyLeads } from '../../data/leadsRepo';
 import { readOrphans } from '../../data/orphanProspects';
 import { readDiscardedProspects } from '../../data/prospectStatus';
 
@@ -102,14 +103,20 @@ export default function UserProfile({
   // El conteo se relee aquí y no con un temporizador: sólo cambia cuando alguien
   // deja sus datos, y al volver a esta pantalla ya está actualizado.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) return undefined;
+    let active = true;
     const saved = readAdvisorProfile(username);
+    const localLeadCount = readLeads(username).length;
     setDisplayName(saved.displayName);
     setPhone(saved.phone);
     setZoomLink(saved.zoomLink);
-    setLeadCount(readLeads(username).length);
+    setLeadCount(localLeadCount);
+    listMyLeads().then(({ data }) => {
+      if (active) setLeadCount(localLeadCount + (data?.length ?? 0));
+    });
     setPausedCount(readOrphans(username).length + readDiscardedProspects(username).length);
     setToast('');
+    return () => { active = false; };
   }, [isOpen, username]);
 
   const clearToast = useCallback(() => setToast(''), []);
