@@ -16,10 +16,11 @@ import WhatsAppMark from '../Activities/WhatsAppMark';
  *
  * La herramienta ya no se abre directo. Antes hay que generar tres pases de
  * cortesía —nombre y WhatsApp de tres personas a quienes se les regala el
- * diagnóstico—, y ese intercambio es lo que la desbloquea. El desbloqueo es
- * permanente (`isVipUnlocked`): a partir de ahí la fila del menú entra directo,
- * porque un peaje que se cobra en cada visita deja de ser un intercambio y se
- * vuelve un impuesto.
+ * diagnóstico—, y ese intercambio es lo que la desbloquea. La bandera de
+ * desbloqueo (`isVipUnlocked`) se conserva para que, en aperturas posteriores,
+ * exista una salida secundaria que permita entrar sin generar pases nuevos.
+ * La pantalla de invitaciones sí aparece siempre primero: no se salta sólo
+ * porque el asesor ya la haya completado alguna vez.
  *
  * ## Dos pasos, y por qué el envío es manual
  * Al confirmar, los pases se guardan y la herramienta queda abierta; el segundo
