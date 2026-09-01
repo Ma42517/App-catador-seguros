@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users, Video, PauseCircle,
+  BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users, Video, PauseCircle, Trophy,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
@@ -8,6 +8,7 @@ import TextScaleControl from '../ui/TextScaleControl';
 import { readAdvisorProfile, saveAdvisorProfile, initialsFrom } from '../../data/advisorProfile';
 import { readLeads } from '../../data/leads';
 import { listMyLeads } from '../../data/leadsRepo';
+import { fetchWalletSummary } from '../../data/walletRepo';
 import { readOrphans } from '../../data/orphanProspects';
 import { readDiscardedProspects } from '../../data/prospectStatus';
 
@@ -85,7 +86,7 @@ function ProfileRow({ icon: Icon, title, subtitle, badge, onClick }) {
 }
 
 export default function UserProfile({
-  isOpen, onClose, username, onEditCard, onOpenLeads, onOpenPaused,
+  isOpen, onClose, username, onEditCard, onOpenLeads, onOpenPaused, onOpenRanking,
 }) {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
@@ -98,6 +99,8 @@ export default function UserProfile({
   // Reloj de Arena + descartados). Se cuentan juntos porque la pantalla que
   // abre esta fila también los muestra en una sola lista.
   const [pausedCount, setPausedCount] = useState(0);
+  // Saldo de monedas y puntos del mes, para el resumen del ranking en el perfil.
+  const [wallet, setWallet] = useState(null);
 
   // Cada apertura carga lo guardado, para editar en vez de volver a capturar.
   // El conteo se relee aquí y no con un temporizador: sólo cambia cuando alguien
@@ -113,6 +116,9 @@ export default function UserProfile({
     setLeadCount(localLeadCount);
     listMyLeads().then(({ data }) => {
       if (active) setLeadCount(localLeadCount + (data?.length ?? 0));
+    });
+    fetchWalletSummary().then(({ data }) => {
+      if (active && data?.outcome === 'READY') setWallet(data);
     });
     setPausedCount(readOrphans(username).length + readDiscardedProspects(username).length);
     setToast('');
@@ -200,6 +206,19 @@ export default function UserProfile({
             title="Editar mi tarjeta digital"
             subtitle="Foto, título, cédula, especialidades y contacto"
             onClick={onEditCard}
+          />
+        )}
+
+        {onOpenRanking && (
+          <ProfileRow
+            icon={Trophy}
+            title="Ranking y monedas"
+            subtitle={wallet
+              ? `${wallet.coinsBalance.toLocaleString('es-MX')} monedas`
+                + ` · ${wallet.monthPoints.toLocaleString('es-MX')} pts este mes`
+              : 'Tu posición y tu saldo para la tienda'}
+            badge={wallet && wallet.coinsBalance > 0 ? wallet.coinsBalance : undefined}
+            onClick={onOpenRanking}
           />
         )}
 

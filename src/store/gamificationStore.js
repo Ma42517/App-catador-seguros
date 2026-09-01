@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { recordPointsEarned } from '../data/walletRepo';
 
 /** Meta oficial del Sistema de 20 Puntos. */
 export const DAILY_POINTS_GOAL = 20;
@@ -189,6 +190,9 @@ export const useGamificationStore = create(
                 [sessionId]: [...awardedReferralIds, referralId],
               },
             };
+            // Referencia estable para acuñar en el servidor sin duplicar: la
+            // misma pareja sesión:referido no vuelve a sumar puntos ni monedas.
+            result.reference = `${action}:${sessionId}:${referralId}`;
           } else {
             const eventId = String(context.eventId ?? '').trim();
             if (!eventId) {
@@ -217,12 +221,15 @@ export const useGamificationStore = create(
               puntosHoy: bucket.puntosHoy + points,
               awardedKeys: { ...bucket.awardedKeys, [awardKey]: true },
             };
+            // Misma llave que la idempotencia local: `accion:eventId`.
+            result.reference = awardKey;
           }
 
           result = {
             awarded: true,
             points,
             dailyTotal: nextBucket.puntosHoy,
+            reference: result.reference,
           };
 
           const rootPatch = state.activeUserKey === key
@@ -237,6 +244,25 @@ export const useGamificationStore = create(
             users: { ...state.users, [key]: nextBucket },
           };
         });
+
+        /*
+          Reflejo al monedero permanente.
+
+          El punto diario vive en el navegador y se reinicia cada mañana; el
+          ranking y las monedas viven en Supabase y no. Se acuña sólo cuando el
+          premio de verdad ocurrió (`result.awarded`), y con la misma referencia
+          que ya garantiza que no se duplique en local: si el servidor recibe dos
+          veces la misma, la segunda no suma nada. Es disparar y olvidar —un fallo
+          de red no debe deshacer el punto del día ya otorgado—; la próxima acción
+          o la recarga reconcilian el saldo leyendo `my_wallet_summary`.
+        */
+        if (result.awarded && result.reference) {
+          recordPointsEarned({
+            points: result.points,
+            reason: action,
+            reference: result.reference,
+          }).catch(() => { /* la reconciliación al leer el resumen lo corrige */ });
+        }
 
         return result;
       },
