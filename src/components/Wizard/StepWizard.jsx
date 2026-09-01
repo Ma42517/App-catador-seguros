@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui';
 import LiveTotals from './LiveTotals';
-import { STEPS, FIRST_INSIGHT_STEP, LAST_INPUT_STEP, stepFromHash } from './steps';
+import { STEPS, LAST_INPUT_STEP, stepFromHash } from './steps';
 
 /**
  * StepWizard puede usarse controlado (recibiendo `step`/`onStepChange` desde
@@ -12,8 +12,17 @@ import { STEPS, FIRST_INSIGHT_STEP, LAST_INPUT_STEP, stepFromHash } from './step
  * header) o de forma autónoma, manteniendo su propio estado sincronizado
  * con el hash de la URL.
  */
-export default function StepWizard({ step: stepProp, onStepChange }) {
-  const [internalStep, setInternalStep] = useState(stepFromHash);
+export default function StepWizard({
+  step: stepProp,
+  onStepChange,
+  steps = STEPS,
+  onComplete,
+  completeLabel = 'Finalizar diagnóstico',
+  isSubmitting = false,
+}) {
+  const [internalStep, setInternalStep] = useState(() => (
+    Math.min(stepFromHash(), steps.length - 1)
+  ));
   const isControlled = stepProp !== undefined;
   const step = isControlled ? stepProp : internalStep;
 
@@ -21,30 +30,33 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
   // cuando el componente maneja su propio estado.
   useEffect(() => {
     if (isControlled) return undefined;
-    const onHashChange = () => setInternalStep(stepFromHash());
+    const onHashChange = () => setInternalStep(
+      Math.min(stepFromHash(), steps.length - 1),
+    );
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [isControlled]);
+  }, [isControlled, steps.length]);
 
   const go = useCallback((next) => {
-    const target = Math.min(STEPS.length - 1, Math.max(0, next));
+    const target = Math.min(steps.length - 1, Math.max(0, next));
     if (isControlled) {
       onStepChange(target);
     } else {
       setInternalStep(target);
-      window.history.replaceState(null, '', `#${STEPS[target].key}`);
+      window.history.replaceState(null, '', `#${steps[target].key}`);
     }
     // Al cambiar de paso el usuario espera empezar arriba.
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [isControlled, onStepChange]);
+  }, [isControlled, onStepChange, steps]);
 
-  const current = STEPS[step];
+  const current = steps[step];
   const Current = current.Component;
   const isFirst = step === 0;
-  const isLast = step === STEPS.length - 1;
-  // Los dos últimos pasos son de lectura: no necesitan la cinta de captura.
-  const isInputStep = step < FIRST_INSIGHT_STEP;
-  const progressPct = (step / (STEPS.length - 1)) * 100;
+  const isLast = step === steps.length - 1;
+  // Diagnóstico y Optimización son lectura; cualquier catálogo recortado a
+  // captura (como el público) mantiene LiveTotals en todos sus pasos.
+  const isInputStep = !['diagnosis', 'optimization'].includes(current.key);
+  const progressPct = steps.length > 1 ? (step / (steps.length - 1)) * 100 : 100;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -58,7 +70,7 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
             {current.label}
           </span>
           <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-            Paso {step + 1} de {STEPS.length}
+            Paso {step + 1} de {steps.length}
           </span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
@@ -84,7 +96,7 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
         />
 
         <ol className="relative flex items-center justify-between gap-1 overflow-x-auto pb-0.5">
-          {STEPS.map((s, i) => {
+          {steps.map((s, i) => {
             const done = i < step;
             const active = i === step;
             const { Icon } = s;
@@ -139,15 +151,19 @@ export default function StepWizard({ step: stepProp, onStepChange }) {
           Anterior
         </Button>
         <span className="hidden shrink-0 text-[11px] font-medium uppercase tracking-wide text-zinc-500 sm:inline">
-          Paso {step + 1} de {STEPS.length}
+          Paso {step + 1} de {steps.length}
         </span>
         <Button
-          iconRight={ChevronRight}
-          onClick={() => go(step + 1)}
-          disabled={isLast}
+          iconRight={isLast && onComplete ? Check : ChevronRight}
+          onClick={() => (isLast && onComplete ? onComplete() : go(step + 1))}
+          disabled={isSubmitting || (isLast && !onComplete)}
           className="flex-1 sm:flex-initial"
         >
-          {step === LAST_INPUT_STEP ? 'Ver diagnóstico' : 'Siguiente'}
+          {isSubmitting
+            ? 'Guardando…'
+            : isLast && onComplete
+              ? completeLabel
+              : step === LAST_INPUT_STEP ? 'Ver diagnóstico' : 'Siguiente'}
         </Button>
       </div>
     </div>

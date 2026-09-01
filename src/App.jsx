@@ -56,7 +56,9 @@ const CAPTURE_MODES = [
 */
 const V2_ENABLED = false;
 import PublicCardView from './pages/PublicCardView';
+import DiagnosticSecurityGuard from './components/Diagnostic/DiagnosticSecurityGuard';
 import { publicCardIdFromPath } from './lib/publicRoute';
+import { publicDiagnosticRoute } from './lib/diagnosticPublicRoute';
 import { Button, SegmentedControl } from './components/ui';
 import { exportJSON } from './data/exporters';
 import { useGamificationStore } from './store/gamificationStore';
@@ -1014,17 +1016,15 @@ export default function App() {
   const [isPreview] = useState(isPreviewFrame);
 
   /*
-    Única dirección que se atiende sin sesión. Se resuelve antes de montar
-    `SessionProvider` a propósito: así la tarjeta pública no espera a que se
-    consulte la sesión, no enseña el splash y —sobre todo— no puede acabar
-    detrás de la puerta de acceso por un cambio futuro en `Gate`. Lo que no pasa
-    por ahí no se puede proteger por error, ni desproteger por descuido.
-
-    Todo lo demás sigue entrando por `Gate`, que manda al inicio de sesión a
-    quien no tenga cuenta. No hace falta declarar rutas protegidas una por una:
-    lo protegido es el caso por omisión.
+    Las dos rutas públicas se resuelven antes de montar `SessionProvider`:
+    ninguna espera la consulta de sesión ni puede caer detrás de `Gate`.
+    `matched` también cubre `/diagnostico` y UUID malformados para que el
+    candado muestre su estado de enlace inválido en vez del login privado.
   */
+  const [diagnosticRoute] = useState(publicDiagnosticRoute);
   const [publicCardId] = useState(publicCardIdFromPath);
+
+  if (diagnosticRoute.matched) return <DiagnosticSecurityGuard />;
   if (publicCardId) return <PublicCardView advisorId={publicCardId} />;
 
   if (isOnboardingPreview()) {

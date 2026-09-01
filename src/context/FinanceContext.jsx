@@ -9,12 +9,20 @@ const STORAGE_KEY = 'df360:state:v1';
 
 // ─── Estado raíz ────────────────────────────────────────────────────────────
 
-function createInitialState() {
+function createInitialState(seed = {}) {
+  const empty = createEmptyState();
+  const saved = seed?.data && typeof seed.data === 'object' ? seed.data : {};
   return {
-    data: createEmptyState(),
-    scenario: { ...NEUTRAL_SCENARIO },
-    activeMode: 'current',
-    isDemo: false,
+    data: {
+      ...empty,
+      ...saved,
+      profile: { ...empty.profile, ...(saved.profile || {}) },
+      taxes: { ...empty.taxes, ...(saved.taxes || {}) },
+      retirement: { ...empty.retirement, ...(saved.retirement || {}) },
+    },
+    scenario: { ...NEUTRAL_SCENARIO, ...(seed?.scenario || {}) },
+    activeMode: seed?.activeMode || 'current',
+    isDemo: !!seed?.isDemo,
   };
 }
 
@@ -27,34 +35,7 @@ function loadPersisted() {
     if (!raw) return fresh;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return fresh;
-    const saved = parsed.data || {};
-
-    return {
-      /*
-        Merge defensivo, y profundo en las secciones que son objetos.
-
-        Con un merge de un solo nivel, `profile`, `taxes` y `retirement` se
-        reemplazaban enteros: un estado guardado antes de que existiera un campo
-        se quedaba sin ese campo para siempre, aunque el esquema ya lo trajera con
-        valor por omisión. Eso ya estaba causando daño real —un `taxes` sin
-        `frequency` dejaba al motor interpretando los montos como anuales mientras
-        el selector mostraba "Mensual"— y volvería a morder con cada campo nuevo.
-
-        Las colecciones (`incomes`, `expenses`, `debts`, `assets`, `goals`) sí se
-        reemplazan completas, y así debe ser: son listas del usuario, no esquemas
-        con valores por omisión que rellenar.
-      */
-      data: {
-        ...fresh.data,
-        ...saved,
-        profile: { ...fresh.data.profile, ...(saved.profile || {}) },
-        taxes: { ...fresh.data.taxes, ...(saved.taxes || {}) },
-        retirement: { ...fresh.data.retirement, ...(saved.retirement || {}) },
-      },
-      scenario: { ...NEUTRAL_SCENARIO, ...(parsed.scenario || {}) },
-      activeMode: parsed.activeMode || 'current',
-      isDemo: !!parsed.isDemo,
-    };
+    return createInitialState(parsed);
   } catch {
     return fresh;
   }
@@ -135,15 +116,27 @@ function reducer(state, action) {
 
 const FinanceContext = createContext(undefined);
 
-export function FinanceProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, undefined, loadPersisted);
+export function FinanceProvider({
+  children, initialState = null, persist = true, onStateChange,
+}) {
+  const [state, dispatch] = useReducer(
+    reducer,
+    initialState,
+    (seed) => (seed ? createInitialState(seed) : loadPersisted()),
+  );
 
-  // Persistencia local. Silenciosa si el navegador la bloquea.
+  // La ruta pública usa `persist={false}`: sus respuestas pertenecen al pase,
+  // no a la clave local compartida por el asesor en este navegador.
   useEffect(() => {
+    if (!persist) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch { /* modo privado o cuota excedida: se ignora */ }
-  }, [state]);
+  }, [state, persist]);
+
+  useEffect(() => {
+    onStateChange?.(state);
+  }, [state, onStateChange]);
 
   /**
    * MOTOR DE RECÁLCULO EN TIEMPO REAL.
