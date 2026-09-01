@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users, Video, PauseCircle, Trophy,
+  BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users, Video, PauseCircle, Trophy, Store,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
@@ -86,7 +86,7 @@ function ProfileRow({ icon: Icon, title, subtitle, badge, onClick }) {
 }
 
 export default function UserProfile({
-  isOpen, onClose, username, onEditCard, onOpenLeads, onOpenPaused, onOpenRanking,
+  isOpen, onClose, username, onEditCard, onOpenLeads, onOpenPaused, onOpenRanking, onOpenStore,
 }) {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
@@ -219,6 +219,15 @@ export default function UserProfile({
               : 'Tu posición y tu saldo para la tienda'}
             badge={wallet && wallet.coinsBalance > 0 ? wallet.coinsBalance : undefined}
             onClick={onOpenRanking}
+          />
+        )}
+
+        {onOpenStore && (
+          <ProfileRow
+            icon={Store}
+            title="Tienda"
+            subtitle="Compra pases de diagnóstico con tus monedas"
+            onClick={onOpenStore}
           />
         )}
 
