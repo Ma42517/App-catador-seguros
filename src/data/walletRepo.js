@@ -57,10 +57,25 @@ export function fetchPromotoriaRanking(scope = 'month', limit = 20) {
   });
 }
 
-/** Precio en monedas de un producto de la tienda ('diagnostic', 'referral_card'). */
-export async function fetchStorePrice(product) {
-  if (!isSupabaseConfigured || !supabase) return null;
-  const { data, error } = await supabase.rpc('store_price', { p_product: product });
-  if (error) return null;
-  return typeof data === 'number' ? data : null;
+/** Catálogo de paquetes de la tienda, ordenado. */
+export async function fetchStorePacks() {
+  if (!isSupabaseConfigured || !supabase) return [];
+  const { data, error } = await supabase
+    .from('store_packs')
+    .select('code, kind, title, quantity, coins, sort_order')
+    .eq('active', true)
+    .order('sort_order', { ascending: true });
+  if (error) return [];
+  return (data ?? []).map((pack) => ({
+    code: pack.code,
+    kind: pack.kind,
+    title: pack.title,
+    quantity: pack.quantity,
+    coins: pack.coins,
+  }));
+}
+
+/** Compra un paquete: descuenta monedas y suma su contenido al inventario. */
+export function buyPack(code) {
+  return callRpc('buy_pack', { p_code: String(code) });
 }
