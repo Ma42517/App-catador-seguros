@@ -1,13 +1,11 @@
 import { useState, useMemo } from 'react';
 import { CalendarDays, Bell, Calendar as CalendarIcon } from 'lucide-react';
 import { useEvents, todayKey } from '../../context/EventContext';
-import { useSession } from '../../context/SessionContext';
 import TaskOptionsSheet from '../Activities/TaskOptionsSheet';
 import ActionableCard from '../Activities/ActionableCard';
 import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from '../Activities/eventStatus';
 import useNow from '../../lib/useNow';
-import useAdvisorPoints from '../../lib/useAdvisorPoints';
 
 const PRIORITY_STYLES = {
   baja: { label: 'Baja', chip: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400' },
@@ -86,17 +84,6 @@ export default function CalendarView({
   const grouped = useMemo(() => groupByDate(events), [events]);
 
   /*
-    Los puntos que puede otorgar una tarjeta desde aquí (el feedback de una
-    llamada, por ejemplo) van al mismo marcador persistido por usuario que
-    usa "Hoy". Se instancia el hook aquí en vez de recibir `onEarnPoints`
-    como prop: las dos pantallas nunca están montadas a la vez —`Shell`
-    cambia de sección— y el hook relee el valor guardado al montar, así que
-    no hay dos contadores compitiendo.
-  */
-  const { identity } = useSession();
-  const [, addPoints] = useAdvisorPoints(identity?.key);
-
-  /*
     Si "Reagendar" (del gesto de deslizar) se disparó, la hoja de opciones
     debe abrir directo en el paso de reprogramar y no en el menú
     intermedio — mismo criterio que ya usa `ActionableCard.jsx`
@@ -173,7 +160,6 @@ export default function CalendarView({
                       <li key={event.id}>
                         <ActionableCard
                           event={event}
-                          onEarnPoints={addPoints}
                           onStartSession={onStartSession}
                           onOpenRequirements={onOpenRequirements}
                           onRouteToActivity={onRouteToActivity}

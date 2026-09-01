@@ -1,11 +1,9 @@
+import { DAILY_POINTS_GOAL } from '../../store/gamificationStore';
+
 /**
  * src/components/Home/DailyGoalBar.jsx
  *
- * Barra de "Objetivo Diario": reemplaza al indicador "N/25" que vivía junto
- * a la fecha (`PointsPill.jsx`). Ese componente queda sin usar —no se
- * borra, por si se retoma en otro lugar, mismo criterio que ya se aplicó
- * antes con el botón "Agregar"—, porque la cabecera debía quedar limpia:
- * sólo la fecha, sin el contador al lado.
+ * Barra de "Objetivo Diario": refleja el Sistema de 20 Puntos.
  *
  * Vive en el cuerpo del tablero, no en la cabecera: etiqueta ("Objetivo
  * Diario") y contador a los lados de una fila, con una barra de progreso
@@ -14,20 +12,22 @@
  * otro lugar la lógica de producto todavía por construir.
  */
 
-const META = 25;
-
 export default function DailyGoalBar({ puntosActuales = 0 }) {
-  const points = Math.max(0, Math.min(puntosActuales, META));
-  const percent = (points / META) * 100;
+  const displayPoints = Math.max(0, Number(puntosActuales) || 0);
+  const progressPoints = Math.min(displayPoints, DAILY_POINTS_GOAL);
+  const percent = (progressPoints / DAILY_POINTS_GOAL) * 100;
 
   return (
-    <div role="status" aria-label={`Objetivo diario: ${points} de ${META} puntos`}>
+    <div
+      role="status"
+      aria-label={`Objetivo diario: ${displayPoints} de ${DAILY_POINTS_GOAL} puntos`}
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
           Objetivo Diario
         </span>
         <span className="text-xs font-bold tabular-nums text-amber-500">
-          {points} / {META} Puntos
+          {displayPoints} / {DAILY_POINTS_GOAL} Puntos
         </span>
       </div>
 

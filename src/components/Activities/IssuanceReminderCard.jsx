@@ -7,6 +7,10 @@ import TaskOptionsSheet from './TaskOptionsSheet';
 import ActionCardBase from './ActionCardBase';
 import CircleActionButton from './CircleActionButton';
 import FollowUpSchedulerSheet from './FollowUpSchedulerSheet';
+import {
+  GAMIFICATION_ACTIONS, awardGamification,
+} from '../../store/gamificationStore';
+import { useSession } from '../../context/SessionContext';
 
 /** Fecha y hora de ahora mismo, en el formato que guarda el resto de la agenda. */
 function nowParts() {
@@ -38,25 +42,42 @@ function nowParts() {
  * nació a mano o desde este router), y este Recordatorio se completa.
  */
 export default function IssuanceReminderCard({ event }) {
-  const { completeEvent, removeEvent, addEvent } = useEvents();
+  const { resolveEvent, removeEvent } = useEvents();
+  const { identity } = useSession();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
 
-  const handleIssued = () => {
+  const handleIssued = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     const parts = nowParts();
-    addEvent({
-      tipo_actividad: 'entrega_poliza',
-      title: `Entrega de Póliza: ${prospectName}`,
-      telefono: event.telefono ?? '',
-      date: parts.date,
-      time: parts.time,
-      priority: 'maxima',
-      // Sigue de largo hacia el Cobro, que es donde el monto importa.
-      ...(event.primaAnual && { primaAnual: event.primaAnual }),
-    });
-    completeEvent(event.id);
+    try {
+      const result = await resolveEvent({
+        resolvingEventId: event.id,
+        nextActivity: {
+          tipo_actividad: 'entrega_poliza',
+          title: `Entrega de Póliza: ${prospectName}`,
+          telefono: event.telefono ?? '',
+          date: parts.date,
+          time: parts.time,
+          priority: 'maxima',
+          ...(event.primaAnual && { primaAnual: event.primaAnual }),
+        },
+      });
+      if (result.status === 'committed') {
+        awardGamification(GAMIFICATION_ACTIONS.POLIZA_EMITIDA, {
+          userKey: identity?.key,
+          eventId: event.id,
+        });
+      }
+    } catch {
+      // La actividad original permanece intacta si el commit falla.
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -83,10 +104,12 @@ export default function IssuanceReminderCard({ event }) {
         <button
           type="button"
           onClick={handleIssued}
+          disabled={isSubmitting}
           aria-label={`Marcar como emitida la póliza de ${prospectName}`}
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
                      py-2 text-xs font-semibold text-white transition-colors
-                     hover:bg-indigo-500 active:scale-95"
+                     hover:bg-indigo-500 active:scale-95 disabled:cursor-wait
+                     disabled:opacity-60"
         >
           <CheckCircle2 size={15} aria-hidden="true" />
           Emitida
@@ -105,7 +128,6 @@ export default function IssuanceReminderCard({ event }) {
         event={event}
         stage={PIPELINE_STAGES.EMISION}
         onClose={() => setFollowUpOpen(false)}
-        onScheduled={() => completeEvent(event.id)}
       />
     </>
   );

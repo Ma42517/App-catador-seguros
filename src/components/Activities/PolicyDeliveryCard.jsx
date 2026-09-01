@@ -53,10 +53,11 @@ function nowParts() {
  * confirmar.
  */
 export default function PolicyDeliveryCard({ event }) {
-  const { completeEvent, removeEvent, addEvent } = useEvents();
+  const { resolveEvent, removeEvent } = useEvents();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [whatsAppOpen, setWhatsAppOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const prospectName = prospectNameFrom(event.title);
   const phone = digits(event.telefono);
@@ -64,19 +65,28 @@ export default function PolicyDeliveryCard({ event }) {
 
   const telHref = hasPhone ? `tel:${phone}` : null;
 
-  const handleDelivered = () => {
+  const handleDelivered = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     const parts = nowParts();
-    addEvent({
-      tipo_actividad: 'cobro',
-      title: `Cobro: ${prospectName}`,
-      telefono: event.telefono ?? '',
-      date: parts.date,
-      time: parts.time,
-      priority: 'maxima',
-      // Último salto del monto: aquí es donde de verdad se usa.
-      ...(event.primaAnual && { primaAnual: event.primaAnual }),
-    });
-    completeEvent(event.id);
+    try {
+      await resolveEvent({
+        resolvingEventId: event.id,
+        nextActivity: {
+          tipo_actividad: 'cobro',
+          title: `Cobro: ${prospectName}`,
+          telefono: event.telefono ?? '',
+          date: parts.date,
+          time: parts.time,
+          priority: 'maxima',
+          ...(event.primaAnual && { primaAnual: event.primaAnual }),
+        },
+      });
+    } catch {
+      // La actividad original permanece intacta si el commit falla.
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -127,10 +137,12 @@ export default function PolicyDeliveryCard({ event }) {
         <button
           type="button"
           onClick={handleDelivered}
+          disabled={isSubmitting}
           aria-label={`Marcar como entregada la póliza de ${prospectName}`}
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
                      py-2 text-xs font-semibold text-white transition-colors
-                     hover:bg-indigo-500 active:scale-95"
+                     hover:bg-indigo-500 active:scale-95 disabled:cursor-wait
+                     disabled:opacity-60"
         >
           <CheckCircle2 size={15} aria-hidden="true" />
           Entregada
@@ -161,7 +173,6 @@ export default function PolicyDeliveryCard({ event }) {
         event={event}
         stage={PIPELINE_STAGES.ENTREGA}
         onClose={() => setFollowUpOpen(false)}
-        onScheduled={() => completeEvent(event.id)}
       />
     </>
   );

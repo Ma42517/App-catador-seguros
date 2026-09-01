@@ -59,6 +59,8 @@ import PublicCardView from './pages/PublicCardView';
 import { publicCardIdFromPath } from './lib/publicRoute';
 import { Button, SegmentedControl } from './components/ui';
 import { exportJSON } from './data/exporters';
+import { useGamificationStore } from './store/gamificationStore';
+import { resetFirstLoginIntro } from './data/firstLoginIntro';
 
 /** Clave de sessionStorage para saber si el intro ya se mostró en esta pestaña/sesión. */
 const INTRO_KEY = 'hasSeenIntro';
@@ -102,17 +104,10 @@ function isOnboardingPreview() {
 const PREVIEW_KEY = 'preview-sin-cuenta';
 
 /*
-  Mismas claves de localStorage que `data/advisorPoints.js` y
-  `data/safeZone.js` (no se importan de ahí porque son constantes internas
-  de esos módulos, no exportadas): el botón "Reiniciar puntos de prueba" de
-  más abajo necesita borrar justo esas dos entradas, y sólo la parte de
-  `PREVIEW_KEY` dentro de ellas —pero como ambos módulos guardan todo bajo
-  una sola clave compartida por todos los usuarios (`{ [username]: valor
-  }`), borrar la clave completa es seguro aquí: en este entorno de vista
-  previa nunca hay otro usuario real compartiendo la misma clave de
-  localStorage.
+  La vista previa comparte una clave fija entre visitas. El botón de reinicio
+  limpia tanto su gamificación diaria como la bandera del intro y su Zona
+  Segura, sin tocar datos de cuentas reales.
 */
-const PREVIEW_POINTS_KEY = 'df360:advisorPoints:v1';
 const PREVIEW_SAFE_ZONE_KEY = 'df360:safeZone:v1';
 
 /**
@@ -516,6 +511,12 @@ function Shell({
         ...(extra?.reason && { followUpReason: extra.reason }),
         ...(extra?.primaAnual && { primaAnual: extra.primaAnual }),
       },
+      // Metadata efímera del Dominó: nunca se mezcla con la tarjeta B.
+      resolvingEventId: extra?.resolvingEventId ?? null,
+      resolveMode: extra?.resolveMode ?? 'complete',
+      awardAction: extra?.awardAction ?? null,
+      awardEventId: extra?.awardEventId ?? extra?.resolvingEventId ?? null,
+      afterCommit: extra?.afterCommit ?? null,
     });
   }, []);
 
@@ -1284,21 +1285,15 @@ function OnboardingPreview({ isPreview }) {
           <PreviewBadge onClick={reset}>Vista previa · ya aprobado</PreviewBadge>
 
           {/*
-            Botón aparte de la insignia de arriba, y no fundido con ella:
-            éste hace algo (borra los puntos de prueba) mientras la otra
-            sólo informa. Existe porque `useAdvisorPoints` persiste bajo la
-            misma `PREVIEW_KEY` fija entre visitas —a propósito, para que la
-            agenda de prueba no se resetee sola— y ese mismo acierto es lo
-            que esconde `FirstLoginIntro` en la segunda vuelta: una vez
-            ganado el punto la primera vez, "Simular aprobación" ya no
-            vuelve a mostrarlo, porque la condición real (`puntos === 0`) ya
-            no se cumple. Sin este botón, la única forma de volver a verlo
-            era borrar la clave a mano desde la consola del navegador.
+            Reinicia la experiencia del asesor de prueba: puntos del día,
+            intro y contactos capturados. La agenda mantiene su ciclo de
+            reinicio normal mediante el flujo de vista previa.
           */}
           <button
             type="button"
             onClick={() => {
-              localStorage.removeItem(PREVIEW_POINTS_KEY);
+              useGamificationStore.getState().resetUserToday(PREVIEW_KEY);
+              resetFirstLoginIntro(PREVIEW_KEY);
               localStorage.removeItem(PREVIEW_SAFE_ZONE_KEY);
               reset();
             }}
@@ -1308,7 +1303,7 @@ function OnboardingPreview({ isPreview }) {
                        backdrop-blur-md transition-colors hover:bg-amber-500/20"
           >
             <FlaskConical size={11} aria-hidden="true" />
-            Reiniciar puntos de prueba
+            Reiniciar experiencia de prueba
           </button>
         </div>
       );

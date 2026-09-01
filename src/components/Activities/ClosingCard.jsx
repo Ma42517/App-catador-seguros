@@ -7,7 +7,6 @@ import { generateStageWhatsAppLink } from '../../lib/whatsappConfirm';
 import { readAdvisorProfile } from '../../data/advisorProfile';
 import { markProspectDiscarded } from '../../data/prospectStatus';
 import { upsertProspect, PIPELINE_STAGES } from '../../store/pipelineStore';
-import useAdvisorPoints from '../../lib/useAdvisorPoints';
 import ActionCardBase from './ActionCardBase';
 import CircleActionButton from './CircleActionButton';
 import WhatsAppMark from './WhatsAppMark';
@@ -39,14 +38,13 @@ import StageResolutionModal from '../Prospecta/StageResolutionModal';
  *    entrega) vía `onOpenRequirements`, que `App.jsx` resuelve según el
  *    `tipo_actividad` del evento.
  *  - Finalizar — abre `StageResolutionModal.jsx`, el router de ventas que
- *    decide el "Efecto Dominó" con `resolvePipelineStage`: "Entregada"
- *    obliga a agendar el Recordatorio de Cobro, "Pide más tiempo" cae en un
- *    Seguimiento y "No califica" archiva al prospecto.
+ *    decide el "Efecto Dominó" con `resolvePipelineStage`: una resolución
+ *    favorable converge en Recordatorio de Emisión, "Pide más tiempo" cae
+ *    en Seguimiento y "No califica" archiva al prospecto.
  */
 export default function ClosingCard({ event, onOpenRequirements, onRouteToActivity }) {
-  const { completeEvent, removeEvent } = useEvents();
+  const { resolveEvent, removeEvent } = useEvents();
   const { identity } = useSession();
-  const [, addPoints] = useAdvisorPoints(identity?.key);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [resolutionOpen, setResolutionOpen] = useState(false);
 
@@ -72,21 +70,26 @@ export default function ClosingCard({ event, onOpenRequirements, onRouteToActivi
     { zoomLink },
   );
 
-  /*
-    "Entregada" o "pidió más tiempo" completan esta actividad —ya se
-    resolvió, con la siguiente ya agendada—; "no califica" la elimina del
-    todo, junto con el registro del prospecto.
-  */
-  const handleResolved = (resultType) => {
-    if (resultType === 'discard') removeEvent(event.id);
-    else completeEvent(event.id);
+  const handleDiscardClient = (client) => {
+    const result = resolveEvent({
+      resolvingEventId: event.id,
+      resolveMode: 'remove',
+    });
+    if (result.status === 'committed') markProspectDiscarded(identity?.key, client);
+    return result;
   };
 
   const handleRouteToActivity = (tipoActividad, client, extra) => {
-    if (extra?.primaAnual) {
-      upsertProspect({ id: client?.id ?? phone, ...client, primaAnual: extra.primaAnual });
-    }
-    onRouteToActivity?.(tipoActividad, client, extra);
+    const primaAnual = extra?.primaAnual ?? event.primaAnual;
+    onRouteToActivity?.(tipoActividad, client, {
+      ...extra,
+      ...(primaAnual && { primaAnual }),
+      afterCommit: () => {
+        if (primaAnual) {
+          upsertProspect({ id: client?.id ?? phone, ...client, primaAnual });
+        }
+      },
+    });
   };
 
   return (
@@ -144,9 +147,7 @@ export default function ClosingCard({ event, onOpenRequirements, onRouteToActivi
         client={{ id: event.id, name: prospectName, phone: event.telefono }}
         onClose={() => setResolutionOpen(false)}
         onRouteToActivity={handleRouteToActivity}
-        onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
-        onResolved={handleResolved}
-        onEarnPoints={addPoints}
+        onDiscardClient={handleDiscardClient}
       />
     </>
   );

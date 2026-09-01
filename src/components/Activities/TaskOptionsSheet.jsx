@@ -16,13 +16,14 @@ const INPUT =
 const LABEL = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500';
 
 /** Fila de acción del menú de la tarea. */
-function OptionRow({ icon: Icon, label, tone, onClick }) {
+function OptionRow({ icon: Icon, label, tone, onClick, disabled = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left
-                  transition-colors ${tone}`}
+                  transition-colors disabled:cursor-wait disabled:opacity-50 ${tone}`}
     >
       <Icon size={18} className="shrink-0" aria-hidden="true" />
       <span className="min-w-0 flex-1 text-sm font-semibold">{label}</span>
@@ -41,8 +42,11 @@ function OptionRow({ icon: Icon, label, tone, onClick }) {
  * se refleja al instante en las dos vistas.
  */
 export default function TaskOptionsSheet({ event, isOpen, onClose, initialReschedule = false }) {
-  const { completeEvent, reopenEvent, removeEvent, rescheduleEvent, addEvent } = useEvents();
+  const {
+    completeEvent, reopenEvent, removeEvent, rescheduleEvent, resolveEvent,
+  } = useEvents();
   const [isRescheduling, setIsRescheduling] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   /*
@@ -67,6 +71,7 @@ export default function TaskOptionsSheet({ event, isOpen, onClose, initialResche
   useEffect(() => {
     if (!isOpen) return;
     setIsRescheduling(Boolean(initialReschedule));
+    setIsSubmitting(false);
     setDate(event?.date ?? '');
     setTime(event?.time ?? '');
 
@@ -98,17 +103,31 @@ export default function TaskOptionsSheet({ event, isOpen, onClose, initialResche
     en la agenda. Un recordatorio suelto también se completa: su función era
     avisar, y ya avisó.
   */
-  const scheduleFollowUp = () => {
-    addEvent(buildFollowUpEvent(event, {
-      date: followUpDate,
-      time: followUpTime,
-      reason: followUpReason || defaultFollowUpReason,
-    }));
-    completeEvent(event.id);
+  const scheduleFollowUp = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = await resolveEvent({
+        resolvingEventId: event.id,
+        nextActivity: buildFollowUpEvent(event, {
+          date: followUpDate,
+          time: followUpTime,
+          reason: followUpReason || defaultFollowUpReason,
+        }),
+      });
+      if (result.status === 'committed' || result.status === 'already_resolved') onClose();
+      else setIsSubmitting(false);
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} label="Opciones de la tarea">
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={() => { if (!isSubmitting) onClose(); }}
+      label="Opciones de la tarea"
+    >
       <div className="mb-5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
           {event.type === 'recordatorio' ? 'Recordatorio' : 'Actividad'}
@@ -122,7 +141,7 @@ export default function TaskOptionsSheet({ event, isOpen, onClose, initialResche
 
       {isFollowingUp ? (
         <form
-          onSubmit={(e) => { e.preventDefault(); act(scheduleFollowUp); }}
+          onSubmit={(e) => { e.preventDefault(); scheduleFollowUp(); }}
           className="flex flex-col gap-4"
         >
           <p className="text-sm leading-relaxed text-zinc-500">
@@ -168,9 +187,11 @@ export default function TaskOptionsSheet({ event, isOpen, onClose, initialResche
 
           <button
             type="submit"
+            disabled={isSubmitting}
             className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3
                        text-sm font-semibold text-white shadow-lg shadow-indigo-600/30
-                       transition-all hover:bg-indigo-500 active:scale-95"
+                       transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-wait
+                       disabled:opacity-60"
           >
             <Check size={16} />
             Agendar seguimiento
@@ -179,8 +200,10 @@ export default function TaskOptionsSheet({ event, isOpen, onClose, initialResche
           <button
             type="button"
             onClick={() => setIsFollowingUp(false)}
+            disabled={isSubmitting}
             className="rounded-xl px-4 py-3 text-sm font-semibold text-zinc-500
-                       transition-colors hover:bg-zinc-100 dark:hover:bg-white/5"
+                       transition-colors hover:bg-zinc-100 disabled:cursor-wait
+                       disabled:opacity-60 dark:hover:bg-white/5"
           >
             Volver
           </button>

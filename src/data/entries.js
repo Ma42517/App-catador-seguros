@@ -22,23 +22,28 @@ function readAll() {
 function writeAll(data) {
   try {
     localStorage.setItem(KEY, JSON.stringify(data));
+    return true;
   } catch {
-    // Sin persistencia se pierde al recargar: degradación aceptable.
+    // El caller transaccional necesita saber que nada se persistió.
+    return false;
   }
 }
 
-function readUser(username) {
-  if (!username) return EMPTY;
-  const bucket = readAll()[username];
+function normalizeBucket(bucket) {
   return {
     activities: Array.isArray(bucket?.activities) ? bucket.activities : [],
     notes: Array.isArray(bucket?.notes) ? bucket.notes : [],
   };
 }
 
+function readUser(username) {
+  if (!username) return EMPTY;
+  return normalizeBucket(readAll()[username]);
+}
+
 function saveUser(username, bucket) {
-  if (!username) return;
-  writeAll({ ...readAll(), [username]: bucket });
+  if (!username) return false;
+  return writeAll({ ...readAll(), [username]: bucket });
 }
 
 function newId() {
@@ -83,9 +88,58 @@ export function readActivities(username) {
 
 export function addActivity(username, activity) {
   const bucket = readUser(username);
-  const entry = { id: newId(), createdAt: Date.now(), ...activity };
-  saveUser(username, { ...bucket, activities: [...bucket.activities, entry] });
+  // Los identificadores son del repositorio, nunca del formulario/caller.
+  const entry = { ...activity, id: newId(), createdAt: Date.now() };
+  if (!saveUser(username, { ...bucket, activities: [...bucket.activities, entry] })) {
+    throw new Error('No fue posible guardar la actividad.');
+  }
   return entry;
+}
+
+/**
+ * Commit atómico del Efecto Dominó dentro del bucket de agenda.
+ *
+ * Crea B y completa/elimina A con una sola escritura. Si A ya no existe o
+ * ya estaba completada, no vuelve a crear B: esa comprobación es la segunda
+ * barrera de idempotencia después del `isSubmitting` visual.
+ */
+export function resolveActivity(username, {
+  resolvingEventId,
+  resolveMode = 'complete',
+  nextActivity = null,
+  sourcePatch = {},
+} = {}) {
+  if (!username || !resolvingEventId) {
+    throw new Error('Falta la actividad que se está resolviendo.');
+  }
+  if (!['complete', 'remove'].includes(resolveMode)) {
+    throw new Error(`Modo de resolución inválido: ${resolveMode}`);
+  }
+
+  const all = readAll();
+  const bucket = normalizeBucket(all[username]);
+  const current = bucket.activities.find((activity) => activity.id === resolvingEventId);
+  if (!current || current.completed) {
+    return { status: 'already_resolved', activity: null };
+  }
+
+  const created = nextActivity
+    ? { ...nextActivity, id: newId(), createdAt: Date.now() }
+    : null;
+  const resolvedActivities = resolveMode === 'remove'
+    ? bucket.activities.filter((activity) => activity.id !== resolvingEventId)
+    : bucket.activities.map((activity) => (
+      activity.id === resolvingEventId
+        ? { ...activity, ...sourcePatch, completed: true }
+        : activity
+    ));
+  const activities = created ? [...resolvedActivities, created] : resolvedActivities;
+
+  if (!writeAll({ ...all, [username]: { ...bucket, activities } })) {
+    throw new Error('No fue posible guardar la resolución. Inténtalo nuevamente.');
+  }
+
+  return { status: 'committed', activity: created };
 }
 
 export function updateActivity(username, id, patch) {

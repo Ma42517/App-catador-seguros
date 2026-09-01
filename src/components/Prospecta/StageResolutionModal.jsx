@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, CalendarClock, Archive, Check,
 } from 'lucide-react';
-import { PRESENTATION_END_GAMIFICATION } from '../../lib/presentationGamification';
+import { GAMIFICATION_ACTIONS } from '../../store/gamificationStore';
 import {
   PIPELINE_STAGES, PIPELINE_RESOLUTIONS, resolvePipelineStage,
 } from '../../store/pipelineStore';
@@ -34,14 +34,14 @@ const STAGE_COPY = {
   [PIPELINE_STAGES.PROPUESTA]: {
     eyebrow: 'Cierre de Propuesta',
     stageName: 'Cita de Propuesta',
-    advanceLabel: 'Cierre Exitoso',
-    advanceHint: 'Crea la Cita de Cierre con la Prima Anual ya validada.',
+    advanceLabel: 'Emitir Póliza',
+    advanceHint: 'Crea el Recordatorio de Emisión con la Prima Anual validada.',
   },
   [PIPELINE_STAGES.CIERRE]: {
     eyebrow: 'Cierre de la Cita de Cierre',
     stageName: 'Cita de Cierre',
-    advanceLabel: 'Entregada',
-    advanceHint: 'Crea el Recordatorio de Cobro de la primera prima.',
+    advanceLabel: 'Emitir Póliza',
+    advanceHint: 'Crea el Recordatorio de Emisión antes de la entrega.',
   },
 };
 
@@ -53,9 +53,9 @@ const STAGE_COPY = {
  * pantalla, sin botón de cerrar aparte, resuelve la etapa contra
  * `resolvePipelineStage` del "Motor de Embudo" en `store/pipelineStore.js`)
  * pero generalizado a dos etapas más y con el paso extra que sólo aplica a
- * Propuesta: "Cierre Exitoso" exige validar la Prima Anual antes de poder
- * confirmar, porque es el dato que de verdad importa dejar por escrito antes
- * de agendar el Cierre.
+ * Propuesta: "Emitir Póliza" exige validar la Prima Anual antes de poder
+ * confirmar, porque es el dato que importa preservar para Emisión, Entrega
+ * y Cobro.
  *
  * Las 3 resoluciones son siempre las mismas —Avanza / Pide más tiempo / No
  * califica—, y el "Efecto Dominó" (a qué tipo de actividad se agenda
@@ -76,22 +76,21 @@ const STAGE_COPY = {
  * @param {() => void} onClose
  * @param {(tipoActividad: string, client: object, extra?: {primaAnual?: number}) => void} onRouteToActivity
  * @param {(client: object) => void} onDiscardClient
- * @param {() => void} [onResolved] Se llama siempre, sin importar la resolución — quien monta el modal completa aquí el evento actual.
- * @param {(amount: number) => void} onEarnPoints
  */
 export default function StageResolutionModal({
-  isOpen, stage, client, onClose, onRouteToActivity, onDiscardClient, onResolved, onEarnPoints,
+  isOpen, stage, client, onClose, onRouteToActivity, onDiscardClient,
 }) {
   const clientName = client?.name || 'este prospecto';
   const copy = STAGE_COPY[stage] ?? STAGE_COPY[PIPELINE_STAGES.PROPUESTA];
 
   /*
-    Sólo aparece cuando la etapa es Propuesta y se tocó "Cierre Exitoso":
+    Sólo aparece cuando la etapa es Propuesta y se tocó "Emitir Póliza":
     un segundo paso dentro del mismo modal, no una pantalla aparte, para no
     perder el contexto de a quién se está cerrando.
   */
   const [confirmingAdvance, setConfirmingAdvance] = useState(false);
   const [primaAnual, setPrimaAnual] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const anchorRef = useRef(null);
   const [isDarkContext, setDarkContext] = useState(false);
@@ -99,32 +98,44 @@ export default function StageResolutionModal({
     if (isOpen) setDarkContext(!!anchorRef.current?.closest('.dark'));
   }, [isOpen]);
 
-  const reset = () => { setConfirmingAdvance(false); setPrimaAnual(''); };
+  const reset = () => {
+    setConfirmingAdvance(false);
+    setPrimaAnual('');
+    setIsSubmitting(false);
+  };
 
-  const resolve = (resolution, payload) => {
-    const result = resolvePipelineStage(stage, resolution, payload);
-    onEarnPoints?.(PRESENTATION_END_GAMIFICATION.RESOLUTION_BASE);
-    // `result.type` deja que quien monta el modal decida si la tarjeta
-    // actual se completa (avanzó a la siguiente etapa o pidió más tiempo)
-    // o se elimina del todo (no califica, ver `PipelineCard.jsx`).
-    onResolved?.(result.type);
-    if (result.type === 'discard') {
-      onDiscardClient?.(client);
-    } else {
-      /*
-        `stageName` y no `eyebrow`: el segundo es el encabezado del modal
-        ("Cierre de la Cita de Cierre") y al meterlo en la frase producía
-        "Pidió más tiempo en su Cierre de la Cita de Cierre" — redundante y
-        tan largo que no cabía en el subtítulo de `FollowUpCard.jsx`. Con el
-        nombre limpio de la etapa queda "Pidió más tiempo en su Cita de
-        Cierre".
-      */
-      const reason = resolution === PIPELINE_RESOLUTIONS.MORE_TIME
-        ? `Pidió más tiempo en su ${copy.stageName}` : undefined;
-      onRouteToActivity?.(result.tipoActividad, client, { primaAnual: result.primaAnual, reason });
+  const awardActionFor = (resolution) => {
+    if (resolution === PIPELINE_RESOLUTIONS.DISQUALIFY) return null;
+    if (stage === PIPELINE_STAGES.CIERRE) return GAMIFICATION_ACTIONS.CITA_CIERRE;
+    if (stage === PIPELINE_STAGES.PROPUESTA) {
+      return GAMIFICATION_ACTIONS.CITA_PROPUESTA_REALIZADA;
     }
-    reset();
-    onClose?.();
+    return null;
+  };
+
+  const resolve = async (resolution, payload) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = resolvePipelineStage(stage, resolution, payload);
+      if (result.type === 'discard') {
+        await onDiscardClient?.(client);
+      } else {
+        const reason = resolution === PIPELINE_RESOLUTIONS.MORE_TIME
+          ? `Pidió más tiempo en su ${copy.stageName}` : undefined;
+        onRouteToActivity?.(result.tipoActividad, client, {
+          primaAnual: result.primaAnual,
+          reason,
+          resolvingEventId: client?.id,
+          resolveMode: 'complete',
+          awardAction: awardActionFor(resolution),
+        });
+      }
+      reset();
+      onClose?.();
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAdvanceClick = () => {
@@ -183,7 +194,7 @@ export default function StageResolutionModal({
                         Prima Anual de {clientName}
                       </h2>
                       <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                        Antes de agendar el Cierre, valida la Prima Anual acordada.
+                        Antes de crear el Recordatorio de Emisión, valida la Prima Anual acordada.
                       </p>
 
                       <input
@@ -200,18 +211,19 @@ export default function StageResolutionModal({
 
                       <button
                         type="submit"
-                        disabled={!primaAnual}
+                        disabled={!primaAnual || isSubmitting}
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl
                                    bg-indigo-600 px-4 py-3 text-sm font-semibold text-white
                                    transition-colors hover:bg-indigo-500 active:scale-[0.98]
                                    disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Check size={16} aria-hidden="true" />
-                        Confirmar y agendar Cierre
+                        Confirmar y enviar a Emisión
                       </button>
 
                       <button
                         type="button"
+                        disabled={isSubmitting}
                         onClick={() => setConfirmingAdvance(false)}
                         className="mt-2 w-full rounded-xl px-4 py-2.5 text-xs font-semibold
                                    text-slate-500 transition-colors hover:text-slate-300"
@@ -234,6 +246,7 @@ export default function StageResolutionModal({
                       <div className="mt-5 flex flex-col gap-2.5">
                         <button
                           type="button"
+                          disabled={isSubmitting}
                           onClick={handleAdvanceClick}
                           className="flex w-full items-center justify-between gap-3 rounded-xl
                                      bg-indigo-600 px-4 py-3.5 text-left text-sm font-semibold
@@ -251,6 +264,7 @@ export default function StageResolutionModal({
 
                         <button
                           type="button"
+                          disabled={isSubmitting}
                           onClick={handleMoreTime}
                           className="flex w-full items-center justify-between gap-3 rounded-xl
                                      border border-slate-700 bg-slate-800 px-4 py-3.5 text-left
@@ -267,6 +281,7 @@ export default function StageResolutionModal({
 
                         <button
                           type="button"
+                          disabled={isSubmitting}
                           onClick={handleDisqualify}
                           className="flex w-full items-center justify-between gap-3 rounded-xl
                                      border border-slate-700 bg-slate-800 px-4 py-3.5 text-left

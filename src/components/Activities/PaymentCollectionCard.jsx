@@ -10,6 +10,10 @@ import CircleActionButton from './CircleActionButton';
 import FollowUpSchedulerSheet from './FollowUpSchedulerSheet';
 import PaymentCollectedModal from './PaymentCollectedModal';
 import { paymentFrequencyLabel } from '../../lib/paymentSchedule';
+import {
+  GAMIFICATION_ACTIONS, awardGamification,
+} from '../../store/gamificationStore';
+import { useSession } from '../../context/SessionContext';
 
 /** Monto en pesos, redondeado — mismo formato que usa `Prospecta/citaInicial.js`. */
 function formatMoney(amount) {
@@ -50,7 +54,8 @@ function formatMoney(amount) {
  * evento normal de la agenda, como cualquier otro.
  */
 export default function PaymentCollectionCard({ event }) {
-  const { updateEvent, removeEvent, addEvent } = useEvents();
+  const { resolveEvent, removeEvent } = useEvents();
+  const { identity } = useSession();
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [collectedOpen, setCollectedOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
@@ -72,33 +77,30 @@ export default function PaymentCollectionCard({ event }) {
     recordatorio siguiente es un evento normal de la agenda, igual que
     cualquier otro.
   */
-  const handleCollected = ({ collectedOn, frequency, nextDate }) => {
-    if (nextDate) {
-      addEvent({
-        tipo_actividad: 'cobro',
-        title: `Cobro: ${prospectName}`,
-        telefono: event.telefono ?? '',
-        date: nextDate,
-        // Se conserva la hora del cobro actual: si el cargo corre a cierta
-        // hora del día, la siguiente vez conviene recordarlo a la misma.
-        time: event.time || '09:00',
-        priority: 'maxima',
-        paymentFrequency: frequency,
-        ...(event.primaAnual && { primaAnual: event.primaAnual }),
+  const handleCollected = async ({ collectedOn, frequency, nextDate }) => {
+    const nextActivity = nextDate ? {
+      tipo_actividad: 'cobro',
+      title: `Cobro: ${prospectName}`,
+      telefono: event.telefono ?? '',
+      date: nextDate,
+      time: event.time || '09:00',
+      priority: 'maxima',
+      paymentFrequency: frequency,
+      ...(event.primaAnual && { primaAnual: event.primaAnual }),
+    } : null;
+
+    const result = await resolveEvent({
+      resolvingEventId: event.id,
+      nextActivity,
+      sourcePatch: { collectedOn, paymentFrequency: frequency },
+    });
+    if (result.status === 'committed') {
+      awardGamification(GAMIFICATION_ACTIONS.COBRO_REALIZADO, {
+        userKey: identity?.key,
+        eventId: event.id,
       });
     }
-    /*
-      `updateEvent` y no `completeEvent`: además de marcar la tarea como
-      hecha hay que guardar dos datos en el mismo evento —cuándo se cobró
-      de verdad (no cuándo estaba agendado) y con qué frecuencia—, y
-      `completeEvent` sólo recibe el id. Es justo el caso para el que
-      existe este ayudante genérico (ver su nota en `EventContext.jsx`).
-    */
-    updateEvent(event.id, {
-      completed: true,
-      collectedOn,
-      paymentFrequency: frequency,
-    });
+    return result;
   };
 
   const telHref = hasPhone ? `tel:${phone}` : null;
@@ -185,7 +187,6 @@ export default function PaymentCollectionCard({ event }) {
         event={event}
         stage={PIPELINE_STAGES.COBRO}
         onClose={() => setFollowUpOpen(false)}
-        onScheduled={() => updateEvent(event.id, { completed: true })}
       />
 
       <PaymentCollectedModal

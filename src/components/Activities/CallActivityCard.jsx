@@ -31,18 +31,11 @@ function formatPoints(amount) {
  * después, y no en un efecto separado—: es el gesto de la persona el que
  * activa la vigilancia, nunca un temporizador que corra por su cuenta.
  *
- * `onEarnPoints` es el único vínculo con el marcador real de puntos del
- * asesor (`useAdvisorPoints`, un hook con estado propio, montado más
- * arriba en `TodayView.jsx`): esta tarjeta no sabe sumar puntos por sí
- * misma, sólo avisa cuánto se ganó y deja que quien la montó decida cómo
- * persistirlo. El toast, el sonido (`playChime`) y la vibración
- * (`SUCCESS_PATTERN`) sí son responsabilidad de esta tarjeta: son la
- * recompensa sensorial del momento, no un dato que otro componente deba
- * conocer. Agendar la cita nueva (si el feedback termina en "Agendar
- * Cita") lo resuelve por completo `CallFeedbackModal` — pide fecha y
- * hora ahí mismo, sin abrir un segundo formulario aparte.
+ * El modal escribe directamente la acción semántica en Zustand. Esta tarjeta
+ * sólo presenta la recompensa sensorial cuando recibe `onReward`: toast,
+ * sonido y vibración no participan en el cálculo ni en la persistencia.
  */
-export default function CallActivityCard({ event, onEarnPoints }) {
+export default function CallActivityCard({ event }) {
   const { removeEvent } = useEvents();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   // Sólo lo abre el "Reagendar" del gesto de deslizar (`SwipeableCard`,
@@ -78,11 +71,10 @@ export default function CallActivityCard({ event, onEarnPoints }) {
     window.location.href = `tel:${phone}`;
   };
 
-  const awardPoints = (amount) => {
-    onEarnPoints?.(amount);
+  const showReward = ({ points }) => {
     playChime();
     tapFeedback(SUCCESS_PATTERN);
-    setToast(formatPoints(amount));
+    setToast(formatPoints(points));
   };
 
   return (
@@ -159,7 +151,7 @@ export default function CallActivityCard({ event, onEarnPoints }) {
         prospectName={prospectName}
         isOpen={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
-        onEarnPoints={awardPoints}
+        onReward={showReward}
       />
 
       <TaskOptionsSheet

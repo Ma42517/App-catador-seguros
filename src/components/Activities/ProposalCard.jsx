@@ -6,7 +6,9 @@ import { digits, prospectNameFrom } from '../../lib/prospectText';
 import { generateStageWhatsAppLink } from '../../lib/whatsappConfirm';
 import { readAdvisorProfile } from '../../data/advisorProfile';
 import { markProspectDiscarded } from '../../data/prospectStatus';
-import useAdvisorPoints from '../../lib/useAdvisorPoints';
+import {
+  GAMIFICATION_ACTIONS, awardGamification,
+} from '../../store/gamificationStore';
 import WhatsAppMark from './WhatsAppMark';
 import TaskOptionsSheet from './TaskOptionsSheet';
 import SwipeableCard from '../Layout/SwipeableCard';
@@ -56,9 +58,8 @@ function nowParts() {
  * el modal y no se podía tocar ni un campo.
  */
 export default function ProposalCard({ event, onOpenRequirements, onRouteToActivity }) {
-  const { completeEvent, removeEvent, addEvent } = useEvents();
+  const { resolveEvent, removeEvent } = useEvents();
   const { identity } = useSession();
-  const [, addPoints] = useAdvisorPoints(identity?.key);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [resolutionOpen, setResolutionOpen] = useState(false);
 
@@ -78,16 +79,6 @@ export default function ProposalCard({ event, onOpenRequirements, onRouteToActiv
   );
 
   /*
-    "Emitir Póliza"/"Pidió Ajustes" completan esta cita —ya se resolvió,
-    con el siguiente paso ya en marcha—; "No le interesó" la elimina del
-    todo. Mismo criterio que `handleResolved` en `PipelineCard.jsx`.
-  */
-  const handleResolved = (resultType) => {
-    if (resultType === 'discard') removeEvent(event.id);
-    else completeEvent(event.id);
-  };
-
-  /*
     Crea el `Recordatorio de Emisión` directo en la agenda, sin abrir
     `ActivityForm.jsx`: es un estado interno del sistema, no algo que el
     asesor pueda teclear a mano. Nace hoy mismo, a la hora en que se
@@ -96,22 +87,32 @@ export default function ProposalCard({ event, onOpenRequirements, onRouteToActiv
   */
   const handleIssuePolicy = (client) => {
     const parts = nowParts();
-    addEvent({
-      tipo_actividad: 'recordatorio_emision',
-      title: `Recordatorio de Emisión: ${client?.name || prospectName}`,
-      telefono: client?.phone ?? event.telefono ?? '',
-      date: parts.date,
-      time: parts.time,
-      priority: 'maxima',
-      /*
-        La Prima Anual, si esta Propuesta la traía, sigue viajando hacia
-        adelante: es el monto que `PaymentCollectionCard.jsx` muestra al
-        final del embudo ("cuánto hay que cobrar"). Sólo se escribe cuando
-        existe, para no dejar un campo en cero que se leería como "no debe
-        nada".
-      */
-      ...(event.primaAnual && { primaAnual: event.primaAnual }),
+    const result = resolveEvent({
+      resolvingEventId: event.id,
+      resolveMode: 'complete',
+      nextActivity: {
+        tipo_actividad: 'recordatorio_emision',
+        title: `Recordatorio de Emisión: ${client?.name || prospectName}`,
+        telefono: client?.phone ?? event.telefono ?? '',
+        date: parts.date,
+        time: parts.time,
+        priority: 'maxima',
+        ...(event.primaAnual && { primaAnual: event.primaAnual }),
+      },
     });
+    if (result.status === 'committed') {
+      awardGamification(GAMIFICATION_ACTIONS.CITA_PROPUESTA_REALIZADA, {
+        userKey: identity?.key,
+        eventId: event.id,
+      });
+    }
+    return result;
+  };
+
+  const handleDiscardClient = (client) => {
+    const result = resolveEvent({ resolvingEventId: event.id, resolveMode: 'remove' });
+    if (result.status === 'committed') markProspectDiscarded(identity?.key, client);
+    return result;
   };
 
   /*
@@ -211,9 +212,7 @@ export default function ProposalCard({ event, onOpenRequirements, onRouteToActiv
         onIssuePolicy={handleIssuePolicy}
         onOpenRequirements={handleOpenRequirements}
         onRouteToActivity={onRouteToActivity}
-        onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
-        onResolved={handleResolved}
-        onEarnPoints={addPoints}
+        onDiscardClient={handleDiscardClient}
       />
     </>
   );

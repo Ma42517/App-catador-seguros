@@ -2,7 +2,7 @@ import { useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CalendarClock, Archive, Check, Sparkles } from 'lucide-react';
-import { PROPOSAL_GAMIFICATION } from '../../lib/proposalGamification';
+import { GAMIFICATION_ACTIONS } from '../../store/gamificationStore';
 
 const INPUT =
   'w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 '
@@ -51,12 +51,9 @@ const INPUT =
  * @param {() => void} [onOpenRequirements] Abre el cuestionario de requisitos; no cierra el modal ni cuenta como resolución.
  * @param {(activityType: 'seguimiento', client: object, extra?: {reason?: string}) => void} onRouteToActivity
  * @param {(client: object) => void} onDiscardClient
- * @param {(resultType: 'advance'|'discard') => void} [onResolved] Se llama siempre, sin importar la resolución — quien monta el modal completa o descarta aquí la Cita de Propuesta actual.
- * @param {(amount: number) => void} onEarnPoints
  */
 export default function ProposalResolutionModal({
   isOpen, client, onClose, onIssuePolicy, onOpenRequirements, onRouteToActivity, onDiscardClient,
-  onResolved, onEarnPoints,
 }) {
   const clientName = client?.name || 'este prospecto';
 
@@ -67,6 +64,7 @@ export default function ProposalResolutionModal({
   */
   const [takingNotes, setTakingNotes] = useState(false);
   const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const anchorRef = useRef(null);
   const [isDarkContext, setDarkContext] = useState(false);
@@ -74,19 +72,38 @@ export default function ProposalResolutionModal({
     if (isOpen) setDarkContext(!!anchorRef.current?.closest('.dark'));
   }, [isOpen]);
 
-  const reset = () => { setTakingNotes(false); setNotes(''); };
+  const reset = () => {
+    setTakingNotes(false);
+    setNotes('');
+    setIsSubmitting(false);
+  };
 
-  const resolve = (resultType, action) => {
-    onEarnPoints?.(PROPOSAL_GAMIFICATION.RESOLUTION_BASE);
-    onResolved?.(resultType);
-    action();
+  const runDirect = async (action) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await action();
+      reset();
+      onClose?.();
+    } catch {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleIssuePolicy = () => runDirect(() => onIssuePolicy?.(client));
+
+  const routeToFollowUp = (reason) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    onRouteToActivity?.('seguimiento', client, {
+      reason,
+      resolvingEventId: client?.id,
+      resolveMode: 'complete',
+      awardAction: GAMIFICATION_ACTIONS.CITA_PROPUESTA_REALIZADA,
+    });
     reset();
     onClose?.();
   };
-
-  const handleIssuePolicy = () => resolve('advance', () => onIssuePolicy?.(client));
-
-  const routeToFollowUp = (reason) => resolve('advance', () => onRouteToActivity?.('seguimiento', client, { reason }));
 
   const handleConfirmAdjustments = (e) => {
     e.preventDefault();
@@ -95,7 +112,7 @@ export default function ProposalResolutionModal({
 
   const handleSkipNotes = () => routeToFollowUp('Pidió ajustes a su Cita de Propuesta');
 
-  const handleNotInterested = () => resolve('discard', () => onDiscardClient?.(client));
+  const handleNotInterested = () => runDirect(() => onDiscardClient?.(client));
 
   const anchor = <span ref={anchorRef} className="hidden" aria-hidden="true" />;
 
@@ -148,6 +165,7 @@ export default function ProposalResolutionModal({
 
                       <button
                         type="submit"
+                        disabled={isSubmitting}
                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl
                                    bg-indigo-600 px-4 py-3 text-sm font-semibold text-white
                                    transition-colors hover:bg-indigo-500 active:scale-[0.98]"
@@ -158,6 +176,7 @@ export default function ProposalResolutionModal({
 
                       <button
                         type="button"
+                        disabled={isSubmitting}
                         onClick={handleSkipNotes}
                         className="mt-2 w-full rounded-xl px-4 py-2.5 text-xs font-semibold
                                    text-slate-500 transition-colors hover:text-slate-300"
@@ -167,6 +186,7 @@ export default function ProposalResolutionModal({
 
                       <button
                         type="button"
+                        disabled={isSubmitting}
                         onClick={() => setTakingNotes(false)}
                         className="mt-1 w-full rounded-xl px-4 py-2 text-xs font-semibold
                                    text-slate-600 transition-colors hover:text-slate-400"
@@ -189,6 +209,7 @@ export default function ProposalResolutionModal({
                       <div className="mt-5 flex flex-col gap-2.5">
                         <button
                           type="button"
+                          disabled={isSubmitting}
                           onClick={handleIssuePolicy}
                           className="flex w-full items-center justify-between gap-3 rounded-xl
                                      bg-indigo-600 px-4 py-3.5 text-left text-sm font-semibold
@@ -206,6 +227,7 @@ export default function ProposalResolutionModal({
 
                         <button
                           type="button"
+                          disabled={isSubmitting}
                           onClick={() => setTakingNotes(true)}
                           className="flex w-full items-center justify-between gap-3 rounded-xl
                                      border border-slate-700 bg-slate-800 px-4 py-3.5 text-left
@@ -222,6 +244,7 @@ export default function ProposalResolutionModal({
 
                         <button
                           type="button"
+                          disabled={isSubmitting}
                           onClick={handleNotInterested}
                           className="flex w-full items-center justify-between gap-3 rounded-xl
                                      border border-slate-700 bg-slate-800 px-4 py-3.5 text-left
@@ -244,6 +267,7 @@ export default function ProposalResolutionModal({
                       {onOpenRequirements && (
                         <button
                           type="button"
+                          disabled={isSubmitting}
                           onClick={onOpenRequirements}
                           className="mt-2.5 flex w-full items-center justify-center gap-2
                                      rounded-xl border border-dashed border-amber-500/30 px-4 py-3

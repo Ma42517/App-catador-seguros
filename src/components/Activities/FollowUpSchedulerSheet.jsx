@@ -52,12 +52,13 @@ function tomorrowParts(fallbackTime) {
  * @param {() => void} [onScheduled] Se llama tras crear el seguimiento; quien monta decide qué hacer con la tarea original (completarla, dejarla viva...).
  */
 export default function FollowUpSchedulerSheet({
-  isOpen, event, stage, onClose, onScheduled,
+  isOpen, event, stage, onClose,
 }) {
-  const { addEvent } = useEvents();
+  const { resolveEvent } = useEvents();
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [reason, setReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const defaultReason = followUpReasonFor(stage);
 
@@ -67,21 +68,39 @@ export default function FollowUpSchedulerSheet({
     setDate(parts.date);
     setTime(parts.time);
     setReason('');
+    setIsSubmitting(false);
   }, [isOpen, event]);
 
   if (!event) return null;
 
   const prospectName = prospectNameFrom(event.title);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    addEvent(buildFollowUpEvent(event, { date, time, reason: reason || defaultReason }));
-    onScheduled?.();
-    onClose();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const result = await resolveEvent({
+        resolvingEventId: event.id,
+        nextActivity: buildFollowUpEvent(event, {
+          date,
+          time,
+          reason: reason || defaultReason,
+        }),
+      });
+      if (result.status === 'committed' || result.status === 'already_resolved') onClose();
+      else setIsSubmitting(false);
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} label="Agendar seguimiento">
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={() => { if (!isSubmitting) onClose(); }}
+      label="Agendar seguimiento"
+    >
       <div className="mb-5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-500
                       dark:text-indigo-400"
@@ -136,9 +155,11 @@ export default function FollowUpSchedulerSheet({
 
         <button
           type="submit"
+          disabled={isSubmitting}
           className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3
                      text-sm font-semibold text-white shadow-lg shadow-indigo-600/30
-                     transition-all hover:bg-indigo-500 active:scale-95"
+                     transition-all hover:bg-indigo-500 active:scale-95 disabled:cursor-wait
+                     disabled:opacity-60"
         >
           <Check size={16} aria-hidden="true" />
           Agendar seguimiento
@@ -147,9 +168,10 @@ export default function FollowUpSchedulerSheet({
         <button
           type="button"
           onClick={onClose}
+          disabled={isSubmitting}
           className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-xs
                      font-semibold text-zinc-500 transition-colors hover:text-zinc-700
-                     dark:hover:text-zinc-300"
+                     disabled:cursor-wait disabled:opacity-60 dark:hover:text-zinc-300"
         >
           <CalendarClock size={13} aria-hidden="true" />
           Cancelar

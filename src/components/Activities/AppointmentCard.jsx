@@ -7,7 +7,6 @@ import { generateWhatsAppConfirmLink } from '../../lib/whatsappConfirm';
 import { readAdvisorProfile } from '../../data/advisorProfile';
 import { markProspectDiscarded } from '../../data/prospectStatus';
 import { PIPELINE_STAGES } from '../../store/pipelineStore';
-import useAdvisorPoints from '../../lib/useAdvisorPoints';
 import ActionCardBase from './ActionCardBase';
 import CircleActionButton from './CircleActionButton';
 import WhatsAppMark from './WhatsAppMark';
@@ -43,9 +42,8 @@ import StageResolutionModal from '../Prospecta/StageResolutionModal';
  * abre el router.
  */
 export default function AppointmentCard({ event, onRouteToActivity }) {
-  const { completeEvent, removeEvent } = useEvents();
+  const { resolveEvent, removeEvent } = useEvents();
   const { identity } = useSession();
-  const [, addPoints] = useAdvisorPoints(identity?.key);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [resolutionOpen, setResolutionOpen] = useState(false);
 
@@ -70,15 +68,13 @@ export default function AppointmentCard({ event, onRouteToActivity }) {
     { zoomLink },
   );
 
-  /*
-    Avanzar a Cita Inicial o caer en un Seguimiento completan esta cita —ya
-    se resolvió, con la siguiente actividad agendada—; "no califica" la
-    elimina junto con el registro del prospecto. Mismo criterio que el resto
-    de las etapas del embudo.
-  */
-  const handleResolved = (resultType) => {
-    if (resultType === 'discard') removeEvent(event.id);
-    else completeEvent(event.id);
+  const handleDiscardClient = (client) => {
+    const result = resolveEvent({
+      resolvingEventId: event.id,
+      resolveMode: 'remove',
+    });
+    if (result.status === 'committed') markProspectDiscarded(identity?.key, client);
+    return result;
   };
 
   return (
@@ -129,9 +125,7 @@ export default function AppointmentCard({ event, onRouteToActivity }) {
         client={{ id: event.id, name: prospectName, phone: event.telefono }}
         onClose={() => setResolutionOpen(false)}
         onRouteToActivity={onRouteToActivity}
-        onDiscardClient={(client) => markProspectDiscarded(identity?.key, client)}
-        onResolved={handleResolved}
-        onEarnPoints={addPoints}
+        onDiscardClient={handleDiscardClient}
       />
     </>
   );

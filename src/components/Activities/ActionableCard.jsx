@@ -68,7 +68,7 @@ import useNow from '../../lib/useNow';
  * propio lenguaje de gestos con el toque para voltear).
  */
 export default function ActionableCard({
-  event, onEarnPoints, onStartSession, onOpenRequirements, onRouteToActivity,
+  event, onStartSession, onOpenRequirements, onRouteToActivity,
 }) {
   const { removeEvent } = useEvents();
   const [isOpen, setIsOpen] = useState(false);
@@ -86,7 +86,7 @@ export default function ActionableCard({
   const now = useNow();
 
   if (event.tipo_actividad === 'llamada') {
-    return <CallActivityCard event={event} onEarnPoints={onEarnPoints} />;
+    return <CallActivityCard event={event} />;
   }
 
   if (event.tipo_actividad === 'cita_inicial') {

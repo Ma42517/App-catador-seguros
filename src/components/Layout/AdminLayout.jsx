@@ -21,6 +21,7 @@ import { useDashboardVersion } from '../../context/dashboardVersion';
 import { highestPriorityOf } from '../Activities/priorities';
 import { buildMessage } from '../../lib/homeMessage';
 import useTypewriter from '../../lib/useTypewriter';
+import { awardGamification } from '../../store/gamificationStore';
 
 /**
  * Chrome de navegación del área autenticada.
@@ -59,7 +60,9 @@ export default function AdminLayout({
   */
   activeSection = 'home',
 }) {
-  const { addEvent, addNote, loadDemoWeek, clearAgenda, activeToday, highPriorityToday } = useEvents();
+  const {
+    addEvent, resolveEvent, addNote, loadDemoWeek, clearAgenda, activeToday, highPriorityToday,
+  } = useEvents();
 
   useEffect(() => {
     if (activityPrefill) setActiveForm('actividad');
@@ -137,6 +140,39 @@ export default function AdminLayout({
   // Qué formulario está abierto: 'actividad' | 'recordatorio' | 'nota' | null.
   const [activeForm, setActiveForm] = useState(null);
 
+  /**
+   * Guardado único para creación manual y Efecto Dominó.
+   *
+   * Si existe `resolvingEventId`, B y la resolución de A se confirman en
+   * una sola escritura. Los puntos y efectos laterales ocurren únicamente
+   * después de un commit real; cancelar el formulario no llama esta función.
+   */
+  const handleActivitySave = async (activity) => {
+    if (!activityPrefill?.resolvingEventId) return addEvent(activity);
+
+    const result = resolveEvent({
+      resolvingEventId: activityPrefill.resolvingEventId,
+      resolveMode: activityPrefill.resolveMode ?? 'complete',
+      nextActivity: activity,
+    });
+
+    if (result.status === 'committed') {
+      if (activityPrefill.awardAction) {
+        awardGamification(activityPrefill.awardAction, {
+          userKey: username,
+          eventId: activityPrefill.awardEventId ?? activityPrefill.resolvingEventId,
+        });
+      }
+      try {
+        await activityPrefill.afterCommit?.(result);
+      } catch {
+        // A+B ya están confirmados; un efecto auxiliar no puede deshacerlos.
+      }
+    }
+
+    return result;
+  };
+
   const openMore = () => {
     refreshPending();
     /*
@@ -205,7 +241,7 @@ export default function AdminLayout({
         isOpen={activeForm === 'actividad' || activeForm === 'recordatorio'}
         type={activeForm === 'recordatorio' ? 'recordatorio' : 'actividad'}
         onClose={() => { setActiveForm(null); onActivityPrefillConsumed?.(); }}
-        onSave={addEvent}
+        onSave={handleActivitySave}
         initialTipoActividad={activityPrefill?.tipoActividad ?? null}
         initialProspectName={activityPrefill?.prospectName ?? ''}
         initialProspectPhone={activityPrefill?.prospectPhone ?? ''}

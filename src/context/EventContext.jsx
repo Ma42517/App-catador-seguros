@@ -2,7 +2,7 @@ import {
   createContext, useContext, useState, useEffect, useCallback, useMemo,
 } from 'react';
 import {
-  readActivities, addActivity,
+  readActivities, addActivity, resolveActivity,
   updateActivity as persistUpdate,
   removeActivity as persistRemoveActivity,
   readNotes, addNote as persistNote,
@@ -82,6 +82,17 @@ export function EventProvider({ username, children }) {
     setEvents(readActivities(username));
     return saved;
   }, [username]);
+
+  /**
+   * Crea el siguiente evento y resuelve el actual en un único commit.
+   * Devuelve `already_resolved` si otro toque ya ganó la carrera; los
+   * callers sólo deben premiar/ejecutar efectos laterales en `committed`.
+   */
+  const resolveEvent = useCallback((transition) => {
+    const result = resolveActivity(username, transition);
+    refresh();
+    return result;
+  }, [username, refresh]);
 
   const addNote = useCallback((text) => {
     const saved = persistNote(username, text);
@@ -168,12 +179,12 @@ export function EventProvider({ username, children }) {
 
   const value = useMemo(() => ({
     events, notes, highPriorityToday, activeToday,
-    addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent, updateEvent,
+    addEvent, resolveEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent, updateEvent,
     addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   }), [
     events, notes, highPriorityToday, activeToday,
-    addEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent, updateEvent,
+    addEvent, resolveEvent, completeEvent, reopenEvent, removeEvent, rescheduleEvent, updateEvent,
     addNote, removeNote, toggleNoteProcessed,
     loadDemoWeek, clearAgenda,
   ]);
