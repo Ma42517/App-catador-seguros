@@ -3,7 +3,7 @@ import {
   ArrowLeft, ArrowRight, Check, Copy, Eye, Gift, IdCard, KeyRound, Loader2, LogOut,
   Pencil, Share2, Sparkles, UserRound,
 } from 'lucide-react';
-import { giftCardSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { getGiftCardSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { giftCardRoute, giftCardUrl } from '../lib/giftCardRoute';
 import {
   claimGiftCard, claimGiftCardWithSignup,
@@ -58,9 +58,43 @@ function Screen({ icon: Icon, title, children }) {
 
 
 /**
+ * Toma la sesión que venga en la URL y limpia la dirección.
+ *
+ * El cliente de la tarjeta tiene `detectSessionInUrl` apagado a propósito: si lo
+ * dejara encendido competiría con la app del asesor por el código de acceso al
+ * volver de Google y le robaría la sesión. Aquí se hace a mano y sólo en esta
+ * página, que es la única a la que vuelven los enlaces de confirmación de correo.
+ */
+async function absorbUrlSession(sb) {
+  if (typeof window === 'undefined') return;
+  let url;
+  try { url = new URL(window.location.href); } catch { return; }
+
+  const code = url.searchParams.get('code');
+  const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
+  const accessToken = hash.get('access_token');
+  const refreshToken = hash.get('refresh_token');
+  if (!code && !accessToken) return;
+
+  try {
+    if (code) await sb.auth.exchangeCodeForSession(code);
+    else if (refreshToken) {
+      await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    }
+  } catch { /* enlace vencido o ya usado: se seguirá pidiendo entrar */ }
+
+  // El token no se queda a la vista ni en el historial.
+  ['code', 'error', 'error_description', 'token_hash', 'type'].forEach((k) => {
+    url.searchParams.delete(k);
+  });
+  url.hash = '';
+  try { window.history.replaceState({}, '', url.toString()); } catch { /* sin history */ }
+}
+
+/**
  * Página de la tarjeta digital de regalo.
  *
- * Ruta aislada del mundo asesor: usa `giftCardSupabase`, un cliente con su
+ * Ruta aislada del mundo asesor: usa `getGiftCardSupabase()`, un cliente con su
  * propia llave de sesión en el navegador, y no monta `SessionProvider`. Por eso
  * abrir el enlace desde el teléfono del asesor ya no hereda su sesión: en este
  * mundo esa sesión no existe. Cubre `/mi-tarjeta/<uuid>` (una tarjeta) y
@@ -71,14 +105,17 @@ export default function GiftCardPage() {
   const [session, setSession] = useState(undefined);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !giftCardSupabase) { setSession(null); return undefined; }
+    const sb = getGiftCardSupabase();
+    if (!isSupabaseConfigured || !sb) { setSession(null); return undefined; }
     let active = true;
-    const { data: sub } = giftCardSupabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => {
       if (active) setSession(s ?? null);
     });
-    giftCardSupabase.auth.getSession().then(({ data }) => {
+    (async () => {
+      await absorbUrlSession(sb);
+      const { data } = await sb.auth.getSession();
       if (active) setSession(data.session ?? null);
-    });
+    })();
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
@@ -104,7 +141,7 @@ export default function GiftCardPage() {
  *
  * No usa Google: la sesión de asesor con Google se colaba aquí y mostraba su
  * correo. Ahora, además de tener cuentas de correo propias, la sesión vive en
- * `giftCardSupabase`, separada de la de la app.
+ * su propio cliente de Supabase, separada de la de la app.
  */
 function EmailAuth({
   title, intro, requireCode = false, onReady,
@@ -140,7 +177,7 @@ function EmailAuth({
     setNotice('');
 
     if (tab === 'signup') {
-      const { data, error: e } = await giftCardSupabase.auth.signUp({
+      const { data, error: e } = await getGiftCardSupabase().auth.signUp({
         email: mail,
         password,
         options: {
@@ -173,7 +210,7 @@ function EmailAuth({
       return;
     }
 
-    const { error: e } = await giftCardSupabase.auth.signInWithPassword({ email: mail, password });
+    const { error: e } = await getGiftCardSupabase().auth.signInWithPassword({ email: mail, password });
     if (e) {
       setStatus('idle');
       setError('Correo o contraseña incorrectos.');
@@ -381,7 +418,7 @@ function SingleCard({ cardId, session }) {
           la pantalla del código, sin quedar en bucle de inicio de sesión.
         */
         if (!isClientSession(session)) {
-          await giftCardSupabase.auth.signOut();
+          await getGiftCardSupabase().auth.signOut();
           if (!active) return;
           setPhase('login');
           return;
@@ -512,7 +549,7 @@ function SingleCard({ cardId, session }) {
           </p>
           <button
             type="button"
-            onClick={() => giftCardSupabase.auth.signOut()}
+            onClick={() => getGiftCardSupabase().auth.signOut()}
             className="mx-auto mt-3 flex items-center gap-2 text-xs font-light text-neutral-400
                        underline-offset-2 hover:text-neutral-200 hover:underline"
           >
@@ -774,7 +811,7 @@ function OwnerPanel({ session }) {
         </p>
         <button
           type="button"
-          onClick={() => giftCardSupabase.auth.signOut()}
+          onClick={() => getGiftCardSupabase().auth.signOut()}
           className="mx-auto mt-6 flex items-center gap-2 text-xs font-light text-neutral-500
                      hover:text-neutral-300"
         >
@@ -791,7 +828,7 @@ function OwnerPanel({ session }) {
           <h1 className="text-lg font-light text-white">Tus tarjetas</h1>
           <button
             type="button"
-            onClick={() => giftCardSupabase.auth.signOut()}
+            onClick={() => getGiftCardSupabase().auth.signOut()}
             className="flex items-center gap-1 text-[11px] font-light text-neutral-500
                        hover:text-neutral-300"
           >
@@ -958,7 +995,7 @@ function CardEditor({ cardId, initial, deviceSecret = '' }) {
           </p>
           <button
             type="button"
-            onClick={() => giftCardSupabase.auth.signOut()}
+            onClick={() => getGiftCardSupabase().auth.signOut()}
             className="flex items-center gap-1 text-[11px] font-light text-neutral-500
                        hover:text-neutral-300"
           >

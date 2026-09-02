@@ -1,4 +1,4 @@
-import { supabase, giftCardSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, getGiftCardSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { uploadAttachment, BUCKET } from './announcementsRepo';
 
 /**
@@ -29,8 +29,9 @@ async function callRpc(name, params) {
  * hay forma de que su cuenta reclame ni edite la tarjeta de nadie.
  */
 async function callClientRpc(name, params) {
-  if (!isSupabaseConfigured || !giftCardSupabase) return unavailable();
-  const { data, error } = await giftCardSupabase.rpc(name, params);
+  const sb = getGiftCardSupabase();
+  if (!isSupabaseConfigured || !sb) return unavailable();
+  const { data, error } = await sb.rpc(name, params);
   return { data: data ?? null, error: error ?? null };
 }
 
@@ -103,7 +104,7 @@ export function openGiftCardWithDevice(cardId, deviceSecret) {
 export async function uploadGiftCardPhoto(cardId, file, deviceSecret = '') {
   // Se sube con la sesión del cliente, no con la de la app: son mundos separados.
   const { url, error, fileName } = await uploadAttachment(
-    file, `gift-cards/${cardId}`, giftCardSupabase,
+    file, `gift-cards/${cardId}`, getGiftCardSupabase(),
   );
   if (error || !url) return { data: null, error: error ?? { message: 'No se pudo subir la foto.' } };
 
@@ -116,8 +117,9 @@ export async function uploadGiftCardPhoto(cardId, file, deviceSecret = '') {
   if (rpcError) return { data: null, error: rpcError };
 
   const previous = data?.previousPath;
-  if (previous && previous !== fileName && giftCardSupabase) {
-    await giftCardSupabase.storage.from(BUCKET).remove([previous]).catch(() => {});
+  const clientSb = getGiftCardSupabase();
+  if (previous && previous !== fileName && clientSb) {
+    await clientSb.storage.from(BUCKET).remove([previous]).catch(() => {});
   }
 
   return { data: { ...data, avatarUrl: url }, error: null };
