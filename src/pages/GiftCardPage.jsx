@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, Copy, Eye, Gift, IdCard, Loader2, LogOut,
   Pencil, Share2, Sparkles, UserRound,
@@ -162,42 +162,72 @@ function SingleCard({ cardId, session, authFailed = false }) {
   const [card, setCard] = useState(null);
   const [error, setError] = useState('');
 
+  /**
+   * Abre la tarjeta ya siendo su dueño: bienvenida la primera vez, luego editor.
+   *
+   * Va en `useCallback` porque el efecto de abajo la usa: sin estabilizarla, cada
+   * render crearía otra función y el efecto volvería a correr en bucle.
+   */
+  const openAsOwner = useCallback(async () => {
+    const { data: mine } = await fetchMyGiftCard(cardId);
+    if (mine?.outcome !== 'OK') { setPhase('offline'); return; }
+    setCard(mine);
+    let seen = false;
+    try { seen = Boolean(window.localStorage.getItem(SEEN_KEY + cardId)); } catch { /* sin storage */ }
+    setPhase(seen ? 'editor' : 'welcome');
+  }, [cardId]);
+
   useEffect(() => {
     let active = true;
     if (!session) { setPhase('login'); return undefined; }
 
     (async () => {
+      /*
+        Se consulta el estado ANTES de reclamar.
+
+        `claim_gift_card` amarra la tarjeta a la cuenta que llama, así que
+        llamarlo de entrada la asignaba en silencio: quien ya tenía sesión de
+        Google abierta —de otra prueba, o de otra tarjeta— se encontraba dueño de
+        una tarjeta sin haber decidido nada, y sin ver con qué cuenta quedó
+        vinculada. Aquí sólo se mira si está libre; el vínculo lo confirma la
+        persona en la pantalla siguiente.
+      */
+      const { data: pub, error: pe } = await fetchPublicGiftCard(cardId);
+      if (!active) return;
+      if (pe) { setPhase('offline'); return; }
+      if (pub?.outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
+      if (pub?.outcome === 'REVOCADA') { setPhase('revoked'); return; }
+
+      // Libre: se pide confirmación explícita de la cuenta antes de vincular.
+      if (pub?.outcome === 'PENDIENTE') { setPhase('confirm'); return; }
+
+      // Ya activada: el servidor dice si esta cuenta es su dueña.
       const { data, error: e } = await claimGiftCard(cardId);
       if (!active) return;
       if (e) { setPhase('offline'); return; }
-      const outcome = data?.outcome;
-      if (outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
-      if (outcome === 'REVOKED') { setPhase('revoked'); return; }
-
-      if (outcome === 'OWNER') {
-        const { data: mine } = await fetchMyGiftCard(cardId);
-        if (!active) return;
-        if (mine?.outcome !== 'OK') { setPhase('offline'); return; }
-        setCard(mine);
-        // La bienvenida se muestra una vez por tarjeta y dispositivo.
-        let seen = false;
-        try { seen = Boolean(window.localStorage.getItem(SEEN_KEY + cardId)); } catch { /* sin storage */ }
-        setPhase(seen ? 'editor' : 'welcome');
-        return;
-      }
-
-      if (outcome === 'NOT_OWNER') {
-        const { data: pub } = await fetchPublicGiftCard(cardId);
-        if (!active) return;
-        if (pub?.outcome === 'ACTIVA') setCard(pub);
+      if (data?.outcome === 'OWNER') { await openAsOwner(); return; }
+      if (data?.outcome === 'NOT_OWNER') {
+        setCard(pub?.outcome === 'ACTIVA' ? pub : null);
         setPhase('not_owner');
         return;
       }
-
       setPhase('offline');
     })();
     return () => { active = false; };
-  }, [cardId, session]);
+  }, [cardId, session, openAsOwner]);
+
+  /** Vincula la tarjeta a esta cuenta, ya con el consentimiento dado. */
+  const activate = async () => {
+    setPhase('activating');
+    setError('');
+    const { data, error: e } = await claimGiftCard(cardId);
+    if (e || data?.outcome !== 'OWNER') {
+      setPhase('confirm');
+      setError('No pudimos activar la tarjeta. Inténtalo nuevamente.');
+      return;
+    }
+    await openAsOwner();
+  };
 
   const dismissWelcome = () => {
     try { window.localStorage.setItem(SEEN_KEY + cardId, '1'); } catch { /* sin storage */ }
@@ -254,6 +284,57 @@ function SingleCard({ cardId, session, authFailed = false }) {
                      bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black hover:bg-white"
         >
           {authFailed ? 'Intentar de nuevo con Google' : 'Entrar con Google'}
+        </button>
+      </Screen>
+    );
+  }
+
+  /*
+    Consentimiento explícito del vínculo.
+
+    Se muestra la cuenta con la que va a quedar amarrada, porque es una decisión
+    permanente: sólo esa cuenta podrá editarla después. Antes esto ocurría solo,
+    sin preguntar, y quien ya tenía una sesión de Google abierta se volvía dueño
+    sin enterarse ni saber con qué correo.
+  */
+  if (phase === 'confirm' || phase === 'activating') {
+    const email = session?.user?.email ?? '';
+    return (
+      <Screen icon={UserRound} title="Activa tu tarjeta">
+        <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
+          Tu tarjeta quedará vinculada a esta cuenta. Sólo desde ella podrás editarla
+          más adelante.
+        </p>
+
+        <div className="mt-5 rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-left">
+          <p className="text-[10px] uppercase tracking-widest text-neutral-600">Cuenta</p>
+          <p className="mt-1 truncate text-sm font-light text-neutral-100">
+            {email || 'Tu cuenta de Google'}
+          </p>
+        </div>
+
+        {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
+
+        <button
+          type="button"
+          onClick={activate}
+          disabled={phase === 'activating'}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
+                     px-4 py-3.5 text-sm font-medium text-black hover:bg-white
+                     disabled:cursor-wait disabled:opacity-50"
+        >
+          {phase === 'activating'
+            ? <><Loader2 size={16} className="animate-spin" /> Activando…</>
+            : <>Sí, activar mi tarjeta <ArrowRight size={16} /></>}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          className="mx-auto mt-5 flex items-center gap-2 text-xs font-light text-neutral-500
+                     underline-offset-2 hover:text-neutral-300 hover:underline"
+        >
+          <LogOut size={13} /> Usar otra cuenta de Google
         </button>
       </Screen>
     );
