@@ -4,18 +4,23 @@ import {
 } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import WhatsAppMark from '../Activities/WhatsAppMark';
-import { createGiftCardForLead, resetGiftCard } from '../../data/giftCardsRepo';
+import {
+  createGiftCardForLead, resetGiftCard, issueGiftCardAccessCode,
+} from '../../data/giftCardsRepo';
 import { giftCardUrl } from '../../lib/giftCardRoute';
 import { whatsAppLink } from '../../lib/advisorPhone';
 import { leadSourceLabel } from '../../data/leadsRepo';
 import { fetchWalletSummary } from '../../data/walletRepo';
 
-function giftMessage(lead, advisorName, url) {
+function giftMessage(lead, advisorName, url, code) {
   const firstName = String(lead?.name ?? '').trim().split(/\s+/)[0] || 'Hola';
   const from = advisorName ? ` Soy ${advisorName}.` : '';
+  const access = code
+    ? `\n\nPuedes activarla con tu Google, o con tu número y esta clave: ${code} `
+      + '(vence en 15 minutos).'
+    : '\n\nÁbrela y entra con tu Google para activarla; sólo tú podrás editarla.';
   return `Hola ${firstName}.${from} Te regalo una tarjeta digital personal para que la hagas `
-    + `tuya —tu nombre, tu foto, tus datos—.\n\n${url}\n\nÁbrela y entra con tu Google para `
-    + 'activarla; sólo tú podrás editarla.';
+    + `tuya —tu nombre, tu foto, tus datos—.\n\n${url}${access}`;
 }
 
 /**
@@ -31,6 +36,8 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
   const [message, setMessage] = useState('');
   const [source, setSource] = useState('');
   const [inventory, setInventory] = useState(null);
+  // Clave de acceso por número, visible sólo aquí para que el asesor la comparta.
+  const [code, setCode] = useState('');
   const [askEmergency, setAskEmergency] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState('');
@@ -63,8 +70,26 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
 
     setSource(data.source ?? '');
     setCardId(data.cardId);
-    setMessage(giftMessage(lead, advisorName, giftCardUrl(data.cardId)));
+
+    // La clave de 15 minutos, para quien prefiera no usar Google. Si algo falla,
+    // la tarjeta igual sirve con Google: no se bloquea la entrega por esto.
+    const { data: codeData } = await issueGiftCardAccessCode(data.cardId);
+    const issued = codeData?.outcome === 'ISSUED' ? codeData.code : '';
+    setCode(issued);
+    setMessage(giftMessage(lead, advisorName, giftCardUrl(data.cardId), issued));
     setPhase('ready');
+  };
+
+  /** Clave nueva: la anterior queda inservible en el momento. */
+  const reissueCode = async () => {
+    if (!cardId) return;
+    const { data } = await issueGiftCardAccessCode(cardId);
+    if (data?.outcome !== 'ISSUED') {
+      setError('No pudimos emitir una clave nueva. Inténtalo otra vez.');
+      return;
+    }
+    setCode(data.code);
+    setMessage(giftMessage(lead, advisorName, giftCardUrl(cardId), data.code));
   };
 
   const url = giftCardUrl(cardId);
@@ -190,6 +215,48 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
                   )}
                 </p>
               </div>
+
+              {/*
+                La clave, para quien no quiera usar Google. Vive 15 minutos y sólo
+                aparece aquí: en la página del cliente no existe, así que
+                inspeccionar la web pública no la revela.
+              */}
+              {code && (
+                <div className="mt-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">
+                      Clave por número · 15 min
+                    </p>
+                    <button
+                      type="button"
+                      onClick={reissueCode}
+                      className="text-[10px] font-semibold text-indigo-500 underline-offset-2
+                                 hover:underline dark:text-indigo-300"
+                    >
+                      Clave nueva
+                    </button>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <span className="font-mono text-3xl font-bold tracking-[0.25em]
+                                     text-zinc-900 dark:text-white"
+                    >
+                      {code}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copy(code, 'code')}
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border
+                                 border-indigo-500/30 text-indigo-500 dark:text-indigo-300"
+                      aria-label="Copiar clave"
+                    >
+                      {copied === 'code' ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                    Alternativa a Google: con su número y esta clave también puede activarla.
+                  </p>
+                </div>
+              )}
 
               <label className="mt-5 block">
                 <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, Check, Copy, Eye, Gift, IdCard, Loader2, LogOut,
+  ArrowLeft, ArrowRight, Check, Copy, Eye, Gift, IdCard, KeyRound, Loader2, LogOut,
   Pencil, Share2, Sparkles, UserRound,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
@@ -12,6 +12,10 @@ import {
 import { readImageFile, shrinkImageForUpload, dataUrlToFile } from '../data/cardPhoto';
 import { whatsAppLink } from '../lib/advisorPhone';
 import GiftCardVisual from '../components/GiftCard/GiftCardVisual';
+import {
+  claimGiftCardWithCode, openGiftCardWithDevice,
+} from '../data/giftCardsRepo';
+import { readCardSecret, saveCardSecret } from '../lib/giftCardDevice';
 
 const INPUT = 'w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm '
   + 'font-light text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-neutral-500';
@@ -161,6 +165,8 @@ function SingleCard({ cardId, session, authFailed = false }) {
   const [phase, setPhase] = useState('loading');
   const [card, setCard] = useState(null);
   const [error, setError] = useState('');
+  // Secreto del dispositivo cuando se entró por número + clave. Vacío con Google.
+  const [deviceSecret, setDeviceSecret] = useState('');
 
   /**
    * Abre la tarjeta ya siendo su dueño: bienvenida la primera vez, luego editor.
@@ -168,8 +174,8 @@ function SingleCard({ cardId, session, authFailed = false }) {
    * Va en `useCallback` porque el efecto de abajo la usa: sin estabilizarla, cada
    * render crearía otra función y el efecto volvería a correr en bucle.
    */
-  const openAsOwner = useCallback(async () => {
-    const { data: mine } = await fetchMyGiftCard(cardId);
+  const openAsOwner = useCallback(async (secret = '') => {
+    const { data: mine } = await fetchMyGiftCard(cardId, secret);
     if (mine?.outcome !== 'OK') { setPhase('offline'); return; }
     setCard(mine);
     let seen = false;
@@ -179,6 +185,29 @@ function SingleCard({ cardId, session, authFailed = false }) {
 
   useEffect(() => {
     let active = true;
+
+    /*
+      Antes que nada, el dispositivo. Quien ya entró con su número y clave tiene
+      un secreto guardado en este navegador: entra directo, sin Google y sin
+      volver a pedir la clave. Es la vía de quien no usa cuenta de Google.
+    */
+    const stored = readCardSecret(cardId);
+    if (stored) {
+      (async () => {
+        const { data } = await openGiftCardWithDevice(cardId, stored);
+        if (!active) return;
+        if (data?.outcome === 'AUTHORIZED') {
+          setDeviceSecret(stored);
+          await openAsOwner(stored);
+          return;
+        }
+        if (data?.outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
+        // Secreto ya inválido (el asesor restableció): se pide acceso de nuevo.
+        setPhase(session ? 'checking_google' : 'login');
+      })();
+      return () => { active = false; };
+    }
+
     if (!session) { setPhase('login'); return undefined; }
 
     (async () => {
@@ -267,16 +296,17 @@ function SingleCard({ cardId, session, authFailed = false }) {
     );
   }
 
-  // Paso cero: registrarse con Google antes de ver o editar nada.
+  // Paso cero: identificarse. Dos vías, y ninguna muestra la tarjeta antes.
   if (phase === 'login') {
     return (
       <Screen icon={Sparkles} title="Tu tarjeta digital de regalo">
         <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
           Te regalaron una tarjeta digital para que la hagas tuya: tu nombre, tu foto y tus
-          datos. Entra con Google para activarla; así sólo tú podrás editarla.
+          datos. Identifícate para activarla; así sólo tú podrás editarla.
         </p>
         {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
         {authFailed && <AuthRetryNotice />}
+
         <button
           type="button"
           onClick={() => signInGoogle(setError)}
@@ -285,7 +315,37 @@ function SingleCard({ cardId, session, authFailed = false }) {
         >
           {authFailed ? 'Intentar de nuevo con Google' : 'Entrar con Google'}
         </button>
+
+        <div className="my-5 flex items-center gap-3">
+          <span className="h-px flex-1 bg-neutral-900" />
+          <span className="text-[10px] uppercase tracking-widest text-neutral-700">o</span>
+          <span className="h-px flex-1 bg-neutral-900" />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => { setError(''); setPhase('phone'); }}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border
+                     border-neutral-700 px-4 py-3.5 text-sm font-light text-neutral-200
+                     hover:border-neutral-500"
+        >
+          <KeyRound size={15} /> Entrar con mi número y clave
+        </button>
       </Screen>
+    );
+  }
+
+  if (phase === 'phone') {
+    return (
+      <PhoneAccess
+        cardId={cardId}
+        onBack={() => setPhase('login')}
+        onAuthorized={async (secret) => {
+          saveCardSecret(cardId, secret);
+          setDeviceSecret(secret);
+          await openAsOwner(secret);
+        }}
+      />
     );
   }
 
@@ -364,7 +424,115 @@ function SingleCard({ cardId, session, authFailed = false }) {
     );
   }
 
-  return <CardEditor cardId={cardId} initial={card} />;
+  return <CardEditor cardId={cardId} initial={card} deviceSecret={deviceSecret} />;
+}
+
+/**
+ * Acceso con número y clave de 15 minutos.
+ *
+ * La clave se compara contra su hash dentro de Postgres, así que aquí no hay
+ * ningún valor que sirva para entrar si se inspecciona el navegador. Al validarla
+ * el servidor devuelve el secreto del dispositivo, y desde entonces esta persona
+ * entra directo sin volver a teclear nada.
+ */
+function PhoneAccess({ cardId, onBack, onAuthorized }) {
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [status, setStatus] = useState('idle');
+  const [error, setError] = useState('');
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (status === 'sending') return;
+    if (String(phone).replace(/\D/g, '').length < 10) {
+      setError('Escribe tu número a 10 dígitos.');
+      return;
+    }
+    if (String(code).replace(/\D/g, '').length !== 6) {
+      setError('La clave tiene 6 dígitos.');
+      return;
+    }
+
+    setStatus('sending');
+    setError('');
+    const { data, error: e } = await claimGiftCardWithCode(cardId, phone, code);
+    if (e || !data) {
+      setStatus('idle');
+      setError('No pudimos validar la clave. Revisa tu conexión e inténtalo nuevamente.');
+      return;
+    }
+
+    const messages = {
+      CODE_INVALID: data.attemptsLeft > 0
+        ? `Clave incorrecta. Te quedan ${data.attemptsLeft} intentos.`
+        : 'Clave incorrecta. Pide una nueva a quien te compartió la tarjeta.',
+      CODE_EXPIRED: 'La clave venció. Pide una nueva: duran 15 minutos.',
+      TOO_MANY_ATTEMPTS: 'Demasiados intentos. Pide una clave nueva.',
+      INVALID_PHONE: 'Revisa tu número: deben ser 10 dígitos.',
+      NOT_FOUND: 'Esta tarjeta no está disponible.',
+      REVOKED: 'Esta tarjeta ya no está activa.',
+    };
+
+    if (data.outcome === 'AUTHORIZED' && data.deviceSecret) {
+      await onAuthorized(data.deviceSecret);
+      return;
+    }
+
+    setStatus('idle');
+    setError(messages[data.outcome] ?? 'No pudimos validar la clave.');
+  };
+
+  return (
+    <Screen icon={KeyRound} title="Entra con tu número">
+      <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
+        Escribe tu número y la clave de 6 dígitos que te compartieron por WhatsApp.
+        La clave dura 15 minutos.
+      </p>
+
+      <form onSubmit={submit} className="mt-7 space-y-3 text-left">
+        <input
+          className={INPUT}
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Tu número a 10 dígitos"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+        />
+        <input
+          className={`${INPUT} text-center text-2xl tracking-[0.4em]`}
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          placeholder="––––––"
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+        />
+        {error && <p role="alert" className="text-xs font-light text-rose-400">{error}</p>}
+        <button
+          type="submit"
+          disabled={status === 'sending'}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
+                     px-4 py-3.5 text-sm font-medium text-black hover:bg-white
+                     disabled:cursor-wait disabled:opacity-50"
+        >
+          {status === 'sending'
+            ? <><Loader2 size={16} className="animate-spin" /> Validando…</>
+            : <>Activar mi tarjeta <ArrowRight size={16} /></>}
+        </button>
+      </form>
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="mx-auto mt-6 block text-[11px] font-light text-neutral-500
+                   underline-offset-2 hover:text-neutral-300 hover:underline"
+      >
+        Volver a las opciones de acceso
+      </button>
+    </Screen>
+  );
 }
 
 /** Bienvenida: qué es la tarjeta y cómo usarla, antes de tocar nada. */
@@ -531,7 +699,7 @@ function OwnerPanel({ session, authFailed = false }) {
 }
 
 /** Editor del dueño: datos primero, y la tarjeta real como vista previa. */
-function CardEditor({ cardId, initial }) {
+function CardEditor({ cardId, initial, deviceSecret = '' }) {
   const [mode, setMode] = useState('edit'); // 'edit' | 'preview'
   const [form, setForm] = useState({
     fullName: initial.fullName ?? '',
@@ -561,7 +729,7 @@ function CardEditor({ cardId, initial }) {
   const save = async () => {
     setSaving(true);
     setError('');
-    const { data, error: e } = await saveGiftCard(cardId, form);
+    const { data, error: e } = await saveGiftCard(cardId, form, deviceSecret);
     setSaving(false);
     if (e || data?.outcome !== 'SAVED') {
       setError('No pudimos guardar. Revisa tu conexión e inténtalo nuevamente.');
@@ -580,7 +748,7 @@ function CardEditor({ cardId, initial }) {
       const dataUrl = await readImageFile(file);
       const shrunk = await shrinkImageForUpload(dataUrl);
       const finalFile = await dataUrlToFile(shrunk, 'tarjeta.jpg');
-      const { data, error: e } = await uploadGiftCardPhoto(cardId, finalFile);
+      const { data, error: e } = await uploadGiftCardPhoto(cardId, finalFile, deviceSecret);
       if (e || !data?.avatarUrl) throw new Error('upload');
       setAvatarUrl(data.avatarUrl);
     } catch {
