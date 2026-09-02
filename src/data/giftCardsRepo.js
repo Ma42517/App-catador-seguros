@@ -130,6 +130,27 @@ export async function revokeGiftCard(cardId) {
   return { data, error };
 }
 
+/**
+ * Tarjetas que el asesor le regaló a un prospecto, activadas incluidas.
+ *
+ * `create_gift_card_for_lead` ignora las que ya tienen dueño, así que sin esta
+ * consulta una tarjeta vinculada a la cuenta equivocada quedaría inalcanzable.
+ */
+export function fetchAdvisorGiftCardsForLead(leadId) {
+  return callRpc('advisor_gift_cards_for_lead', { p_lead_id: leadId });
+}
+
+/**
+ * Suelta al dueño conservando el contenido de la tarjeta.
+ *
+ * Para cuando la activó una cuenta equivocada: la persona correcta se registra
+ * con un código nuevo y encuentra su nombre y su foto tal como los dejó. No se
+ * borra nada de Storage, justamente porque la foto se queda.
+ */
+export function releaseGiftCard(cardId) {
+  return callRpc('release_gift_card', { p_card_id: cardId });
+}
+
 /** Suelta al dueño y deja la tarjeta lista para reclamarse de nuevo. */
 export async function resetGiftCard(cardId) {
   const { data, error } = await callRpc('reset_gift_card', { p_card_id: cardId });

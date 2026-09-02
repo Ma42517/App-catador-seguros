@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
-  Check, Copy, ExternalLink, IdCard, LifeBuoy, Link2, Loader2, ShieldCheck,
+  Check, Copy, ExternalLink, IdCard, LifeBuoy, Link2, Loader2, RotateCcw, ShieldCheck,
 } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import WhatsAppMark from '../Activities/WhatsAppMark';
 import {
-  createGiftCardForLead, resetGiftCard, issueGiftCardAccessCode,
+  createGiftCardForLead, resetGiftCard, releaseGiftCard, issueGiftCardAccessCode,
+  fetchAdvisorGiftCardsForLead,
 } from '../../data/giftCardsRepo';
 import { giftCardUrl } from '../../lib/giftCardRoute';
 import { whatsAppLink } from '../../lib/advisorPhone';
@@ -41,18 +42,57 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
   const [askEmergency, setAskEmergency] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState('');
+  // Tarjeta de este prospecto que ya quedó activada por alguna cuenta.
+  const [claimedCard, setClaimedCard] = useState(null);
 
   const leadId = lead?.id;
   useEffect(() => {
     setPhase('idle'); setCardId(''); setMessage(''); setSource('');
-    setAskEmergency(false); setError(''); setCopied('');
+    setAskEmergency(false); setError(''); setCopied(''); setClaimedCard(null);
     if (!leadId) return;
     fetchWalletSummary().then(({ data }) => {
       if (data?.outcome === 'READY') {
         setInventory({ cards: data.invCards, hasEmergency: data.hasEmergencyCards });
       }
     });
+    /*
+      Se busca una tarjeta ya activada de este prospecto. Importa porque crear
+      otra gastaría inventario y dejaría la buena —con el nombre y la foto que la
+      persona ya subió— atrapada en la cuenta equivocada.
+    */
+    fetchAdvisorGiftCardsForLead(leadId).then(({ data }) => {
+      if (data?.outcome !== 'READY') return;
+      setClaimedCard((data.cards ?? []).find((c) => c.claimed) ?? null);
+    });
   }, [leadId]);
+
+  /**
+   * Devuelve la tarjeta activada a su dueño real, sin borrar lo que llenó.
+   *
+   * Queda libre y con un código nuevo: la persona se registra con su correo y la
+   * encuentra tal cual. No consume inventario, es la misma tarjeta.
+   */
+  const devolverTarjeta = async () => {
+    if (!claimedCard?.cardId || phase === 'preparing') return;
+    setPhase('preparing'); setError('');
+
+    const { data } = await releaseGiftCard(claimedCard.cardId);
+    if (data?.outcome !== 'RELEASED') {
+      setPhase('idle');
+      setError('No pudimos liberar la tarjeta. Revisa tu conexión e inténtalo de nuevo.');
+      return;
+    }
+
+    const id = claimedCard.cardId;
+    const { data: codeData } = await issueGiftCardAccessCode(id);
+    const issued = codeData?.outcome === 'ISSUED' ? codeData.code : '';
+    setClaimedCard(null);
+    setCardId(id);
+    setCode(issued);
+    setSource('existing');
+    setMessage(giftMessage(lead, advisorName, giftCardUrl(id), issued));
+    setPhase('ready');
+  };
 
   const prepare = async (useEmergency = false) => {
     if (!lead?.id || phase === 'preparing') return;
@@ -126,6 +166,47 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
 
           {phase !== 'ready' ? (
             <>
+              {/*
+                Tarjeta ya activada de este prospecto. Se muestra primero porque
+                casi siempre es lo que el asesor necesita: si la activó una cuenta
+                equivocada, devolverla es mejor que gastar otra tarjeta y perder
+                el nombre y la foto que la persona ya subió.
+              */}
+              {claimedCard && (
+                <div className="mt-6 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4">
+                  <p className="flex items-center gap-2 text-xs font-semibold text-indigo-600
+                                dark:text-indigo-300"
+                  >
+                    <RotateCcw size={15} /> Ya hay una tarjeta activada
+                  </p>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                    {claimedCard.fullName
+                      ? <>Está a nombre de <strong>{claimedCard.fullName}</strong></>
+                      : 'Está activada y aún sin llenar'}
+                    {claimedCard.ownerHint && <> · cuenta {claimedCard.ownerHint}</>}.
+                    Si la persona te dice que es suya pero no puede entrar, devuélvesela:
+                    queda libre para que se registre con su correo y conserva su nombre
+                    y su foto.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={devolverTarjeta}
+                    disabled={phase === 'preparing'}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl
+                               bg-indigo-600 px-4 py-3 text-xs font-bold text-white
+                               transition-colors hover:bg-indigo-500 disabled:cursor-wait
+                               disabled:opacity-60"
+                  >
+                    {phase === 'preparing'
+                      ? <><Loader2 size={15} className="animate-spin" /> Liberando…</>
+                      : <><RotateCcw size={15} /> Devolvérsela con un código nuevo</>}
+                  </button>
+                  <p className="mt-2 text-[10px] text-zinc-500">
+                    No gasta tarjetas de tu inventario: es la misma.
+                  </p>
+                </div>
+              )}
+
               <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-100/70 p-4
                               dark:border-zinc-800 dark:bg-zinc-950/50"
               >
@@ -193,7 +274,12 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
                   >
                     {phase === 'preparing'
                       ? <><Loader2 size={16} className="animate-spin" /> Preparando…</>
-                      : <><Link2 size={16} /> Crear tarjeta de regalo</>}
+                      : (
+                        <>
+                          <Link2 size={16} />
+                          {claimedCard ? 'Crear otra tarjeta nueva' : 'Crear tarjeta de regalo'}
+                        </>
+                      )}
                   </button>
                 </>
               )}
