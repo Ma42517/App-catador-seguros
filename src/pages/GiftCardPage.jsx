@@ -52,15 +52,66 @@ const signInGoogle = async (setError) => {
  * `supabase.auth`, sin `SessionProvider`. Cubre `/mi-tarjeta/<uuid>` (una
  * tarjeta) y `/mi-tarjeta` (el panel con todas las del dueño).
  */
+/**
+ * Completa el regreso de Google si la dirección trae su respuesta.
+ *
+ * Hace falta porque el flujo por omisión es PKCE: el intercambio del `code`
+ * necesita un `code_verifier` que quedó guardado en el navegador DONDE se inició
+ * el acceso. Al abrir el enlace desde WhatsApp eso se rompe con facilidad —su
+ * navegador interno arranca el acceso y Google lo termina en Chrome o Safari, que
+ * es otro almacenamiento y no tiene el verificador—. Sin este manejo explícito el
+ * fallo era mudo: la persona elegía su cuenta, volvía, y veía otra vez la misma
+ * pantalla de "entrar", sin ninguna explicación.
+ *
+ * @returns {'none'|'ok'|'failed'} Qué se encontró y cómo terminó.
+ */
+async function completeOAuthReturn() {
+  if (typeof window === 'undefined' || !supabase) return 'none';
+
+  const query = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const code = query.get('code');
+  const failed = query.get('error') ?? hash.get('error');
+
+  if (failed) return 'failed';
+  if (!code) return 'none';
+
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+  // Se limpia la dirección en los dos casos: dejar el `code` usado en la barra
+  // haría que un refresco intentara canjearlo otra vez y fallara siempre.
+  window.history.replaceState(null, '', window.location.pathname);
+
+  return error ? 'failed' : 'ok';
+}
+
 export default function GiftCardPage() {
   const [{ cardId }] = useState(() => giftCardRoute());
   const [session, setSession] = useState(undefined);
+  const [authFailed, setAuthFailed] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) { setSession(null); return undefined; }
-    supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s ?? null));
-    return () => sub.subscription.unsubscribe();
+
+    let active = true;
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (!active) return;
+      if (s) setAuthFailed(false);
+      setSession(s ?? null);
+    });
+
+    (async () => {
+      // Primero se atiende el regreso de Google; si no, se lee la sesión guardada.
+      const outcome = await completeOAuthReturn();
+      if (!active) return;
+      if (outcome === 'failed') setAuthFailed(true);
+
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+      setSession(data.session ?? null);
+    })();
+
+    return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
   if (session === undefined) {
@@ -71,8 +122,31 @@ export default function GiftCardPage() {
     );
   }
 
-  if (cardId) return <SingleCard cardId={cardId} session={session} />;
-  return <OwnerPanel session={session} />;
+  if (cardId) {
+    return <SingleCard cardId={cardId} session={session} authFailed={authFailed} />;
+  }
+  return <OwnerPanel session={session} authFailed={authFailed} />;
+}
+
+/**
+ * Aviso de acceso interrumpido, con la salida concreta.
+ *
+ * Reintentar desde aquí sí funciona: el segundo intento nace en ESTE navegador,
+ * así que el verificador se guarda donde después va a leerse. Y si el enlace se
+ * abrió dentro de WhatsApp, se dice cómo salir de ahí, porque es la causa más
+ * frecuente y no se puede resolver desde el código.
+ */
+function AuthRetryNotice() {
+  return (
+    <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-left">
+      <p className="text-xs font-medium text-amber-300">No se completó el acceso</p>
+      <p className="mt-1 text-[11px] font-light leading-relaxed text-amber-200/80">
+        Vuelve a tocar el botón para intentarlo de nuevo. Si abriste este enlace dentro de
+        WhatsApp, ábrelo en Chrome o Safari: toca el menú de tres puntos y elige
+        «Abrir en el navegador».
+      </p>
+    </div>
+  );
 }
 
 /**
@@ -83,7 +157,7 @@ export default function GiftCardPage() {
  * usar la tarjeta, y sólo entonces el editor. Así lo primero que ve no es un
  * recortador de foto sin contexto.
  */
-function SingleCard({ cardId, session }) {
+function SingleCard({ cardId, session, authFailed = false }) {
   const [phase, setPhase] = useState('loading');
   const [card, setCard] = useState(null);
   const [error, setError] = useState('');
@@ -172,13 +246,14 @@ function SingleCard({ cardId, session }) {
           datos. Entra con Google para activarla; así sólo tú podrás editarla.
         </p>
         {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
+        {authFailed && <AuthRetryNotice />}
         <button
           type="button"
           onClick={() => signInGoogle(setError)}
           className="mx-auto mt-8 flex w-full items-center justify-center gap-2 rounded-xl
                      bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black hover:bg-white"
         >
-          Entrar con Google
+          {authFailed ? 'Intentar de nuevo con Google' : 'Entrar con Google'}
         </button>
       </Screen>
     );
@@ -269,7 +344,7 @@ function Welcome({ onStart }) {
 }
 
 /** Panel del dueño: todas sus tarjetas, sin necesidad de guardar enlaces. */
-function OwnerPanel({ session }) {
+function OwnerPanel({ session, authFailed = false }) {
   const [cards, setCards] = useState(null);
   const [error, setError] = useState('');
 
@@ -287,13 +362,14 @@ function OwnerPanel({ session }) {
           Entra con Google para ver y editar las tarjetas que te han regalado.
         </p>
         {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
+        {authFailed && <AuthRetryNotice />}
         <button
           type="button"
           onClick={() => signInGoogle(setError)}
           className="mx-auto mt-8 flex w-full items-center justify-center gap-2 rounded-xl
                      bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black hover:bg-white"
         >
-          Entrar con Google
+          {authFailed ? 'Intentar de nuevo con Google' : 'Entrar con Google'}
         </button>
       </Screen>
     );
