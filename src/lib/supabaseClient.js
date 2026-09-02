@@ -30,19 +30,33 @@ export const supabase = isSupabaseConfigured
  * que la página de la tarjeta simplemente NO VE la sesión de la app —no hay nada
  * que heredar—, y la del cliente no se cuela al otro lado. Es la separación real,
  * no un remiendo: no depende de detectar de quién era la sesión.
+ *
+ * Se construye PEREZOSAMENTE, y esto no es un detalle: `App.jsx` importa la
+ * página de la tarjeta siempre, así que crear el cliente en el import metía un
+ * segundo lector de sesiones en toda la app del asesor. Con `detectSessionInUrl`
+ * los dos leían la URL al volver de Google y se peleaban el código de acceso: si
+ * ganaba el de la tarjeta, la app se quedaba sin sesión y mandaba al asesor al
+ * onboarding. Ahora sólo existe cuando el mundo de la tarjeta lo pide, y NO toca
+ * la URL: el enlace de confirmación se procesa a mano en `GiftCardPage`.
  */
-export const giftCardSupabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      storageKey: 'df360-giftcard-auth',
-      persistSession: true,
-      autoRefreshToken: true,
-      // El enlace de confirmación de correo vuelve a esta misma página.
-      detectSessionInUrl: true,
-      flowType: 'pkce',
-    },
-  })
-  : null;
+let giftCardClient = null;
+
+export function getGiftCardSupabase() {
+  if (!isSupabaseConfigured) return null;
+  if (!giftCardClient) {
+    giftCardClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storageKey: 'df360-giftcard-auth',
+        persistSession: true,
+        autoRefreshToken: true,
+        // Jamás leer la URL: es lo que rompía el regreso de Google en la app.
+        detectSessionInUrl: false,
+        flowType: 'pkce',
+      },
+    });
+  }
+  return giftCardClient;
+}
 
 /**
  * Sólo el host del proyecto, para mostrarlo en el diagnóstico.
