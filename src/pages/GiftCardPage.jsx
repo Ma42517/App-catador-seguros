@@ -41,13 +41,7 @@ function Screen({ icon: Icon, title, children }) {
   );
 }
 
-const signInGoogle = async (setError) => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.href },
-  });
-  if (error) setError?.('No pudimos abrir el acceso con Google. Inténtalo nuevamente.');
-};
+
 
 /**
  * Página de la tarjeta digital de regalo.
@@ -56,65 +50,19 @@ const signInGoogle = async (setError) => {
  * `supabase.auth`, sin `SessionProvider`. Cubre `/mi-tarjeta/<uuid>` (una
  * tarjeta) y `/mi-tarjeta` (el panel con todas las del dueño).
  */
-/**
- * Completa el regreso de Google si la dirección trae su respuesta.
- *
- * Hace falta porque el flujo por omisión es PKCE: el intercambio del `code`
- * necesita un `code_verifier` que quedó guardado en el navegador DONDE se inició
- * el acceso. Al abrir el enlace desde WhatsApp eso se rompe con facilidad —su
- * navegador interno arranca el acceso y Google lo termina en Chrome o Safari, que
- * es otro almacenamiento y no tiene el verificador—. Sin este manejo explícito el
- * fallo era mudo: la persona elegía su cuenta, volvía, y veía otra vez la misma
- * pantalla de "entrar", sin ninguna explicación.
- *
- * @returns {'none'|'ok'|'failed'} Qué se encontró y cómo terminó.
- */
-async function completeOAuthReturn() {
-  if (typeof window === 'undefined' || !supabase) return 'none';
-
-  const query = new URLSearchParams(window.location.search);
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const code = query.get('code');
-  const failed = query.get('error') ?? hash.get('error');
-
-  if (failed) return 'failed';
-  if (!code) return 'none';
-
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-  // Se limpia la dirección en los dos casos: dejar el `code` usado en la barra
-  // haría que un refresco intentara canjearlo otra vez y fallara siempre.
-  window.history.replaceState(null, '', window.location.pathname);
-
-  return error ? 'failed' : 'ok';
-}
-
 export default function GiftCardPage() {
   const [{ cardId }] = useState(() => giftCardRoute());
   const [session, setSession] = useState(undefined);
-  const [authFailed, setAuthFailed] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) { setSession(null); return undefined; }
-
     let active = true;
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (!active) return;
-      if (s) setAuthFailed(false);
-      setSession(s ?? null);
+      if (active) setSession(s ?? null);
     });
-
-    (async () => {
-      // Primero se atiende el regreso de Google; si no, se lee la sesión guardada.
-      const outcome = await completeOAuthReturn();
-      if (!active) return;
-      if (outcome === 'failed') setAuthFailed(true);
-
-      const { data } = await supabase.auth.getSession();
-      if (!active) return;
-      setSession(data.session ?? null);
-    })();
-
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setSession(data.session ?? null);
+    });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
@@ -126,30 +74,134 @@ export default function GiftCardPage() {
     );
   }
 
-  if (cardId) {
-    return <SingleCard cardId={cardId} session={session} authFailed={authFailed} />;
-  }
-  return <OwnerPanel session={session} authFailed={authFailed} />;
+  if (cardId) return <SingleCard cardId={cardId} session={session} />;
+  return <OwnerPanel session={session} />;
 }
 
 /**
- * Aviso de acceso interrumpido, con la salida concreta.
+ * Registro e inicio de sesión del cliente con correo y contraseña.
  *
- * Reintentar desde aquí sí funciona: el segundo intento nace en ESTE navegador,
- * así que el verificador se guarda donde después va a leerse. Y si el enlace se
- * abrió dentro de WhatsApp, se dice cómo salir de ahí, porque es la causa más
- * frecuente y no se puede resolver desde el código.
+ * Usa Supabase Auth, que guarda la contraseña hasheada (bcrypt): nunca se guarda
+ * en ninguna tabla nuestra ni en texto. Se marca la cuenta con `df360_role:
+ * 'client'` para que, si esa persona abriera la app principal, el Gate la deje
+ * fuera del mundo del asesor.
+ *
+ * No usa Google: al compartir Supabase Auth con la app, una sesión de asesor con
+ * Google se colaba aquí y mostraba su correo. Con cuentas de correo propias del
+ * cliente, cada mundo tiene su sesión.
  */
-function AuthRetryNotice() {
+function EmailAuth({ title, intro }) {
+  const [tab, setTab] = useState('signup'); // 'signup' | 'login'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState('idle');
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (status === 'sending') return;
+    const mail = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) {
+      setError('Escribe un correo válido.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    setStatus('sending');
+    setError('');
+    setNotice('');
+
+    if (tab === 'signup') {
+      const { data, error: e } = await supabase.auth.signUp({
+        email: mail,
+        password,
+        options: {
+          // Marca de cliente: el Gate de la app deja fuera este rol.
+          data: { df360_role: 'client' },
+          emailRedirectTo: window.location.href,
+        },
+      });
+      if (e) {
+        setStatus('idle');
+        setError(/registered|already/i.test(e.message)
+          ? 'Ese correo ya tiene cuenta. Inicia sesión.'
+          : 'No pudimos crear la cuenta. Inténtalo de nuevo.');
+        return;
+      }
+      // Si el proyecto exige confirmar el correo, no hay sesión todavía.
+      if (data.user && !data.session) {
+        setStatus('idle');
+        setNotice('Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve aquí.');
+        return;
+      }
+      // Con sesión inmediata, `onAuthStateChange` monta el resto.
+      return;
+    }
+
+    const { error: e } = await supabase.auth.signInWithPassword({ email: mail, password });
+    if (e) {
+      setStatus('idle');
+      setError('Correo o contraseña incorrectos.');
+    }
+  };
+
   return (
-    <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-left">
-      <p className="text-xs font-medium text-amber-300">No se completó el acceso</p>
-      <p className="mt-1 text-[11px] font-light leading-relaxed text-amber-200/80">
-        Vuelve a tocar el botón para intentarlo de nuevo. Si abriste este enlace dentro de
-        WhatsApp, ábrelo en Chrome o Safari: toca el menú de tres puntos y elige
-        «Abrir en el navegador».
-      </p>
-    </div>
+    <Screen icon={UserRound} title={title}>
+      <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">{intro}</p>
+
+      <div className="mt-6 flex rounded-full border border-neutral-800 p-1">
+        {[['signup', 'Crear cuenta'], ['login', 'Ya tengo cuenta']].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setTab(key); setError(''); setNotice(''); }}
+            className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
+              tab === key ? 'bg-neutral-100 text-black' : 'text-neutral-400'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={submit} className="mt-5 space-y-3 text-left">
+        <input
+          className={INPUT}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Tu correo"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+        />
+        <input
+          className={INPUT}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Tu contraseña"
+          type="password"
+          autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
+        />
+        {error && <p role="alert" className="text-xs font-light text-rose-400">{error}</p>}
+        {notice && <p className="text-xs font-light text-emerald-400">{notice}</p>}
+        <button
+          type="submit"
+          disabled={status === 'sending'}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
+                     px-4 py-3.5 text-sm font-medium text-black hover:bg-white
+                     disabled:cursor-wait disabled:opacity-50"
+        >
+          {status === 'sending'
+            ? <><Loader2 size={16} className="animate-spin" /> Un momento…</>
+            : tab === 'signup'
+              ? <>Crear mi cuenta <ArrowRight size={16} /></>
+              : <>Entrar <ArrowRight size={16} /></>}
+        </button>
+      </form>
+    </Screen>
   );
 }
 
@@ -161,11 +213,10 @@ function AuthRetryNotice() {
  * usar la tarjeta, y sólo entonces el editor. Así lo primero que ve no es un
  * recortador de foto sin contexto.
  */
-function SingleCard({ cardId, session, authFailed = false }) {
+function SingleCard({ cardId, session }) {
   const [phase, setPhase] = useState('loading');
   const [card, setCard] = useState(null);
-  const [error, setError] = useState('');
-  // Secreto del dispositivo cuando se entró por número + clave. Vacío con Google.
+  // Secreto del dispositivo cuando se entró por número + clave. Vacío con correo.
   const [deviceSecret, setDeviceSecret] = useState('');
 
   /**
@@ -203,39 +254,30 @@ function SingleCard({ cardId, session, authFailed = false }) {
         }
         if (data?.outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
         // Secreto ya inválido (el asesor restableció): se pide acceso de nuevo.
-        setPhase(session ? 'checking_google' : 'login');
+        setPhase('login');
       })();
       return () => { active = false; };
     }
 
+    // Sin cuenta de correo iniciada: se pide identificarse (correo o número+clave).
     if (!session) { setPhase('login'); return undefined; }
 
     (async () => {
       /*
-        Se consulta el estado ANTES de reclamar.
-
-        `claim_gift_card` amarra la tarjeta a la cuenta que llama, así que
-        llamarlo de entrada la asignaba en silencio: quien ya tenía sesión de
-        Google abierta —de otra prueba, o de otra tarjeta— se encontraba dueño de
-        una tarjeta sin haber decidido nada, y sin ver con qué cuenta quedó
-        vinculada. Aquí sólo se mira si está libre; el vínculo lo confirma la
-        persona en la pantalla siguiente.
+        Con sesión de correo, se resuelve el rol contra la tarjeta. `claim`
+        reclama si está libre, o dice si esta cuenta es la dueña. Ya no hay
+        pantalla de "confirmar cuenta": la cuenta de correo es del propio cliente,
+        no una sesión ajena que pudiera colarse como pasaba con Google.
       */
-      const { data: pub, error: pe } = await fetchPublicGiftCard(cardId);
-      if (!active) return;
-      if (pe) { setPhase('offline'); return; }
-      if (pub?.outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
-      if (pub?.outcome === 'REVOCADA') { setPhase('revoked'); return; }
-
-      // Libre: se pide confirmación explícita de la cuenta antes de vincular.
-      if (pub?.outcome === 'PENDIENTE') { setPhase('confirm'); return; }
-
-      // Ya activada: el servidor dice si esta cuenta es su dueña.
       const { data, error: e } = await claimGiftCard(cardId);
       if (!active) return;
       if (e) { setPhase('offline'); return; }
+      if (data?.outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
+      if (data?.outcome === 'REVOKED') { setPhase('revoked'); return; }
       if (data?.outcome === 'OWNER') { await openAsOwner(); return; }
       if (data?.outcome === 'NOT_OWNER') {
+        const { data: pub } = await fetchPublicGiftCard(cardId);
+        if (!active) return;
         setCard(pub?.outcome === 'ACTIVA' ? pub : null);
         setPhase('not_owner');
         return;
@@ -244,19 +286,6 @@ function SingleCard({ cardId, session, authFailed = false }) {
     })();
     return () => { active = false; };
   }, [cardId, session, openAsOwner]);
-
-  /** Vincula la tarjeta a esta cuenta, ya con el consentimiento dado. */
-  const activate = async () => {
-    setPhase('activating');
-    setError('');
-    const { data, error: e } = await claimGiftCard(cardId);
-    if (e || data?.outcome !== 'OWNER') {
-      setPhase('confirm');
-      setError('No pudimos activar la tarjeta. Inténtalo nuevamente.');
-      return;
-    }
-    await openAsOwner();
-  };
 
   const dismissWelcome = () => {
     try { window.localStorage.setItem(SEEN_KEY + cardId, '1'); } catch { /* sin storage */ }
@@ -296,42 +325,27 @@ function SingleCard({ cardId, session, authFailed = false }) {
     );
   }
 
-  // Paso cero: identificarse. Dos vías, y ninguna muestra la tarjeta antes.
+  // Paso cero: identificarse. Correo+contraseña, o número+clave. Nada se muestra
+  // de la tarjeta antes de esto.
   if (phase === 'login') {
     return (
-      <Screen icon={Sparkles} title="Tu tarjeta digital de regalo">
-        <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
-          Te regalaron una tarjeta digital para que la hagas tuya: tu nombre, tu foto y tus
-          datos. Identifícate para activarla; así sólo tú podrás editarla.
-        </p>
-        {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
-        {authFailed && <AuthRetryNotice />}
-
-        <button
-          type="button"
-          onClick={() => signInGoogle(setError)}
-          className="mx-auto mt-8 flex w-full items-center justify-center gap-2 rounded-xl
-                     bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black hover:bg-white"
-        >
-          {authFailed ? 'Intentar de nuevo con Google' : 'Entrar con Google'}
-        </button>
-
-        <div className="my-5 flex items-center gap-3">
-          <span className="h-px flex-1 bg-neutral-900" />
-          <span className="text-[10px] uppercase tracking-widest text-neutral-700">o</span>
-          <span className="h-px flex-1 bg-neutral-900" />
+      <div>
+        <EmailAuth
+          title="Tu tarjeta digital de regalo"
+          intro="Te regalaron una tarjeta digital para que la hagas tuya: tu nombre, tu foto y
+                 tus datos. Crea tu cuenta para activarla; así sólo tú podrás editarla."
+        />
+        <div className="mx-auto -mt-4 max-w-sm px-6 pb-10 text-center">
+          <button
+            type="button"
+            onClick={() => setPhase('phone')}
+            className="text-[11px] font-light text-neutral-500 underline-offset-2
+                       hover:text-neutral-300 hover:underline"
+          >
+            ¿Prefieres entrar con tu número y una clave? Toca aquí
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => { setError(''); setPhase('phone'); }}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border
-                     border-neutral-700 px-4 py-3.5 text-sm font-light text-neutral-200
-                     hover:border-neutral-500"
-        >
-          <KeyRound size={15} /> Entrar con mi número y clave
-        </button>
-      </Screen>
+      </div>
     );
   }
 
@@ -349,57 +363,6 @@ function SingleCard({ cardId, session, authFailed = false }) {
     );
   }
 
-  /*
-    Consentimiento explícito del vínculo.
-
-    Se muestra la cuenta con la que va a quedar amarrada, porque es una decisión
-    permanente: sólo esa cuenta podrá editarla después. Antes esto ocurría solo,
-    sin preguntar, y quien ya tenía una sesión de Google abierta se volvía dueño
-    sin enterarse ni saber con qué correo.
-  */
-  if (phase === 'confirm' || phase === 'activating') {
-    const email = session?.user?.email ?? '';
-    return (
-      <Screen icon={UserRound} title="Activa tu tarjeta">
-        <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
-          Tu tarjeta quedará vinculada a esta cuenta. Sólo desde ella podrás editarla
-          más adelante.
-        </p>
-
-        <div className="mt-5 rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-left">
-          <p className="text-[10px] uppercase tracking-widest text-neutral-600">Cuenta</p>
-          <p className="mt-1 truncate text-sm font-light text-neutral-100">
-            {email || 'Tu cuenta de Google'}
-          </p>
-        </div>
-
-        {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
-
-        <button
-          type="button"
-          onClick={activate}
-          disabled={phase === 'activating'}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
-                     px-4 py-3.5 text-sm font-medium text-black hover:bg-white
-                     disabled:cursor-wait disabled:opacity-50"
-        >
-          {phase === 'activating'
-            ? <><Loader2 size={16} className="animate-spin" /> Activando…</>
-            : <>Sí, activar mi tarjeta <ArrowRight size={16} /></>}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => supabase.auth.signOut()}
-          className="mx-auto mt-5 flex items-center gap-2 text-xs font-light text-neutral-500
-                     underline-offset-2 hover:text-neutral-300 hover:underline"
-        >
-          <LogOut size={13} /> Usar otra cuenta de Google
-        </button>
-      </Screen>
-    );
-  }
-
   if (phase === 'welcome') return <Welcome onStart={dismissWelcome} />;
 
   if (phase === 'not_owner') {
@@ -407,8 +370,8 @@ function SingleCard({ cardId, session, authFailed = false }) {
       <main className="min-h-[100dvh] bg-black px-5 py-10">
         <div className="mx-auto mb-6 max-w-sm text-center">
           <p className="text-xs font-light leading-relaxed text-neutral-500">
-            Esta tarjeta ya pertenece a alguien. Si es tuya, entra con la misma cuenta de
-            Google con la que la activaste.
+            Esta tarjeta ya pertenece a alguien. Si es tuya, entra con la misma cuenta con la
+            que la activaste.
           </p>
           <button
             type="button"
@@ -593,9 +556,8 @@ function Welcome({ onStart }) {
 }
 
 /** Panel del dueño: todas sus tarjetas, sin necesidad de guardar enlaces. */
-function OwnerPanel({ session, authFailed = false }) {
+function OwnerPanel({ session }) {
   const [cards, setCards] = useState(null);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!session) return;
@@ -606,21 +568,10 @@ function OwnerPanel({ session, authFailed = false }) {
 
   if (!session) {
     return (
-      <Screen icon={IdCard} title="Tus tarjetas digitales">
-        <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
-          Entra con Google para ver y editar las tarjetas que te han regalado.
-        </p>
-        {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
-        {authFailed && <AuthRetryNotice />}
-        <button
-          type="button"
-          onClick={() => signInGoogle(setError)}
-          className="mx-auto mt-8 flex w-full items-center justify-center gap-2 rounded-xl
-                     bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black hover:bg-white"
-        >
-          {authFailed ? 'Intentar de nuevo con Google' : 'Entrar con Google'}
-        </button>
-      </Screen>
+      <EmailAuth
+        title="Tus tarjetas digitales"
+        intro="Entra con tu cuenta para ver y editar las tarjetas que te han regalado."
+      />
     );
   }
 
