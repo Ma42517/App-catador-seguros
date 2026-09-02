@@ -23,6 +23,8 @@ const INPUT = 'w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 p
 const SPECIALTIES = ['Emprendedor', 'Profesional', 'Familia', 'Estudiante', 'Empresa'];
 /** Marca de que ya se vio la bienvenida de una tarjeta, para no repetirla. */
 const SEEN_KEY = 'df360:giftcard:welcome:';
+/** Código escrito al registrarse, para retomarlo tras confirmar el correo. */
+const PENDING_CODE_KEY = 'df360:giftcard:pendingcode';
 
 function Screen({ icon: Icon, title, children }) {
   return (
@@ -141,15 +143,19 @@ function EmailAuth({
           : 'No pudimos crear la cuenta. Inténtalo de nuevo.');
         return;
       }
-      // Si el proyecto exige confirmar el correo, no hay sesión todavía. El código
-      // se validará al volver: se guarda para el paso siguiente.
+      // Confirmación de correo activada en el proyecto: no hay sesión todavía.
+      // Se recuerda el código para retomarlo cuando la persona vuelva ya
+      // confirmada, y así no queda atrapada pidiendo un correo que no llega.
       if (data.user && !data.session) {
+        try {
+          window.localStorage.setItem(PENDING_CODE_KEY, code.replace(/\D/g, ''));
+        } catch { /* sin storage: tendrá que escribir el código al volver */ }
         setStatus('idle');
-        setNotice('Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve aquí '
-          + 'para escribir tu código.');
+        setNotice('Te enviamos un correo para confirmar tu cuenta. Ábrelo desde este mismo '
+          + 'teléfono y tu tarjeta se activará sola.');
         return;
       }
-      // Con sesión inmediata: se entrega el código al padre para vincular.
+      // Con sesión inmediata (confirmación desactivada): vincula y entra directo.
       onReady?.({ code: code.replace(/\D/g, '') });
       return;
     }
@@ -338,7 +344,22 @@ function SingleCard({ cardId, session }) {
       if (data?.outcome === 'REVOKED') { setPhase('revoked'); return; }
       if (data?.outcome === 'OWNER') { await openAsOwner(); return; }
       // Cuenta iniciada pero tarjeta aún sin vincular: falta el código.
-      if (data?.outcome === 'NEEDS_CODE') { setPhase('need_code'); return; }
+      if (data?.outcome === 'NEEDS_CODE') {
+        /*
+          Si la persona acaba de confirmar su correo y vuelve, el código que
+          escribió al registrarse quedó guardado: se retoma solo, sin pedírselo de
+          nuevo. Si no hay ninguno guardado, se le pide en pantalla.
+        */
+        let pending = '';
+        try { pending = window.localStorage.getItem(PENDING_CODE_KEY) ?? ''; } catch { /* sin storage */ }
+        if (pending && pending.length === 6) {
+          try { window.localStorage.removeItem(PENDING_CODE_KEY); } catch { /* nada */ }
+          await vincularConCodigo(pending);
+          return;
+        }
+        setPhase('need_code');
+        return;
+      }
       if (data?.outcome === 'NOT_OWNER') {
         const { data: pub } = await fetchPublicGiftCard(cardId);
         if (!active) return;
@@ -349,7 +370,7 @@ function SingleCard({ cardId, session }) {
       setPhase('offline');
     })();
     return () => { active = false; };
-  }, [cardId, session, openAsOwner]);
+  }, [cardId, session, openAsOwner, vincularConCodigo]);
 
   const dismissWelcome = () => {
     try { window.localStorage.setItem(SEEN_KEY + cardId, '1'); } catch { /* sin storage */ }
