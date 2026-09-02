@@ -27,8 +27,15 @@ export const BUCKET = 'workplace-files';
  * Es un respaldo con tope de tamaño a propósito: sirve para probar el muro sin
  * credenciales, no para almacenar de verdad.
  */
-export async function uploadAttachment(file, folder = '') {
+export async function uploadAttachment(file, folder = '', client = null) {
   if (!file) return { url: '', error: null, source: 'none' };
+
+  /*
+    `client` permite subir con OTRA sesión que la de la app. Lo usa la tarjeta de
+    regalo: su mundo tiene cliente propio para no compartir sesión con el asesor,
+    y la foto tiene que subirse con la sesión de quien la está editando.
+  */
+  const sb = client ?? supabase;
 
   // La carpeta separa lo que es de la promotoría de lo que es de cada persona
   // dentro del mismo bucket, que ya tiene las políticas puestas.
@@ -63,7 +70,7 @@ export async function uploadAttachment(file, folder = '') {
     return { url, error: null, source: 'local', fileName };
   }
 
-  const { error: uploadError } = await supabase.storage
+  const { error: uploadError } = await sb.storage
     .from(BUCKET)
     .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
@@ -81,7 +88,7 @@ export async function uploadAttachment(file, folder = '') {
     };
   }
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
+  const { data } = sb.storage.from(BUCKET).getPublicUrl(fileName);
 
   if (!data?.publicUrl) {
     return {

@@ -3,7 +3,7 @@ import {
   ArrowLeft, ArrowRight, Check, Copy, Eye, Gift, IdCard, KeyRound, Loader2, LogOut,
   Pencil, Share2, Sparkles, UserRound,
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { giftCardSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { giftCardRoute, giftCardUrl } from '../lib/giftCardRoute';
 import {
   claimGiftCard, claimGiftCardWithSignup,
@@ -60,21 +60,23 @@ function Screen({ icon: Icon, title, children }) {
 /**
  * Página de la tarjeta digital de regalo.
  *
- * Ruta aislada del mundo asesor: monta su propia sesión de Google con
- * `supabase.auth`, sin `SessionProvider`. Cubre `/mi-tarjeta/<uuid>` (una
- * tarjeta) y `/mi-tarjeta` (el panel con todas las del dueño).
+ * Ruta aislada del mundo asesor: usa `giftCardSupabase`, un cliente con su
+ * propia llave de sesión en el navegador, y no monta `SessionProvider`. Por eso
+ * abrir el enlace desde el teléfono del asesor ya no hereda su sesión: en este
+ * mundo esa sesión no existe. Cubre `/mi-tarjeta/<uuid>` (una tarjeta) y
+ * `/mi-tarjeta` (el panel con todas las del dueño).
  */
 export default function GiftCardPage() {
   const [{ cardId }] = useState(() => giftCardRoute());
   const [session, setSession] = useState(undefined);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) { setSession(null); return undefined; }
+    if (!isSupabaseConfigured || !giftCardSupabase) { setSession(null); return undefined; }
     let active = true;
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = giftCardSupabase.auth.onAuthStateChange((_e, s) => {
       if (active) setSession(s ?? null);
     });
-    supabase.auth.getSession().then(({ data }) => {
+    giftCardSupabase.auth.getSession().then(({ data }) => {
       if (active) setSession(data.session ?? null);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
@@ -100,9 +102,9 @@ export default function GiftCardPage() {
  * 'client'` para que, si esa persona abriera la app principal, el Gate la deje
  * fuera del mundo del asesor.
  *
- * No usa Google: al compartir Supabase Auth con la app, una sesión de asesor con
- * Google se colaba aquí y mostraba su correo. Con cuentas de correo propias del
- * cliente, cada mundo tiene su sesión.
+ * No usa Google: la sesión de asesor con Google se colaba aquí y mostraba su
+ * correo. Ahora, además de tener cuentas de correo propias, la sesión vive en
+ * `giftCardSupabase`, separada de la de la app.
  */
 function EmailAuth({
   title, intro, requireCode = false, onReady,
@@ -138,7 +140,7 @@ function EmailAuth({
     setNotice('');
 
     if (tab === 'signup') {
-      const { data, error: e } = await supabase.auth.signUp({
+      const { data, error: e } = await giftCardSupabase.auth.signUp({
         email: mail,
         password,
         options: {
@@ -171,7 +173,7 @@ function EmailAuth({
       return;
     }
 
-    const { error: e } = await supabase.auth.signInWithPassword({ email: mail, password });
+    const { error: e } = await giftCardSupabase.auth.signInWithPassword({ email: mail, password });
     if (e) {
       setStatus('idle');
       setError('Correo o contraseña incorrectos.');
@@ -306,6 +308,9 @@ function SingleCard({ cardId, session }) {
       CODE_EXPIRED: 'Ese código ya se usó o no es válido. Pide uno nuevo a tu asesor.',
       TOO_MANY_ATTEMPTS: 'Demasiados intentos. Pide un código nuevo a tu asesor.',
       NOT_OWNER: 'Esta tarjeta ya pertenece a otra cuenta.',
+      // El servidor sólo acepta cuentas creadas en esta página; nunca la de un asesor.
+      WRONG_ACCOUNT: 'Esa cuenta no sirve para activar la tarjeta. Sal y crea tu cuenta '
+        + 'con tu correo aquí mismo.',
       REVOKED: 'Esta tarjeta ya no está activa.',
       NOT_FOUND: 'Esta tarjeta no está disponible.',
     };
@@ -376,7 +381,7 @@ function SingleCard({ cardId, session }) {
           la pantalla del código, sin quedar en bucle de inicio de sesión.
         */
         if (!isClientSession(session)) {
-          await supabase.auth.signOut();
+          await giftCardSupabase.auth.signOut();
           if (!active) return;
           setPhase('login');
           return;
@@ -507,7 +512,7 @@ function SingleCard({ cardId, session }) {
           </p>
           <button
             type="button"
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => giftCardSupabase.auth.signOut()}
             className="mx-auto mt-3 flex items-center gap-2 text-xs font-light text-neutral-400
                        underline-offset-2 hover:text-neutral-200 hover:underline"
           >
@@ -769,7 +774,7 @@ function OwnerPanel({ session }) {
         </p>
         <button
           type="button"
-          onClick={() => supabase.auth.signOut()}
+          onClick={() => giftCardSupabase.auth.signOut()}
           className="mx-auto mt-6 flex items-center gap-2 text-xs font-light text-neutral-500
                      hover:text-neutral-300"
         >
@@ -786,7 +791,7 @@ function OwnerPanel({ session }) {
           <h1 className="text-lg font-light text-white">Tus tarjetas</h1>
           <button
             type="button"
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => giftCardSupabase.auth.signOut()}
             className="flex items-center gap-1 text-[11px] font-light text-neutral-500
                        hover:text-neutral-300"
           >
@@ -953,7 +958,7 @@ function CardEditor({ cardId, initial, deviceSecret = '' }) {
           </p>
           <button
             type="button"
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => giftCardSupabase.auth.signOut()}
             className="flex items-center gap-1 text-[11px] font-light text-neutral-500
                        hover:text-neutral-300"
           >

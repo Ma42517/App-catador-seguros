@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, giftCardSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { uploadAttachment, BUCKET } from './announcementsRepo';
 
 /**
@@ -14,9 +14,23 @@ function unavailable() {
   return { data: null, error: { message: 'El servicio no está configurado.' } };
 }
 
+/** Llamadas con la sesión de la APP: son las del asesor (crear, liberar, revocar). */
 async function callRpc(name, params) {
   if (!isSupabaseConfigured || !supabase) return unavailable();
   const { data, error } = await supabase.rpc(name, params);
+  return { data: data ?? null, error: error ?? null };
+}
+
+/**
+ * Llamadas con la sesión del CLIENTE, la del mundo `/mi-tarjeta`.
+ *
+ * Va por `giftCardSupabase`, que guarda su sesión en otra llave del navegador.
+ * De ahí sale la separación: aquí nunca viaja el token del asesor, así que no
+ * hay forma de que su cuenta reclame ni edite la tarjeta de nadie.
+ */
+async function callClientRpc(name, params) {
+  if (!isSupabaseConfigured || !giftCardSupabase) return unavailable();
+  const { data, error } = await giftCardSupabase.rpc(name, params);
   return { data: data ?? null, error: error ?? null };
 }
 
@@ -24,17 +38,17 @@ async function callRpc(name, params) {
 
 /** Lo publicable de una tarjeta activa, sin identidad. */
 export function fetchPublicGiftCard(cardId) {
-  return callRpc('public_gift_card', { p_card_id: cardId });
+  return callClientRpc('public_gift_card', { p_card_id: cardId });
 }
 
 /** Confirma si la sesión actual ya es dueña. Si la tarjeta está libre, NEEDS_CODE. */
 export function claimGiftCard(cardId) {
-  return callRpc('claim_gift_card', { p_card_id: cardId });
+  return callClientRpc('claim_gift_card', { p_card_id: cardId });
 }
 
 /** Vincula la tarjeta a la cuenta recién creada, validando el código del asesor. */
 export function claimGiftCardWithSignup(cardId, code) {
-  return callRpc('claim_gift_card_with_signup', {
+  return callClientRpc('claim_gift_card_with_signup', {
     p_card_id: cardId,
     p_code: String(code ?? '').trim(),
   });
@@ -42,7 +56,7 @@ export function claimGiftCardWithSignup(cardId, code) {
 
 /** Contenido editable, para el dueño por Google o por dispositivo autorizado. */
 export function fetchMyGiftCard(cardId, deviceSecret = '') {
-  return callRpc('my_gift_card', {
+  return callClientRpc('my_gift_card', {
     p_card_id: cardId,
     p_device_secret: String(deviceSecret ?? ''),
   });
@@ -50,7 +64,7 @@ export function fetchMyGiftCard(cardId, deviceSecret = '') {
 
 /** Guarda los campos de texto de la tarjeta. */
 export function saveGiftCard(cardId, patch, deviceSecret = '') {
-  return callRpc('save_gift_card', {
+  return callClientRpc('save_gift_card', {
     p_card_id: cardId,
     p_patch: patch ?? {},
     p_device_secret: String(deviceSecret ?? ''),
@@ -64,7 +78,7 @@ export function issueGiftCardAccessCode(cardId) {
 
 /** Entra con número + clave. El servidor devuelve el secreto del dispositivo. */
 export function claimGiftCardWithCode(cardId, phone, code) {
-  return callRpc('claim_gift_card_with_code', {
+  return callClientRpc('claim_gift_card_with_code', {
     p_card_id: cardId,
     p_phone: String(phone ?? '').trim(),
     p_code: String(code ?? '').trim(),
@@ -73,7 +87,7 @@ export function claimGiftCardWithCode(cardId, phone, code) {
 
 /** Abre la tarjeta con el dispositivo ya autorizado, sin pedir nada. */
 export function openGiftCardWithDevice(cardId, deviceSecret) {
-  return callRpc('open_gift_card_with_device', {
+  return callClientRpc('open_gift_card_with_device', {
     p_card_id: cardId,
     p_device_secret: String(deviceSecret ?? ''),
   });
@@ -87,10 +101,13 @@ export function openGiftCardWithDevice(cardId, deviceSecret) {
  * ya quedó guardada—, pero se intenta siempre.
  */
 export async function uploadGiftCardPhoto(cardId, file, deviceSecret = '') {
-  const { url, error, fileName } = await uploadAttachment(file, `gift-cards/${cardId}`);
+  // Se sube con la sesión del cliente, no con la de la app: son mundos separados.
+  const { url, error, fileName } = await uploadAttachment(
+    file, `gift-cards/${cardId}`, giftCardSupabase,
+  );
   if (error || !url) return { data: null, error: error ?? { message: 'No se pudo subir la foto.' } };
 
-  const { data, error: rpcError } = await callRpc('set_gift_card_photo', {
+  const { data, error: rpcError } = await callClientRpc('set_gift_card_photo', {
     p_card_id: cardId,
     p_avatar_url: url,
     p_avatar_path: fileName,
@@ -99,16 +116,16 @@ export async function uploadGiftCardPhoto(cardId, file, deviceSecret = '') {
   if (rpcError) return { data: null, error: rpcError };
 
   const previous = data?.previousPath;
-  if (previous && previous !== fileName && supabase) {
-    await supabase.storage.from(BUCKET).remove([previous]).catch(() => {});
+  if (previous && previous !== fileName && giftCardSupabase) {
+    await giftCardSupabase.storage.from(BUCKET).remove([previous]).catch(() => {});
   }
 
   return { data: { ...data, avatarUrl: url }, error: null };
 }
 
-/** Todas las tarjetas que le pertenecen al Google que entró. */
+/** Todas las tarjetas que le pertenecen a la cuenta de cliente que entró. */
 export function fetchMyGiftCards() {
-  return callRpc('my_gift_cards', {});
+  return callClientRpc('my_gift_cards', {});
 }
 
 // ─── Lado del asesor ─────────────────────────────────────────────────────────
