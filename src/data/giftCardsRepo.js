@@ -32,14 +32,43 @@ export function claimGiftCard(cardId) {
   return callRpc('claim_gift_card', { p_card_id: cardId });
 }
 
-/** Contenido editable, sólo para el dueño. */
-export function fetchMyGiftCard(cardId) {
-  return callRpc('my_gift_card', { p_card_id: cardId });
+/** Contenido editable, para el dueño por Google o por dispositivo autorizado. */
+export function fetchMyGiftCard(cardId, deviceSecret = '') {
+  return callRpc('my_gift_card', {
+    p_card_id: cardId,
+    p_device_secret: String(deviceSecret ?? ''),
+  });
 }
 
 /** Guarda los campos de texto de la tarjeta. */
-export function saveGiftCard(cardId, patch) {
-  return callRpc('save_gift_card', { p_card_id: cardId, p_patch: patch ?? {} });
+export function saveGiftCard(cardId, patch, deviceSecret = '') {
+  return callRpc('save_gift_card', {
+    p_card_id: cardId,
+    p_patch: patch ?? {},
+    p_device_secret: String(deviceSecret ?? ''),
+  });
+}
+
+/** Emite la clave de 15 minutos. Sólo el asesor la ve. */
+export function issueGiftCardAccessCode(cardId) {
+  return callRpc('issue_gift_card_access_code', { p_card_id: cardId });
+}
+
+/** Entra con número + clave. El servidor devuelve el secreto del dispositivo. */
+export function claimGiftCardWithCode(cardId, phone, code) {
+  return callRpc('claim_gift_card_with_code', {
+    p_card_id: cardId,
+    p_phone: String(phone ?? '').trim(),
+    p_code: String(code ?? '').trim(),
+  });
+}
+
+/** Abre la tarjeta con el dispositivo ya autorizado, sin pedir nada. */
+export function openGiftCardWithDevice(cardId, deviceSecret) {
+  return callRpc('open_gift_card_with_device', {
+    p_card_id: cardId,
+    p_device_secret: String(deviceSecret ?? ''),
+  });
 }
 
 /**
@@ -49,7 +78,7 @@ export function saveGiftCard(cardId, patch) {
  * acumula más de una imagen. Si el borrado falla no se interrumpe —la foto nueva
  * ya quedó guardada—, pero se intenta siempre.
  */
-export async function uploadGiftCardPhoto(cardId, file) {
+export async function uploadGiftCardPhoto(cardId, file, deviceSecret = '') {
   const { url, error, fileName } = await uploadAttachment(file, `gift-cards/${cardId}`);
   if (error || !url) return { data: null, error: error ?? { message: 'No se pudo subir la foto.' } };
 
@@ -57,6 +86,7 @@ export async function uploadGiftCardPhoto(cardId, file) {
     p_card_id: cardId,
     p_avatar_url: url,
     p_avatar_path: fileName,
+    p_device_secret: String(deviceSecret ?? ''),
   });
   if (rpcError) return { data: null, error: rpcError };
 
