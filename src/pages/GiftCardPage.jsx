@@ -211,7 +211,7 @@ function EmailAuth({
               maxLength={6}
             />
             <p className="mt-1.5 text-[11px] font-light text-neutral-600">
-              Es la clave de 6 dígitos que te compartieron. Dura 15 minutos.
+              Es el código de 6 dígitos que te compartió tu asesor. Se usa una sola vez.
             </p>
           </div>
         )}

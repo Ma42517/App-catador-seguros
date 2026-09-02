@@ -16,9 +16,9 @@ function giftMessage(lead, advisorName, url, code) {
   const firstName = String(lead?.name ?? '').trim().split(/\s+/)[0] || 'Hola';
   const from = advisorName ? ` Soy ${advisorName}.` : '';
   const access = code
-    ? `\n\nPuedes activarla con tu Google, o con tu número y esta clave: ${code} `
-      + '(vence en 15 minutos).'
-    : '\n\nÁbrela y entra con tu Google para activarla; sólo tú podrás editarla.';
+    ? `\n\nÁbrela y crea tu cuenta con este código de activación: ${code}\n`
+      + 'Es de un solo uso, sólo para ti.'
+    : '\n\nÁbrela y crea tu cuenta para activarla; sólo tú podrás editarla.';
   return `Hola ${firstName}.${from} Te regalo una tarjeta digital personal para que la hagas `
     + `tuya —tu nombre, tu foto, tus datos—.\n\n${url}${access}`;
 }
@@ -28,7 +28,7 @@ function giftMessage(lead, advisorName, url, code) {
  *
  * Consume 1 tarjeta del inventario (o del fondo de emergencia, con confirmación).
  * El enlace lleva a la ruta aislada `/mi-tarjeta/...`, donde el cliente entra con
- * SU Google. El envío es manual: el asesor abre WhatsApp cuando decide.
+ * su cuenta. El envío es manual: el asesor abre WhatsApp cuando decide.
  */
 export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
   const [phase, setPhase] = useState('idle');
@@ -71,8 +71,9 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
     setSource(data.source ?? '');
     setCardId(data.cardId);
 
-    // La clave de 15 minutos, para quien prefiera no usar Google. Si algo falla,
-    // la tarjeta igual sirve con Google: no se bloquea la entrega por esto.
+    // Código de activación de un solo uso: la persona lo necesita para crear su
+    // cuenta y quedarse con la tarjeta. Si algo falla al emitirlo, la tarjeta ya
+    // existe y se puede emitir el código aparte; no se bloquea la entrega.
     const { data: codeData } = await issueGiftCardAccessCode(data.cardId);
     const issued = codeData?.outcome === 'ISSUED' ? codeData.code : '';
     setCode(issued);
@@ -80,7 +81,7 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
     setPhase('ready');
   };
 
-  /** Clave nueva: la anterior queda inservible en el momento. */
+  /** Código nuevo: el anterior queda inservible en el momento. */
   const reissueCode = async () => {
     if (!cardId) return;
     const { data } = await issueGiftCardAccessCode(cardId);
@@ -131,8 +132,9 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
                 <div className="flex items-start gap-2">
                   <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-500" />
                   <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-                    Se creará una tarjeta en blanco. La persona la activa entrando con su
-                    Google y la personaliza con sus datos. Nada se envía hasta que abras WhatsApp.
+                    Se creará una tarjeta en blanco. La persona la activa creando su cuenta
+                    con el código y la personaliza con sus datos. Nada se envía hasta que
+                    abras WhatsApp.
                   </p>
                 </div>
               </div>
@@ -217,15 +219,15 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
               </div>
 
               {/*
-                La clave, para quien no quiera usar Google. Vive 15 minutos y sólo
+                Código de activación de la tarjeta. Es de un solo uso y sólo
                 aparece aquí: en la página del cliente no existe, así que
-                inspeccionar la web pública no la revela.
+                inspeccionar la web pública no lo revela.
               */}
               {code && (
                 <div className="mt-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">
-                      Clave por número · 15 min
+                      Código de activación · un solo uso
                     </p>
                     <button
                       type="button"
@@ -233,7 +235,7 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
                       className="text-[10px] font-semibold text-indigo-500 underline-offset-2
                                  hover:underline dark:text-indigo-300"
                     >
-                      Clave nueva
+                      Código nuevo
                     </button>
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-3">
@@ -247,13 +249,14 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
                       onClick={() => copy(code, 'code')}
                       className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border
                                  border-indigo-500/30 text-indigo-500 dark:text-indigo-300"
-                      aria-label="Copiar clave"
+                      aria-label="Copiar código"
                     >
                       {copied === 'code' ? <Check size={16} /> : <Copy size={16} />}
                     </button>
                   </div>
                   <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
-                    Alternativa a Google: con su número y esta clave también puede activarla.
+                    La persona lo necesita para crear su cuenta y activar la tarjeta. Se usa
+                    una sola vez; puedes emitir uno nuevo cuando quieras.
                   </p>
                 </div>
               )}
@@ -303,10 +306,10 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
               </a>
 
               {/*
-                Soltar al dueño. El asesor sólo tiene el WhatsApp del contacto, no
-                su Gmail, así que si la reclama por error un Google equivocado, ésta
-                es la única forma de devolverla a la persona correcta. No consume
-                inventario: es la misma tarjeta.
+                Soltar al dueño. Si la tarjeta la activó por error una cuenta
+                equivocada, ésta es la forma de devolverla a la persona correcta:
+                se libera y se puede emitir un código nuevo. No consume inventario:
+                es la misma tarjeta.
               */}
               <button
                 type="button"
