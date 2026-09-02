@@ -1,23 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Check, Gift, Image as ImageIcon, Loader2, LogOut, Send, Sparkles, UserPlus,
+  ArrowLeft, Check, Copy, Eye, Gift, IdCard, Image as ImageIcon, Loader2, LogOut,
+  Pencil, Share2, Sparkles,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import { giftCardRoute } from '../lib/giftCardRoute';
+import { giftCardRoute, giftCardUrl } from '../lib/giftCardRoute';
 import {
-  claimGiftCard, fetchMyGiftCard, saveGiftCard, uploadGiftCardPhoto, propagateGiftCard,
+  claimGiftCard, fetchMyGiftCard, fetchMyGiftCards, fetchPublicGiftCard,
+  saveGiftCard, uploadGiftCardPhoto,
 } from '../data/giftCardsRepo';
-import {
-  readImageFile, shrinkImageForUpload, dataUrlToFile,
-} from '../data/cardPhoto';
+import { readImageFile, shrinkImageForUpload, dataUrlToFile } from '../data/cardPhoto';
+import { whatsAppLink } from '../lib/advisorPhone';
 
-const SPECIALTIES = ['Emprendedor', 'Profesional', 'Familia', 'Estudiante', 'Empresa'];
 const INPUT = 'w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm '
   + 'font-light text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-neutral-500';
-
-function digits(value) {
-  return String(value ?? '').replace(/\D/g, '');
-}
+const SPECIALTIES = ['Emprendedor', 'Profesional', 'Familia', 'Estudiante', 'Empresa'];
 
 function Screen({ icon: Icon, title, children }) {
   return (
@@ -38,21 +35,96 @@ function Screen({ icon: Icon, title, children }) {
 }
 
 /**
- * Página pública de la tarjeta digital de regalo.
+ * Tarjeta de presentación, en solo lectura.
  *
- * Aislada del mundo del asesor: monta su propia sesión de Google con
- * `supabase.auth` directamente, SIN `SessionProvider`. Por eso entrar aquí con
- * Google no crea ninguna ficha de asesor ni pasa por el Gate — el `sub` del
- * token sólo sirve para que los RPC identifiquen al dueño de la tarjeta.
+ * Es lo que ve cualquiera con el enlace: el dueño en su vista previa, y un
+ * tercero a quien el dueño le compartió su tarjeta. Presenta contacto y
+ * WhatsApp; no ofrece "obtén la tuya" —referir es exclusivo del asesor—.
+ */
+function CardPresentation({ card }) {
+  const whatsapp = String(card.whatsapp ?? '').replace(/\D/g, '');
+  const phone = String(card.phone ?? '').replace(/\D/g, '');
+  const specialties = Array.isArray(card.specialties) ? card.specialties : [];
+
+  return (
+    <div className="mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-neutral-800
+                    bg-gradient-to-b from-neutral-900 to-black"
+    >
+      <div className="relative h-72 w-full bg-neutral-950">
+        {card.avatarUrl
+          ? <img src={card.avatarUrl} alt={card.fullName} className="h-full w-full object-cover" />
+          : (
+            <div className="grid h-full w-full place-items-center text-neutral-700">
+              <ImageIcon size={40} />
+            </div>
+          )}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black to-transparent" />
+      </div>
+
+      <div className="p-6">
+        <h1 className="text-2xl font-light tracking-tight text-white">
+          {card.fullName || 'Sin nombre'}
+        </h1>
+        {card.title && <p className="mt-1 text-sm font-light text-neutral-400">{card.title}</p>}
+        {card.company && <p className="text-xs font-light text-neutral-600">{card.company}</p>}
+        {card.bio && (
+          <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">{card.bio}</p>
+        )}
+
+        {specialties.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {specialties.map((s) => (
+              <span key={s} className="rounded-full border border-neutral-800 px-3 py-1
+                                       text-[11px] font-light text-neutral-400"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {(whatsapp || phone) && (
+          <div className="mt-6 flex gap-2">
+            {whatsapp && (
+              <a
+                href={`https://wa.me/${whatsapp}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600
+                           px-4 py-3 text-sm font-medium text-white hover:bg-emerald-500"
+              >
+                WhatsApp
+              </a>
+            )}
+            {phone && (
+              <a
+                href={`tel:${phone}`}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border
+                           border-neutral-700 px-4 py-3 text-sm font-light text-neutral-200
+                           hover:border-neutral-500"
+              >
+                Llamar
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Página de la tarjeta digital de regalo.
+ *
+ * Ruta aislada del mundo asesor: monta su propia sesión de Google con
+ * `supabase.auth`, sin `SessionProvider`. Cubre dos direcciones:
+ *   - `/mi-tarjeta/<uuid>`: una tarjeta concreta.
+ *   - `/mi-tarjeta`: el panel del dueño con todas sus tarjetas.
  */
 export default function GiftCardPage() {
   const [{ cardId }] = useState(() => giftCardRoute());
-  const [session, setSession] = useState(undefined); // undefined = cargando
-  const [phase, setPhase] = useState('loading');
-  const [card, setCard] = useState(null);
-  const [error, setError] = useState('');
+  const [session, setSession] = useState(undefined);
 
-  // Sesión de Google, propia de esta página.
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) { setSession(null); return undefined; }
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
@@ -60,41 +132,64 @@ export default function GiftCardPage() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Con sesión, se intenta reclamar/entrar a la tarjeta.
-  useEffect(() => {
-    if (session === undefined) return;
-    if (!cardId) { setPhase('invalid'); return; }
-    if (!session) { setPhase('login'); return; }
+  if (session === undefined) {
+    return (
+      <main className="grid min-h-[100dvh] place-items-center bg-black">
+        <Loader2 size={22} className="animate-spin text-neutral-700" aria-label="Abriendo" />
+      </main>
+    );
+  }
 
+  if (cardId) return <SingleCard cardId={cardId} session={session} />;
+  return <OwnerPanel session={session} />;
+}
+
+const signInGoogle = async (setError) => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href },
+  });
+  if (error) setError?.('No pudimos abrir el acceso con Google. Inténtalo nuevamente.');
+};
+
+/** Una tarjeta por su id: dueño → editor; tercero → presentación; sin sesión → según estado. */
+function SingleCard({ cardId, session }) {
+  const [phase, setPhase] = useState('loading');
+  const [card, setCard] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
     let active = true;
     (async () => {
-      const { data, error: e } = await claimGiftCard(cardId);
-      if (!active) return;
-      if (e) { setPhase('offline'); return; }
-      const outcome = data?.outcome;
-      if (outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
-      if (outcome === 'REVOKED') { setPhase('revoked'); return; }
-      if (outcome === 'NOT_OWNER') { setPhase('not_owner'); return; }
-      if (outcome === 'OWNER') {
-        const { data: mine } = await fetchMyGiftCard(cardId);
+      // Si hay sesión, se intenta reclamar/entrar como dueño.
+      if (session) {
+        const { data, error: e } = await claimGiftCard(cardId);
         if (!active) return;
-        if (mine?.outcome === 'OK') { setCard(mine); setPhase('editor'); return; }
+        if (e) { setPhase('offline'); return; }
+        const outcome = data?.outcome;
+        if (outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
+        if (outcome === 'REVOKED') { setPhase('revoked'); return; }
+        if (outcome === 'OWNER') {
+          const { data: mine } = await fetchMyGiftCard(cardId);
+          if (!active) return;
+          if (mine?.outcome === 'OK') { setCard(mine); setPhase('editor'); return; }
+          setPhase('offline');
+          return;
+        }
+        // NOT_OWNER: no es su tarjeta → se le muestra como presentación pública.
       }
-      setPhase('offline');
+
+      // Sin sesión, o sesión que no es dueña: vista pública de solo lectura.
+      const { data: pub, error: pe } = await fetchPublicGiftCard(cardId);
+      if (!active) return;
+      if (pe) { setPhase('offline'); return; }
+      if (pub?.outcome === 'ACTIVA') { setCard(pub); setPhase('public'); return; }
+      if (pub?.outcome === 'PENDIENTE') { setPhase('pending'); return; }
+      if (pub?.outcome === 'REVOCADA') { setPhase('revoked'); return; }
+      setPhase('invalid');
     })();
     return () => { active = false; };
-  }, [session, cardId]);
-
-  const signIn = async () => {
-    setError('');
-    const { error: e } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.href },
-    });
-    if (e) setError('No pudimos abrir el acceso con Google. Inténtalo nuevamente.');
-  };
-
-  const signOut = async () => { await supabase.auth.signOut(); };
+  }, [cardId, session]);
 
   if (phase === 'loading') {
     return (
@@ -103,7 +198,6 @@ export default function GiftCardPage() {
       </main>
     );
   }
-
   if (phase === 'invalid') {
     return (
       <Screen icon={Gift} title="Esta tarjeta no está disponible">
@@ -113,47 +207,27 @@ export default function GiftCardPage() {
       </Screen>
     );
   }
-
   if (phase === 'revoked') {
     return (
       <Screen icon={Gift} title="Tarjeta desactivada">
         <p className="mt-3 text-sm font-light text-neutral-500">
-          Esta tarjeta ya no está activa. Contacta a quien te la compartió.
+          Esta tarjeta ya no está activa.
         </p>
       </Screen>
     );
   }
-
   if (phase === 'offline') {
     return (
       <Screen icon={Gift} title="Sin conexión">
         <p className="mt-3 text-sm font-light text-neutral-500">
-          No pudimos abrir tu tarjeta. Revisa tu conexión y vuelve a cargar la página.
+          No pudimos abrir la tarjeta. Revisa tu conexión y vuelve a cargar.
         </p>
       </Screen>
     );
   }
 
-  if (phase === 'not_owner') {
-    return (
-      <Screen icon={Gift} title="Esta tarjeta es de otra persona">
-        <p className="mt-3 text-sm font-light leading-relaxed text-neutral-500">
-          Iniciaste sesión con una cuenta distinta a la que activó esta tarjeta. Si es tuya,
-          entra con la misma cuenta de Google que usaste la primera vez.
-        </p>
-        <button
-          type="button"
-          onClick={signOut}
-          className="mx-auto mt-6 flex items-center gap-2 text-xs font-light text-neutral-400
-                     underline-offset-2 hover:text-neutral-200 hover:underline"
-        >
-          <LogOut size={13} /> Cambiar de cuenta
-        </button>
-      </Screen>
-    );
-  }
-
-  if (phase === 'login') {
+  // Tarjeta aún sin reclamar: sólo el destinatario original la activa entrando.
+  if (phase === 'pending') {
     return (
       <Screen icon={Sparkles} title="Tu tarjeta digital de regalo">
         <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
@@ -163,10 +237,9 @@ export default function GiftCardPage() {
         {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
         <button
           type="button"
-          onClick={signIn}
+          onClick={() => signInGoogle(setError)}
           className="mx-auto mt-8 flex w-full items-center justify-center gap-2 rounded-xl
-                     bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black
-                     transition-colors hover:bg-white"
+                     bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black hover:bg-white"
         >
           Entrar con Google
         </button>
@@ -174,11 +247,126 @@ export default function GiftCardPage() {
     );
   }
 
-  return <GiftCardEditor cardId={cardId} initial={card} onSignOut={signOut} />;
+  // Presentación pública para quien no es el dueño.
+  if (phase === 'public') {
+    return (
+      <main className="grid min-h-[100dvh] place-items-center bg-black px-5 py-10">
+        <CardPresentation card={card} />
+      </main>
+    );
+  }
+
+  return <CardEditor cardId={cardId} initial={card} />;
 }
 
-/** Editor de la tarjeta, sólo visible para su dueño. */
-function GiftCardEditor({ cardId, initial, onSignOut }) {
+/** Panel del dueño: todas sus tarjetas, sin necesidad de guardar enlaces. */
+function OwnerPanel({ session }) {
+  const [cards, setCards] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!session) return;
+    fetchMyGiftCards().then(({ data }) => {
+      setCards(data?.outcome === 'OK' ? (data.cards ?? []) : []);
+    });
+  }, [session]);
+
+  if (!session) {
+    return (
+      <Screen icon={IdCard} title="Tus tarjetas digitales">
+        <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
+          Entra con Google para ver y editar las tarjetas que te han regalado.
+        </p>
+        {error && <p role="alert" className="mt-3 text-xs font-light text-rose-400">{error}</p>}
+        <button
+          type="button"
+          onClick={() => signInGoogle(setError)}
+          className="mx-auto mt-8 flex w-full items-center justify-center gap-2 rounded-xl
+                     bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black hover:bg-white"
+        >
+          Entrar con Google
+        </button>
+      </Screen>
+    );
+  }
+
+  if (cards === null) {
+    return (
+      <main className="grid min-h-[100dvh] place-items-center bg-black">
+        <Loader2 size={22} className="animate-spin text-neutral-700" aria-label="Cargando" />
+      </main>
+    );
+  }
+
+  if (cards.length === 0) {
+    return (
+      <Screen icon={IdCard} title="Todavía no tienes tarjetas">
+        <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
+          Cuando alguien te regale una tarjeta digital y la actives con esta cuenta,
+          aparecerá aquí.
+        </p>
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          className="mx-auto mt-6 flex items-center gap-2 text-xs font-light text-neutral-500
+                     hover:text-neutral-300"
+        >
+          <LogOut size={13} /> Salir
+        </button>
+      </Screen>
+    );
+  }
+
+  return (
+    <main className="min-h-[100dvh] bg-black px-5 py-8 text-neutral-100">
+      <div className="mx-auto max-w-md">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-lg font-light text-white">Tus tarjetas</h1>
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="flex items-center gap-1 text-[11px] font-light text-neutral-500
+                       hover:text-neutral-300"
+          >
+            <LogOut size={12} /> Salir
+          </button>
+        </div>
+        <ul className="space-y-3">
+          {cards.map((c) => (
+            <li key={c.id}>
+              <a
+                href={giftCardUrl(c.id)}
+                className="flex items-center gap-3 rounded-2xl border border-neutral-800
+                           bg-neutral-950 p-3 transition-colors hover:border-neutral-600"
+              >
+                <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden
+                                 rounded-xl bg-neutral-900"
+                >
+                  {c.avatarUrl
+                    ? <img src={c.avatarUrl} alt={c.fullName} className="h-full w-full object-cover" />
+                    : <IdCard size={20} className="text-neutral-600" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-light text-white">
+                    {c.fullName || 'Sin nombre'}
+                  </span>
+                  <span className="block truncate text-[11px] text-neutral-500">
+                    {c.title || 'Toca para editar'}
+                  </span>
+                </span>
+                <Pencil size={15} className="shrink-0 text-neutral-500" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </main>
+  );
+}
+
+/** Editor del dueño, con vista previa y compartir. */
+function CardEditor({ cardId, initial }) {
+  const [mode, setMode] = useState('edit'); // 'edit' | 'preview'
   const [form, setForm] = useState({
     fullName: initial.fullName ?? '',
     title: initial.title ?? '',
@@ -189,11 +377,11 @@ function GiftCardEditor({ cardId, initial, onSignOut }) {
     whatsapp: initial.whatsapp ?? '',
   });
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl ?? '');
-  const [canPropagate, setCanPropagate] = useState(Boolean(initial.canPropagate));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
   const fileRef = useRef(null);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -236,6 +424,59 @@ function GiftCardEditor({ cardId, initial, onSignOut }) {
     }
   };
 
+  const shareUrl = giftCardUrl(cardId);
+  const shareMessage = `Hola, te comparto mi tarjeta digital:\n${shareUrl}`;
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setError('No pudimos copiar. Selecciona el enlace manualmente.');
+    }
+  };
+
+  const previewCard = { ...form, avatarUrl };
+
+  if (mode === 'preview') {
+    return (
+      <main className="min-h-[100dvh] bg-black px-5 py-8">
+        <div className="mx-auto max-w-md">
+          <button
+            type="button"
+            onClick={() => setMode('edit')}
+            className="mb-6 flex items-center gap-1 text-xs font-light text-neutral-400
+                       hover:text-neutral-200"
+          >
+            <ArrowLeft size={14} /> Volver a editar
+          </button>
+          <CardPresentation card={previewCard} />
+
+          <div className="mx-auto mt-6 max-w-sm space-y-2">
+            <a
+              href={whatsAppLink(form.whatsapp || form.phone, shareMessage)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600
+                         px-4 py-3.5 text-sm font-medium text-white hover:bg-emerald-500"
+            >
+              <Share2 size={16} /> Compartir por WhatsApp
+            </a>
+            <button
+              type="button"
+              onClick={copyLink}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border
+                         border-neutral-700 px-4 py-3 text-sm font-light text-neutral-200
+                         hover:border-neutral-500"
+            >
+              {copied ? <><Check size={15} /> Enlace copiado</> : <><Copy size={15} /> Copiar enlace</>}
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-[100dvh] bg-black px-5 py-8 text-neutral-100">
       <div className="mx-auto max-w-md">
@@ -245,7 +486,7 @@ function GiftCardEditor({ cardId, initial, onSignOut }) {
           </p>
           <button
             type="button"
-            onClick={onSignOut}
+            onClick={() => supabase.auth.signOut()}
             className="flex items-center gap-1 text-[11px] font-light text-neutral-500
                        hover:text-neutral-300"
           >
@@ -253,7 +494,6 @@ function GiftCardEditor({ cardId, initial, onSignOut }) {
           </button>
         </div>
 
-        {/* Foto */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -269,13 +509,7 @@ function GiftCardEditor({ cardId, initial, onSignOut }) {
             </span>
           )}
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          onChange={pickPhoto}
-          className="hidden"
-        />
+        <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
         <p className="mb-6 text-center text-[11px] font-light text-neutral-600">
           Toca la foto para cambiarla
         </p>
@@ -317,104 +551,25 @@ function GiftCardEditor({ cardId, initial, onSignOut }) {
           type="button"
           onClick={save}
           disabled={saving}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl
-                     bg-neutral-100 px-4 py-3.5 text-sm font-medium text-black
-                     transition-colors hover:bg-white disabled:cursor-wait disabled:opacity-50"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
+                     px-4 py-3.5 text-sm font-medium text-black hover:bg-white
+                     disabled:cursor-wait disabled:opacity-50"
         >
           {saving
             ? <><Loader2 size={16} className="animate-spin" /> Guardando…</>
-            : savedAt
-              ? <><Check size={16} /> Guardado</>
-              : 'Guardar mi tarjeta'}
+            : savedAt ? <><Check size={16} /> Guardado</> : 'Guardar mi tarjeta'}
         </button>
 
-        {canPropagate && (
-          <PropagateBlock
-            cardId={cardId}
-            onDone={() => setCanPropagate(false)}
-          />
-        )}
-      </div>
-    </main>
-  );
-}
-
-/** Bloque para regalar una tarjeta más (propagación de un nivel). */
-function PropagateBlock({ cardId, onDone }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [status, setStatus] = useState('idle');
-  const [error, setError] = useState('');
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (status === 'sending') return;
-    if (name.trim().length < 2 || digits(whatsapp).length < 10) {
-      setError('Escribe el nombre y un WhatsApp de 10 dígitos.');
-      return;
-    }
-    setStatus('sending');
-    setError('');
-    const { data, error: e } = await propagateGiftCard(cardId, name, whatsapp);
-    if (e || data?.outcome !== 'PROPAGATED') {
-      setStatus('idle');
-      setError('No pudimos registrar el regalo. Inténtalo nuevamente.');
-      return;
-    }
-    setStatus('done');
-    onDone?.();
-  };
-
-  if (status === 'done') {
-    return (
-      <div className="mt-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 text-center">
-        <Check size={22} className="mx-auto text-emerald-400" />
-        <p className="mt-2 text-sm font-light text-neutral-300">
-          ¡Listo! Preparamos una tarjeta para esa persona. Un asesor la contactará.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-950 p-5">
-      <p className="flex items-center gap-2 text-sm font-light text-neutral-200">
-        <UserPlus size={16} className="text-neutral-400" /> Regala una tarjeta a alguien
-      </p>
-      <p className="mt-1 text-xs font-light leading-relaxed text-neutral-500">
-        Puedes obsequiar una tarjeta digital como la tuya a una persona que elijas.
-      </p>
-
-      {open ? (
-        <form onSubmit={submit} className="mt-4 space-y-2">
-          <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="Nombre de la persona" />
-          <input className={INPUT} value={whatsapp} type="tel" inputMode="tel"
-            onChange={(e) => setWhatsapp(e.target.value)} placeholder="Su WhatsApp a 10 dígitos" />
-          {error && <p role="alert" className="text-xs font-light text-rose-400">{error}</p>}
-          <button
-            type="submit"
-            disabled={status === 'sending'}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
-                       px-4 py-3 text-sm font-medium text-black hover:bg-white
-                       disabled:cursor-wait disabled:opacity-50"
-          >
-            {status === 'sending'
-              ? <><Loader2 size={16} className="animate-spin" /> Enviando…</>
-              : <><Send size={15} /> Regalar tarjeta</>}
-          </button>
-        </form>
-      ) : (
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          className="mt-4 w-full rounded-xl border border-neutral-700 px-4 py-3 text-sm
-                     font-light text-neutral-200 hover:border-neutral-500"
+          onClick={() => setMode('preview')}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border
+                     border-neutral-700 px-4 py-3 text-sm font-light text-neutral-200
+                     hover:border-neutral-500"
         >
-          Regalar una tarjeta
+          <Eye size={15} /> Ver y compartir mi tarjeta
         </button>
-      )}
-    </div>
+      </div>
+    </main>
   );
 }
