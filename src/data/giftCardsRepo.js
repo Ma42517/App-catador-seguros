@@ -27,9 +27,17 @@ export function fetchPublicGiftCard(cardId) {
   return callRpc('public_gift_card', { p_card_id: cardId });
 }
 
-/** Amarra la tarjeta al Google que entró, o confirma si ya es su dueño. */
+/** Confirma si la sesión actual ya es dueña. Si la tarjeta está libre, NEEDS_CODE. */
 export function claimGiftCard(cardId) {
   return callRpc('claim_gift_card', { p_card_id: cardId });
+}
+
+/** Vincula la tarjeta a la cuenta recién creada, validando el código del asesor. */
+export function claimGiftCardWithSignup(cardId, code) {
+  return callRpc('claim_gift_card_with_signup', {
+    p_card_id: cardId,
+    p_code: String(code ?? '').trim(),
+  });
 }
 
 /** Contenido editable, para el dueño por Google o por dispositivo autorizado. */

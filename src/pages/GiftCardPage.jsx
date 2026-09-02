@@ -6,7 +6,8 @@ import {
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { giftCardRoute, giftCardUrl } from '../lib/giftCardRoute';
 import {
-  claimGiftCard, fetchMyGiftCard, fetchMyGiftCards, fetchPublicGiftCard,
+  claimGiftCard, claimGiftCardWithSignup,
+  fetchMyGiftCard, fetchMyGiftCards, fetchPublicGiftCard,
   saveGiftCard, uploadGiftCardPhoto,
 } from '../data/giftCardsRepo';
 import { readImageFile, shrinkImageForUpload, dataUrlToFile } from '../data/cardPhoto';
@@ -90,10 +91,13 @@ export default function GiftCardPage() {
  * Google se colaba aquí y mostraba su correo. Con cuentas de correo propias del
  * cliente, cada mundo tiene su sesión.
  */
-function EmailAuth({ title, intro }) {
+function EmailAuth({
+  title, intro, requireCode = false, onReady,
+}) {
   const [tab, setTab] = useState('signup'); // 'signup' | 'login'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [status, setStatus] = useState('idle');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -108,6 +112,11 @@ function EmailAuth({ title, intro }) {
     }
     if (password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    // Al crear cuenta en una tarjeta concreta hace falta el código del asesor.
+    if (tab === 'signup' && requireCode && code.replace(/\D/g, '').length !== 6) {
+      setError('Escribe el código de 6 dígitos que te compartió tu asesor.');
       return;
     }
 
@@ -132,13 +141,16 @@ function EmailAuth({ title, intro }) {
           : 'No pudimos crear la cuenta. Inténtalo de nuevo.');
         return;
       }
-      // Si el proyecto exige confirmar el correo, no hay sesión todavía.
+      // Si el proyecto exige confirmar el correo, no hay sesión todavía. El código
+      // se validará al volver: se guarda para el paso siguiente.
       if (data.user && !data.session) {
         setStatus('idle');
-        setNotice('Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve aquí.');
+        setNotice('Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve aquí '
+          + 'para escribir tu código.');
         return;
       }
-      // Con sesión inmediata, `onAuthStateChange` monta el resto.
+      // Con sesión inmediata: se entrega el código al padre para vincular.
+      onReady?.({ code: code.replace(/\D/g, '') });
       return;
     }
 
@@ -147,6 +159,7 @@ function EmailAuth({ title, intro }) {
       setStatus('idle');
       setError('Correo o contraseña incorrectos.');
     }
+    // Login normal: `onAuthStateChange` en el padre resuelve el resto.
   };
 
   return (
@@ -185,6 +198,23 @@ function EmailAuth({ title, intro }) {
           type="password"
           autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
         />
+        {tab === 'signup' && requireCode && (
+          <div>
+            <input
+              className={`${INPUT} text-center text-xl tracking-[0.4em]`}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Código de tu asesor"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+            />
+            <p className="mt-1.5 text-[11px] font-light text-neutral-600">
+              Es la clave de 6 dígitos que te compartieron. Dura 15 minutos.
+            </p>
+          </div>
+        )}
         {error && <p role="alert" className="text-xs font-light text-rose-400">{error}</p>}
         {notice && <p className="text-xs font-light text-emerald-400">{notice}</p>}
         <button
@@ -216,6 +246,7 @@ function EmailAuth({ title, intro }) {
 function SingleCard({ cardId, session }) {
   const [phase, setPhase] = useState('loading');
   const [card, setCard] = useState(null);
+  const [linkError, setLinkError] = useState('');
   // Secreto del dispositivo cuando se entró por número + clave. Vacío con correo.
   const [deviceSecret, setDeviceSecret] = useState('');
 
@@ -233,6 +264,37 @@ function SingleCard({ cardId, session }) {
     try { seen = Boolean(window.localStorage.getItem(SEEN_KEY + cardId)); } catch { /* sin storage */ }
     setPhase(seen ? 'editor' : 'welcome');
   }, [cardId]);
+
+  /**
+   * Vincula la tarjeta a la cuenta con el código de invitación.
+   *
+   * Es el único camino que amarra una tarjeta libre: el código, de un solo uso,
+   * es lo que impide que quien sólo reenvió el enlace se quede con ella.
+   */
+  const vincularConCodigo = useCallback(async (code) => {
+    setLinkError('');
+    setPhase('linking');
+    const { data, error: e } = await claimGiftCardWithSignup(cardId, code);
+    if (e || !data) {
+      setLinkError('No pudimos validar el código. Revisa tu conexión e inténtalo de nuevo.');
+      setPhase('need_code');
+      return;
+    }
+    if (data.outcome === 'OWNER') { await openAsOwner(); return; }
+
+    const messages = {
+      CODE_INVALID: data.attemptsLeft > 0
+        ? `Código incorrecto. Te quedan ${data.attemptsLeft} intentos.`
+        : 'Código incorrecto. Pide uno nuevo a tu asesor.',
+      CODE_EXPIRED: 'Ese código ya se usó o no es válido. Pide uno nuevo a tu asesor.',
+      TOO_MANY_ATTEMPTS: 'Demasiados intentos. Pide un código nuevo a tu asesor.',
+      NOT_OWNER: 'Esta tarjeta ya pertenece a otra cuenta.',
+      REVOKED: 'Esta tarjeta ya no está activa.',
+      NOT_FOUND: 'Esta tarjeta no está disponible.',
+    };
+    setLinkError(messages[data.outcome] ?? 'No pudimos validar el código.');
+    setPhase('need_code');
+  }, [cardId, openAsOwner]);
 
   useEffect(() => {
     let active = true;
@@ -264,10 +326,10 @@ function SingleCard({ cardId, session }) {
 
     (async () => {
       /*
-        Con sesión de correo, se resuelve el rol contra la tarjeta. `claim`
-        reclama si está libre, o dice si esta cuenta es la dueña. Ya no hay
-        pantalla de "confirmar cuenta": la cuenta de correo es del propio cliente,
-        no una sesión ajena que pudiera colarse como pasaba con Google.
+        Con sesión de correo se resuelve el rol. `claim_gift_card` ya NO vincula
+        en silencio: si la tarjeta está libre devuelve NEEDS_CODE, porque el
+        vínculo exige el código de invitación del asesor. Así, tener el enlace y
+        una cuenta no basta para quedarse con la tarjeta.
       */
       const { data, error: e } = await claimGiftCard(cardId);
       if (!active) return;
@@ -275,6 +337,8 @@ function SingleCard({ cardId, session }) {
       if (data?.outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
       if (data?.outcome === 'REVOKED') { setPhase('revoked'); return; }
       if (data?.outcome === 'OWNER') { await openAsOwner(); return; }
+      // Cuenta iniciada pero tarjeta aún sin vincular: falta el código.
+      if (data?.outcome === 'NEEDS_CODE') { setPhase('need_code'); return; }
       if (data?.outcome === 'NOT_OWNER') {
         const { data: pub } = await fetchPublicGiftCard(cardId);
         if (!active) return;
@@ -325,15 +389,17 @@ function SingleCard({ cardId, session }) {
     );
   }
 
-  // Paso cero: identificarse. Correo+contraseña, o número+clave. Nada se muestra
-  // de la tarjeta antes de esto.
+  // Paso cero: identificarse. El registro pide correo, contraseña y código de
+  // invitación. Nada de la tarjeta se muestra antes de vincularla.
   if (phase === 'login') {
     return (
       <div>
         <EmailAuth
           title="Tu tarjeta digital de regalo"
-          intro="Te regalaron una tarjeta digital para que la hagas tuya: tu nombre, tu foto y
-                 tus datos. Crea tu cuenta para activarla; así sólo tú podrás editarla."
+          intro="Te regalaron una tarjeta digital para que la hagas tuya. Crea tu cuenta con el
+                 código de invitación que te compartió tu asesor; así sólo tú podrás editarla."
+          requireCode
+          onReady={({ code }) => vincularConCodigo(code)}
         />
         <div className="mx-auto -mt-4 max-w-sm px-6 pb-10 text-center">
           <button
@@ -346,6 +412,18 @@ function SingleCard({ cardId, session }) {
           </button>
         </div>
       </div>
+    );
+  }
+
+  // Cuenta ya iniciada, pero la tarjeta aún no está vinculada a ella: se pide el
+  // código de invitación (caso de quien creó la cuenta y confirmó correo aparte).
+  if (phase === 'need_code' || phase === 'linking') {
+    return (
+      <InvitationCode
+        busy={phase === 'linking'}
+        error={linkError}
+        onSubmit={vincularConCodigo}
+      />
     );
   }
 
@@ -388,6 +466,51 @@ function SingleCard({ cardId, session }) {
   }
 
   return <CardEditor cardId={cardId} initial={card} deviceSecret={deviceSecret} />;
+}
+
+/**
+ * Pide el código de invitación cuando la cuenta ya está iniciada pero la tarjeta
+ * aún no se ha vinculado (p. ej. tras confirmar el correo en otro momento).
+ */
+function InvitationCode({ busy, error, onSubmit }) {
+  const [code, setCode] = useState('');
+  const submit = (event) => {
+    event.preventDefault();
+    if (code.replace(/\D/g, '').length === 6) onSubmit(code.replace(/\D/g, ''));
+  };
+  return (
+    <Screen icon={KeyRound} title="Escribe tu código de invitación">
+      <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
+        Tu cuenta está lista. Escribe el código de 6 dígitos que te compartió tu asesor para
+        activar tu tarjeta.
+      </p>
+      <form onSubmit={submit} className="mt-7 space-y-3">
+        <input
+          className={`${INPUT} text-center text-2xl tracking-[0.4em]`}
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          placeholder="––––––"
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          autoFocus
+        />
+        {error && <p role="alert" className="text-xs font-light text-rose-400">{error}</p>}
+        <button
+          type="submit"
+          disabled={busy}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
+                     px-4 py-3.5 text-sm font-medium text-black hover:bg-white
+                     disabled:cursor-wait disabled:opacity-50"
+        >
+          {busy
+            ? <><Loader2 size={16} className="animate-spin" /> Activando…</>
+            : <>Activar mi tarjeta <ArrowRight size={16} /></>}
+        </button>
+      </form>
+    </Screen>
+  );
 }
 
 /**
