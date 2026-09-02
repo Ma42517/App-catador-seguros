@@ -26,6 +26,17 @@ const SEEN_KEY = 'df360:giftcard:welcome:';
 /** Código escrito al registrarse, para retomarlo tras confirmar el correo. */
 const PENDING_CODE_KEY = 'df360:giftcard:pendingcode';
 
+/**
+ * ¿La sesión es de un cliente que se registró en esta página?
+ *
+ * Las cuentas creadas aquí quedan marcadas con `df360_role: 'client'`. Cualquier
+ * otra sesión del mismo navegador (la del asesor, por ejemplo) es ajena a la
+ * tarjeta y no debe heredarla ni asomar su correo.
+ */
+function isClientSession(session) {
+  return session?.user?.user_metadata?.df360_role === 'client';
+}
+
 function Screen({ icon: Icon, title, children }) {
   return (
     <main className="grid min-h-[100dvh] place-items-center bg-black px-6 text-neutral-100">
@@ -355,6 +366,19 @@ function SingleCard({ cardId, session }) {
         if (pending && pending.length === 6) {
           try { window.localStorage.removeItem(PENDING_CODE_KEY); } catch { /* nada */ }
           await vincularConCodigo(pending);
+          return;
+        }
+        /*
+          Tarjeta libre y una sesión que no es de cliente: es la sesión del asesor
+          (o de quien reenvió el enlace) heredada de este mismo navegador. Se
+          cierra para no mostrar su correo ni dejar que herede la tarjeta, y la
+          persona ve el registro limpio. Un cliente con cuenta propia sí llega a
+          la pantalla del código, sin quedar en bucle de inicio de sesión.
+        */
+        if (!isClientSession(session)) {
+          await supabase.auth.signOut();
+          if (!active) return;
+          setPhase('login');
           return;
         }
         setPhase('need_code');
