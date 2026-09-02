@@ -493,8 +493,17 @@ function SingleCard({ cardId, session }) {
       <main className="min-h-[100dvh] bg-black px-5 py-10">
         <div className="mx-auto mb-6 max-w-sm text-center">
           <p className="text-xs font-light leading-relaxed text-neutral-500">
-            Esta tarjeta ya pertenece a alguien. Si es tuya, entra con la misma cuenta con la
-            que la activaste.
+            Esta tarjeta ya está activada en otra cuenta. Si es tuya, entra con la misma
+            cuenta con la que la activaste.
+          </p>
+          {/*
+            Salida para el caso real: la tarjeta la llenó esta persona, pero quedó
+            activada en una cuenta que no es la suya. Sólo el asesor puede
+            devolvérsela, y al hacerlo conserva su nombre y su foto.
+          */}
+          <p className="mt-2 text-xs font-light leading-relaxed text-neutral-600">
+            ¿La llenaste tú y nunca creaste esa cuenta? Pídele a tu asesor que te la
+            devuelva: tus datos y tu foto se conservan, y te dará un código nuevo.
           </p>
           <button
             type="button"
