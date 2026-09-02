@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ArrowLeft, Check, Copy, Eye, Gift, IdCard, Image as ImageIcon, Loader2, LogOut,
-  Pencil, Share2, Sparkles,
+  ArrowLeft, ArrowRight, Check, Copy, Eye, Gift, IdCard, Loader2, LogOut,
+  Pencil, Share2, Sparkles, UserRound,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { giftCardRoute, giftCardUrl } from '../lib/giftCardRoute';
@@ -11,10 +11,13 @@ import {
 } from '../data/giftCardsRepo';
 import { readImageFile, shrinkImageForUpload, dataUrlToFile } from '../data/cardPhoto';
 import { whatsAppLink } from '../lib/advisorPhone';
+import GiftCardVisual from '../components/GiftCard/GiftCardVisual';
 
 const INPUT = 'w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm '
   + 'font-light text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-neutral-500';
 const SPECIALTIES = ['Emprendedor', 'Profesional', 'Familia', 'Estudiante', 'Empresa'];
+/** Marca de que ya se vio la bienvenida de una tarjeta, para no repetirla. */
+const SEEN_KEY = 'df360:giftcard:welcome:';
 
 function Screen({ icon: Icon, title, children }) {
   return (
@@ -34,92 +37,20 @@ function Screen({ icon: Icon, title, children }) {
   );
 }
 
-/**
- * Tarjeta de presentación, en solo lectura.
- *
- * Es lo que ve cualquiera con el enlace: el dueño en su vista previa, y un
- * tercero a quien el dueño le compartió su tarjeta. Presenta contacto y
- * WhatsApp; no ofrece "obtén la tuya" —referir es exclusivo del asesor—.
- */
-function CardPresentation({ card }) {
-  const whatsapp = String(card.whatsapp ?? '').replace(/\D/g, '');
-  const phone = String(card.phone ?? '').replace(/\D/g, '');
-  const specialties = Array.isArray(card.specialties) ? card.specialties : [];
-
-  return (
-    <div className="mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-neutral-800
-                    bg-gradient-to-b from-neutral-900 to-black"
-    >
-      <div className="relative h-72 w-full bg-neutral-950">
-        {card.avatarUrl
-          ? <img src={card.avatarUrl} alt={card.fullName} className="h-full w-full object-cover" />
-          : (
-            <div className="grid h-full w-full place-items-center text-neutral-700">
-              <ImageIcon size={40} />
-            </div>
-          )}
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black to-transparent" />
-      </div>
-
-      <div className="p-6">
-        <h1 className="text-2xl font-light tracking-tight text-white">
-          {card.fullName || 'Sin nombre'}
-        </h1>
-        {card.title && <p className="mt-1 text-sm font-light text-neutral-400">{card.title}</p>}
-        {card.company && <p className="text-xs font-light text-neutral-600">{card.company}</p>}
-        {card.bio && (
-          <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">{card.bio}</p>
-        )}
-
-        {specialties.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {specialties.map((s) => (
-              <span key={s} className="rounded-full border border-neutral-800 px-3 py-1
-                                       text-[11px] font-light text-neutral-400"
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {(whatsapp || phone) && (
-          <div className="mt-6 flex gap-2">
-            {whatsapp && (
-              <a
-                href={`https://wa.me/${whatsapp}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600
-                           px-4 py-3 text-sm font-medium text-white hover:bg-emerald-500"
-              >
-                WhatsApp
-              </a>
-            )}
-            {phone && (
-              <a
-                href={`tel:${phone}`}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border
-                           border-neutral-700 px-4 py-3 text-sm font-light text-neutral-200
-                           hover:border-neutral-500"
-              >
-                Llamar
-              </a>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+const signInGoogle = async (setError) => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href },
+  });
+  if (error) setError?.('No pudimos abrir el acceso con Google. Inténtalo nuevamente.');
+};
 
 /**
  * Página de la tarjeta digital de regalo.
  *
  * Ruta aislada del mundo asesor: monta su propia sesión de Google con
- * `supabase.auth`, sin `SessionProvider`. Cubre dos direcciones:
- *   - `/mi-tarjeta/<uuid>`: una tarjeta concreta.
- *   - `/mi-tarjeta`: el panel del dueño con todas sus tarjetas.
+ * `supabase.auth`, sin `SessionProvider`. Cubre `/mi-tarjeta/<uuid>` (una
+ * tarjeta) y `/mi-tarjeta` (el panel con todas las del dueño).
  */
 export default function GiftCardPage() {
   const [{ cardId }] = useState(() => giftCardRoute());
@@ -144,22 +75,13 @@ export default function GiftCardPage() {
   return <OwnerPanel session={session} />;
 }
 
-const signInGoogle = async (setError) => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.href },
-  });
-  if (error) setError?.('No pudimos abrir el acceso con Google. Inténtalo nuevamente.');
-};
-
 /**
  * Una tarjeta por su id.
  *
  * El registro con Google es el PASO CERO: sin sesión no se muestra nada de la
- * tarjeta —ni pública— sino la invitación a entrar. Sólo después de identificarse
- * se decide el rol: sin dueño → esta cuenta la reclama y edita; ya dueña esta
- * cuenta → edita; dueña otra cuenta → presentación de solo lectura, con la opción
- * de cambiar de cuenta de Google por si entró con la equivocada.
+ * tarjeta. Después, si es el dueño, va primero la BIENVENIDA que explica cómo
+ * usar la tarjeta, y sólo entonces el editor. Así lo primero que ve no es un
+ * recortador de foto sin contexto.
  */
 function SingleCard({ cardId, session }) {
   const [phase, setPhase] = useState('loading');
@@ -168,9 +90,6 @@ function SingleCard({ cardId, session }) {
 
   useEffect(() => {
     let active = true;
-
-    // Paso cero: sin sesión, primero se pide Google. No se consulta la tarjeta
-    // todavía —ni siquiera para saber si existe—: identificarse va antes.
     if (!session) { setPhase('login'); return undefined; }
 
     (async () => {
@@ -181,20 +100,22 @@ function SingleCard({ cardId, session }) {
       if (outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
       if (outcome === 'REVOKED') { setPhase('revoked'); return; }
 
-      // Dueño (recién reclamada o ya suya): al editor.
       if (outcome === 'OWNER') {
         const { data: mine } = await fetchMyGiftCard(cardId);
         if (!active) return;
-        if (mine?.outcome === 'OK') { setCard(mine); setPhase('editor'); return; }
-        setPhase('offline');
+        if (mine?.outcome !== 'OK') { setPhase('offline'); return; }
+        setCard(mine);
+        // La bienvenida se muestra una vez por tarjeta y dispositivo.
+        let seen = false;
+        try { seen = Boolean(window.localStorage.getItem(SEEN_KEY + cardId)); } catch { /* sin storage */ }
+        setPhase(seen ? 'editor' : 'welcome');
         return;
       }
 
-      // Ya tiene otro dueño: se muestra su tarjeta en solo lectura.
       if (outcome === 'NOT_OWNER') {
         const { data: pub } = await fetchPublicGiftCard(cardId);
         if (!active) return;
-        if (pub?.outcome === 'ACTIVA') { setCard(pub); setPhase('not_owner'); return; }
+        if (pub?.outcome === 'ACTIVA') setCard(pub);
         setPhase('not_owner');
         return;
       }
@@ -203,6 +124,11 @@ function SingleCard({ cardId, session }) {
     })();
     return () => { active = false; };
   }, [cardId, session]);
+
+  const dismissWelcome = () => {
+    try { window.localStorage.setItem(SEEN_KEY + cardId, '1'); } catch { /* sin storage */ }
+    setPhase('editor');
+  };
 
   if (phase === 'loading') {
     return (
@@ -223,9 +149,7 @@ function SingleCard({ cardId, session }) {
   if (phase === 'revoked') {
     return (
       <Screen icon={Gift} title="Tarjeta desactivada">
-        <p className="mt-3 text-sm font-light text-neutral-500">
-          Esta tarjeta ya no está activa.
-        </p>
+        <p className="mt-3 text-sm font-light text-neutral-500">Esta tarjeta ya no está activa.</p>
       </Screen>
     );
   }
@@ -260,39 +184,88 @@ function SingleCard({ cardId, session }) {
     );
   }
 
-  // Ya tiene otro dueño: se ve como presentación, con opción de cambiar de cuenta
-  // por si la persona entró con un Google distinto al que activó su tarjeta.
+  if (phase === 'welcome') return <Welcome onStart={dismissWelcome} />;
+
   if (phase === 'not_owner') {
     return (
       <main className="min-h-[100dvh] bg-black px-5 py-10">
-        {card && (
-          <div className="mx-auto mb-6 max-w-sm text-center">
-            <p className="text-xs font-light text-neutral-500">
-              Esta tarjeta ya pertenece a alguien. Si es tuya, entra con la misma cuenta de
-              Google con la que la activaste.
-            </p>
-            <button
-              type="button"
-              onClick={() => supabase.auth.signOut()}
-              className="mx-auto mt-3 flex items-center gap-2 text-xs font-light text-neutral-400
-                         underline-offset-2 hover:text-neutral-200 hover:underline"
-            >
-              <LogOut size={13} /> Entrar con otra cuenta
-            </button>
-          </div>
-        )}
-        {card
-          ? <CardPresentation card={card} />
-          : (
-            <p className="mx-auto max-w-sm text-center text-sm font-light text-neutral-500">
-              Esta tarjeta es de otra persona.
-            </p>
-          )}
+        <div className="mx-auto mb-6 max-w-sm text-center">
+          <p className="text-xs font-light leading-relaxed text-neutral-500">
+            Esta tarjeta ya pertenece a alguien. Si es tuya, entra con la misma cuenta de
+            Google con la que la activaste.
+          </p>
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="mx-auto mt-3 flex items-center gap-2 text-xs font-light text-neutral-400
+                       underline-offset-2 hover:text-neutral-200 hover:underline"
+          >
+            <LogOut size={13} /> Entrar con otra cuenta
+          </button>
+        </div>
+        {card && <GiftCardVisual card={card} />}
       </main>
     );
   }
 
   return <CardEditor cardId={cardId} initial={card} />;
+}
+
+/** Bienvenida: qué es la tarjeta y cómo usarla, antes de tocar nada. */
+function Welcome({ onStart }) {
+  const steps = [
+    { icon: UserRound, title: 'Completa tus datos', text: 'Tu nombre, a qué te dedicas y tu WhatsApp.' },
+    { icon: IdCard, title: 'Sube tu foto', text: 'Será el fondo de tu tarjeta. Puedes cambiarla cuando quieras.' },
+    { icon: Share2, title: 'Compártela', text: 'Manda tu tarjeta por WhatsApp a quien quieras.' },
+  ];
+
+  return (
+    <main className="grid min-h-[100dvh] place-items-center bg-black px-6 py-10 text-neutral-100">
+      <section className="w-full max-w-sm">
+        <span className="grid h-14 w-14 place-items-center rounded-2xl border border-neutral-800
+                         bg-neutral-950 text-neutral-300"
+        >
+          <Sparkles size={24} strokeWidth={1.5} />
+        </span>
+        <h1 className="mt-6 text-2xl font-light leading-tight tracking-tight text-white">
+          Tu tarjeta digital ya es tuya
+        </h1>
+        <p className="mt-3 text-sm font-light leading-relaxed text-neutral-400">
+          Es tu presentación personal: siempre a la mano, sin imprimir nada. Así se usa.
+        </p>
+
+        <ol className="mt-8 space-y-5">
+          {steps.map((s, i) => (
+            <li key={s.title} className="flex gap-4">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border
+                               border-neutral-800 bg-neutral-950 text-xs font-medium text-neutral-400"
+              >
+                {i + 1}
+              </span>
+              <span>
+                <span className="flex items-center gap-2 text-sm font-medium text-neutral-100">
+                  <s.icon size={14} className="text-neutral-500" aria-hidden="true" />
+                  {s.title}
+                </span>
+                <span className="mt-0.5 block text-xs font-light leading-relaxed text-neutral-500">
+                  {s.text}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        <button
+          type="button"
+          onClick={onStart}
+          className="mt-10 flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
+                     px-4 py-3.5 text-sm font-medium text-black hover:bg-white"
+        >
+          Empezar a crear mi tarjeta <ArrowRight size={16} />
+        </button>
+      </section>
+    </main>
+  );
 }
 
 /** Panel del dueño: todas sus tarjetas, sin necesidad de guardar enlaces. */
@@ -400,7 +373,7 @@ function OwnerPanel({ session }) {
   );
 }
 
-/** Editor del dueño, con vista previa y compartir. */
+/** Editor del dueño: datos primero, y la tarjeta real como vista previa. */
 function CardEditor({ cardId, initial }) {
   const [mode, setMode] = useState('edit'); // 'edit' | 'preview'
   const [form, setForm] = useState({
@@ -472,7 +445,10 @@ function CardEditor({ cardId, initial }) {
     }
   };
 
-  const previewCard = { ...form, avatarUrl };
+  const preview = { ...form, avatarUrl };
+  const hidden = (
+    <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
+  );
 
   if (mode === 'preview') {
     return (
@@ -486,17 +462,18 @@ function CardEditor({ cardId, initial }) {
           >
             <ArrowLeft size={14} /> Volver a editar
           </button>
-          <CardPresentation card={previewCard} />
 
-          <div className="mx-auto mt-6 max-w-sm space-y-2">
+          <GiftCardVisual card={preview} />
+
+          <div className="mx-auto mt-6 max-w-[340px] space-y-2">
             <a
-              href={whatsAppLink(form.whatsapp || form.phone, shareMessage)}
+              href={whatsAppLink('', shareMessage)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600
                          px-4 py-3.5 text-sm font-medium text-white hover:bg-emerald-500"
             >
-              <Share2 size={16} /> Compartir por WhatsApp
+              <Share2 size={16} /> Compartir mi tarjeta
             </a>
             <button
               type="button"
@@ -509,6 +486,7 @@ function CardEditor({ cardId, initial }) {
             </button>
           </div>
         </div>
+        {hidden}
       </main>
     );
   }
@@ -530,39 +508,20 @@ function CardEditor({ cardId, initial }) {
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="relative mx-auto mb-6 grid h-40 w-40 place-items-center overflow-hidden
-                     rounded-3xl border border-neutral-800 bg-neutral-950"
-        >
-          {avatarUrl
-            ? <img src={avatarUrl} alt="Tu foto" className="h-full w-full object-cover" />
-            : <ImageIcon size={30} className="text-neutral-600" />}
-          {uploading && (
-            <span className="absolute inset-0 grid place-items-center bg-black/60">
-              <Loader2 size={22} className="animate-spin text-white" />
-            </span>
-          )}
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
-        <p className="mb-6 text-center text-[11px] font-light text-neutral-600">
-          Toca la foto para cambiarla
-        </p>
-
+        {/* Los datos van primero; la foto se cambia desde la propia tarjeta. */}
         <div className="space-y-3">
           <input className={INPUT} value={form.fullName}
             onChange={(e) => set('fullName', e.target.value)} placeholder="Tu nombre completo" />
           <input className={INPUT} value={form.title}
-            onChange={(e) => set('title', e.target.value)} placeholder="Tu título o profesión" />
+            onChange={(e) => set('title', e.target.value)} placeholder="A qué te dedicas" />
           <input className={INPUT} value={form.company}
             onChange={(e) => set('company', e.target.value)} placeholder="Empresa (opcional)" />
-          <textarea className={`${INPUT} resize-none`} rows={3} value={form.bio}
-            onChange={(e) => set('bio', e.target.value)} placeholder="Una línea sobre ti" />
           <input className={INPUT} value={form.whatsapp} type="tel" inputMode="tel"
             onChange={(e) => set('whatsapp', e.target.value)} placeholder="Tu WhatsApp" />
           <input className={INPUT} value={form.phone} type="tel" inputMode="tel"
             onChange={(e) => set('phone', e.target.value)} placeholder="Teléfono (opcional)" />
+          <textarea className={`${INPUT} resize-none`} rows={3} value={form.bio}
+            onChange={(e) => set('bio', e.target.value)} placeholder="Una línea sobre ti" />
 
           <div className="flex flex-wrap gap-2 pt-1">
             {SPECIALTIES.map((s) => (
@@ -580,6 +539,17 @@ function CardEditor({ cardId, initial }) {
             ))}
           </div>
         </div>
+
+        {/* Así va quedando: la tarjeta de verdad, con el botón de cámara. */}
+        <p className="mt-8 mb-3 text-[10px] uppercase tracking-[0.22em] text-neutral-600">
+          Así se ve tu tarjeta
+        </p>
+        <GiftCardVisual
+          card={preview}
+          onPickPhoto={() => fileRef.current?.click()}
+          uploading={uploading}
+        />
+        {hidden}
 
         {error && <p role="alert" className="mt-4 text-xs font-light text-rose-400">{error}</p>}
 
