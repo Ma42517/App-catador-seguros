@@ -68,13 +68,9 @@ export async function uploadGiftCardPhoto(cardId, file) {
   return { data: { ...data, avatarUrl: url }, error: null };
 }
 
-/** Regala una tarjeta más (propagación de un nivel, sin tocar inventario). */
-export function propagateGiftCard(cardId, name, whatsapp) {
-  return callRpc('propagate_gift_card', {
-    p_card_id: cardId,
-    p_name: String(name ?? '').trim(),
-    p_whatsapp: String(whatsapp ?? '').trim(),
-  });
+/** Todas las tarjetas que le pertenecen al Google que entró. */
+export function fetchMyGiftCards() {
+  return callRpc('my_gift_cards', {});
 }
 
 // ─── Lado del asesor ─────────────────────────────────────────────────────────
