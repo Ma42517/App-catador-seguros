@@ -57,8 +57,10 @@ const CAPTURE_MODES = [
 const V2_ENABLED = false;
 import PublicCardView from './pages/PublicCardView';
 import DiagnosticSecurityGuard from './components/Diagnostic/DiagnosticSecurityGuard';
+import GiftCardPage from './pages/GiftCardPage';
 import { publicCardIdFromPath } from './lib/publicRoute';
 import { publicDiagnosticRoute } from './lib/diagnosticPublicRoute';
+import { giftCardRoute } from './lib/giftCardRoute';
 import { Button, SegmentedControl } from './components/ui';
 import { exportJSON } from './data/exporters';
 import { useGamificationStore } from './store/gamificationStore';
@@ -1022,9 +1024,13 @@ export default function App() {
     candado muestre su estado de enlace inválido en vez del login privado.
   */
   const [diagnosticRoute] = useState(publicDiagnosticRoute);
+  const [giftRoute] = useState(giftCardRoute);
   const [publicCardId] = useState(publicCardIdFromPath);
 
   if (diagnosticRoute.matched) return <DiagnosticSecurityGuard />;
+  // La tarjeta de regalo monta su PROPIA sesión de Google, aislada del Gate:
+  // el cliente que entra aquí nunca crea ficha de asesor ni ve la app interna.
+  if (giftRoute.matched) return <GiftCardPage />;
   if (publicCardId) return <PublicCardView advisorId={publicCardId} />;
 
   if (isOnboardingPreview()) {
