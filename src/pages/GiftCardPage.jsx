@@ -152,7 +152,15 @@ const signInGoogle = async (setError) => {
   if (error) setError?.('No pudimos abrir el acceso con Google. Inténtalo nuevamente.');
 };
 
-/** Una tarjeta por su id: dueño → editor; tercero → presentación; sin sesión → según estado. */
+/**
+ * Una tarjeta por su id.
+ *
+ * El registro con Google es el PASO CERO: sin sesión no se muestra nada de la
+ * tarjeta —ni pública— sino la invitación a entrar. Sólo después de identificarse
+ * se decide el rol: sin dueño → esta cuenta la reclama y edita; ya dueña esta
+ * cuenta → edita; dueña otra cuenta → presentación de solo lectura, con la opción
+ * de cambiar de cuenta de Google por si entró con la equivocada.
+ */
 function SingleCard({ cardId, session }) {
   const [phase, setPhase] = useState('loading');
   const [card, setCard] = useState(null);
@@ -160,33 +168,38 @@ function SingleCard({ cardId, session }) {
 
   useEffect(() => {
     let active = true;
+
+    // Paso cero: sin sesión, primero se pide Google. No se consulta la tarjeta
+    // todavía —ni siquiera para saber si existe—: identificarse va antes.
+    if (!session) { setPhase('login'); return undefined; }
+
     (async () => {
-      // Si hay sesión, se intenta reclamar/entrar como dueño.
-      if (session) {
-        const { data, error: e } = await claimGiftCard(cardId);
+      const { data, error: e } = await claimGiftCard(cardId);
+      if (!active) return;
+      if (e) { setPhase('offline'); return; }
+      const outcome = data?.outcome;
+      if (outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
+      if (outcome === 'REVOKED') { setPhase('revoked'); return; }
+
+      // Dueño (recién reclamada o ya suya): al editor.
+      if (outcome === 'OWNER') {
+        const { data: mine } = await fetchMyGiftCard(cardId);
         if (!active) return;
-        if (e) { setPhase('offline'); return; }
-        const outcome = data?.outcome;
-        if (outcome === 'NOT_FOUND') { setPhase('invalid'); return; }
-        if (outcome === 'REVOKED') { setPhase('revoked'); return; }
-        if (outcome === 'OWNER') {
-          const { data: mine } = await fetchMyGiftCard(cardId);
-          if (!active) return;
-          if (mine?.outcome === 'OK') { setCard(mine); setPhase('editor'); return; }
-          setPhase('offline');
-          return;
-        }
-        // NOT_OWNER: no es su tarjeta → se le muestra como presentación pública.
+        if (mine?.outcome === 'OK') { setCard(mine); setPhase('editor'); return; }
+        setPhase('offline');
+        return;
       }
 
-      // Sin sesión, o sesión que no es dueña: vista pública de solo lectura.
-      const { data: pub, error: pe } = await fetchPublicGiftCard(cardId);
-      if (!active) return;
-      if (pe) { setPhase('offline'); return; }
-      if (pub?.outcome === 'ACTIVA') { setCard(pub); setPhase('public'); return; }
-      if (pub?.outcome === 'PENDIENTE') { setPhase('pending'); return; }
-      if (pub?.outcome === 'REVOCADA') { setPhase('revoked'); return; }
-      setPhase('invalid');
+      // Ya tiene otro dueño: se muestra su tarjeta en solo lectura.
+      if (outcome === 'NOT_OWNER') {
+        const { data: pub } = await fetchPublicGiftCard(cardId);
+        if (!active) return;
+        if (pub?.outcome === 'ACTIVA') { setCard(pub); setPhase('not_owner'); return; }
+        setPhase('not_owner');
+        return;
+      }
+
+      setPhase('offline');
     })();
     return () => { active = false; };
   }, [cardId, session]);
@@ -226,8 +239,8 @@ function SingleCard({ cardId, session }) {
     );
   }
 
-  // Tarjeta aún sin reclamar: sólo el destinatario original la activa entrando.
-  if (phase === 'pending') {
+  // Paso cero: registrarse con Google antes de ver o editar nada.
+  if (phase === 'login') {
     return (
       <Screen icon={Sparkles} title="Tu tarjeta digital de regalo">
         <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
@@ -247,11 +260,34 @@ function SingleCard({ cardId, session }) {
     );
   }
 
-  // Presentación pública para quien no es el dueño.
-  if (phase === 'public') {
+  // Ya tiene otro dueño: se ve como presentación, con opción de cambiar de cuenta
+  // por si la persona entró con un Google distinto al que activó su tarjeta.
+  if (phase === 'not_owner') {
     return (
-      <main className="grid min-h-[100dvh] place-items-center bg-black px-5 py-10">
-        <CardPresentation card={card} />
+      <main className="min-h-[100dvh] bg-black px-5 py-10">
+        {card && (
+          <div className="mx-auto mb-6 max-w-sm text-center">
+            <p className="text-xs font-light text-neutral-500">
+              Esta tarjeta ya pertenece a alguien. Si es tuya, entra con la misma cuenta de
+              Google con la que la activaste.
+            </p>
+            <button
+              type="button"
+              onClick={() => supabase.auth.signOut()}
+              className="mx-auto mt-3 flex items-center gap-2 text-xs font-light text-neutral-400
+                         underline-offset-2 hover:text-neutral-200 hover:underline"
+            >
+              <LogOut size={13} /> Entrar con otra cuenta
+            </button>
+          </div>
+        )}
+        {card
+          ? <CardPresentation card={card} />
+          : (
+            <p className="mx-auto max-w-sm text-center text-sm font-light text-neutral-500">
+              Esta tarjeta es de otra persona.
+            </p>
+          )}
       </main>
     );
   }
