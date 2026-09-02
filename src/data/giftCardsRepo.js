@@ -91,3 +91,12 @@ export async function revokeGiftCard(cardId) {
   }
   return { data, error };
 }
+
+/** Suelta al dueño y deja la tarjeta lista para reclamarse de nuevo. */
+export async function resetGiftCard(cardId) {
+  const { data, error } = await callRpc('reset_gift_card', { p_card_id: cardId });
+  if (!error && data?.avatarPath && supabase) {
+    await supabase.storage.from(BUCKET).remove([data.avatarPath]).catch(() => {});
+  }
+  return { data, error };
+}

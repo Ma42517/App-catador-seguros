@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import BottomSheet from '../Layout/BottomSheet';
 import WhatsAppMark from '../Activities/WhatsAppMark';
-import { createGiftCardForLead } from '../../data/giftCardsRepo';
+import { createGiftCardForLead, resetGiftCard } from '../../data/giftCardsRepo';
 import { giftCardUrl } from '../../lib/giftCardRoute';
 import { whatsAppLink } from '../../lib/advisorPhone';
 import { leadSourceLabel } from '../../data/leadsRepo';
@@ -234,6 +234,27 @@ export default function GiftCardInviteSheet({ lead, advisorName, onClose }) {
               >
                 <WhatsAppMark size={16} /> Enviar por WhatsApp <ExternalLink size={14} />
               </a>
+
+              {/*
+                Soltar al dueño. El asesor sólo tiene el WhatsApp del contacto, no
+                su Gmail, así que si la reclama por error un Google equivocado, ésta
+                es la única forma de devolverla a la persona correcta. No consume
+                inventario: es la misma tarjeta.
+              */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!window.confirm('Esto libera la tarjeta: quien la activó dejará de '
+                    + 'poder editarla y podrá reclamarla de nuevo la persona correcta. '
+                    + '¿Continuar?')) return;
+                  const { data } = await resetGiftCard(cardId);
+                  if (data?.outcome === 'RESET') onClose?.();
+                }}
+                className="mt-2 w-full text-center text-[11px] font-light text-neutral-500
+                           underline-offset-2 hover:text-neutral-300 hover:underline"
+              >
+                Restablecer tarjeta (soltar al dueño)
+              </button>
             </>
           )}
         </div>
