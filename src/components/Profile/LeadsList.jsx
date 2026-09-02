@@ -10,6 +10,7 @@ import {
   readLeads, removeLead, capturedLabel, expedienteSummary,
 } from '../../data/leads';
 import { listMyLeads, deleteLead, leadSourceLabel } from '../../data/leadsRepo';
+import GiftCardInviteSheet from './GiftCardInviteSheet';
 import DiagnosticInviteSheet from './DiagnosticInviteSheet';
 import {
   RISK_FREQUENCY_OPTIONS, MEDICAL_CATEGORIES, HEALTH_STATUS_OPTIONS, HABIT_TYPES,
@@ -164,7 +165,9 @@ function ExpedienteDetailSheet({ lead, onClose }) {
  * perdido no se recupera —vive sólo en este teléfono— y un toque accidental en
  * una lista que se recorre con el pulgar es demasiado fácil.
  */
-function LeadRow({ lead, onRemove, onOpenDetail, onInvite }) {
+function LeadRow({
+  lead, onRemove, onOpenDetail, onInvite, onGiftCard,
+}) {
   const [confirming, setConfirming] = useState(false);
   // Filas que vinieron del Expediente Previo a Emisión
   // (`UnderwritingDrawer.jsx`, "Guardar Expediente"): muestran el resumen
@@ -273,17 +276,28 @@ function LeadRow({ lead, onRemove, onOpenDetail, onInvite }) {
       </div>
 
       {lead.storage === 'cloud' && !isExpediente && !confirming && (
-        <button
-          type="button"
-          onClick={onInvite}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl
-                     bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white
-                     shadow-sm shadow-indigo-600/20 transition-colors hover:bg-indigo-500
-                     active:scale-[0.99]"
-        >
-          <Ticket size={15} aria-hidden="true" />
-          Enviar diagnóstico
-        </button>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={onInvite}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl
+                       bg-indigo-600 px-3 py-2.5 text-xs font-semibold text-white
+                       transition-colors hover:bg-indigo-500 active:scale-[0.99]"
+          >
+            <Ticket size={14} aria-hidden="true" />
+            Diagnóstico
+          </button>
+          <button
+            type="button"
+            onClick={onGiftCard}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl
+                       bg-amber-500 px-3 py-2.5 text-xs font-semibold text-white
+                       transition-colors hover:bg-amber-400 active:scale-[0.99]"
+          >
+            <IdCard size={14} aria-hidden="true" />
+            Tarjeta
+          </button>
+        </div>
       )}
     </li>
   );
@@ -304,6 +318,8 @@ export default function LeadsList({ isOpen, onClose }) {
   const [detailLead, setDetailLead] = useState(null);
   // El pase se prepara desde esta hoja; capturar un prospecto nunca la abre.
   const [inviteLead, setInviteLead] = useState(null);
+  // La tarjeta de regalo, en su propia hoja.
+  const [giftLead, setGiftLead] = useState(null);
 
   /**
    * Junta las dos procedencias de un prospecto.
@@ -398,6 +414,7 @@ export default function LeadsList({ isOpen, onClose }) {
               onRemove={() => remove(lead)}
               onOpenDetail={() => setDetailLead(lead)}
               onInvite={() => setInviteLead(lead)}
+              onGiftCard={() => setGiftLead(lead)}
             />
           ))}
         </ul>
@@ -427,6 +444,11 @@ export default function LeadsList({ isOpen, onClose }) {
         lead={inviteLead}
         advisorName={identity?.name}
         onClose={() => setInviteLead(null)}
+      />
+      <GiftCardInviteSheet
+        lead={giftLead}
+        advisorName={identity?.name}
+        onClose={() => setGiftLead(null)}
       />
     </FullScreenView>
   );
