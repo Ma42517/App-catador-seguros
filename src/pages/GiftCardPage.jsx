@@ -12,7 +12,7 @@ import {
 } from '../data/giftCardsRepo';
 import { readImageFile, shrinkImageForUpload, dataUrlToFile } from '../data/cardPhoto';
 import { whatsAppLink } from '../lib/advisorPhone';
-import GiftCardVisual from '../components/GiftCard/GiftCardVisual';
+import DigitalCard from '../components/GiftCard/DigitalCard';
 import {
   claimGiftCardWithCode, openGiftCardWithDevice,
 } from '../data/giftCardsRepo';
@@ -628,7 +628,7 @@ function SingleCard({ cardId, session }) {
             <LogOut size={13} /> Entrar con otra cuenta
           </button>
         </div>
-        {card && <GiftCardVisual card={card} />}
+        {card && <DigitalCard cardData={card} />}
       </main>
     );
   }
@@ -1043,7 +1043,7 @@ function CardEditor({ cardId, initial, deviceSecret = '' }) {
             <ArrowLeft size={14} /> Volver a editar
           </button>
 
-          <GiftCardVisual card={preview} />
+          <DigitalCard cardData={preview} />
 
           <div className="mx-auto mt-6 max-w-[340px] space-y-2">
             <a
@@ -1124,8 +1124,8 @@ function CardEditor({ cardId, initial, deviceSecret = '' }) {
         <p className="mt-8 mb-3 text-[10px] uppercase tracking-[0.22em] text-neutral-600">
           Así se ve tu tarjeta
         </p>
-        <GiftCardVisual
-          card={preview}
+        <DigitalCard
+          cardData={preview}
           onPickPhoto={() => fileRef.current?.click()}
           uploading={uploading}
         />
