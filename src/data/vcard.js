@@ -30,6 +30,18 @@ function phoneValue(value) {
 }
 
 /**
+ * Localiza el correo mire donde mire el modelo.
+ *
+ * El mundo tarjeta del cliente (cardData normalizado) guarda el correo en
+ * `card.contactos.email`, mientras que el mundo asesor lo pasa a nivel superior
+ * (`card.email`). Se leen ambos —primero contactos, luego el nivel superior—
+ * para que la vCard salga bien en los dos casos sin romper a ningún llamador.
+ */
+function emailValue(card) {
+  return String(card?.contactos?.email ?? card?.email ?? '').trim();
+}
+
+/**
  * Divide el nombre en apellidos y nombre de pila para el campo `N`.
  *
  * Es una aproximación: en México lo normal son dos apellidos al final, así que
@@ -54,15 +66,18 @@ export function canBuildVCard(card) {
   if (!card) return false;
   return Boolean(
     String(card.fullName ?? '').trim()
-    && (phoneValue(card.phone) || phoneValue(card.whatsapp) || String(card.email ?? '').trim()),
+    && (phoneValue(card.phone) || phoneValue(card.whatsapp) || emailValue(card)),
   );
 }
 
 /** Texto vCard listo para codificarse en un QR. */
 export function buildVCard(card = {}) {
   const {
-    fullName, title, company, phone, whatsapp, email,
+    fullName, title, company, phone, whatsapp,
   } = card;
+  // El correo se resuelve con emailValue: puede venir en contactos (tarjeta del
+  // cliente) o a nivel superior (mundo asesor); así ninguno se pierde.
+  const email = emailValue(card);
 
   const { given, family } = splitName(fullName);
 

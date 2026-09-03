@@ -449,8 +449,12 @@ function VideoPlayer({ url }) {
 function CardBack({ card, onBack }) {
   const { videoUrl, ctaBadge, ctaTitulo, ctaSubtitulo, bookingUrl, bookingTexto } = card.reverso ?? {};
 
-  // Degradado sensato del botón de reserva: si no hay agenda, se escribe por
-  // WhatsApp al número de la tarjeta con el texto ya puesto.
+  // Degradado sensato del botón de reserva: si no hay agenda pero sí número, se
+  // escribe por WhatsApp con el texto ya puesto. Si NO hay ni agenda ni número,
+  // no se pinta el botón: un `wa.me/?text=` sin destinatario abre WhatsApp pero
+  // no lleva a nadie, y un botón "Agendar" que no agenda confunde al prospecto.
+  const bookingNumber = String(card.whatsapp || card.phone || '').replace(/[^\d+]/g, '');
+  const canBook = Boolean(bookingUrl) || Boolean(bookingNumber);
   const bookingHref = bookingUrl
     || whatsAppLink(card.whatsapp || card.phone, 'Hola, me gustaría agendar una reunión.');
   const bookingLabel = bookingTexto || 'Agendar una reunión';
@@ -492,17 +496,21 @@ function CardBack({ card, onBack }) {
         </div>
       )}
 
-      {/* Botón ancho de reservación, sobrio (blanco sobre negro), sin neón */}
-      <a
-        href={bookingHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-white
-                   px-4 py-3.5 text-sm font-semibold text-black transition-colors
-                   hover:bg-neutral-200 active:scale-[0.98]"
-      >
-        <CalendarCheck size={16} /> {bookingLabel}
-      </a>
+      {/* Botón ancho de reservación, sobrio (blanco sobre negro), sin neón. Sólo
+          se pinta si hay a dónde llevar (agenda o número); si no, se omite para
+          no ofrecer un enlace muerto. */}
+      {canBook && (
+        <a
+          href={bookingHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-white
+                     px-4 py-3.5 text-sm font-semibold text-black transition-colors
+                     hover:bg-neutral-200 active:scale-[0.98]"
+        >
+          <CalendarCheck size={16} /> {bookingLabel}
+        </a>
+      )}
     </div>
   );
 }
