@@ -237,58 +237,57 @@ function UploadingVeil({ uploading }) {
 /**
  * ── Anverso Plantilla EDITORIAL ──
  *
- * Lienzo negro puro con la foto DERRAMADA: el retrato ocupa buena parte del alto
- * y se funde hacia abajo con `mask-image` (con su prefijo `-webkit-`, obligatorio
- * en iOS; si no, la foto termina en un borde recto). La firma de esta plantilla
- * es "revista": el nombre grande y MUY fino cabalga SOBRE la foto, no debajo, con
- * mucho aire alrededor. Nada de recuadros ni separadores: es un póster.
+ * Retrato A SANGRE tipo póster: la foto cubre la tarjeta COMPLETA y un degradado
+ * negro que sube desde abajo es lo que hace legible el texto sobre cualquier
+ * imagen, clara u oscura, sin teñir el retrato. Los datos se apoyan abajo, sobre
+ * la foto. Es el diseño que ya tenía la tarjeta antes del editor v2 (el que vivía
+ * en GiftCardVisual) y el que el dueño quiere conservar: se replica tal cual.
  *
- * Se distingue a propósito de la Ejecutiva —que es una "ficha" enmarcada, con
- * serif y separadores— para que al alternar el selector el cambio sea inequívoco
- * y no parezca la misma tarjeta con la foto más chica.
+ * Se diferencia de la Ejecutiva en que aquélla enmarca la foto al 55% del alto y
+ * apoya los datos sobre fondo neutral-950, con badge de estado.
  */
 function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
-  // Máscara con prefijo -webkit-: WebKit sólo entiende la versión prefijada.
-  const portraitFade =
-    '[mask-image:linear-gradient(to_bottom,#000_60%,transparent_100%)] '
-    + '[-webkit-mask-image:linear-gradient(to_bottom,#000_60%,transparent_100%)]';
-
   return (
-    <div className="flex h-full w-full flex-col bg-black text-white">
-      {/* Retrato fundido en la mitad superior */}
-      <div className="absolute inset-x-0 top-0 h-[62%]">
-        {card.avatarUrl ? (
-          <img
-            src={card.avatarUrl}
-            alt={card.fullName || 'Tarjeta'}
-            referrerPolicy="no-referrer"
-            className={`h-full w-full object-cover object-top ${portraitFade}`}
-          />
-        ) : (
-          <div className={`grid h-full w-full place-items-center bg-neutral-900 text-neutral-700
-                          ${portraitFade}`}
-          >
-            <ImageIcon size={44} strokeWidth={1.2} />
-          </div>
-        )}
-      </div>
+    <div className="relative h-full w-full bg-neutral-950 text-white">
+      {/* Capa 1 — el retrato, A SANGRE: cubre la tarjeta completa */}
+      {card.avatarUrl ? (
+        <img
+          src={card.avatarUrl}
+          alt={card.fullName || 'Tarjeta'}
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-700">
+          <ImageIcon size={44} strokeWidth={1.2} />
+        </div>
+      )}
+
+      {/*
+        Capa 2 — degradado. Sube desde abajo y es lo que hace legible el texto
+        sobre cualquier foto, clara u oscura, sin tener que teñir el retrato.
+      */}
+      <div
+        className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-transparent"
+        aria-hidden="true"
+      />
 
       <PhotoButton onPickPhoto={onPickPhoto} hasPhoto={Boolean(card.avatarUrl)} />
       {hasBack && <FlipToBackButton onFlip={onFlip} />}
       <UploadingVeil uploading={uploading} />
 
-      {/* Datos, apoyados abajo sobre el fondo negro */}
-      <div className="relative z-20 mt-auto p-6">
-        <h1 className="text-[30px] font-light leading-tight tracking-tight text-white">
+      {/* Capa 3 — los datos, apoyados abajo sobre el degradado */}
+      <div className="absolute inset-x-0 bottom-0 z-20 p-6">
+        <h1 className="text-[26px] font-light leading-tight tracking-tight text-white
+                       [text-shadow:0_1px_3px_rgb(0_0_0/0.6)]"
+        >
           {card.fullName || 'Tu nombre'}
         </h1>
         {card.title && (
           <p className="mt-1 text-sm font-light text-white/85">{card.title}</p>
         )}
         {card.company && (
-          <p className="text-xs font-light uppercase tracking-[0.14em] text-white/55">
-            {card.company}
-          </p>
+          <p className="text-xs font-light text-white/60">{card.company}</p>
         )}
 
         <Pildoras items={card.pildoras} />
