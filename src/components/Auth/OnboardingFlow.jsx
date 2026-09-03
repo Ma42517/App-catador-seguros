@@ -722,7 +722,9 @@ function AnalysisRoomStep({ onSimulateApproval }) {
  * y no debe cargar los controles de "revisar de nuevo" que sí tienen
  * sentido en una vista a la que se puede volver muchas veces.
  */
-export default function OnboardingFlow({ userId, onProfileSaved, onSimulateApproval }) {
+export default function OnboardingFlow({
+  userId, onProfileSaved, onSimulateApproval, onExit,
+}) {
   const [step, setStep] = useState(1);
   const [busyValue, setBusyValue] = useState(null);
 
@@ -851,7 +853,8 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
 
   return (
     <div
-      className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-4 py-10"
+      className="relative flex min-h-screen w-full items-center justify-center bg-slate-950
+                 px-4 py-10"
       onClick={() => setFastTyping(true)}
     >
       {/*
@@ -860,6 +863,22 @@ export default function OnboardingFlow({ userId, onProfileSaved, onSimulateAppro
         la nota junto a `BackArrow`.
       */}
       {step > 1 && step < 10 && <BackArrow onBack={goBack} />}
+
+      {/*
+        Salida por si esta no es la cuenta correcta. Va discreta y sólo en el
+        primer paso: antes no existía, y entrar con la cuenta equivocada dejaba
+        a la persona encerrada en el cuestionario sin manera de cerrar sesión.
+      */}
+      {step === 1 && onExit && (
+        <button
+          type="button"
+          onClick={onExit}
+          className="absolute right-4 top-5 z-20 text-[11px] font-light text-zinc-500
+                     underline-offset-2 hover:text-zinc-300 hover:underline"
+        >
+          ¿No es tu cuenta? Salir
+        </button>
+      )}
 
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
       {/*
