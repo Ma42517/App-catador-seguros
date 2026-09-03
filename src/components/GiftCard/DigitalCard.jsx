@@ -237,21 +237,26 @@ function UploadingVeil({ uploading }) {
 /**
  * ── Anverso Plantilla EDITORIAL ──
  *
- * Foto fundida: el retrato ocupa la franja superior y se desvanece hacia abajo
- * con `mask-image`, que va con su prefijo `-webkit-` (obligatorio en iOS, si no
- * la foto termina en un borde recto). Tipografía espaciosa, nombre grande en
- * `font-light`. Es la estética de las tarjetas viejas, que por eso es el default.
+ * Lienzo negro puro con la foto DERRAMADA: el retrato ocupa buena parte del alto
+ * y se funde hacia abajo con `mask-image` (con su prefijo `-webkit-`, obligatorio
+ * en iOS; si no, la foto termina en un borde recto). La firma de esta plantilla
+ * es "revista": el nombre grande y MUY fino cabalga SOBRE la foto, no debajo, con
+ * mucho aire alrededor. Nada de recuadros ni separadores: es un póster.
+ *
+ * Se distingue a propósito de la Ejecutiva —que es una "ficha" enmarcada, con
+ * serif y separadores— para que al alternar el selector el cambio sea inequívoco
+ * y no parezca la misma tarjeta con la foto más chica.
  */
 function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
   // Máscara con prefijo -webkit-: WebKit sólo entiende la versión prefijada.
   const portraitFade =
-    '[mask-image:linear-gradient(to_bottom,#000_60%,transparent_100%)] '
-    + '[-webkit-mask-image:linear-gradient(to_bottom,#000_60%,transparent_100%)]';
+    '[mask-image:linear-gradient(to_bottom,#000_55%,transparent_100%)] '
+    + '[-webkit-mask-image:linear-gradient(to_bottom,#000_55%,transparent_100%)]';
 
   return (
     <div className="flex h-full w-full flex-col bg-black text-white">
-      {/* Retrato fundido en la mitad superior */}
-      <div className="absolute inset-x-0 top-0 h-[62%]">
+      {/* Retrato derramado: ocupa casi toda la altura y se funde al negro */}
+      <div className="absolute inset-x-0 top-0 h-[78%]">
         {card.avatarUrl ? (
           <img
             src={card.avatarUrl}
@@ -272,18 +277,20 @@ function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
       {hasBack && <FlipToBackButton onFlip={onFlip} />}
       <UploadingVeil uploading={uploading} />
 
-      {/* Datos, apoyados abajo sobre el fondo negro */}
+      {/* Datos apoyados abajo. El nombre cabalga sobre la foto fundida, sin caja
+          ni separador: la jerarquía la da el TAMAÑO y el aire, estilo editorial. */}
       <div className="relative z-20 mt-auto p-6">
-        <h1 className="text-[30px] font-light leading-tight tracking-tight text-white">
+        {/* Empresa arriba, como antetítulo de revista, para dejar el nombre solo */}
+        {card.company && (
+          <p className="mb-2 text-[10px] font-light uppercase tracking-[0.32em] text-white/50">
+            {card.company}
+          </p>
+        )}
+        <h1 className="text-[34px] font-extralight leading-[1.05] tracking-tight text-white">
           {card.fullName || 'Tu nombre'}
         </h1>
         {card.title && (
-          <p className="mt-1 text-sm font-light text-white/85">{card.title}</p>
-        )}
-        {card.company && (
-          <p className="text-xs font-light uppercase tracking-[0.14em] text-white/55">
-            {card.company}
-          </p>
+          <p className="mt-2 text-sm font-light tracking-wide text-white/85">{card.title}</p>
         )}
 
         <Pildoras items={card.pildoras} />
@@ -304,70 +311,93 @@ function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
 /**
  * ── Anverso Plantilla EJECUTIVA ──
  *
- * Estilo enmarcado y sobrio: un badge translúcido arriba con punto verde de
- * estado (cardData.estadoPill), foto con recorte superior redondeado y un
- * degradado sutil —nada de neón—. Alto impacto pero serio.
+ * Estilo "ficha" / dossier de banca privada, deliberadamente distinto del póster
+ * editorial: la tarjeta lleva un margen visible (padding en el marco) y la foto
+ * va ENMARCADA dentro de él, no derramada a sangre. Sobre el fondo neutral-950
+ * se apoya una hoja con borde fino (border-neutral-800/80) que da sensación de
+ * documento. La jerarquía tipográfica también cambia a propósito: el nombre en
+ * SERIF (`font-serif`) con espaciado amplio, y las etiquetas (puesto/empresa)
+ * marcadas en mayúsculas espaciadas. Separadores finos ordenan los bloques.
+ *
+ * ## Solapamiento del badge de estado (corregido)
+ * El botón de cámara vive arriba a la izquierda y el de "voltear" arriba a la
+ * derecha, ambos DENTRO de la foto. El badge de estado con punto verde se apoya
+ * por eso en el BORDE INFERIOR de la foto (`bottom-3 left-3`), donde no lo pisa
+ * ningún control y además refuerza la lectura de "ficha con pie de foto".
  */
 function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
   return (
-    <div className="flex h-full w-full flex-col bg-neutral-950 text-white">
-      {/* Foto superior con las esquinas superiores redondeadas */}
-      <div className="relative h-[55%] w-full overflow-hidden rounded-b-3xl">
-        {card.avatarUrl ? (
-          <img
-            src={card.avatarUrl}
-            alt={card.fullName || 'Tarjeta'}
-            referrerPolicy="no-referrer"
-            className="h-full w-full object-cover"
+    <div className="flex h-full w-full flex-col bg-neutral-950 p-4 text-white">
+      {/* Hoja/ficha con borde fino: el encuadre es la firma de esta plantilla */}
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border
+                      border-neutral-800/80 bg-black"
+      >
+        {/* Foto enmarcada dentro del margen, no a sangre */}
+        <div className="relative h-[46%] w-full overflow-hidden">
+          {card.avatarUrl ? (
+            <img
+              src={card.avatarUrl}
+              alt={card.fullName || 'Tarjeta'}
+              referrerPolicy="no-referrer"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="grid h-full w-full place-items-center bg-neutral-900 text-neutral-700">
+              <ImageIcon size={44} strokeWidth={1.2} />
+            </div>
+          )}
+          {/* Degradado sutil que funde la foto con la hoja negra, sin neón */}
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black
+                       via-black/25 to-transparent"
+            aria-hidden="true"
           />
-        ) : (
-          <div className="grid h-full w-full place-items-center bg-neutral-900 text-neutral-700">
-            <ImageIcon size={44} strokeWidth={1.2} />
+
+          <PhotoButton onPickPhoto={onPickPhoto} hasPhoto={Boolean(card.avatarUrl)} />
+          {hasBack && <FlipToBackButton onFlip={onFlip} />}
+          <UploadingVeil uploading={uploading} />
+
+          {/* Badge de estado con punto verde apoyado en el PIE de la foto, para no
+              encimarse con la cámara (arriba-izq) ni el botón de voltear (arriba-der). */}
+          {card.estadoPill && (
+            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full
+                            border border-white/10 bg-black/55 px-2.5 py-1 backdrop-blur-md"
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" aria-hidden="true" />
+              <span className="text-[10px] font-medium tracking-wide text-neutral-200">
+                {card.estadoPill}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Cuerpo tipo dossier: nombre en serif, etiquetas marcadas y separadores */}
+        <div className="flex flex-1 flex-col px-5 pb-5 pt-4">
+          <h1 className="font-serif text-[26px] font-medium leading-tight tracking-wide text-white">
+            {card.fullName || 'Tu nombre'}
+          </h1>
+          {card.title && (
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-300">
+              {card.title}
+            </p>
+          )}
+          {card.company && (
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-500">
+              {card.company}
+            </p>
+          )}
+
+          {/* Separador fino: ordena la ficha como un documento */}
+          <div className="my-3 h-px w-full bg-neutral-800/80" aria-hidden="true" />
+
+          <Pildoras items={card.pildoras} />
+
+          <div className="mt-auto">
+            {/* Segundo separador antes de las acciones */}
+            <div className="mb-3 mt-4 h-px w-full bg-neutral-800/80" aria-hidden="true" />
+            <ContactRow card={card} />
+            <SaveContactButton card={card} />
           </div>
-        )}
-        {/* Degradado sutil que funde la foto con el cuerpo negro, sin neón */}
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950
-                     via-neutral-950/20 to-transparent"
-          aria-hidden="true"
-        />
-
-        {/* Badge de estado con punto verde: sólo si hay algo que decir */}
-        {card.estadoPill && (
-          <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full
-                          border border-white/10 bg-black/50 px-2.5 py-1 backdrop-blur-md"
-          >
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" aria-hidden="true" />
-            <span className="text-[10px] font-medium tracking-wide text-neutral-200">
-              {card.estadoPill}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <PhotoButton onPickPhoto={onPickPhoto} hasPhoto={Boolean(card.avatarUrl)} />
-      {hasBack && <FlipToBackButton onFlip={onFlip} />}
-      <UploadingVeil uploading={uploading} />
-
-      {/* Cuerpo con los datos */}
-      <div className="flex flex-1 flex-col px-6 pb-6 pt-4">
-        <h1 className="text-2xl font-semibold uppercase leading-tight tracking-[0.01em]">
-          {card.fullName || 'Tu nombre'}
-        </h1>
-        {card.title && (
-          <p className="mt-1 text-[13px] font-light text-neutral-300">{card.title}</p>
-        )}
-        {card.company && (
-          <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-500">
-            {card.company}
-          </p>
-        )}
-
-        <Pildoras items={card.pildoras} />
-
-        <div className="mt-auto">
-          <ContactRow card={card} />
-          <SaveContactButton card={card} />
         </div>
       </div>
     </div>
