@@ -193,6 +193,32 @@ function EmailAuth({
           : 'No pudimos crear la cuenta. Inténtalo de nuevo.');
         return;
       }
+      /*
+        El correo ya tenía cuenta.
+
+        Supabase NO lo dice con un error, a propósito: contestar "ese correo ya
+        existe" delataría qué correos están registrados. Devuelve un usuario sin
+        sesión y con `identities` vacío, y ésa es la única señal. Sin distinguir
+        este caso, la pantalla mostraba "te enviamos un correo para confirmar" y
+        se quedaba clavada esperando un correo que nunca llegaba: es el "le doy
+        continuar y no avanza".
+
+        Se intenta entrar con la contraseña que acaba de escribir: si es la suya,
+        sigue de largo con su código y ni se enteró del tropiezo.
+      */
+      if (data.user && !data.session && (data.user.identities?.length ?? 0) === 0) {
+        const { error: signInError } = await getGiftCardSupabase().auth
+          .signInWithPassword({ email: mail, password });
+        if (signInError) {
+          setStatus('idle');
+          setError('Ese correo ya tiene cuenta y esa contraseña no coincide. Entra por '
+            + '"Ya tengo cuenta" o pídele a tu asesor que te devuelva la tarjeta.');
+          return;
+        }
+        onReady?.({ code: code.replace(/\D/g, '') });
+        return;
+      }
+
       // Confirmación de correo activada en el proyecto: no hay sesión todavía.
       // Se recuerda el código para retomarlo cuando la persona vuelva ya
       // confirmada, y así no queda atrapada pidiendo un correo que no llega.
@@ -605,6 +631,15 @@ function InvitationCode({ busy, error, onSubmit }) {
             : <>Activar mi tarjeta <ArrowRight size={16} /></>}
         </button>
       </form>
+      {/* Salida por si entró con una cuenta que no es la que quería usar. */}
+      <button
+        type="button"
+        onClick={() => getGiftCardSupabase().auth.signOut()}
+        className="mx-auto mt-5 flex items-center gap-2 text-[11px] font-light text-neutral-500
+                   underline-offset-2 hover:text-neutral-300 hover:underline"
+      >
+        <LogOut size={13} /> Salir y entrar con otro correo
+      </button>
     </Screen>
   );
 }
