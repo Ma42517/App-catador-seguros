@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Check, X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import {
+  Check, X, ZoomIn, ZoomOut, RotateCcw,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Crosshair,
+} from 'lucide-react';
 import { CARD_ASPECT, MIN_ZOOM, MAX_ZOOM } from '../../data/cardPhoto';
 import useFreeFraming, { DEFAULT_FREE_FOCUS, parseFreeFocus } from './useFreeFraming';
 import DigitalCard from './DigitalCard';
@@ -96,6 +99,18 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
     return { ...cur, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, cur.zoom + delta)) };
   });
 
+  /*
+    Mover la foto a toques con las flechas. Cada toque desplaza un paso fijo (en %
+    del marco); es el camino garantizado para quien no logra arrastrar. dx/dy
+    positivos mueven la foto a la derecha/abajo, igual que el arrastre.
+  */
+  const NUDGE = 6;
+  const nudge = (dx, dy) => setFocus((f) => parseFreeFocus({
+    ...parseFreeFocus(f),
+    ox: parseFreeFocus(f).ox + dx * NUDGE,
+    oy: parseFreeFocus(f).oy + dy * NUDGE,
+  }));
+
   return (
     <div
       className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4 backdrop-blur-sm"
@@ -110,8 +125,8 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
           <div>
             <h2 className="text-lg font-medium tracking-tight text-white">Ajusta tu foto</h2>
             <p className="mt-1 text-xs font-light leading-relaxed text-neutral-400">
-              Arrastra la foto sobre la tarjeta para colocarla donde quieras —así la
-              cara no queda tapada por el texto— y usa el control para acercarla.
+              Mueve la foto con las flechas (o arrástrala) para colocarla donde quieras
+              —así la cara no queda tapada por el texto— y usa el control para acercarla.
             </p>
           </div>
           <button
@@ -161,6 +176,54 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
                 <ZoomIn size={16} />
               </button>
             </div>
+
+            {/*
+              Flechas para mover la foto a toques: la vía segura para quien no
+              logra arrastrar. Distribución de cruceta —arriba, izquierda/centrar/
+              derecha, abajo— con el botón central para volver al centro.
+            */}
+            <div className="mx-auto mt-5 grid w-max grid-cols-3 gap-2">
+              <span />
+              <button
+                type="button" onClick={() => nudge(0, -1)} aria-label="Mover la foto hacia arriba"
+                className="grid h-11 w-11 place-items-center rounded-xl border border-neutral-800
+                           bg-neutral-900 text-neutral-200 hover:border-neutral-600 active:scale-95"
+              >
+                <ArrowUp size={18} />
+              </button>
+              <span />
+              <button
+                type="button" onClick={() => nudge(-1, 0)} aria-label="Mover la foto a la izquierda"
+                className="grid h-11 w-11 place-items-center rounded-xl border border-neutral-800
+                           bg-neutral-900 text-neutral-200 hover:border-neutral-600 active:scale-95"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <button
+                type="button" onClick={() => setFocus(DEFAULT_FREE_FOCUS)} aria-label="Centrar la foto"
+                className="grid h-11 w-11 place-items-center rounded-xl border border-neutral-800
+                           bg-neutral-900 text-neutral-400 hover:border-neutral-600 hover:text-white active:scale-95"
+              >
+                <Crosshair size={16} />
+              </button>
+              <button
+                type="button" onClick={() => nudge(1, 0)} aria-label="Mover la foto a la derecha"
+                className="grid h-11 w-11 place-items-center rounded-xl border border-neutral-800
+                           bg-neutral-900 text-neutral-200 hover:border-neutral-600 active:scale-95"
+              >
+                <ArrowRight size={18} />
+              </button>
+              <span />
+              <button
+                type="button" onClick={() => nudge(0, 1)} aria-label="Mover la foto hacia abajo"
+                className="grid h-11 w-11 place-items-center rounded-xl border border-neutral-800
+                           bg-neutral-900 text-neutral-200 hover:border-neutral-600 active:scale-95"
+              >
+                <ArrowDown size={18} />
+              </button>
+              <span />
+            </div>
+
             <button
               type="button"
               onClick={() => setFocus(DEFAULT_FREE_FOCUS)}
