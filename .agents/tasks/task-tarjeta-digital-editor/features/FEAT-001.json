@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Establecer y confirmar la linea base del entorno antes de tocar codigo. Instalar dependencias si hiciera falta, ejecutar lint y build actuales y confirmar que el baseline aceptable (12 warnings, 0 errores en lint; build exitoso) esta verde. Esto ancla el resto del trabajo: cualquier feature posterior debe dejar el proyecto en este estado o mejor.",
+  "status": "completed",
+  "steps": [
+    "Cargar Node 22: export NVM_DIR=\"$HOME/.nvm\" && . \"$NVM_DIR/nvm.sh\" && nvm use 22",
+    "Si node_modules no existiera o npm run build fallara por dependencias, ejecutar npm install (las deps ya deberian estar instaladas).",
+    "Ejecutar npm run lint y anotar el conteo exacto (esperado: 12 warnings, 0 errores).",
+    "Ejecutar npm run build y confirmar que termina con exito (esperado ~2s).",
+    "Registrar en el campo findings del feature el conteo de warnings y el resultado del build como linea base."
+  ],
+  "acceptance_criteria": [
+    "npm run lint reporta 0 errores (12 warnings es el baseline aceptable).",
+    "npm run build termina con exito sin errores.",
+    "El feature findings documenta el conteo de warnings observado."
+  ],
+  "verification": [
+    "export NVM_DIR=\"$HOME/.nvm\" && . \"$NVM_DIR/nvm.sh\" && nvm use 22 >/dev/null && npm run lint && npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": "Linea base confirmada con Node v22.23.2. `npm run lint` (oxlint): 'Found 12 warnings and 0 errors' sobre 269 archivos (baseline aceptable exacto). Los 12 warnings son preexistentes: mezcla de react-hooks(exhaustive-deps) y react(only-export-components) (p.ej. src/components/Goals/Celebration.jsx, src/context/SessionContext.jsx, src/context/FinanceContext). `npm run build` (vite 8.2.1): exitoso en 2.01s, 2698 modulos transformados; unico aviso no bloqueante = chunk >500kB (index-*.js ~1.23MB) preexistente del bundle. No se modifico codigo de la app. Cualquier feature posterior debe mantener 0 errores de lint y <=12 warnings, y build exitoso."
+}
