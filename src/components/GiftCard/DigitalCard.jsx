@@ -322,7 +322,7 @@ function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
       <div
         ref={framing?.frameRef}
         {...(framing?.handlers ?? {})}
-        className={`absolute inset-0 overflow-hidden ${framing ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
+        className={`absolute inset-0 overflow-hidden ${framing?.handlers ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
       >
         <FramedPortrait card={card} free={framing?.free} />
       </div>
@@ -390,7 +390,7 @@ function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
         ref={framing?.frameRef}
         {...(framing?.handlers ?? {})}
         className={`relative h-[55%] w-full overflow-hidden rounded-b-3xl
-                    ${framing ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
+                    ${framing?.handlers ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
       >
         <FramedPortrait card={card} free={framing?.free} />
         {/* Degradado sutil que funde la foto con el cuerpo negro, sin neón */}
