@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import {
   AlignLeft, ArrowLeft, BadgeCheck, Briefcase, Building2, CalendarCheck, Check, Copy, Eye,
-  Globe, IdCard, ImageUp, LayoutTemplate, Lightbulb, Loader2, LogOut, Mail, MapPin, Megaphone,
-  MessageCircle, Phone, Share2, Tags, UserRound, Video, X,
+  IdCard, ImageUp, LayoutTemplate, Lightbulb, Loader2, LogOut, Mail, MapPin, Megaphone,
+  MessageCircle, Phone, Share2, Tags, UserRound, X,
 } from 'lucide-react';
 import { getGiftCardSupabase } from '../../lib/supabaseClient';
 import { giftCardUrl } from '../../lib/giftCardRoute';
@@ -11,6 +11,7 @@ import { readImageFile, shrinkImageForUpload, dataUrlToFile } from '../../data/c
 import { whatsAppLink } from '../../lib/advisorPhone';
 import { MAX_PILDORAS, toSavePatch } from '../../data/cardData';
 import DigitalCard from './DigitalCard';
+import PhotoCropModal from './PhotoCropModal';
 
 /*
   Panel del cliente en TEMA CLARO.
@@ -421,10 +422,8 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
       maps: initial.contactos?.maps ?? '',
       instagram: initial.contactos?.instagram ?? '',
       email: initial.contactos?.email ?? '',
-      web: initial.contactos?.web ?? '',
     },
     reverso: {
-      videoUrl: initial.reverso?.videoUrl ?? '',
       ctaTitulo: initial.reverso?.ctaTitulo ?? '',
       ctaBadge: initial.reverso?.ctaBadge ?? '',
       ctaSubtitulo: initial.reverso?.ctaSubtitulo ?? '',
@@ -440,7 +439,6 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     maps: Boolean(initial.contactos?.maps),
     instagram: Boolean(initial.contactos?.instagram),
     email: Boolean(initial.contactos?.email),
-    web: Boolean(initial.contactos?.web),
   }));
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl ?? '');
   const [saving, setSaving] = useState(false);
@@ -448,6 +446,8 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  // Imagen elegida a la espera de encuadre en el modal. Vacío = modal cerrado.
+  const [cropSrc, setCropSrc] = useState('');
   const fileRef = useRef(null);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -476,7 +476,6 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
       maps: channels.maps ? form.contactos.maps : '',
       instagram: channels.instagram ? form.contactos.instagram : '',
       email: channels.email ? form.contactos.email : '',
-      web: channels.web ? form.contactos.web : '',
     },
   });
 
@@ -498,17 +497,37 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     input oculto, al botón de cámara de la tarjeta y al archivo arrastrado sobre
     la dropzone, sin duplicar el encogido ni el manejo de errores.
   */
-  const uploadPhoto = async (file) => {
+  /*
+    Al elegir una foto ya no se sube directo: primero se abre el recortador para
+    encuadrarla contra la tarjeta real. Se guarda la imagen entera como URL de
+    datos y se le pasa al modal; el recorte definitivo lo hace él al confirmar.
+  */
+  const openCropper = async (file) => {
     if (!file) return;
-    setUploading(true);
     setError('');
     try {
       const dataUrl = await readImageFile(file);
+      setCropSrc(dataUrl);
+    } catch {
+      setError('No pudimos leer la imagen. Prueba con otra.');
+    }
+  };
+
+  /*
+    Sube el recorte que devuelve el modal (ya en la proporción de la tarjeta): se
+    reduce de peso y se manda por el mismo pipeline de siempre. Cierra el modal al
+    terminar.
+  */
+  const uploadCropped = async (dataUrl) => {
+    setUploading(true);
+    setError('');
+    try {
       const shrunk = await shrinkImageForUpload(dataUrl);
       const finalFile = await dataUrlToFile(shrunk, 'tarjeta.jpg');
       const { data, error: e } = await uploadGiftCardPhoto(cardId, finalFile, deviceSecret);
       if (e || !data?.avatarUrl) throw new Error('upload');
       setAvatarUrl(data.avatarUrl);
+      setCropSrc('');
     } catch {
       setError('No pudimos subir la foto. Prueba con otra imagen.');
     } finally {
@@ -519,7 +538,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
   const pickPhoto = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    await uploadPhoto(file);
+    await openCropper(file);
   };
 
   const shareUrl = giftCardUrl(cardId);
@@ -538,7 +557,19 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
   // se guardaría, más la foto actual, para que lo que se ve sea lo que se envía.
   const preview = { ...buildCardData(), avatarUrl };
   const hidden = (
-    <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
+    <>
+      <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
+      {/* El recortador vive junto al input: se usa igual en el modo editar y en
+          el modo previa, y sobre la tarjeta muestra el encuadre en vivo. */}
+      {cropSrc && (
+        <PhotoCropModal
+          src={cropSrc}
+          cardData={preview}
+          onCancel={() => setCropSrc('')}
+          onConfirm={uploadCropped}
+        />
+      )}
+    </>
   );
 
   /* Botonera de compartir: se usa igual en el modo previa y bajo la tarjeta. */
@@ -638,7 +669,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                   avatarUrl={avatarUrl}
                   uploading={uploading}
                   onOpenPicker={() => fileRef.current?.click()}
-                  onFile={uploadPhoto}
+                  onFile={openCropper}
                 />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <TextField
@@ -713,7 +744,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
             {/* ── Contactos ── */}
             <Panel
               icon={MessageCircle}
-              title="Cómo te contactan"
+              title="Redes sociales y contacto"
               hint="Enciende sólo los canales que usas: los apagados no aparecen como botón en la tarjeta."
             >
               <div className="grid gap-3 md:grid-cols-2">
@@ -752,44 +783,23 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                   value={form.contactos.email} onChange={(v) => setContacto('email', v)}
                   type="email" placeholder="tu@correo.com"
                 />
-                <ContactChannel
-                  id="contacto-web"
-                  icon={Globe} label="Sitio web"
-                  enabled={channels.web} onToggle={(on) => toggleChannel('web', on)}
-                  value={form.contactos.web} onChange={(v) => setContacto('web', v)}
-                  type="url" placeholder="https://tu-sitio.com"
-                />
               </div>
             </Panel>
 
             {/* ── Reverso ── */}
             <Panel
-              icon={Video}
+              icon={Megaphone}
               title="Reverso de la tarjeta"
-              hint="La cara de atrás, con tu video y una invitación a agendar. Todo es opcional: sin nada aquí, la tarjeta no gira."
+              hint="La cara de atrás, con una invitación a agendar. Todo es opcional: sin nada aquí, la tarjeta no gira."
             >
               {/*
-                Tres bloques en vez de seis inputs iguales en fila: video, mensaje
-                y agenda son tres decisiones distintas, y puestas en lista plana
-                nadie entendía qué texto acababa en qué sitio de la tarjeta.
+                Dos bloques —mensaje y agenda— en vez de una lista plana de
+                inputs: son dos decisiones distintas y así se entiende qué texto
+                acaba en qué sitio de la tarjeta. El video se quitó a propósito:
+                en la tarjeta del cliente ya no se puede poner.
               */}
               <div className="space-y-6">
                 <div>
-                  <SectionLabel>Video de bienvenida</SectionLabel>
-                  <TextField
-                    id="reverso-video"
-                    label="Enlace del video"
-                    icon={Video}
-                    optional
-                    type="url"
-                    value={form.reverso.videoUrl}
-                    onChange={(v) => setReverso('videoUrl', v)}
-                    placeholder="https://youtube.com/…"
-                    hint="Acepta YouTube, Loom, Vimeo o un archivo de video (MP4)."
-                  />
-                </div>
-
-                <div className="border-t border-neutral-200 pt-5">
                   <SectionLabel>Mensaje destacado</SectionLabel>
                   <div className="grid gap-4 md:grid-cols-2">
                     <TextField
@@ -799,7 +809,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                       optional
                       value={form.reverso.ctaBadge}
                       onChange={(v) => setReverso('ctaBadge', v)}
-                      placeholder="Ej.: Asesoría gratis"
+                      placeholder="Ej.: Agenda tu cita o Miércoles 2x1"
                     />
                     <TextField
                       id="reverso-titulo"
@@ -807,7 +817,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                       optional
                       value={form.reverso.ctaTitulo}
                       onChange={(v) => setReverso('ctaTitulo', v)}
-                      placeholder="Ej.: Revisemos tus seguros"
+                      placeholder="Ej.: Reserva tu espacio"
                     />
                     <div className="md:col-span-2">
                       <TextField
@@ -827,14 +837,14 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                   <div className="grid gap-4 md:grid-cols-2">
                     <TextField
                       id="reverso-booking-url"
-                      label="Enlace de agenda"
+                      label="Agenda de Google Calendar"
                       icon={CalendarCheck}
                       optional
                       type="url"
                       value={form.reverso.bookingUrl}
                       onChange={(v) => setReverso('bookingUrl', v)}
-                      placeholder="https://calendly.com/…"
-                      hint="Si lo dejas vacío, el botón escribirá por WhatsApp a tu número."
+                      placeholder="Pega el enlace público de tu agenda de Google Calendar"
+                      hint="Aquí irá el enlace de programación de citas de Google Calendar. Si lo dejas vacío, el botón escribirá por WhatsApp a tu número."
                     />
                     <TextField
                       id="reverso-booking-texto"
@@ -842,7 +852,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                       optional
                       value={form.reverso.bookingTexto}
                       onChange={(v) => setReverso('bookingTexto', v)}
-                      placeholder="Ej.: Agendar una reunión"
+                      placeholder="Ej.: Agendar cita"
                     />
                   </div>
                 </div>

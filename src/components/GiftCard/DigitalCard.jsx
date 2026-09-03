@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import {
-  Phone, Mail, Globe, MapPin, UserPlus, RotateCcw, ChevronLeft,
-  Camera, Image as ImageIcon, Volume2, VolumeX, CalendarCheck, Play,
+  Phone, Mail, MapPin, UserPlus, RotateCcw, ChevronLeft,
+  Camera, Image as ImageIcon, CalendarCheck,
 } from 'lucide-react';
 import WhatsAppMark from '../Activities/WhatsAppMark';
 import { normalizeCardData } from '../../data/cardData';
 import { buildVCard, canBuildVCard } from '../../data/vcard';
-import { resolveVideo, videoPosterUrl } from '../../data/videoEmbed';
 import { whatsAppLink } from '../../lib/advisorPhone';
 
 /**
@@ -107,7 +106,7 @@ function Pildoras({ items }) {
 function ContactRow({ card }) {
   const whatsapp = String(card.whatsapp ?? '').replace(/[^\d+]/g, '').replace(/^\+/, '');
   const phone = String(card.phone ?? '').replace(/[^\d+]/g, '');
-  const { maps, instagram, email, web } = card.contactos ?? {};
+  const { maps, instagram, email } = card.contactos ?? {};
 
   return (
     <div className="mt-5 flex flex-wrap items-center gap-2.5">
@@ -128,11 +127,6 @@ function ContactRow({ card }) {
       {instagram && (
         <ContactButton label="Abrir Instagram" href={instagram}>
           <InstagramMark size={17} />
-        </ContactButton>
-      )}
-      {web && (
-        <ContactButton label="Abrir sitio web" href={web}>
-          <Globe size={17} />
         </ContactButton>
       )}
       {email && (
@@ -385,70 +379,6 @@ function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
 }
 
 /**
- * Reproductor de video del reverso. El video es un ENLACE que el cliente pega
- * (no un archivo subido): resolveVideo restringe los hosts a YouTube, Loom,
- * Vimeo y archivos de video conocidos, porque un iframe libre sería una puerta
- * abierta en una página pública.
- *
- * El silenciar/activar audio sólo se ofrece para archivos (`<video>`), que es
- * donde el reproductor lo controla; en los iframes de terceros el sonido lo
- * gobierna su propio reproductor y no se puede tocar desde fuera.
- */
-function VideoPlayer({ url }) {
-  const [muted, setMuted] = useState(true);
-  const { kind, embedUrl, fileUrl } = resolveVideo(url);
-
-  if (!kind) {
-    return (
-      <div className="grid aspect-video w-full place-items-center rounded-xl border
-                      border-neutral-800 bg-neutral-900 text-neutral-600"
-      >
-        <Play size={28} strokeWidth={1.4} aria-hidden="true" />
-      </div>
-    );
-  }
-
-  if (kind === 'file') {
-    const poster = videoPosterUrl(url);
-    return (
-      <div className="relative overflow-hidden rounded-xl border border-neutral-800 bg-black">
-        <video
-          src={fileUrl}
-          poster={poster || undefined}
-          controls
-          playsInline
-          muted={muted}
-          className="aspect-video w-full"
-        />
-        <button
-          type="button"
-          onClick={() => setMuted((m) => !m)}
-          aria-label={muted ? 'Activar audio' : 'Silenciar'}
-          className="absolute bottom-2 right-2 grid h-9 w-9 place-items-center rounded-full
-                     bg-black/60 text-white ring-1 ring-white/20 backdrop-blur-md
-                     transition-colors hover:bg-black/80 active:scale-95"
-        >
-          {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-        </button>
-      </div>
-    );
-  }
-
-  // YouTube / Loom / Vimeo: iframe del host permitido.
-  return (
-    <div className="overflow-hidden rounded-xl border border-neutral-800 bg-black">
-      <iframe
-        src={embedUrl}
-        title="Video de presentación"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="aspect-video w-full"
-      />
-    </div>
-  );
-}
-
-/**
  * ── Reverso compartido ──
  *
  * Video compacto arriba, tarjeta de valor con badge/título/subtítulo en medio y
@@ -457,7 +387,7 @@ function VideoPlayer({ url }) {
  * botón nunca quede muerto.
  */
 function CardBack({ card, onBack }) {
-  const { videoUrl, ctaBadge, ctaTitulo, ctaSubtitulo, bookingUrl, bookingTexto } = card.reverso ?? {};
+  const { ctaBadge, ctaTitulo, ctaSubtitulo, bookingUrl, bookingTexto } = card.reverso ?? {};
 
   // Degradado sensato del botón de reserva: si no hay agenda pero sí número, se
   // escribe por WhatsApp con el texto ya puesto. Si NO hay ni agenda ni número,
@@ -482,8 +412,6 @@ function CardBack({ card, onBack }) {
       >
         <ChevronLeft size={22} />
       </button>
-
-      {videoUrl && <VideoPlayer url={videoUrl} />}
 
       {/* Tarjeta de valor interactiva */}
       {(ctaBadge || ctaTitulo || ctaSubtitulo) && (
