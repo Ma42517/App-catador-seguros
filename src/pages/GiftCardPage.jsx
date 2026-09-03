@@ -141,9 +141,17 @@ export default function GiftCardPage() {
  * su propio cliente de Supabase, separada de la de la app.
  */
 function EmailAuth({
-  title, intro, requireCode = false, onReady,
+  title, intro, requireCode = false, allowSignup = true, onReady,
 }) {
-  const [tab, setTab] = useState('signup'); // 'signup' | 'login'
+  /*
+    Con `allowSignup` en falso sólo se ofrece entrar.
+
+    Es el caso de una tarjeta YA activada: crear otra cuenta ahí no sirve de nada
+    —el servidor devolvería NOT_OWNER— y, sobre todo, arrancar en "Crear cuenta"
+    hacía que al volver tras cerrar sesión la pantalla pidiera otra vez el código
+    de invitación, cuando el código es de un solo uso y ya se gastó al activarla.
+  */
+  const [tab, setTab] = useState(allowSignup ? 'signup' : 'login'); // 'signup' | 'login'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -245,19 +253,21 @@ function EmailAuth({
     <Screen icon={UserRound} title={title}>
       <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">{intro}</p>
 
-      <div className="mt-6 flex rounded-full border border-neutral-800 p-1">
-        {[['signup', 'Crear cuenta'], ['login', 'Ya tengo cuenta']].map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => { setTab(key); setError(''); setNotice(''); }}
-            className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
-              tab === key ? 'bg-neutral-100 text-black' : 'text-neutral-400'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {allowSignup && (
+        <div className="mt-6 flex rounded-full border border-neutral-800 p-1">
+          {[['signup', 'Crear cuenta'], ['login', 'Ya tengo cuenta']].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => { setTab(key); setError(''); setNotice(''); }}
+              className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
+                tab === key ? 'bg-neutral-100 text-black' : 'text-neutral-400'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={submit} className="mt-5 space-y-3 text-left">
         <input
@@ -338,6 +348,16 @@ function SingleCard({ cardId, session }) {
     mientras la activación está en marcha.
   */
   const linking = useRef(false);
+  /*
+    ¿La tarjeta ya fue activada por alguien?
+
+    Hace falta saberlo SIN sesión, para decidir qué pantalla de acceso mostrar: si
+    ya está activada, el código de invitación ya se gastó (es de un solo uso) y lo
+    único que corresponde es entrar con correo y contraseña. `null` = todavía no
+    se sabe, y en ese caso no se pinta nada para no ofrecer el formulario
+    equivocado durante un instante.
+  */
+  const [cardClaimed, setCardClaimed] = useState(null);
 
   /**
    * Abre la tarjeta ya siendo su dueño: bienvenida la primera vez, luego editor.
@@ -507,6 +527,23 @@ function SingleCard({ cardId, session }) {
     return () => { active = false; };
   }, [cardId, session, openAsOwner, vincularConCodigo]);
 
+  /*
+    Estado público de la tarjeta mientras no hay sesión.
+
+    `public_gift_card` responde ACTIVA sólo si ya tiene dueño, y es consultable sin
+    sesión (es la vista pública). Con eso basta para no volver a pedir el código a
+    quien sólo cerró sesión.
+  */
+  useEffect(() => {
+    if (session) return undefined;
+    let active = true;
+    (async () => {
+      const { data } = await fetchPublicGiftCard(cardId);
+      if (active) setCardClaimed(data?.outcome === 'ACTIVA');
+    })();
+    return () => { active = false; };
+  }, [cardId, session]);
+
   const dismissWelcome = () => {
     try { window.localStorage.setItem(SEEN_KEY + cardId, '1'); } catch { /* sin storage */ }
     setPhase('editor');
@@ -548,13 +585,30 @@ function SingleCard({ cardId, session }) {
   // Paso cero: identificarse. El registro pide correo, contraseña y código de
   // invitación. Nada de la tarjeta se muestra antes de vincularla.
   if (phase === 'login') {
+    /*
+      Mientras no se sabe si la tarjeta ya está activada no se pinta el formulario:
+      mostrar "Crear cuenta" con código y cambiarlo medio segundo después es peor
+      que esperar ese instante.
+    */
+    if (cardClaimed === null) {
+      return (
+        <main className="grid min-h-[100dvh] place-items-center bg-black">
+          <Loader2 size={22} className="animate-spin text-neutral-700" aria-label="Abriendo" />
+        </main>
+      );
+    }
     return (
       <div>
         <EmailAuth
-          title="Tu tarjeta digital de regalo"
-          intro="Te regalaron una tarjeta digital para que la hagas tuya. Crea tu cuenta con el
-                 código de invitación que te compartió tu asesor; así sólo tú podrás editarla."
-          requireCode
+          title={cardClaimed ? 'Entra a tu tarjeta' : 'Tu tarjeta digital de regalo'}
+          intro={cardClaimed
+            ? 'Tu tarjeta ya está activada. Entra con el correo y la contraseña que registraste '
+              + 'para seguir editándola. El código de tu asesor sólo se usa la primera vez.'
+            : `Te regalaron una tarjeta digital para que la hagas tuya. Crea tu cuenta con el
+               código de invitación que te compartió tu asesor; así sólo tú podrás editarla.`}
+          // El código y el registro sólo tienen sentido en la primera activación.
+          requireCode={!cardClaimed}
+          allowSignup={!cardClaimed}
           onReady={({ code }) => vincularConCodigo(code)}
         />
         <div className="mx-auto -mt-4 max-w-sm px-6 pb-10 text-center">
