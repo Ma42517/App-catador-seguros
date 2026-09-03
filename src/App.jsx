@@ -924,7 +924,18 @@ function Gate({ isPreview }) {
   if (!isApproved) {
     return identity.experienceLevel
       ? <PendingApproval />
-      : <OnboardingFlow userId={identity.key} onProfileSaved={refreshIdentity} />;
+      : (
+        <OnboardingFlow
+          userId={identity.key}
+          onProfileSaved={refreshIdentity}
+          /*
+            Salida de emergencia. El onboarding no tenía ninguna: si se entraba
+            con la cuenta equivocada —una cuenta de tarjeta de regalo, por
+            ejemplo— no había forma de salir sin borrar datos del navegador.
+          */
+          onExit={signOut}
+        />
+      );
   }
 
   /*

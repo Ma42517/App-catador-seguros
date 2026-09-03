@@ -163,6 +163,28 @@ export function SessionProvider({ children }) {
       return;
     }
 
+    /*
+      Cuenta de cliente (tarjeta digital de regalo) intentando entrar a la app.
+
+      Pasaba de verdad: antes de aislar las sesiones, quien creaba su cuenta en
+      `/mi-tarjeta` la dejaba guardada en el mismo almacén que usa la app. Al
+      abrir la app, el Gate encontraba esa sesión, le creaba una ficha `pending`
+      y mostraba el onboarding —sin botón de salir—, así que el asesor quedaba
+      atrapado en un cuestionario que no era el suyo.
+
+      Estas cuentas no son de asesor y nunca deben crear ficha: se cierra la
+      sesión aquí mismo y se explica en la pantalla de acceso.
+    */
+    if (session.user.user_metadata?.df360_role === 'client') {
+      if (isSupabaseConfigured && supabase) await supabase.auth.signOut();
+      if (!alive.current) return;
+      setError('Esa cuenta es de una tarjeta digital de regalo, no de asesor. '
+        + 'Entra con tu cuenta de asesor.');
+      setIdentity(null);
+      setStatus(SESSION_STATUS.ANON);
+      return;
+    }
+
     const { data, error: profileError } = await fetchOrCreateProfile(session.user);
     if (!alive.current) return;
 
