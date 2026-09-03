@@ -1,0 +1,33 @@
+{
+  "project_type": "React 19 + Vite SPA (Tailwind CSS, Supabase backend), desplegada en Vercel",
+  "language": "JavaScript (JSX), sin TypeScript",
+  "build_system": "npm + Vite 8. Node 22 vía nvm. Antes de cualquier comando: export NVM_DIR=\"$HOME/.nvm\" && . \"$NVM_DIR/nvm.sh\" && nvm use 22",
+  "test_framework": "No hay tests unitarios. La verificacion es lint (oxlint) + build (vite). Existen scripts node en scripts/ (verifica-diagnostico.mjs, etc.) que no cubren la tarjeta.",
+  "build_command": "export NVM_DIR=\"$HOME/.nvm\" && . \"$NVM_DIR/nvm.sh\" && nvm use 22 >/dev/null && npm run build",
+  "test_command": "export NVM_DIR=\"$HOME/.nvm\" && . \"$NVM_DIR/nvm.sh\" && nvm use 22 >/dev/null && npm run lint",
+  "verification_instructions": "Ejecutar en la raiz del repo: `npm run lint && npm run build`. BASELINE ACEPTABLE: 12 warnings y 0 errores en lint; build exitoso en ~2s. Introducir errores de lint o romper el build es fallo. No aumentar el numero de warnings si se puede evitar.",
+  "snapshot_or_generated_files": "Ninguno relevante. dist/ es salida de build ignorada por git.",
+  "setup_instructions": "Dependencias YA instaladas en node_modules. Si faltara algo: npm install. No se necesita servidor externo para lint/build. Supabase es remoto (no local).",
+  "environment_constraints": "Red: solo repositorio (INTEGRATIONS_ONLY) segun briefing. No se puede aplicar migraciones a Supabase ni probar RPC contra la BD real; la migracion SQL es un ENTREGABLE de texto que el usuario aplica a mano en el SQL Editor de Supabase. El sub-agente NO puede hacer push ni PR.",
+  "contribution_requirements": "Comentarios en espanol explicando el PORQUE (no el que), como en todo el repo. Estetica true-black OLED (bg-black, bg-neutral-950, border-neutral-800/80). lucide-react para iconos. framer-motion disponible. Inputs moviles con text-[16px] para evitar zoom en iOS Safari. Prohibidos neones/gradientes chillones.",
+  "key_patterns": "MUNDO DE LA TARJETA AISLADO del mundo asesor: usar SIEMPRE getGiftCardSupabase() (storageKey 'df360-giftcard-auth'), NUNCA el supabase normal. Los RPC del cliente van por callClientRpc en src/data/giftCardsRepo.js. RESTRICCION CRITICA DE COMPATIBILIDAD: existen tarjetas reales ya activas con el esquema viejo (columnas: full_name, title, company, specialties jsonb, bio, phone, whatsapp, avatar_url, avatar_path, photo_focus). Ninguna debe romperse ni verse vacia. El nuevo cardData (template, estadoPill, pildoras[], contactos{}, reverso{}) debe convivir: specialties<->pildoras es el mapeo natural; whatsapp/phone ya existen. Plan: migracion ADITIVA idempotente (add column if not exists + create or replace) con template por defecto 'editorial'. PATRON DE FLIP 3D YA EXISTE y es la referencia obligada: src/components/Profile/DigitalCardPreview.jsx usa estilos EN LINEA (WebkitTransformStyle/transformStyle 'preserve-3d', transform rotateY, WebkitBackfaceVisibility 'hidden', translateZ(0)) porque Safari no funciona solo con clases Tailwind. Mask-image de foto fundida tambien esta ahi con prefijo -webkit-. HELPERS REUTILIZABLES: src/data/vcard.js (buildVCard, canBuildVCard) para el .vcf de 'Guardar Contacto'; src/data/videoEmbed.js (toYouTubeEmbed, videoKind, isEmbeddableVideo) para YouTube (habra que extender a Loom/Vimeo/MP4). whatsAppLink en src/lib/advisorPhone.js.",
+  "relevant_files": [
+    "src/pages/GiftCardPage.jsx (contiene HOY el CardEditor, SingleCard, OwnerPanel, Welcome, EmailAuth, InvitationCode, PhoneAccess como componentes internos; el editor real esta aqui, NO en un CardEditor.jsx separado)",
+    "src/components/GiftCard/GiftCardVisual.jsx (visor de solo-lectura actual del cliente; base para el nuevo DigitalCard con flip)",
+    "src/components/Profile/DigitalCardPreview.jsx (REFERENCIA del flip 3D Safari-safe y del mask-image; NO modificar: es del mundo asesor y esta en produccion)",
+    "src/data/giftCardsRepo.js (repo del cliente: saveGiftCard, fetchMyGiftCard, fetchPublicGiftCard, uploadGiftCardPhoto y RPC del asesor)",
+    "src/lib/supabaseClient.js (getGiftCardSupabase aislado)",
+    "src/data/vcard.js (buildVCard para .vcf)",
+    "src/data/videoEmbed.js (embed de video, extender a Loom/Vimeo/MP4)",
+    "src/lib/advisorPhone.js (whatsAppLink)",
+    "src/data/cardPhoto.js (recorte/subida de foto; FRAME_WIDTH/HEIGHT del marco)",
+    "supabase/migrations/20260906_gift_cards.sql (esquema base y public_gift_card, no sobreescrito despues)",
+    "supabase/migrations/20260911_gift_card_phone_code.sql (ULTIMAS versiones de my_gift_card(p_card_id,p_device_secret), save_gift_card(p_card_id,p_patch,p_device_secret), set_gift_card_photo; usar estas firmas como base)"
+  ],
+  "directory_structure": "src/pages/ (GiftCardPage.jsx = mundo cliente/tarjeta). src/components/GiftCard/ (GiftCardVisual.jsx). src/components/Profile/ (DigitalCardPreview.jsx = mundo asesor, referencia flip). src/data/ (repos y helpers). src/lib/ (supabaseClient, advisorPhone, giftCardRoute). supabase/migrations/ (SQL, el usuario los aplica a mano; nombrar YYYYMMDD_...).",
+  "rpc_current_signatures": {
+    "public_gift_card(p_card_id uuid)": "devuelve outcome/id/fullName/title/company/specialties/bio/phone/whatsapp/avatarUrl/photoFocus/canPropagate (version base 20260906, NO sobreescrita)",
+    "my_gift_card(p_card_id uuid, p_device_secret text default '')": "devuelve outcome/id/status/fullName/title/company/specialties/bio/phone/whatsapp/avatarUrl/avatarPath/photoFocus (version 20260911)",
+    "save_gift_card(p_card_id uuid, p_patch jsonb, p_device_secret text default '')": "aplica coalesce por campo desde p_patch (version 20260911); usa gift_card_authorized() para dueno o dispositivo"
+  }
+}

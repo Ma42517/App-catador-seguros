@@ -1,0 +1,14 @@
+{
+  "task_id": "task-tarjeta-digital-editor",
+  "task_description": "Renovar la Tarjeta Digital de Regalo (ya en produccion) sin romper lo existente: unificar el modelo de datos cardData (template, estadoPill, pildoras, contactos, reverso) con migracion aditiva idempotente; crear DigitalCard con giro 3D y dos plantillas de anverso (Editorial y Ejecutiva) mas reverso interactivo compartido; y renovar el editor del cliente (CardEditor) con selector de plantilla, gestor de pildoras, switches de contacto, config de reverso y vista previa en vivo girable. Estetica True Black OLED, inputs text-[16px] para iOS, mundo de la tarjeta aislado (getGiftCardSupabase).",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "n/a",
+    "docker_build": "skipped",
+    "summary": "npm run lint: 12 warnings, 0 errores (baseline aceptable exacto, 272 archivos). npm run build: exitoso ~2s (unico aviso preexistente = chunk >500kB). El proyecto NO tiene tests unitarios (test_command = lint); no aplica revision de calidad de tests. Docker: sin Dockerfile y red INTEGRATIONS_ONLY, omitido. La migracion SQL (20260916) es un entregable de texto idempotente que el usuario aplica a mano en Supabase (no verificable contra BD en este entorno)."
+  }
+}

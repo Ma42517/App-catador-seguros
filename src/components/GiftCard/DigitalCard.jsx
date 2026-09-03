@@ -6,6 +6,7 @@ import {
 import WhatsAppMark from '../Activities/WhatsAppMark';
 import { normalizeCardData } from '../../data/cardData';
 import { buildVCard, canBuildVCard } from '../../data/vcard';
+import { focusStyle } from '../../data/cardPhoto';
 import { whatsAppLink } from '../../lib/advisorPhone';
 
 /**
@@ -240,22 +241,33 @@ function UploadingVeil({ uploading }) {
  * Se diferencia de la Ejecutiva en que aquélla enmarca la foto al 55% del alto y
  * apoya los datos sobre fondo neutral-950, con badge de estado.
  */
-function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
+function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing }) {
   return (
     <div className="relative h-full w-full bg-neutral-950 text-white">
-      {/* Capa 1 — el retrato, A SANGRE: cubre la tarjeta completa */}
-      {card.avatarUrl ? (
-        <img
-          src={card.avatarUrl}
-          alt={card.fullName || 'Tarjeta'}
-          referrerPolicy="no-referrer"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-700">
-          <ImageIcon size={44} strokeWidth={1.2} />
-        </div>
-      )}
+      {/* Capa 1 — el retrato, A SANGRE: cubre la tarjeta completa. El encuadre
+          (posición + acercamiento) se aplica con focusStyle; sin photoFocus queda
+          centrado y sin escala, idéntico a como estaba. Cuando se está encuadrando
+          (framing), este contenedor recibe la ref y los gestos de arrastre. */}
+      <div
+        ref={framing?.frameRef}
+        {...(framing?.handlers ?? {})}
+        className={`absolute inset-0 ${framing ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
+      >
+        {card.avatarUrl ? (
+          <img
+            src={card.avatarUrl}
+            alt={card.fullName || 'Tarjeta'}
+            referrerPolicy="no-referrer"
+            draggable={false}
+            className="absolute inset-0 h-full w-full select-none object-cover"
+            style={focusStyle(card.photoFocus)}
+          />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-700">
+            <ImageIcon size={44} strokeWidth={1.2} />
+          </div>
+        )}
+      </div>
 
       {/*
         Capa 2 — degradado. Sube desde abajo y es lo que hace legible el texto
@@ -311,17 +323,25 @@ function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
  * derecha, ambos DENTRO de la foto. El badge de estado se apoya por eso en el
  * BORDE INFERIOR de la foto (`bottom-3 left-4`), donde no lo pisa ningún control.
  */
-function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack }) {
+function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing }) {
   return (
     <div className="flex h-full w-full flex-col bg-neutral-950 text-white">
-      {/* Foto superior con las esquinas inferiores redondeadas */}
-      <div className="relative h-[55%] w-full overflow-hidden rounded-b-3xl">
+      {/* Foto superior con las esquinas inferiores redondeadas. Al encuadrar
+          (framing), este bloque recibe la ref y los gestos de arrastre. */}
+      <div
+        ref={framing?.frameRef}
+        {...(framing?.handlers ?? {})}
+        className={`relative h-[55%] w-full overflow-hidden rounded-b-3xl
+                    ${framing ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
+      >
         {card.avatarUrl ? (
           <img
             src={card.avatarUrl}
             alt={card.fullName || 'Tarjeta'}
             referrerPolicy="no-referrer"
-            className="h-full w-full object-cover"
+            draggable={false}
+            className="h-full w-full select-none object-cover"
+            style={focusStyle(card.photoFocus)}
           />
         ) : (
           <div className="grid h-full w-full place-items-center bg-neutral-900 text-neutral-700">
@@ -463,18 +483,20 @@ function CardBack({ card, onBack }) {
  * @param onPickPhoto Si viene, aparece el botón de cámara (modo edición).
  * @param uploading  Muestra el velo de carga sobre el retrato.
  */
-export default function DigitalCard({ cardData, card, onPickPhoto, uploading = false }) {
+export default function DigitalCard({
+  cardData, card, onPickPhoto, uploading = false, framing = null,
+}) {
   const [isFlipped, setIsFlipped] = useState(false);
 
   // Se acepta `cardData` o `card` y se normaliza: así el visor no depende de si
   // le llega el shape del repo o el del formulario (specialties → pildoras, etc.).
   const data = normalizeCardData(cardData ?? card ?? {});
 
-  // El reverso sólo existe si hay algo que enseñar: sin video ni CTA ni agenda,
-  // un botón para voltear llevaría a una cara vacía.
+  // El reverso sólo existe si hay algo que enseñar: sin CTA ni agenda, un botón
+  // para voltear llevaría a una cara vacía. (El video se quitó de la tarjeta.)
   const r = data.reverso ?? {};
   const hasBack = Boolean(
-    r.videoUrl || r.ctaBadge || r.ctaTitulo || r.ctaSubtitulo || r.bookingUrl,
+    r.ctaBadge || r.ctaTitulo || r.ctaSubtitulo || r.bookingUrl,
   );
 
   const Front = data.template === 'executive' ? ExecutiveFront : EditorialFront;
@@ -527,6 +549,7 @@ export default function DigitalCard({ cardData, card, onPickPhoto, uploading = f
             uploading={uploading}
             onFlip={() => setIsFlipped(true)}
             hasBack={hasBack}
+            framing={framing}
           />
         </div>
 
