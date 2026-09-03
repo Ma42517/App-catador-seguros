@@ -317,13 +317,8 @@ function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
     <div className="relative h-full w-full bg-neutral-950 text-white">
       {/* Capa 1 — el retrato, A SANGRE: cubre la tarjeta completa. El encuadre
           (posición + acercamiento) se aplica con focusStyle; sin photoFocus queda
-          centrado y sin escala, idéntico a como estaba. Cuando se está encuadrando
-          (framing), este contenedor recibe la ref y los gestos de arrastre. */}
-      <div
-        ref={framing?.frameRef}
-        {...(framing?.handlers ?? {})}
-        className={`absolute inset-0 overflow-hidden ${framing?.handlers ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
-      >
+          centrado y sin escala, idéntico a como estaba. */}
+      <div className="absolute inset-0 overflow-hidden">
         <FramedPortrait card={card} free={framing?.free} />
       </div>
 
@@ -335,6 +330,21 @@ function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
         className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-transparent"
         aria-hidden="true"
       />
+
+      {/*
+        Capa de CAPTURA del gesto, sólo al encuadrar. Va ENCIMA de todo (z-40)
+        cubriendo la tarjeta entera, porque el degradado y el bloque de datos
+        (z-20) tapaban el retrato y se comían el arrastre: el gesto no llegaba a
+        moverse. Es transparente —no oculta nada— y sólo existe mientras se ajusta.
+      */}
+      {framing?.handlers && (
+        <div
+          ref={framing.frameRef}
+          {...framing.handlers}
+          className="absolute inset-0 z-40 cursor-grab touch-none active:cursor-grabbing"
+          aria-label="Arrastra para mover la foto"
+        />
+      )}
 
       <PhotoButton onPickPhoto={onPickPhoto} hasPhoto={Boolean(card.avatarUrl)} />
       {hasBack && <FlipToBackButton onFlip={onFlip} />}
@@ -386,13 +396,17 @@ function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
     <div className="flex h-full w-full flex-col bg-neutral-950 text-white">
       {/* Foto superior con las esquinas inferiores redondeadas. Al encuadrar
           (framing), este bloque recibe la ref y los gestos de arrastre. */}
-      <div
-        ref={framing?.frameRef}
-        {...(framing?.handlers ?? {})}
-        className={`relative h-[55%] w-full overflow-hidden rounded-b-3xl
-                    ${framing?.handlers ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
-      >
+      <div className="relative h-[55%] w-full overflow-hidden rounded-b-3xl">
         <FramedPortrait card={card} free={framing?.free} />
+        {/* Capa de captura del gesto, encima de la foto y su degradado. */}
+        {framing?.handlers && (
+          <div
+            ref={framing.frameRef}
+            {...framing.handlers}
+            className="absolute inset-0 z-40 cursor-grab touch-none active:cursor-grabbing"
+            aria-label="Arrastra para mover la foto"
+          />
+        )}
         {/* Degradado sutil que funde la foto con el cuerpo negro, sin neón */}
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950
