@@ -55,6 +55,14 @@ export default function useFreeFraming({ focus, onChange }) {
   }, [focus]);
 
   const onPointerDown = useCallback((event) => {
+    /*
+      Sin `preventDefault`, el navegador arranca su PROPIO arrastre de imagen —el
+      de "sacar la foto para guardarla"— y se queda con el gesto: se ve cómo se
+      jala el PNG pero el encuadre no se mueve. Cancelarlo aquí es lo que deja el
+      arrastre para nosotros. (Va con las imágenes en `draggable=false` y el
+      contenedor en `touch-action: none`, que cubren el resto de los casos.)
+    */
+    event.preventDefault();
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     event.currentTarget.setPointerCapture?.(event.pointerId);
     begin();
@@ -62,6 +70,7 @@ export default function useFreeFraming({ focus, onChange }) {
 
   const onPointerMove = useCallback((event) => {
     if (!pointers.current.has(event.pointerId)) return;
+    event.preventDefault();
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     const start = origin.current;
     if (!start) return;
@@ -105,6 +114,8 @@ export default function useFreeFraming({ focus, onChange }) {
       onPointerMove,
       onPointerUp: release,
       onPointerCancel: release,
+      // Corta el arrastre nativo de imagen del navegador, que si no se roba el gesto.
+      onDragStart: (e) => e.preventDefault(),
     },
   };
 }
