@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, Check, Copy, Eye, Gift, IdCard, KeyRound, Loader2, LogOut,
+  ArrowRight, Gift, IdCard, KeyRound, Loader2, LogOut,
   Pencil, Share2, Sparkles, UserRound,
 } from 'lucide-react';
 import { getGiftCardSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
@@ -8,19 +8,16 @@ import { giftCardRoute, giftCardUrl } from '../lib/giftCardRoute';
 import {
   claimGiftCard, claimGiftCardWithSignup,
   fetchMyGiftCard, fetchMyGiftCards, fetchPublicGiftCard,
-  saveGiftCard, uploadGiftCardPhoto,
 } from '../data/giftCardsRepo';
-import { readImageFile, shrinkImageForUpload, dataUrlToFile } from '../data/cardPhoto';
-import { whatsAppLink } from '../lib/advisorPhone';
 import DigitalCard from '../components/GiftCard/DigitalCard';
+import CardEditor from '../components/GiftCard/CardEditor';
 import {
   claimGiftCardWithCode, openGiftCardWithDevice,
 } from '../data/giftCardsRepo';
 import { readCardSecret, saveCardSecret } from '../lib/giftCardDevice';
 
-const INPUT = 'w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm '
+const INPUT = 'w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-[16px] '
   + 'font-light text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-neutral-500';
-const SPECIALTIES = ['Emprendedor', 'Profesional', 'Familia', 'Estudiante', 'Empresa'];
 /** Marca de que ya se vio la bienvenida de una tarjeta, para no repetirla. */
 const SEEN_KEY = 'df360:giftcard:welcome:';
 /** Código escrito al registrarse, para retomarlo tras confirmar el correo. */
@@ -948,213 +945,6 @@ function OwnerPanel({ session }) {
             </li>
           ))}
         </ul>
-      </div>
-    </main>
-  );
-}
-
-/** Editor del dueño: datos primero, y la tarjeta real como vista previa. */
-function CardEditor({ cardId, initial, deviceSecret = '' }) {
-  const [mode, setMode] = useState('edit'); // 'edit' | 'preview'
-  const [form, setForm] = useState({
-    fullName: initial.fullName ?? '',
-    title: initial.title ?? '',
-    company: initial.company ?? '',
-    specialties: Array.isArray(initial.specialties) ? initial.specialties : [],
-    bio: initial.bio ?? '',
-    phone: initial.phone ?? '',
-    whatsapp: initial.whatsapp ?? '',
-  });
-  const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl ?? '');
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
-  const fileRef = useRef(null);
-
-  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
-  const toggleSpecialty = (s) => setForm((f) => ({
-    ...f,
-    specialties: f.specialties.includes(s)
-      ? f.specialties.filter((x) => x !== s)
-      : [...f.specialties, s].slice(0, 3),
-  }));
-
-  const save = async () => {
-    setSaving(true);
-    setError('');
-    const { data, error: e } = await saveGiftCard(cardId, form, deviceSecret);
-    setSaving(false);
-    if (e || data?.outcome !== 'SAVED') {
-      setError('No pudimos guardar. Revisa tu conexión e inténtalo nuevamente.');
-      return;
-    }
-    setSavedAt(Date.now());
-  };
-
-  const pickPhoto = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    setUploading(true);
-    setError('');
-    try {
-      const dataUrl = await readImageFile(file);
-      const shrunk = await shrinkImageForUpload(dataUrl);
-      const finalFile = await dataUrlToFile(shrunk, 'tarjeta.jpg');
-      const { data, error: e } = await uploadGiftCardPhoto(cardId, finalFile, deviceSecret);
-      if (e || !data?.avatarUrl) throw new Error('upload');
-      setAvatarUrl(data.avatarUrl);
-    } catch {
-      setError('No pudimos subir la foto. Prueba con otra imagen.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const shareUrl = giftCardUrl(cardId);
-  const shareMessage = `Hola, te comparto mi tarjeta digital:\n${shareUrl}`;
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      setError('No pudimos copiar. Selecciona el enlace manualmente.');
-    }
-  };
-
-  const preview = { ...form, avatarUrl };
-  const hidden = (
-    <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
-  );
-
-  if (mode === 'preview') {
-    return (
-      <main className="min-h-[100dvh] bg-black px-5 py-8">
-        <div className="mx-auto max-w-md">
-          <button
-            type="button"
-            onClick={() => setMode('edit')}
-            className="mb-6 flex items-center gap-1 text-xs font-light text-neutral-400
-                       hover:text-neutral-200"
-          >
-            <ArrowLeft size={14} /> Volver a editar
-          </button>
-
-          <DigitalCard cardData={preview} />
-
-          <div className="mx-auto mt-6 max-w-[340px] space-y-2">
-            <a
-              href={whatsAppLink('', shareMessage)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600
-                         px-4 py-3.5 text-sm font-medium text-white hover:bg-emerald-500"
-            >
-              <Share2 size={16} /> Compartir mi tarjeta
-            </a>
-            <button
-              type="button"
-              onClick={copyLink}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border
-                         border-neutral-700 px-4 py-3 text-sm font-light text-neutral-200
-                         hover:border-neutral-500"
-            >
-              {copied ? <><Check size={15} /> Enlace copiado</> : <><Copy size={15} /> Copiar enlace</>}
-            </button>
-          </div>
-        </div>
-        {hidden}
-      </main>
-    );
-  }
-
-  return (
-    <main className="min-h-[100dvh] bg-black px-5 py-8 text-neutral-100">
-      <div className="mx-auto max-w-md">
-        <div className="mb-6 flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-600">
-            Tu tarjeta digital
-          </p>
-          <button
-            type="button"
-            onClick={() => getGiftCardSupabase().auth.signOut()}
-            className="flex items-center gap-1 text-[11px] font-light text-neutral-500
-                       hover:text-neutral-300"
-          >
-            <LogOut size={12} /> Salir
-          </button>
-        </div>
-
-        {/* Los datos van primero; la foto se cambia desde la propia tarjeta. */}
-        <div className="space-y-3">
-          <input className={INPUT} value={form.fullName}
-            onChange={(e) => set('fullName', e.target.value)} placeholder="Tu nombre completo" />
-          <input className={INPUT} value={form.title}
-            onChange={(e) => set('title', e.target.value)} placeholder="A qué te dedicas" />
-          <input className={INPUT} value={form.company}
-            onChange={(e) => set('company', e.target.value)} placeholder="Empresa (opcional)" />
-          <input className={INPUT} value={form.whatsapp} type="tel" inputMode="tel"
-            onChange={(e) => set('whatsapp', e.target.value)} placeholder="Tu WhatsApp" />
-          <input className={INPUT} value={form.phone} type="tel" inputMode="tel"
-            onChange={(e) => set('phone', e.target.value)} placeholder="Teléfono (opcional)" />
-          <textarea className={`${INPUT} resize-none`} rows={3} value={form.bio}
-            onChange={(e) => set('bio', e.target.value)} placeholder="Una línea sobre ti" />
-
-          <div className="flex flex-wrap gap-2 pt-1">
-            {SPECIALTIES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggleSpecialty(s)}
-                className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                  form.specialties.includes(s)
-                    ? 'border-neutral-100 bg-neutral-100 text-black'
-                    : 'border-neutral-800 text-neutral-400 hover:border-neutral-600'}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Así va quedando: la tarjeta de verdad, con el botón de cámara. */}
-        <p className="mt-8 mb-3 text-[10px] uppercase tracking-[0.22em] text-neutral-600">
-          Así se ve tu tarjeta
-        </p>
-        <DigitalCard
-          cardData={preview}
-          onPickPhoto={() => fileRef.current?.click()}
-          uploading={uploading}
-        />
-        {hidden}
-
-        {error && <p role="alert" className="mt-4 text-xs font-light text-rose-400">{error}</p>}
-
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
-                     px-4 py-3.5 text-sm font-medium text-black hover:bg-white
-                     disabled:cursor-wait disabled:opacity-50"
-        >
-          {saving
-            ? <><Loader2 size={16} className="animate-spin" /> Guardando…</>
-            : savedAt ? <><Check size={16} /> Guardado</> : 'Guardar mi tarjeta'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMode('preview')}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border
-                     border-neutral-700 px-4 py-3 text-sm font-light text-neutral-200
-                     hover:border-neutral-500"
-        >
-          <Eye size={15} /> Ver y compartir mi tarjeta
-        </button>
       </div>
     </main>
   );
