@@ -13,8 +13,28 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
  */
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
+/**
+ * ¿Estamos en el mundo de la tarjeta de regalo?
+ *
+ * Se mira la dirección, no una bandera de React, porque el cliente de abajo se
+ * construye al importar el módulo: cuando React decide qué pintar ya es tarde.
+ */
+const enRutaDeTarjeta = typeof window !== 'undefined'
+  && /^\/mi-tarjeta(\/|$)/.test(window.location.pathname);
+
+/**
+ * Cliente de la app del asesor.
+ *
+ * En la ruta de la tarjeta se construye DORMIDO: no lee la sesión guardada, no
+ * la refresca y no toca la URL. Así, abrir una tarjeta no despierta nada del
+ * mundo asesor —ni su token, ni su refresco en segundo plano— y no puede
+ * quedarse con el enlace de confirmación del cliente. Fuera de esa ruta se
+ * comporta como siempre.
+ */
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, enRutaDeTarjeta
+    ? { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+    : undefined)
   : null;
 
 /**
