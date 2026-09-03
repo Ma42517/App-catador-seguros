@@ -44,22 +44,32 @@ export function normalizePildoras(value) {
     .slice(0, MAX_PILDORAS);
 }
 
-/** Contactos publicables que NO son columna propia (los que van en cardExtra). */
+/**
+ * Contactos publicables que NO son columna propia (los que van en cardExtra).
+ *
+ * Ya no hay `web`: se quitó el canal de sitio web del editor del cliente. Si una
+ * tarjeta vieja lo trae guardado, simplemente se ignora al no incluirlo aquí.
+ */
 export function normalizeContactos(value) {
   const c = value && typeof value === 'object' ? value : {};
   return {
     maps: String(c.maps ?? '').trim(),
     instagram: String(c.instagram ?? '').trim(),
     email: String(c.email ?? '').trim(),
-    web: String(c.web ?? '').trim(),
   };
 }
 
-/** Cara trasera de la tarjeta (video + llamada a la acción + agenda). */
+/**
+ * Cara trasera de la tarjeta (mensaje destacado + agenda).
+ *
+ * Ya no hay `videoUrl`: en la tarjeta del cliente se quitó la posibilidad de
+ * poner video. `bookingUrl` guarda hoy el enlace público de la agenda de Google
+ * Calendar; se conserva ese mismo nombre a propósito, para que cuando se conecte
+ * la sincronización real de Google no haya que migrar datos.
+ */
 export function normalizeReverso(value) {
   const r = value && typeof value === 'object' ? value : {};
   return {
-    videoUrl: String(r.videoUrl ?? '').trim(),
     ctaTitulo: String(r.ctaTitulo ?? '').trim(),
     ctaBadge: String(r.ctaBadge ?? '').trim(),
     ctaSubtitulo: String(r.ctaSubtitulo ?? '').trim(),
