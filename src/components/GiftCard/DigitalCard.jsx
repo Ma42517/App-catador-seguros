@@ -90,17 +90,29 @@ function FramedPortrait({ card, free }) {
   }
 
   const { ox, oy, zoom } = free;
+  /*
+    Las dos imágenes llevan pointer-events:none a propósito: el gesto de arrastre
+    tiene que llegar SIEMPRE al div de arriba (el que tiene los handlers y el
+    pointer capture). Si las imágenes recibieran el puntero, en móvil el navegador
+    lo tomaría como scroll y el arrastre no respondería —que es justo lo que
+    pasaba—.
+
+    El wrapper con `overflow-hidden` e `isolate` recorta el blur al marco: sin él,
+    el filtro se pinta en una capa que escapa del recorte del contenedor 3D
+    (`preserve-3d` + `transform`) y la copia difuminada se derramaba fuera de la
+    tarjeta, como se veía a la izquierda.
+  */
   return (
-    <>
-      {/* Fondo de relleno: la misma foto, ampliada y difuminada, para que al
-          mover el retrato el hueco muestre color en vez de negro. */}
+    <div className="absolute inset-0 isolate overflow-hidden">
+      {/* Fondo de relleno difuminado, recortado al marco. */}
       <img
         src={card.avatarUrl}
         alt=""
         aria-hidden="true"
         referrerPolicy="no-referrer"
         draggable={false}
-        className="absolute inset-0 h-full w-full scale-125 select-none object-cover blur-2xl"
+        className="pointer-events-none absolute inset-0 h-full w-full scale-110 select-none
+                   object-cover blur-xl"
       />
       {/* Retrato movible: se traslada libre siguiendo el gesto. */}
       <img
@@ -108,10 +120,10 @@ function FramedPortrait({ card, free }) {
         alt={card.fullName || 'Tarjeta'}
         referrerPolicy="no-referrer"
         draggable={false}
-        className="absolute inset-0 h-full w-full select-none object-cover"
+        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
         style={{ transform: `translate(${ox}%, ${oy}%) scale(${zoom})` }}
       />
-    </>
+    </div>
   );
 }
 
