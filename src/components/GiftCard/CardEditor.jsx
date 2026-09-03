@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import {
-  ArrowLeft, Check, Copy, Eye, Loader2, LogOut, Share2, X,
-  MessageCircle, Phone, MapPin, Mail, Globe, LayoutTemplate, IdCard,
+  AlignLeft, ArrowLeft, BadgeCheck, Briefcase, Building2, CalendarCheck, Check, Copy, Eye,
+  Globe, IdCard, ImageUp, LayoutTemplate, Lightbulb, Loader2, LogOut, Mail, MapPin, Megaphone,
+  MessageCircle, Phone, Share2, Tags, UserRound, Video, X,
 } from 'lucide-react';
 import { getGiftCardSupabase } from '../../lib/supabaseClient';
 import { giftCardUrl } from '../../lib/giftCardRoute';
@@ -12,6 +13,17 @@ import { MAX_PILDORAS, toSavePatch } from '../../data/cardData';
 import DigitalCard from './DigitalCard';
 
 /*
+  Panel del cliente en TEMA CLARO.
+
+  La tarjeta es negra por diseño aprobado y no se toca; el panel que la edita, en
+  cambio, era negro también y eso hacía que formulario y tarjeta se fundieran en
+  una sola masa oscura: no se distinguía dónde acababa la herramienta y dónde
+  empezaba el producto. Con lienzo claro (neutral-50) y paneles blancos la tarjeta
+  destaca como la pieza protagonista y los campos se leen sin esfuerzo a plena luz,
+  que es donde se rellena esto: en el móvil, de pie, en la calle.
+*/
+
+/*
   Todos los campos del editor usan text-[16px] a propósito.
 
   Safari en iPhone hace un zoom automático al enfocar un input cuyo texto mida
@@ -20,23 +32,205 @@ import DigitalCard from './DigitalCard';
   aparte de la INPUT de las pantallas de acceso (EmailAuth/PhoneAccess) para no
   tener que tocar aquéllas; aquí, en el editor, sí es requisito.
 */
-const FIELD = 'w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-[16px] '
-  + 'font-light text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-neutral-500';
+const FIELD = 'w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-2.5 text-[16px] '
+  + 'font-light text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 '
+  + 'focus:border-neutral-900 disabled:bg-neutral-100 disabled:text-neutral-400';
+/* Con icono a la izquierda hay que dejarle sitio: el texto arrancaría encima. */
+const FIELD_ICON = `${FIELD} pl-10`;
+/** Botón principal: oscuro y sobrio, del mismo negro que la tarjeta. */
+const BTN_PRIMARY = 'flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 '
+  + 'px-4 py-3.5 text-sm font-medium text-white transition-colors hover:bg-black '
+  + 'disabled:cursor-wait disabled:opacity-60';
+/** Botón secundario: contorno, sin peso visual que compita con el principal. */
+const BTN_GHOST = 'flex w-full items-center justify-center gap-2 rounded-xl border '
+  + 'border-neutral-300 bg-white px-4 py-3 text-sm font-light text-neutral-700 '
+  + 'transition-colors hover:border-neutral-400 hover:text-neutral-900';
 
-/** Rótulo pequeño y sobrio para agrupar secciones del formulario. */
+/** Rótulo pequeño y sobrio para agrupar bloques dentro de un panel. */
 function SectionLabel({ children }) {
   return (
-    <p className="mb-3 mt-8 text-[10px] uppercase tracking-[0.22em] text-neutral-600">
+    <p className="mb-3 text-[10px] uppercase tracking-[0.22em] text-neutral-400">
       {children}
     </p>
   );
 }
 
 /**
+ * Panel blanco con cabecera: icono, título y una línea que explica para qué sirve
+ * el bloque. Antes el formulario era una columna larga de inputs separados sólo
+ * por rótulos; en paneles, cada decisión ("quién soy", "cómo me contactan") se ve
+ * como un paso corto y acabado, y en escritorio da ritmo a la lectura.
+ */
+function Panel({ icon: Icon, title, hint, children }) {
+  return (
+    <section
+      className="rounded-2xl border border-neutral-200 bg-white p-5
+                 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6"
+    >
+      <header className="mb-5 flex items-start gap-3">
+        <span
+          className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl border
+                     border-neutral-200 bg-neutral-50 text-neutral-500"
+        >
+          <Icon size={16} strokeWidth={1.6} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-sm font-medium tracking-tight text-neutral-900">{title}</h2>
+          {hint && (
+            <p className="mt-0.5 text-xs font-light leading-relaxed text-neutral-500">{hint}</p>
+          )}
+        </div>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Etiqueta visible y asociada a su campo por `htmlFor`.
+ *
+ * Antes sólo había placeholders: al escribir desaparecen y ya no se sabe qué pide
+ * cada casilla, y los lectores de pantalla se quedaban sin nombre que anunciar.
+ * Lo opcional se marca en palabras, no adivinando por ausencia de asterisco.
+ */
+function FieldLabel({ htmlFor, optional = false, children }) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className="mb-1.5 flex items-baseline gap-1.5 text-[11px] font-medium uppercase
+                 tracking-[0.12em] text-neutral-500"
+    >
+      {children}
+      {optional && (
+        <span className="text-[10px] font-light normal-case tracking-normal text-neutral-400">
+          opcional
+        </span>
+      )}
+    </label>
+  );
+}
+
+/**
+ * Campo de texto con etiqueta arriba, icono guía a la izquierda y ayuda debajo.
+ * Un solo componente para todo el formulario: así ningún campo se queda sin
+ * etiqueta por descuido y el alto de todos coincide en las rejillas de dos
+ * columnas.
+ */
+function TextField({
+  id, label, icon: Icon, optional = false, hint, value, onChange,
+  placeholder, type = 'text', rows = 0,
+}) {
+  const inputMode = type === 'tel' ? 'tel' : type === 'email' ? 'email' : type === 'url' ? 'url' : undefined;
+  return (
+    <div>
+      <FieldLabel htmlFor={id} optional={optional}>{label}</FieldLabel>
+      <div className="relative">
+        {Icon && rows === 0 && (
+          <Icon
+            size={15}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
+          />
+        )}
+        {rows > 0 ? (
+          <textarea
+            id={id}
+            rows={rows}
+            className={`${FIELD} resize-none`}
+            value={value}
+            placeholder={placeholder}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        ) : (
+          <input
+            id={id}
+            type={type}
+            inputMode={inputMode}
+            className={Icon ? FIELD_ICON : FIELD}
+            value={value}
+            placeholder={placeholder}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )}
+      </div>
+      {hint && <p className="mt-1.5 text-[11px] font-light leading-relaxed text-neutral-500">{hint}</p>}
+    </div>
+  );
+}
+
+/**
+ * Zona de subida de foto tipo dropzone.
+ *
+ * El único acceso a la foto era el botón de cámara sobre la tarjeta, que se
+ * confunde con un adorno de la vista previa. Aquí la subida vive donde se
+ * espera —junto al nombre, en Identidad— y admite arrastrar el archivo en
+ * escritorio, que es como se sube una foto desde una computadora. El botón de la
+ * tarjeta sigue funcionando: los dos disparan el mismo input.
+ */
+function PhotoDropzone({ avatarUrl, uploading, onOpenPicker, onFile }) {
+  const [dragging, setDragging] = useState(false);
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        const file = e.dataTransfer?.files?.[0];
+        if (file) onFile(file);
+      }}
+      /* En md+ ocupa todo el alto de su columna para no dejar un hueco al lado
+         de los campos; en móvil se queda con su alto natural. */
+      className="flex h-full flex-col"
+    >
+      <FieldLabel htmlFor="card-photo-button" optional>Foto</FieldLabel>
+      <button
+        id="card-photo-button"
+        type="button"
+        onClick={onOpenPicker}
+        disabled={uploading}
+        className={`grid w-full flex-1 content-center justify-items-center gap-2 rounded-2xl
+                    border border-dashed px-4 py-6 text-center transition-colors ${dragging
+          ? 'border-neutral-900 bg-neutral-50'
+          : 'border-neutral-300 bg-neutral-50/60 hover:border-neutral-400 hover:bg-neutral-50'}`}
+      >
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt="Tu foto de la tarjeta"
+            className="h-24 w-24 rounded-2xl object-cover ring-1 ring-neutral-200"
+          />
+        ) : (
+          <span
+            className="grid h-12 w-12 place-items-center rounded-full border border-neutral-200
+                       bg-white text-neutral-400"
+          >
+            <ImageUp size={20} strokeWidth={1.5} aria-hidden="true" />
+          </span>
+        )}
+        <span className="text-xs font-medium text-neutral-800">
+          {uploading
+            ? 'Subiendo tu foto…'
+            : avatarUrl ? 'Cambiar la foto' : 'Sube tu foto'}
+        </span>
+        <span className="text-[11px] font-light leading-relaxed text-neutral-500">
+          {uploading
+            ? 'Un momento, se está optimizando.'
+            : 'Toca aquí o arrastra una imagen. Se recorta sola a la tarjeta.'}
+        </span>
+        {uploading && <Loader2 size={15} className="animate-spin text-neutral-500" aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
+
+/**
  * Selector visual de plantilla: dos tarjetas pequeñas seleccionables en vez de
  * un <select> plano, para que el dueño vea de un vistazo la diferencia entre la
- * Editorial (foto fundida) y la Ejecutiva (enmarcada). La activa se realza con
- * un borde claro sobrio (border-neutral-100); la inactiva queda apagada.
+ * Editorial (foto fundida) y la Ejecutiva (enmarcada). En tema claro la activa se
+ * realza con borde y fondo oscuros —el mismo negro de la tarjeta— porque en
+ * blanco un borde claro no distinguiría nada.
  */
 function TemplatePicker({ value, onChange }) {
   const options = [
@@ -54,15 +248,17 @@ function TemplatePicker({ value, onChange }) {
             onClick={() => onChange(opt.key)}
             aria-pressed={active}
             className={`rounded-2xl border p-3 text-left transition-colors ${active
-              ? 'border-neutral-100 bg-neutral-900'
-              : 'border-neutral-800 bg-neutral-950 hover:border-neutral-600'}`}
+              ? 'border-neutral-900 bg-neutral-900'
+              : 'border-neutral-200 bg-white hover:border-neutral-400'}`}
           >
             <span className={`flex items-center gap-1.5 text-sm font-medium ${active
-              ? 'text-white' : 'text-neutral-300'}`}
+              ? 'text-white' : 'text-neutral-800'}`}
             >
               <LayoutTemplate size={14} aria-hidden="true" /> {opt.label}
             </span>
-            <span className="mt-1 block text-[11px] font-light leading-snug text-neutral-500">
+            <span className={`mt-1 block text-[11px] font-light leading-snug ${active
+              ? 'text-neutral-400' : 'text-neutral-500'}`}
+            >
               {opt.hint}
             </span>
           </button>
@@ -76,8 +272,7 @@ function TemplatePicker({ value, onChange }) {
  * Gestor de píldoras dinámico: el dueño escribe una especialidad y con Enter la
  * agrega como chip; cada chip tiene una x para borrarla. El tope es MAX_PILDORAS
  * (4) porque la tarjeta no muestra más y saturarla estropea la lectura; al
- * llegar al tope el input se apaga con un aviso sutil. Sustituye a la antigua
- * lista fija de especialidades.
+ * llegar al tope el input se apaga con un aviso sutil.
  */
 function PildorasEditor({ items, onChange }) {
   const [draft, setDraft] = useState('');
@@ -101,15 +296,15 @@ function PildorasEditor({ items, onChange }) {
           {items.map((item) => (
             <span
               key={item}
-              className="flex items-center gap-1.5 rounded-full border border-neutral-700
-                         bg-neutral-900 px-3 py-1.5 text-xs text-neutral-200"
+              className="flex items-center gap-1.5 rounded-full border border-neutral-200
+                         bg-neutral-50 px-3 py-1.5 text-xs text-neutral-700"
             >
               {item}
               <button
                 type="button"
                 onClick={() => remove(item)}
                 aria-label={`Quitar ${item}`}
-                className="text-neutral-500 hover:text-neutral-200"
+                className="text-neutral-400 hover:text-neutral-900"
               >
                 <X size={13} />
               </button>
@@ -117,7 +312,9 @@ function PildorasEditor({ items, onChange }) {
           ))}
         </div>
       )}
+      <FieldLabel htmlFor="card-pildora">Nueva etiqueta</FieldLabel>
       <input
+        id="card-pildora"
         className={FIELD}
         value={draft}
         disabled={full}
@@ -127,7 +324,7 @@ function PildorasEditor({ items, onChange }) {
         }}
         placeholder={full ? 'Máximo 4 etiquetas' : 'Escribe una etiqueta y pulsa Enter'}
       />
-      <p className="mt-1.5 text-[11px] font-light text-neutral-600">
+      <p className="mt-1.5 text-[11px] font-light leading-relaxed text-neutral-500">
         {full
           ? 'Llegaste al máximo de 4 etiquetas. Quita una para agregar otra.'
           : 'Ej.: Autos, Vida, Gastos médicos. Pulsa Enter para agregar cada una.'}
@@ -142,14 +339,18 @@ function PildorasEditor({ items, onChange }) {
  * mostrar sin dejar botones muertos que no llevan a ningún lado.
  */
 function ContactChannel({
-  icon: Icon, label, enabled, onToggle, value, onChange, type = 'url', placeholder, hint,
+  id, icon: Icon, label, enabled, onToggle, value, onChange,
+  type = 'url', placeholder, hint,
 }) {
   const inputMode = type === 'tel' ? 'tel' : type === 'email' ? 'email' : 'url';
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-3">
+    <div
+      className={`rounded-2xl border p-3.5 transition-colors ${enabled
+        ? 'border-neutral-300 bg-white' : 'border-neutral-200 bg-neutral-50/60'}`}
+    >
       <div className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-sm font-light text-neutral-200">
-          <Icon size={15} className="text-neutral-500" aria-hidden="true" /> {label}
+        <span className="flex items-center gap-2 text-sm font-light text-neutral-800">
+          <Icon size={15} className="text-neutral-400" aria-hidden="true" /> {label}
         </span>
         <button
           type="button"
@@ -158,17 +359,20 @@ function ContactChannel({
           aria-label={`${enabled ? 'Ocultar' : 'Mostrar'} ${label}`}
           onClick={() => onToggle(!enabled)}
           className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${enabled
-            ? 'bg-neutral-100' : 'bg-neutral-800'}`}
+            ? 'bg-neutral-900' : 'bg-neutral-300'}`}
         >
           <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-transform ${enabled
-              ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm
+                        transition-transform ${enabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
           />
         </button>
       </div>
       {enabled && (
         <div className="mt-3">
+          {/* La etiqueta ya la da el nombre del canal; el input se nombra igual. */}
           <input
+            id={id}
+            aria-label={label}
             className={FIELD}
             value={value}
             type={type}
@@ -176,7 +380,9 @@ function ContactChannel({
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
           />
-          {hint && <p className="mt-1.5 text-[11px] font-light text-neutral-600">{hint}</p>}
+          {hint && (
+            <p className="mt-1.5 text-[11px] font-light leading-relaxed text-neutral-500">{hint}</p>
+          )}
         </div>
       )}
     </div>
@@ -287,9 +493,12 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     setSavedAt(Date.now());
   };
 
-  const pickPhoto = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
+  /*
+    Subida de la foto a partir de un File, no de un evento: así sirve igual al
+    input oculto, al botón de cámara de la tarjeta y al archivo arrastrado sobre
+    la dropzone, sin duplicar el encogido ni el manejo de errores.
+  */
+  const uploadPhoto = async (file) => {
     if (!file) return;
     setUploading(true);
     setError('');
@@ -305,6 +514,12 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     } finally {
       setUploading(false);
     }
+  };
+
+  const pickPhoto = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    await uploadPhoto(file);
   };
 
   const shareUrl = giftCardUrl(cardId);
@@ -326,41 +541,44 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
   );
 
+  /* Botonera de compartir: se usa igual en el modo previa y bajo la tarjeta. */
+  const shareButtons = (
+    <div className="space-y-2">
+      <a
+        href={whatsAppLink('', shareMessage)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600
+                   px-4 py-3.5 text-sm font-medium text-white transition-colors hover:bg-emerald-500"
+      >
+        {/* El verde se queda: aquí no es decoración, identifica el canal WhatsApp. */}
+        <Share2 size={16} /> Compartir mi tarjeta
+      </a>
+      <button type="button" onClick={copyLink} className={BTN_GHOST}>
+        {copied ? <><Check size={15} /> Enlace copiado</> : <><Copy size={15} /> Copiar enlace</>}
+      </button>
+    </div>
+  );
+
   if (mode === 'preview') {
     return (
-      <main className="min-h-[100dvh] bg-black px-5 py-8">
+      <main className="min-h-[100dvh] bg-neutral-50 px-5 py-8">
         <div className="mx-auto max-w-md">
           <button
             type="button"
             onClick={() => setMode('edit')}
-            className="mb-6 flex items-center gap-1 text-xs font-light text-neutral-400
-                       hover:text-neutral-200"
+            className="mb-6 flex items-center gap-1.5 text-xs font-light text-neutral-500
+                       hover:text-neutral-900"
           >
             <ArrowLeft size={14} /> Volver a editar
           </button>
 
           <DigitalCard cardData={preview} />
 
-          <div className="mx-auto mt-6 max-w-[340px] space-y-2">
-            <a
-              href={whatsAppLink('', shareMessage)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600
-                         px-4 py-3.5 text-sm font-medium text-white hover:bg-emerald-500"
-            >
-              <Share2 size={16} /> Compartir mi tarjeta
-            </a>
-            <button
-              type="button"
-              onClick={copyLink}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border
-                         border-neutral-700 px-4 py-3 text-sm font-light text-neutral-200
-                         hover:border-neutral-500"
-            >
-              {copied ? <><Check size={15} /> Enlace copiado</> : <><Copy size={15} /> Copiar enlace</>}
-            </button>
-          </div>
+          <div className="mx-auto mt-6 max-w-[340px]">{shareButtons}</div>
+          {error && (
+            <p role="alert" className="mt-4 text-center text-xs font-light text-rose-600">{error}</p>
+          )}
         </div>
         {hidden}
       </main>
@@ -368,167 +586,336 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-black px-5 py-8 text-neutral-100">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-600">
-            Tu tarjeta digital
-          </p>
+    <main className="min-h-[100dvh] bg-neutral-50 px-4 py-6 text-neutral-900 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-6xl">
+        {/* ── Cabecera: qué es esta pantalla, y la salida de la sesión ── */}
+        <header className="mb-6 flex items-start justify-between gap-4 sm:mb-8">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-400">
+              Tu tarjeta digital
+            </p>
+            <h1 className="mt-1.5 text-2xl font-light tracking-tight text-neutral-900 sm:text-3xl">
+              Arma tu tarjeta de presentación
+            </h1>
+            <p className="mt-2 max-w-xl text-sm font-light leading-relaxed text-neutral-500">
+              Completa tus datos y mira cómo queda al instante. Puedes guardar y volver a
+              editarla cuando quieras: el enlace que compartes siempre muestra la última versión.
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => getGiftCardSupabase().auth.signOut()}
-            className="flex items-center gap-1 text-[11px] font-light text-neutral-500
-                       hover:text-neutral-300"
+            className="flex shrink-0 items-center gap-1 rounded-full border border-neutral-200
+                       bg-white px-3 py-1.5 text-[11px] font-light text-neutral-500
+                       hover:border-neutral-400 hover:text-neutral-900"
           >
             <LogOut size={12} /> Salir
           </button>
-        </div>
+        </header>
 
         {/*
-          Dos columnas en pantallas anchas (lg): el formulario a la izquierda y la
-          vista previa fija a un costado; en móvil se apilan y la tarjeta queda
-          como sección "Así se ve tu tarjeta" debajo.
+          Dos columnas en escritorio: el formulario se estira y la vista previa
+          tiene ancho fijo (384px) y queda pegada arriba (sticky). El ancho fijo
+          no es capricho: la tarjeta mide 340px y con columnas proporcionales se
+          quedaba estrecha justo a partir de lg, deformando la composición.
+          En tableta (md) los campos se reparten en dos columnas dentro de cada
+          panel; en móvil todo cae a una sola columna y la tarjeta queda al final,
+          con el atajo "Ver mi tarjeta" arriba de los botones para no obligar a
+          bajar hasta ella.
         */}
-        <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-          <div>
-            {/* ── Datos ── */}
-            <div className="space-y-3">
-              <input className={FIELD} value={form.fullName}
-                onChange={(e) => set('fullName', e.target.value)} placeholder="Tu nombre completo" />
-              <input className={FIELD} value={form.title}
-                onChange={(e) => set('title', e.target.value)} placeholder="A qué te dedicas" />
-              <input className={FIELD} value={form.company}
-                onChange={(e) => set('company', e.target.value)} placeholder="Empresa (opcional)" />
-              <textarea className={`${FIELD} resize-none`} rows={3} value={form.bio}
-                onChange={(e) => set('bio', e.target.value)} placeholder="Una línea sobre ti" />
-              <input className={FIELD} value={form.estadoPill}
-                onChange={(e) => set('estadoPill', e.target.value)}
-                placeholder="Estado (ej.: Disponible) — sólo plantilla Ejecutivo" />
-            </div>
+        <div
+          className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_384px] lg:items-start lg:gap-8"
+        >
+          <div className="space-y-5">
+            {/* ── Identidad ── */}
+            <Panel
+              icon={UserRound}
+              title="Quién eres"
+              hint="Lo primero que se lee en tu tarjeta. La foto y el nombre hacen casi todo el trabajo."
+            >
+              <div className="grid gap-5 md:grid-cols-[210px_minmax(0,1fr)]">
+                <PhotoDropzone
+                  avatarUrl={avatarUrl}
+                  uploading={uploading}
+                  onOpenPicker={() => fileRef.current?.click()}
+                  onFile={uploadPhoto}
+                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TextField
+                    id="card-fullname"
+                    label="Nombre completo"
+                    icon={UserRound}
+                    value={form.fullName}
+                    onChange={(v) => set('fullName', v)}
+                    placeholder="Ej.: María Fernanda Ruiz"
+                  />
+                  <TextField
+                    id="card-title"
+                    label="A qué te dedicas"
+                    icon={Briefcase}
+                    value={form.title}
+                    onChange={(v) => set('title', v)}
+                    placeholder="Ej.: Asesora de seguros"
+                  />
+                  <TextField
+                    id="card-company"
+                    label="Empresa"
+                    icon={Building2}
+                    optional
+                    value={form.company}
+                    onChange={(v) => set('company', v)}
+                    placeholder="Ej.: Catador Seguros"
+                  />
+                  <TextField
+                    id="card-estado"
+                    label="Estado"
+                    icon={BadgeCheck}
+                    optional
+                    value={form.estadoPill}
+                    onChange={(v) => set('estadoPill', v)}
+                    placeholder="Ej.: Disponible"
+                    hint="Se muestra sólo en la plantilla Ejecutivo."
+                  />
+                  <div className="sm:col-span-2">
+                    <TextField
+                      id="card-bio"
+                      label="Una línea sobre ti"
+                      icon={AlignLeft}
+                      optional
+                      rows={3}
+                      value={form.bio}
+                      onChange={(v) => set('bio', v)}
+                      placeholder="Qué haces por tus clientes, en una frase."
+                    />
+                  </div>
+                </div>
+              </div>
+            </Panel>
 
             {/* ── Plantilla ── */}
-            <SectionLabel>Plantilla</SectionLabel>
-            <TemplatePicker value={form.template} onChange={(t) => set('template', t)} />
+            <Panel
+              icon={LayoutTemplate}
+              title="Estilo de la tarjeta"
+              hint="Dos diseños listos. El color y la tipografía ya están resueltos: elige la composición."
+            >
+              <TemplatePicker value={form.template} onChange={(t) => set('template', t)} />
+            </Panel>
 
             {/* ── Píldoras ── */}
-            <SectionLabel>Etiquetas</SectionLabel>
-            <PildorasEditor items={form.pildoras} onChange={(p) => set('pildoras', p)} />
+            <Panel
+              icon={Tags}
+              title="Tus especialidades"
+              hint="Hasta cuatro etiquetas cortas. Dicen en qué puedes ayudar sin leer un párrafo."
+            >
+              <PildorasEditor items={form.pildoras} onChange={(p) => set('pildoras', p)} />
+            </Panel>
 
             {/* ── Contactos ── */}
-            <SectionLabel>Contactos</SectionLabel>
-            <div className="space-y-2.5">
-              <ContactChannel
-                icon={MessageCircle} label="WhatsApp"
-                enabled={channels.whatsapp} onToggle={(on) => toggleChannel('whatsapp', on)}
-                value={form.contactos.whatsapp} onChange={(v) => setContacto('whatsapp', v)}
-                type="tel" placeholder="Tu WhatsApp"
-              />
-              <ContactChannel
-                icon={Phone} label="Teléfono"
-                enabled={channels.telefono} onToggle={(on) => toggleChannel('telefono', on)}
-                value={form.contactos.telefono} onChange={(v) => setContacto('telefono', v)}
-                type="tel" placeholder="Tu teléfono"
-              />
-              <ContactChannel
-                icon={MapPin} label="Ubicación (Maps)"
-                enabled={channels.maps} onToggle={(on) => toggleChannel('maps', on)}
-                value={form.contactos.maps} onChange={(v) => setContacto('maps', v)}
-                type="url" placeholder="https://maps.google.com/…"
-              />
-              <ContactChannel
-                icon={IdCard} label="Instagram"
-                enabled={channels.instagram} onToggle={(on) => toggleChannel('instagram', on)}
-                value={form.contactos.instagram} onChange={(v) => setContacto('instagram', v)}
-                type="url" placeholder="https://instagram.com/tu_usuario"
-              />
-              <ContactChannel
-                icon={Mail} label="Correo"
-                enabled={channels.email} onToggle={(on) => toggleChannel('email', on)}
-                value={form.contactos.email} onChange={(v) => setContacto('email', v)}
-                type="email" placeholder="tu@correo.com"
-              />
-              <ContactChannel
-                icon={Globe} label="Sitio web"
-                enabled={channels.web} onToggle={(on) => toggleChannel('web', on)}
-                value={form.contactos.web} onChange={(v) => setContacto('web', v)}
-                type="url" placeholder="https://tu-sitio.com"
-              />
-            </div>
+            <Panel
+              icon={MessageCircle}
+              title="Cómo te contactan"
+              hint="Enciende sólo los canales que usas: los apagados no aparecen como botón en la tarjeta."
+            >
+              <div className="grid gap-3 md:grid-cols-2">
+                <ContactChannel
+                  id="contacto-whatsapp"
+                  icon={MessageCircle} label="WhatsApp"
+                  enabled={channels.whatsapp} onToggle={(on) => toggleChannel('whatsapp', on)}
+                  value={form.contactos.whatsapp} onChange={(v) => setContacto('whatsapp', v)}
+                  type="tel" placeholder="Tu WhatsApp"
+                />
+                <ContactChannel
+                  id="contacto-telefono"
+                  icon={Phone} label="Teléfono"
+                  enabled={channels.telefono} onToggle={(on) => toggleChannel('telefono', on)}
+                  value={form.contactos.telefono} onChange={(v) => setContacto('telefono', v)}
+                  type="tel" placeholder="Tu teléfono"
+                />
+                <ContactChannel
+                  id="contacto-maps"
+                  icon={MapPin} label="Ubicación (Maps)"
+                  enabled={channels.maps} onToggle={(on) => toggleChannel('maps', on)}
+                  value={form.contactos.maps} onChange={(v) => setContacto('maps', v)}
+                  type="url" placeholder="https://maps.google.com/…"
+                />
+                <ContactChannel
+                  id="contacto-instagram"
+                  icon={IdCard} label="Instagram"
+                  enabled={channels.instagram} onToggle={(on) => toggleChannel('instagram', on)}
+                  value={form.contactos.instagram} onChange={(v) => setContacto('instagram', v)}
+                  type="url" placeholder="https://instagram.com/tu_usuario"
+                />
+                <ContactChannel
+                  id="contacto-email"
+                  icon={Mail} label="Correo"
+                  enabled={channels.email} onToggle={(on) => toggleChannel('email', on)}
+                  value={form.contactos.email} onChange={(v) => setContacto('email', v)}
+                  type="email" placeholder="tu@correo.com"
+                />
+                <ContactChannel
+                  id="contacto-web"
+                  icon={Globe} label="Sitio web"
+                  enabled={channels.web} onToggle={(on) => toggleChannel('web', on)}
+                  value={form.contactos.web} onChange={(v) => setContacto('web', v)}
+                  type="url" placeholder="https://tu-sitio.com"
+                />
+              </div>
+            </Panel>
 
             {/* ── Reverso ── */}
-            <SectionLabel>Reverso de la tarjeta</SectionLabel>
+            <Panel
+              icon={Video}
+              title="Reverso de la tarjeta"
+              hint="La cara de atrás, con tu video y una invitación a agendar. Todo es opcional: sin nada aquí, la tarjeta no gira."
+            >
+              {/*
+                Tres bloques en vez de seis inputs iguales en fila: video, mensaje
+                y agenda son tres decisiones distintas, y puestas en lista plana
+                nadie entendía qué texto acababa en qué sitio de la tarjeta.
+              */}
+              <div className="space-y-6">
+                <div>
+                  <SectionLabel>Video de bienvenida</SectionLabel>
+                  <TextField
+                    id="reverso-video"
+                    label="Enlace del video"
+                    icon={Video}
+                    optional
+                    type="url"
+                    value={form.reverso.videoUrl}
+                    onChange={(v) => setReverso('videoUrl', v)}
+                    placeholder="https://youtube.com/…"
+                    hint="Acepta YouTube, Loom, Vimeo o un archivo de video (MP4)."
+                  />
+                </div>
+
+                <div className="border-t border-neutral-200 pt-5">
+                  <SectionLabel>Mensaje destacado</SectionLabel>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <TextField
+                      id="reverso-badge"
+                      label="Etiqueta"
+                      icon={Megaphone}
+                      optional
+                      value={form.reverso.ctaBadge}
+                      onChange={(v) => setReverso('ctaBadge', v)}
+                      placeholder="Ej.: Asesoría gratis"
+                    />
+                    <TextField
+                      id="reverso-titulo"
+                      label="Título"
+                      optional
+                      value={form.reverso.ctaTitulo}
+                      onChange={(v) => setReverso('ctaTitulo', v)}
+                      placeholder="Ej.: Revisemos tus seguros"
+                    />
+                    <div className="md:col-span-2">
+                      <TextField
+                        id="reverso-subtitulo"
+                        label="Subtítulo"
+                        optional
+                        value={form.reverso.ctaSubtitulo}
+                        onChange={(v) => setReverso('ctaSubtitulo', v)}
+                        placeholder="Una frase breve que acompañe al título."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-neutral-200 pt-5">
+                  <SectionLabel>Agenda</SectionLabel>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <TextField
+                      id="reverso-booking-url"
+                      label="Enlace de agenda"
+                      icon={CalendarCheck}
+                      optional
+                      type="url"
+                      value={form.reverso.bookingUrl}
+                      onChange={(v) => setReverso('bookingUrl', v)}
+                      placeholder="https://calendly.com/…"
+                      hint="Si lo dejas vacío, el botón escribirá por WhatsApp a tu número."
+                    />
+                    <TextField
+                      id="reverso-booking-texto"
+                      label="Texto del botón"
+                      optional
+                      value={form.reverso.bookingTexto}
+                      onChange={(v) => setReverso('bookingTexto', v)}
+                      placeholder="Ej.: Agendar una reunión"
+                    />
+                  </div>
+                </div>
+              </div>
+            </Panel>
+
+            {/* ── Acciones ── */}
             <div className="space-y-3">
-              <div>
-                <input className={FIELD} value={form.reverso.videoUrl} type="url" inputMode="url"
-                  onChange={(e) => setReverso('videoUrl', e.target.value)}
-                  placeholder="Enlace de video de bienvenida" />
-                <p className="mt-1.5 text-[11px] font-light text-neutral-600">
-                  Acepta YouTube, Loom, Vimeo o un archivo de video (MP4).
+              {error && <p role="alert" className="text-xs font-light text-rose-600">{error}</p>}
+              <button type="button" onClick={save} disabled={saving} className={BTN_PRIMARY}>
+                {saving
+                  ? <><Loader2 size={16} className="animate-spin" /> Guardando…</>
+                  : savedAt ? <><Check size={16} /> Guardado</> : 'Guardar mi tarjeta'}
+              </button>
+              {/*
+                En escritorio la tarjeta ya está a la vista al lado, así que este
+                atajo al modo "ver y compartir" sólo se ofrece donde hace falta.
+              */}
+              <button
+                type="button"
+                onClick={() => setMode('preview')}
+                className={`${BTN_GHOST} lg:hidden`}
+              >
+                <Eye size={15} /> Ver y compartir mi tarjeta
+              </button>
+              {savedAt > 0 && !saving && (
+                <p className="text-center text-[11px] font-light text-neutral-500">
+                  Guardado. Quien abra tu enlace ya ve estos cambios.
                 </p>
-              </div>
-              <input className={FIELD} value={form.reverso.ctaBadge}
-                onChange={(e) => setReverso('ctaBadge', e.target.value)}
-                placeholder="Etiqueta (ej.: Asesoría gratis)" />
-              <input className={FIELD} value={form.reverso.ctaTitulo}
-                onChange={(e) => setReverso('ctaTitulo', e.target.value)}
-                placeholder="Título de la llamada a la acción" />
-              <input className={FIELD} value={form.reverso.ctaSubtitulo}
-                onChange={(e) => setReverso('ctaSubtitulo', e.target.value)}
-                placeholder="Subtítulo o descripción breve" />
-              <div>
-                <input className={FIELD} value={form.reverso.bookingUrl} type="url" inputMode="url"
-                  onChange={(e) => setReverso('bookingUrl', e.target.value)}
-                  placeholder="Enlace de agenda o WhatsApp de reserva" />
-                <p className="mt-1.5 text-[11px] font-light text-neutral-600">
-                  Si lo dejas vacío, el botón escribirá por WhatsApp a tu número.
-                </p>
-              </div>
-              <input className={FIELD} value={form.reverso.bookingTexto}
-                onChange={(e) => setReverso('bookingTexto', e.target.value)}
-                placeholder="Texto del botón (ej.: Agendar una reunión)" />
+              )}
             </div>
-
-            {error && <p role="alert" className="mt-5 text-xs font-light text-rose-400">{error}</p>}
-
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-100
-                         px-4 py-3.5 text-sm font-medium text-black hover:bg-white
-                         disabled:cursor-wait disabled:opacity-50"
-            >
-              {saving
-                ? <><Loader2 size={16} className="animate-spin" /> Guardando…</>
-                : savedAt ? <><Check size={16} /> Guardado</> : 'Guardar mi tarjeta'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMode('preview')}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border
-                         border-neutral-700 px-4 py-3 text-sm font-light text-neutral-200
-                         hover:border-neutral-500"
-            >
-              <Eye size={15} /> Ver y compartir mi tarjeta
-            </button>
           </div>
 
           {/*
-            Vista previa en vivo: la tarjeta de verdad, con su giro y el botón de
-            cámara. En lg queda pegada arriba (sticky) para verla mientras se
-            edita; en móvil es una sección más abajo.
+            Vista previa en vivo: la tarjeta de verdad, con su giro y su botón de
+            cámara, dentro de un panel blanco. La tarjeta sigue siendo negra a
+            propósito: sobre el panel claro se lee como el objeto terminado y no
+            como parte del formulario.
           */}
-          <div className="lg:sticky lg:top-8">
-            <p className="mb-3 text-[10px] uppercase tracking-[0.22em] text-neutral-600 lg:hidden">
-              Así se ve tu tarjeta
-            </p>
-            <DigitalCard
-              cardData={preview}
-              onPickPhoto={() => fileRef.current?.click()}
-              uploading={uploading}
-            />
-          </div>
+          <aside className="space-y-4 lg:sticky lg:top-8">
+            <section
+              className="rounded-2xl border border-neutral-200 bg-white p-5
+                         shadow-[0_1px_2px_rgba(16,24,40,0.04)]"
+            >
+              <div className="mb-4 flex items-baseline justify-between gap-2">
+                <h2 className="text-sm font-medium tracking-tight text-neutral-900">Vista previa</h2>
+                <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+                  En vivo
+                </span>
+              </div>
+              <DigitalCard
+                cardData={preview}
+                onPickPhoto={() => fileRef.current?.click()}
+                uploading={uploading}
+              />
+              <div className="mx-auto mt-5 max-w-[340px]">{shareButtons}</div>
+            </section>
+
+            <div
+              className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4"
+            >
+              <span
+                className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg
+                           border border-neutral-200 bg-neutral-50 text-neutral-500"
+              >
+                <Lightbulb size={15} strokeWidth={1.6} aria-hidden="true" />
+              </span>
+              <p className="text-[11px] font-light leading-relaxed text-neutral-500">
+                Toca la tarjeta para girarla y revisar el reverso. Con el botón de la cámara,
+                sobre la foto, también puedes cambiar tu imagen. Recuerda guardar antes de salir.
+              </p>
+            </div>
+          </aside>
         </div>
         {hidden}
       </div>
