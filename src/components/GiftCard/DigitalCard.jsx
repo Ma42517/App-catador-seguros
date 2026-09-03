@@ -57,6 +57,65 @@ function InstagramMark({ size = 17 }) {
 }
 
 /**
+ * Retrato de la tarjeta, con dos modos de pintado.
+ *
+ * · Normal (sin `free`): la foto llena el marco con `object-cover` y el encuadre
+ *   guardado se aplica con `focusStyle`. Es como se ve la tarjeta publicada.
+ *
+ * · Edición libre (`free` = {ox,oy,zoom}): la foto se mueve con `translate` como
+ *   un icono en el escritorio y PUEDE salirse del marco. Para que el hueco no sea
+ *   negro, detrás va una copia de la MISMA foto ampliada y difuminada que rellena
+ *   el fondo (el efecto de WhatsApp cuando la foto no cubre el encuadre). Así se
+ *   puede bajar la cara para que no la tape el texto sin dejar una banda negra.
+ */
+function FramedPortrait({ card, free }) {
+  if (!card.avatarUrl) {
+    return (
+      <div className="absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-700">
+        <ImageIcon size={44} strokeWidth={1.2} />
+      </div>
+    );
+  }
+
+  if (!free) {
+    return (
+      <img
+        src={card.avatarUrl}
+        alt={card.fullName || 'Tarjeta'}
+        referrerPolicy="no-referrer"
+        className="absolute inset-0 h-full w-full object-cover"
+        style={focusStyle(card.photoFocus)}
+      />
+    );
+  }
+
+  const { ox, oy, zoom } = free;
+  return (
+    <>
+      {/* Fondo de relleno: la misma foto, ampliada y difuminada, para que al
+          mover el retrato el hueco muestre color en vez de negro. */}
+      <img
+        src={card.avatarUrl}
+        alt=""
+        aria-hidden="true"
+        referrerPolicy="no-referrer"
+        draggable={false}
+        className="absolute inset-0 h-full w-full scale-125 select-none object-cover blur-2xl"
+      />
+      {/* Retrato movible: se traslada libre siguiendo el gesto. */}
+      <img
+        src={card.avatarUrl}
+        alt={card.fullName || 'Tarjeta'}
+        referrerPolicy="no-referrer"
+        draggable={false}
+        className="absolute inset-0 h-full w-full select-none object-cover"
+        style={{ transform: `translate(${ox}%, ${oy}%) scale(${zoom})` }}
+      />
+    </>
+  );
+}
+
+/**
  * Botón circular blanco de contacto. Apagado si no hay dato que usar, porque un
  * enlace vacío daría error a quien lo toque.
  */
@@ -251,22 +310,9 @@ function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
       <div
         ref={framing?.frameRef}
         {...(framing?.handlers ?? {})}
-        className={`absolute inset-0 ${framing ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
+        className={`absolute inset-0 overflow-hidden ${framing ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
       >
-        {card.avatarUrl ? (
-          <img
-            src={card.avatarUrl}
-            alt={card.fullName || 'Tarjeta'}
-            referrerPolicy="no-referrer"
-            draggable={false}
-            className="absolute inset-0 h-full w-full select-none object-cover"
-            style={focusStyle(card.photoFocus)}
-          />
-        ) : (
-          <div className="absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-700">
-            <ImageIcon size={44} strokeWidth={1.2} />
-          </div>
-        )}
+        <FramedPortrait card={card} free={framing?.free} />
       </div>
 
       {/*
@@ -334,20 +380,7 @@ function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
         className={`relative h-[55%] w-full overflow-hidden rounded-b-3xl
                     ${framing ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
       >
-        {card.avatarUrl ? (
-          <img
-            src={card.avatarUrl}
-            alt={card.fullName || 'Tarjeta'}
-            referrerPolicy="no-referrer"
-            draggable={false}
-            className="h-full w-full select-none object-cover"
-            style={focusStyle(card.photoFocus)}
-          />
-        ) : (
-          <div className="grid h-full w-full place-items-center bg-neutral-900 text-neutral-700">
-            <ImageIcon size={44} strokeWidth={1.2} />
-          </div>
-        )}
+        <FramedPortrait card={card} free={framing?.free} />
         {/* Degradado sutil que funde la foto con el cuerpo negro, sin neón */}
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950

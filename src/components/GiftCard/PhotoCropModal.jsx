@@ -1,35 +1,35 @@
 import { useState } from 'react';
 import { Check, X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
-import {
-  CARD_ASPECT, MIN_ZOOM, MAX_ZOOM, DEFAULT_FOCUS, parseFocus,
-} from '../../data/cardPhoto';
-import usePhotoFraming from '../Profile/usePhotoFraming';
+import { CARD_ASPECT, MIN_ZOOM, MAX_ZOOM } from '../../data/cardPhoto';
+import useFreeFraming, { DEFAULT_FREE_FOCUS, parseFreeFocus } from './useFreeFraming';
 import DigitalCard from './DigitalCard';
 
 /**
  * Ajuste de la foto de la tarjeta del CLIENTE, encuadrando SOBRE la propia tarjeta.
  *
- * En lugar de un recuadro aparte con máscara, la tarjeta ES el editor: se arrastra
- * la foto con el dedo/ratón directamente sobre ella y se acerca con el control,
- * viendo desde el primer movimiento cómo queda con el nombre, los tags y el
- * degradado encima. A un lado, la MISMA tarjeta refleja el encuadre en vivo, sin
- * recortar en cada micro-movimiento: sólo cambian `objectPosition` y `scale`
- * (focusStyle), que el navegador resuelve en GPU. El recorte real —en canvas— se
- * hace una sola vez, al pulsar "Guardar recorte".
+ * La foto se agarra con el clic/dedo y se ARRASTRA libre, como un icono en el
+ * escritorio: se lleva a donde se quiera —arriba, abajo, a un lado— para que la
+ * cara no quede tapada por el nombre ni los botones. Puede salirse del marco; el
+ * hueco no se ve negro, sino relleno con la misma foto difuminada (como WhatsApp).
+ * A un lado, la MISMA tarjeta refleja el encuadre en vivo, sin recortar en cada
+ * micro-movimiento. El recorte real —en canvas— corre una sola vez, al guardar.
  *
- * El encuadre viaja como { x, y, zoom } (mismo formato que el mundo asesor). No
- * toca los píxeles del archivo mientras se ajusta; se guardan al confirmar.
+ * El encuadre viaja como { ox, oy, zoom }: desplazamiento libre en % del marco y
+ * acercamiento. No toca los píxeles del archivo mientras se ajusta.
  */
 
 /**
- * Genera el recorte final a partir del encuadre (posición + acercamiento) sobre
- * la proporción del hueco del retrato de la tarjeta (CARD_ASPECT).
+ * Genera el recorte final reproduciendo en canvas lo mismo que se ve en pantalla:
+ * la foto centrada que cubre el marco (object-cover), acercada por `zoom` y
+ * trasladada por `ox/oy` (% del marco). El resultado tiene la proporción del
+ * hueco del retrato (CARD_ASPECT).
  *
- * Reproduce en canvas lo que en pantalla hacen `object-cover` + `objectPosition`
- * + `scale`, para que lo guardado coincida exactamente con lo que se vio.
+ * Como la foto puede quedar movida dejando huella, primero se pinta el fondo
+ * difuminado (misma foto, cubriendo todo) y encima la foto en su posición, igual
+ * que en la vista: así lo guardado coincide con lo visto, sin bandas negras.
  */
-async function cropFromFocus(src, focus) {
-  const { x, y, zoom } = parseFocus(focus);
+async function cropFree(src, focus) {
+  const { ox, oy, zoom } = parseFreeFocus(focus);
   const image = await new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -38,63 +38,53 @@ async function cropFromFocus(src, focus) {
     img.src = src;
   });
 
-  const iw = image.width;
-  const ih = image.height;
-
-  /*
-    `object-cover` escala la imagen para que CUBRA el marco de proporción
-    CARD_ASPECT; sobre esa base se aplica el acercamiento del usuario (zoom). La
-    ventana de recorte, en píxeles del original, es la parte visible: el lado que
-    "sobra" respecto al marco se recorta, y el zoom la encoge.
-  */
-  const imgAspect = iw / ih;
-  let cropW; let cropH;
-  if (imgAspect > CARD_ASPECT) {
-    // La imagen es más ancha que el marco: el alto manda.
-    cropH = ih / zoom;
-    cropW = cropH * CARD_ASPECT;
-  } else {
-    cropW = iw / zoom;
-    cropH = cropW / CARD_ASPECT;
-  }
-
-  // Posición: objectPosition en % traslada el sobrante (imagen − ventana).
-  const maxX = Math.max(0, iw - cropW);
-  const maxY = Math.max(0, ih - cropH);
-  const sx = maxX * (x / 100);
-  const sy = maxY * (y / 100);
-
-  // Salida a una resolución cómoda para la tarjeta (ancho objetivo ~800px).
-  const outW = Math.min(800, Math.round(cropW));
+  // Lienzo de salida en la proporción de la tarjeta.
+  const outW = 800;
   const outH = Math.round(outW / CARD_ASPECT);
-
   const canvas = document.createElement('canvas');
   canvas.width = outW;
   canvas.height = outH;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Este navegador no pudo procesar la imagen.');
-  ctx.drawImage(image, sx, sy, cropW, cropH, 0, 0, outW, outH);
+
+  // Dimensiones de la foto al cubrir el marco (object-cover), antes del zoom.
+  const scaleCover = Math.max(outW / image.width, outH / image.height);
+  const drawW = image.width * scaleCover * zoom;
+  const drawH = image.height * scaleCover * zoom;
+
+  // Fondo: la misma foto ampliada y difuminada, para rellenar cualquier hueco.
+  ctx.save();
+  ctx.filter = 'blur(24px)';
+  const bgScale = Math.max(outW / image.width, outH / image.height) * 1.25;
+  const bgW = image.width * bgScale;
+  const bgH = image.height * bgScale;
+  ctx.drawImage(image, (outW - bgW) / 2, (outH - bgH) / 2, bgW, bgH);
+  ctx.restore();
+
+  // Retrato en su posición: centrado + desplazamiento (ox/oy en % del marco).
+  const dx = (outW - drawW) / 2 + (ox / 100) * outW;
+  const dy = (outH - drawH) / 2 + (oy / 100) * outH;
+  ctx.drawImage(image, dx, dy, drawW, drawH);
 
   return canvas.toDataURL('image/jpeg', 0.9);
 }
 
 export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
-  const [focus, setFocus] = useState(DEFAULT_FOCUS);
+  const [focus, setFocus] = useState(DEFAULT_FREE_FOCUS);
   const [saving, setSaving] = useState(false);
 
-  // El gesto de arrastrar/pellizcar sobre la tarjeta vive en el mismo hook que ya
-  // usa el mundo asesor: mueve x/y y ajusta el zoom, sin tocar los píxeles.
-  const framing = usePhotoFraming({ focus, onChange: setFocus, enabled: true });
+  const dragging = useFreeFraming({ focus, onChange: setFocus });
+  // `framing` que recibe DigitalCard: ref + gestos + el encuadre libre para pintar.
+  const framing = { ...dragging, free: parseFreeFocus(focus) };
 
-  // La tarjeta —editor y previa— comparten este cardData: la foto elegida más el
-  // encuadre actual. Así lo que se arrastra en una se ve idéntico en la otra.
-  const framed = { ...cardData, avatarUrl: src, photoFocus: focus };
+  // La foto elegida entra como avatarUrl; el encuadre libre lo pinta DigitalCard.
+  const framed = { ...cardData, avatarUrl: src };
 
   const confirmar = async () => {
     if (saving) return;
     setSaving(true);
     try {
-      const dataUrl = await cropFromFocus(src, focus);
+      const dataUrl = await cropFree(src, focus);
       await onConfirm(dataUrl);
     } finally {
       setSaving(false);
@@ -102,7 +92,7 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
   };
 
   const step = (delta) => setFocus((f) => {
-    const cur = parseFocus(f);
+    const cur = parseFreeFocus(f);
     return { ...cur, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, cur.zoom + delta)) };
   });
 
@@ -120,8 +110,8 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
           <div>
             <h2 className="text-lg font-medium tracking-tight text-white">Ajusta tu foto</h2>
             <p className="mt-1 text-xs font-light leading-relaxed text-neutral-400">
-              Arrastra la foto sobre la tarjeta para reposicionarla y usa el control
-              para acercarla. Lo que ves es exactamente como quedará.
+              Arrastra la foto sobre la tarjeta para colocarla donde quieras —así la
+              cara no queda tapada por el texto— y usa el control para acercarla.
             </p>
           </div>
           <button
@@ -157,8 +147,8 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
                 min={MIN_ZOOM}
                 max={MAX_ZOOM}
                 step={0.01}
-                value={parseFocus(focus).zoom}
-                onChange={(e) => setFocus((f) => ({ ...parseFocus(f), zoom: Number(e.target.value) }))}
+                value={parseFreeFocus(focus).zoom}
+                onChange={(e) => setFocus((f) => ({ ...parseFreeFocus(f), zoom: Number(e.target.value) }))}
                 aria-label="Acercamiento"
                 className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-neutral-700
                            accent-white"
@@ -173,7 +163,7 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
             </div>
             <button
               type="button"
-              onClick={() => setFocus(DEFAULT_FOCUS)}
+              onClick={() => setFocus(DEFAULT_FREE_FOCUS)}
               className="mx-auto mt-3 flex items-center gap-1.5 text-[11px] font-light
                          text-neutral-500 hover:text-neutral-300"
             >
@@ -186,7 +176,7 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
             <p className="mb-3 text-center text-[10px] uppercase tracking-[0.22em] text-neutral-600">
               Así se verá tu tarjeta
             </p>
-            <DigitalCard cardData={framed} />
+            <DigitalCard cardData={framed} framing={{ free: parseFreeFocus(focus) }} />
           </div>
         </div>
 

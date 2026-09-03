@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import {
-  AlignLeft, ArrowLeft, BadgeCheck, Briefcase, Building2, CalendarCheck, Check, Copy, Eye,
+  AlignLeft, ArrowLeft, BadgeCheck, Briefcase, Building2, CalendarCheck, Check, Copy, Crop, Eye,
   IdCard, ImageUp, LayoutTemplate, Lightbulb, Loader2, LogOut, Mail, MapPin, Megaphone,
   MessageCircle, Phone, Share2, Tags, UserRound, X,
 } from 'lucide-react';
@@ -168,7 +168,7 @@ function TextField({
  * escritorio, que es como se sube una foto desde una computadora. El botón de la
  * tarjeta sigue funcionando: los dos disparan el mismo input.
  */
-function PhotoDropzone({ avatarUrl, uploading, onOpenPicker, onFile }) {
+function PhotoDropzone({ avatarUrl, uploading, onOpenPicker, onFile, onEdit }) {
   const [dragging, setDragging] = useState(false);
 
   return (
@@ -213,7 +213,7 @@ function PhotoDropzone({ avatarUrl, uploading, onOpenPicker, onFile }) {
         <span className="text-xs font-medium text-neutral-800">
           {uploading
             ? 'Subiendo tu foto…'
-            : avatarUrl ? 'Cambiar la foto' : 'Sube tu foto'}
+            : avatarUrl ? 'Cambiar por otra foto' : 'Sube tu foto'}
         </span>
         <span className="text-[11px] font-light leading-relaxed text-neutral-500">
           {uploading
@@ -222,6 +222,23 @@ function PhotoDropzone({ avatarUrl, uploading, onOpenPicker, onFile }) {
         </span>
         {uploading && <Loader2 size={15} className="animate-spin text-neutral-500" aria-hidden="true" />}
       </button>
+
+      {/*
+        Editar la foto que ya está: reabre el recortador con la MISMA foto para
+        recolocarla o acercarla, sin obligar a buscar otra en el teléfono. Sólo
+        aparece cuando hay foto.
+      */}
+      {avatarUrl && !uploading && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border
+                     border-neutral-300 bg-white py-2 text-xs font-medium text-neutral-700
+                     transition-colors hover:border-neutral-400 hover:text-neutral-900"
+        >
+          <Crop size={13} /> Ajustar esta foto
+        </button>
+      )}
     </div>
   );
 }
@@ -541,6 +558,17 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     await openCropper(file);
   };
 
+  /*
+    Reajustar la foto que YA está subida, sin volver a elegir uno del teléfono. Se
+    abre el mismo modal con la foto actual como origen: mover, acercar y guardar de
+    nuevo. Útil cuando la cara quedó tapada por el texto y sólo hace falta recolocar.
+  */
+  const editCurrentPhoto = () => {
+    if (!avatarUrl) return;
+    setError('');
+    setCropSrc(avatarUrl);
+  };
+
   const shareUrl = giftCardUrl(cardId);
   const shareMessage = `Hola, te comparto mi tarjeta digital:\n${shareUrl}`;
   const copyLink = async () => {
@@ -670,6 +698,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                   uploading={uploading}
                   onOpenPicker={() => fileRef.current?.click()}
                   onFile={openCropper}
+                  onEdit={editCurrentPhoto}
                 />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <TextField
