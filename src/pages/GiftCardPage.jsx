@@ -22,6 +22,29 @@ const INPUT = 'w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 p
 const SEEN_KEY = 'df360:giftcard:welcome:';
 /** Código escrito al registrarse, para retomarlo tras confirmar el correo. */
 const PENDING_CODE_KEY = 'df360:giftcard:pendingcode';
+/**
+ * Marca de "esta cuenta se identificó AQUÍ, para ESTA tarjeta".
+ *
+ * Sin ella no se puede distinguir a quien acaba de crear su cuenta en esta
+ * pantalla de quien simplemente traía una sesión vieja en el navegador. Esa
+ * confusión hacía que, al abrir una invitación nueva con una sesión ya abierta,
+ * la página se brincara el registro y pidiera sólo el código. Con la marca por
+ * tarjeta se puede exigir el orden correcto —crear cuenta, luego código, luego
+ * editar— sin caer en un bucle de cierres de sesión.
+ */
+const ACTIVATING_KEY = 'df360:giftcard:activating:';
+
+function markActivating(cardId) {
+  try { window.localStorage.setItem(ACTIVATING_KEY + cardId, '1'); } catch { /* sin storage */ }
+}
+
+function isActivating(cardId) {
+  try { return Boolean(window.localStorage.getItem(ACTIVATING_KEY + cardId)); } catch { return false; }
+}
+
+function clearActivating(cardId) {
+  try { window.localStorage.removeItem(ACTIVATING_KEY + cardId); } catch { /* sin storage */ }
+}
 
 /**
  * ¿La sesión es de un cliente que se registró en esta página?
@@ -141,7 +164,7 @@ export default function GiftCardPage() {
  * su propio cliente de Supabase, separada de la de la app.
  */
 function EmailAuth({
-  title, intro, requireCode = false, allowSignup = true, onReady,
+  title, intro, requireCode = false, allowSignup = true, onBeforeAuth, onReady,
 }) {
   /*
     Con `allowSignup` en falso sólo se ofrece entrar.
@@ -180,6 +203,12 @@ function EmailAuth({
     setStatus('sending');
     setError('');
     setNotice('');
+    /*
+      Se avisa ANTES de pedir la sesión: la marca tiene que existir cuando llegue
+      `onAuthStateChange`, o el efecto de la tarjeta tomaría esta sesión por ajena
+      y la cerraría justo después de crearla.
+    */
+    onBeforeAuth?.();
 
     if (tab === 'signup') {
       const { data, error: e } = await getGiftCardSupabase().auth.signUp({
@@ -368,6 +397,8 @@ function SingleCard({ cardId, session }) {
   const openAsOwner = useCallback(async (secret = '') => {
     const { data: mine } = await fetchMyGiftCard(cardId, secret);
     if (mine?.outcome !== 'OK') { setPhase('offline'); return; }
+    // Ya es su dueño: la marca de activación cumplió su papel y se retira.
+    clearActivating(cardId);
     setCard(mine);
     let seen = false;
     try { seen = Boolean(window.localStorage.getItem(SEEN_KEY + cardId)); } catch { /* sin storage */ }
@@ -506,7 +537,17 @@ function SingleCard({ cardId, session }) {
           persona ve el registro limpio. Un cliente con cuenta propia sí llega a
           la pantalla del código, sin quedar en bucle de inicio de sesión.
         */
-        if (!isClientSession(session)) {
+        /*
+          Tarjeta libre y una sesión que no se abrió aquí para esta tarjeta: o es
+          la del asesor heredada del navegador, o una sesión de cliente de otra
+          tarjeta. En ambos casos el orden correcto es empezar por crear la cuenta
+          —con el código— y no colar a nadie directo al código ni al editor. Se
+          cierra esa sesión ajena y se muestra el registro limpio.
+
+          El bucle está descartado porque en cuanto la persona se identifica en
+          esta pantalla queda la marca de esta tarjeta.
+        */
+        if (!isClientSession(session) || !isActivating(cardId)) {
           await getGiftCardSupabase().auth.signOut();
           if (!active) return;
           setPhase('login');
@@ -609,6 +650,7 @@ function SingleCard({ cardId, session }) {
           // El código y el registro sólo tienen sentido en la primera activación.
           requireCode={!cardClaimed}
           allowSignup={!cardClaimed}
+          onBeforeAuth={() => markActivating(cardId)}
           onReady={({ code }) => vincularConCodigo(code)}
         />
         <div className="mx-auto -mt-4 max-w-sm px-6 pb-10 text-center">
