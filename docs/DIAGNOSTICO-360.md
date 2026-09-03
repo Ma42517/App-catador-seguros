@@ -486,3 +486,5 @@ viabilidad sin metas, el retiro sin pensión deseada, la deuda sin ingreso, la
 frecuencia de impuestos por omisión, las simulaciones de liquidación duplicadas y —
 como red de seguridad contra correcciones que rompan lo que sí funcionaba — el
 diagnóstico completo de los datos de ejemplo.
+
+<!-- Despliegue: 2026-09-03T05:20Z -->
