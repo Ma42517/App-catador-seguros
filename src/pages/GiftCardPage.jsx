@@ -331,6 +331,16 @@ function SingleCard({ cardId, session }) {
   const [linkError, setLinkError] = useState('');
   // Secreto del dispositivo cuando se entró por número + clave. Vacío con correo.
   const [deviceSecret, setDeviceSecret] = useState('');
+  /*
+    Marca de "estoy vinculando ahora mismo".
+
+    El efecto de abajo también consulta el estado de la tarjeta cuando cambia la
+    sesión, y su respuesta puede llegar tarde: si vuelve con el "aún sin vincular"
+    de hace un segundo, pisaría la pantalla de la tarjeta ya activada y devolvería
+    a la persona a pedir el código. Con esta marca, el efecto no toca nada
+    mientras la activación está en marcha.
+  */
+  const linking = useRef(false);
 
   /**
    * Abre la tarjeta ya siendo su dueño: bienvenida la primera vez, luego editor.
@@ -356,13 +366,40 @@ function SingleCard({ cardId, session }) {
   const vincularConCodigo = useCallback(async (code) => {
     setLinkError('');
     setPhase('linking');
-    const { data, error: e } = await claimGiftCardWithSignup(cardId, code);
+    linking.current = true;
+    /*
+      Con tope de tiempo. Si la llamada se quedara colgada, el botón —que se
+      desactiva mientras se activa la tarjeta— quedaría muerto para siempre y la
+      pantalla parecería no responder. Mejor un error honesto que un botón inerte.
+    */
+    const { data, error: e } = await Promise.race([
+      claimGiftCardWithSignup(cardId, code),
+      new Promise((resolve) => window.setTimeout(
+        () => resolve({ data: null, error: { message: 'La conexión tardó demasiado.' } }),
+        15000,
+      )),
+    ]);
     if (e || !data) {
-      setLinkError('No pudimos validar el código. Revisa tu conexión e inténtalo de nuevo.');
+      linking.current = false;
+      setLinkError(`No pudimos validar el código. ${e?.message ?? ''} `.trim()
+        + ' Revisa tu conexión e inténtalo de nuevo.');
       setPhase('need_code');
       return;
     }
-    if (data.outcome === 'OWNER') { await openAsOwner(); return; }
+    if (data.outcome === 'OWNER') {
+      /*
+        Vinculada. Si al abrirla como dueño algo falla, se dice qué respondió el
+        servidor en lugar de mandar a una pantalla de "sin conexión" que no
+        explica nada: sin ese dato no hay forma de saber qué arreglar.
+      */
+      const { data: mine } = await fetchMyGiftCard(cardId, '');
+      if (mine?.outcome === 'OK') { await openAsOwner(); linking.current = false; return; }
+      linking.current = false;
+      setLinkError(`Tu tarjeta quedó activada, pero no pudimos abrirla (${mine?.outcome ?? 'sin respuesta'}). `
+        + 'Vuelve a cargar la página.');
+      setPhase('need_code');
+      return;
+    }
 
     const messages = {
       CODE_INVALID: data.attemptsLeft > 0
@@ -377,12 +414,21 @@ function SingleCard({ cardId, session }) {
       REVOKED: 'Esta tarjeta ya no está activa.',
       NOT_FOUND: 'Esta tarjeta no está disponible.',
     };
-    setLinkError(messages[data.outcome] ?? 'No pudimos validar el código.');
+    /*
+      Se añade la respuesta cruda del servidor entre paréntesis. No es ruido
+      técnico gratuito: "no avanza" no se puede arreglar, y `CODE_EXPIRED` o
+      `WRONG_ACCOUNT` sí dicen exactamente qué pasó.
+    */
+    linking.current = false;
+    setLinkError(`${messages[data.outcome] ?? 'No pudimos validar el código.'} `
+      + `(${data.outcome ?? 'sin respuesta'})`);
     setPhase('need_code');
   }, [cardId, openAsOwner]);
 
   useEffect(() => {
     let active = true;
+    // Activación en curso: quien manda es `vincularConCodigo`, no este efecto.
+    if (linking.current) return undefined;
 
     /*
       Antes que nada, el dispositivo. Quien ya entró con su número y clave tiene
@@ -605,6 +651,10 @@ function InvitationCode({ busy, error, onSubmit }) {
       <p className="mt-4 text-sm font-light leading-relaxed text-neutral-400">
         Tu cuenta está lista. Escribe el código de 6 dígitos que te compartió tu asesor para
         activar tu tarjeta.
+      </p>
+      {/* Cada código muere al usarse: si el mensaje es viejo, ese código ya no sirve. */}
+      <p className="mt-2 text-[11px] font-light leading-relaxed text-neutral-600">
+        Usa el código del último mensaje que te mandó tu asesor: cada código sirve una sola vez.
       </p>
       <form onSubmit={submit} className="mt-7 space-y-3">
         <input
