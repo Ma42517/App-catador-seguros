@@ -84,7 +84,120 @@ export function toYouTubeEmbed(url) {
 
 /** ¿Este texto es un enlace de YouTube que se puede incrustar? */
 export function isEmbeddableVideo(url) {
-  return Boolean(toYouTubeEmbed(url));
+  return Boolean(resolveVideo(url).embedUrl || resolveVideo(url).fileUrl);
+}
+
+
+// ── Loom ─────────────────────────────────────────────────────────────────────
+
+/*
+  Loom identifica el video con un hash largo y alfanumérico. Igual que con
+  YouTube, el asesor pegará el enlace de "compartir" (`loom.com/share/HASH`) o
+  el de incrustar (`loom.com/embed/HASH`); ambos apuntan al mismo video, pero
+  sólo el segundo funciona dentro de un `iframe`.
+*/
+const LOOM_HOSTS = new Set(['loom.com', 'www.loom.com']);
+const LOOM_ID = /^[A-Za-z0-9]{16,}$/;
+
+/** Dirección de incrustar de Loom, o `''` si el enlace no es de Loom. */
+export function toLoomEmbed(url) {
+  const raw = String(url ?? '').trim();
+  if (!raw) return '';
+
+  let parsed;
+  try {
+    parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+  } catch {
+    return '';
+  }
+
+  if (!LOOM_HOSTS.has(parsed.hostname)) return '';
+
+  // loom.com/share/HASH  ·  loom.com/embed/HASH
+  const path = parsed.pathname.split('/').filter(Boolean);
+  const id = path[path.length - 1] ?? '';
+  if (!['share', 'embed'].includes(path[path.length - 2]) || !LOOM_ID.test(id)) return '';
+
+  return `https://www.loom.com/embed/${id}`;
+}
+
+
+// ── Vimeo ────────────────────────────────────────────────────────────────────
+
+/*
+  Vimeo identifica el video con un número. El enlace público es
+  `vimeo.com/NUMERO` y el de incrustar es `player.vimeo.com/video/NUMERO`;
+  también existe el privado con un segundo hash (`vimeo.com/NUMERO/HASH`), que
+  hay que conservar o el reproductor responde "video privado".
+*/
+const VIMEO_HOSTS = new Set(['vimeo.com', 'www.vimeo.com', 'player.vimeo.com']);
+const VIMEO_ID = /^\d+$/;
+const VIMEO_HASH = /^[A-Za-z0-9]+$/;
+
+/** Dirección de incrustar de Vimeo, o `''` si el enlace no es de Vimeo. */
+export function toVimeoEmbed(url) {
+  const raw = String(url ?? '').trim();
+  if (!raw) return '';
+
+  let parsed;
+  try {
+    parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+  } catch {
+    return '';
+  }
+
+  if (!VIMEO_HOSTS.has(parsed.hostname)) return '';
+
+  const path = parsed.pathname.split('/').filter(Boolean);
+  // player.vimeo.com/video/NUMERO → el número es el último segmento.
+  const numberIndex = path.findIndex((seg) => VIMEO_ID.test(seg));
+  if (numberIndex === -1) return '';
+
+  const id = path[numberIndex];
+  // El segmento siguiente, si existe y es alfanumérico, es el hash de privacidad.
+  const hash = path[numberIndex + 1];
+  const privacy = hash && VIMEO_HASH.test(hash) ? `?h=${hash}` : '';
+
+  return `https://player.vimeo.com/video/${id}${privacy}`;
+}
+
+
+// ── Resolución unificada ──────────────────────────────────────────────────────
+
+/**
+ * Clasifica un enlace y devuelve cómo debe pintarse.
+ *
+ * @returns {{kind: string, embedUrl: string, fileUrl: string}}
+ *   `kind` es `'youtube' | 'loom' | 'vimeo' | 'file' | ''`. Para los tres
+ *   primeros viene `embedUrl` (va en un `iframe`); para `'file'` viene `fileUrl`
+ *   (va en un `<video>`). Vacío en todo si el enlace no es de ningún host
+ *   permitido.
+ *
+ * Se restringe la lista de hosts a propósito y no se acepta cualquier `iframe`:
+ * la tarjeta se abre desde un enlace público, sin que nadie inicie sesión, así
+ * que incrustar el dominio arbitrario que traiga el campo sería dejar una puerta
+ * abierta —cualquiera que edite la tarjeta podría montar contenido de terceros,
+ * publicidad o rastreadores sobre la marca del asesor—. Cerrando la lista a
+ * YouTube, Loom, Vimeo y archivos de video conocidos, el reverso sólo reproduce
+ * lo que se espera de una tarjeta de presentación.
+ */
+export function resolveVideo(url) {
+  const empty = { kind: '', embedUrl: '', fileUrl: '' };
+  const value = String(url ?? '').trim();
+  if (!value) return empty;
+
+  const youtube = toYouTubeEmbed(value);
+  if (youtube) return { kind: 'youtube', embedUrl: youtube, fileUrl: '' };
+
+  const loom = toLoomEmbed(value);
+  if (loom) return { kind: 'loom', embedUrl: loom, fileUrl: '' };
+
+  const vimeo = toVimeoEmbed(value);
+  if (vimeo) return { kind: 'vimeo', embedUrl: vimeo, fileUrl: '' };
+
+  if (videoKind(value) === 'file') return { kind: 'file', embedUrl: '', fileUrl: videoFileUrl(value) };
+
+  return empty;
 }
 
 

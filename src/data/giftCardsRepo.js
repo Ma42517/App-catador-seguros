@@ -1,5 +1,27 @@
 import { supabase, getGiftCardSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { uploadAttachment, BUCKET } from './announcementsRepo';
+import { normalizeCardData } from './cardData';
+
+/**
+ * Normaliza en el sitio la respuesta de un RPC de lectura de tarjeta.
+ *
+ * Los RPC devuelven { outcome, ...campos }. Cuando la tarjeta llegó bien (OK para
+ * el dueño, ACTIVA para la vista pública) se le da forma al cardData con
+ * `normalizeCardData` para que el front reciba SIEMPRE las mismas claves con
+ * defaults sanos (template, estadoPill, pildoras, contactos, reverso), sin perder
+ * el `outcome`. Si no hubo tarjeta (NOT_FOUND, NOT_OWNER…), se devuelve tal cual.
+ *
+ * El mapeo pildoras<->specialties vive en el backend y en cardData.js: aquí sólo se
+ * aplica la normalización. phone/whatsapp siguen siendo columnas propias, por eso
+ * viajan en el nivel superior y no dentro de `contactos`.
+ */
+function withCardData(result) {
+  const { data, error } = result;
+  if (error || !data || typeof data !== 'object') return result;
+  const outcome = data.outcome;
+  if (outcome !== 'OK' && outcome !== 'ACTIVA') return result;
+  return { data: { ...data, ...normalizeCardData(data) }, error };
+}
 
 /**
  * Tarjetas digitales de regalo.
@@ -38,8 +60,8 @@ async function callClientRpc(name, params) {
 // ─── Público / dueño (Google del cliente) ───────────────────────────────────
 
 /** Lo publicable de una tarjeta activa, sin identidad. */
-export function fetchPublicGiftCard(cardId) {
-  return callClientRpc('public_gift_card', { p_card_id: cardId });
+export async function fetchPublicGiftCard(cardId) {
+  return withCardData(await callClientRpc('public_gift_card', { p_card_id: cardId }));
 }
 
 /** Confirma si la sesión actual ya es dueña. Si la tarjeta está libre, NEEDS_CODE. */
@@ -56,14 +78,25 @@ export function claimGiftCardWithSignup(cardId, code) {
 }
 
 /** Contenido editable, para el dueño por Google o por dispositivo autorizado. */
-export function fetchMyGiftCard(cardId, deviceSecret = '') {
-  return callClientRpc('my_gift_card', {
+export async function fetchMyGiftCard(cardId, deviceSecret = '') {
+  return withCardData(await callClientRpc('my_gift_card', {
     p_card_id: cardId,
     p_device_secret: String(deviceSecret ?? ''),
-  });
+  }));
 }
 
-/** Guarda los campos de texto de la tarjeta. */
+/**
+ * Guarda los campos de la tarjeta.
+ *
+ * El patch acepta el modelo nuevo del editor:
+ *   { fullName, title, company, bio, phone, whatsapp, photoFocus,
+ *     template, estadoPill, pildoras, cardExtra: { contactos, reverso } }
+ * El RPC hace el mapeo real: pildoras se escribe en la columna specialties (son el
+ * mismo dato), phone/whatsapp siguen como columnas propias, y cardExtra se fusiona
+ * (merge superficial) en la columna jsonb del mismo nombre. Se usa `toSavePatch`
+ * desde el editor para construir este objeto normalizado; aquí no se transforma
+ * nada para no cambiar la firma pública ni asumir la forma del patch.
+ */
 export function saveGiftCard(cardId, patch, deviceSecret = '') {
   return callClientRpc('save_gift_card', {
     p_card_id: cardId,
