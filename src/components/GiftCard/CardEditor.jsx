@@ -168,8 +168,12 @@ function TextField({
  * escritorio, que es como se sube una foto desde una computadora. El botón de la
  * tarjeta sigue funcionando: los dos disparan el mismo input.
  */
-function PhotoDropzone({ avatarUrl, uploading, onOpenPicker, onFile, onEdit }) {
+function PhotoDropzone({
+  avatarUrl, uploading, onOpenPicker, onFile, onEdit, label = 'Foto', hint,
+}) {
   const [dragging, setDragging] = useState(false);
+  // Id único por instancia (frente/reverso) para no repetir htmlFor en la página.
+  const btnId = `card-photo-${label.replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
     <div
@@ -181,13 +185,11 @@ function PhotoDropzone({ avatarUrl, uploading, onOpenPicker, onFile, onEdit }) {
         const file = e.dataTransfer?.files?.[0];
         if (file) onFile(file);
       }}
-      /* En md+ ocupa todo el alto de su columna para no dejar un hueco al lado
-         de los campos; en móvil se queda con su alto natural. */
-      className="flex h-full flex-col"
+      className="flex flex-col"
     >
-      <FieldLabel htmlFor="card-photo-button" optional>Foto</FieldLabel>
+      <FieldLabel htmlFor={btnId} optional>{label}</FieldLabel>
       <button
-        id="card-photo-button"
+        id={btnId}
         type="button"
         onClick={onOpenPicker}
         disabled={uploading}
@@ -239,6 +241,9 @@ function PhotoDropzone({ avatarUrl, uploading, onOpenPicker, onFile, onEdit }) {
           <Crop size={13} /> Ajustar esta foto
         </button>
       )}
+      {hint && (
+        <p className="mt-1.5 text-[11px] font-light leading-relaxed text-neutral-500">{hint}</p>
+      )}
     </div>
   );
 }
@@ -257,7 +262,7 @@ function TemplatePicker({ value, onChange }) {
     { key: 'creator', label: 'Creator', hint: 'Perfil con foto atrás y agenda.' },
   ];
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {options.map((opt) => {
         const active = value === opt.key;
         return (
@@ -763,13 +768,32 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
               hint="Lo primero que se lee en tu tarjeta. La foto y el nombre hacen casi todo el trabajo."
             >
               <div className="grid gap-5 md:grid-cols-[210px_minmax(0,1fr)]">
-                <PhotoDropzone
-                  avatarUrl={avatarUrl}
-                  uploading={uploading}
-                  onOpenPicker={() => fileRef.current?.click()}
-                  onFile={openCropper}
-                  onEdit={editCurrentPhoto}
-                />
+                <div className="space-y-4">
+                  <PhotoDropzone
+                    label={templateFeatures(form.template).backAvatar ? 'Foto del frente' : 'Foto'}
+                    avatarUrl={avatarUrl}
+                    uploading={uploading}
+                    onOpenPicker={() => fileRef.current?.click()}
+                    onFile={(file) => openCropper(file, 'front')}
+                    onEdit={editCurrentPhoto}
+                  />
+                  {/*
+                    La foto del reverso vive AQUÍ, junto a la del frente, sólo en las
+                    plantillas que la usan (Creator). Antes estaba allá abajo en el
+                    bloque Reverso, lejos de la otra foto, y era confuso.
+                  */}
+                  {templateFeatures(form.template).backAvatar && (
+                    <PhotoDropzone
+                      label="Foto del reverso"
+                      avatarUrl={form.reverso.backAvatarUrl}
+                      uploading={uploading}
+                      onOpenPicker={() => backFileRef.current?.click()}
+                      onFile={(file) => openCropper(file, 'back')}
+                      onEdit={editBackPhoto}
+                      hint="La foto redonda que aparece al voltear la tarjeta. Puede ser distinta a la del frente."
+                    />
+                  )}
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <TextField
                     id="card-fullname"
@@ -898,24 +922,6 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                 en la tarjeta del cliente ya no se puede poner.
               */}
               <div className="space-y-6">
-                {/* Foto del reverso: sólo en plantillas que la usan (Creator). */}
-                {templateFeatures(form.template).backAvatar && (
-                  <div>
-                    <SectionLabel>Foto del reverso</SectionLabel>
-                    <PhotoDropzone
-                      avatarUrl={form.reverso.backAvatarUrl}
-                      uploading={uploading}
-                      onOpenPicker={() => backFileRef.current?.click()}
-                      onFile={(file) => openCropper(file, 'back')}
-                      onEdit={editBackPhoto}
-                    />
-                    <p className="mt-2 text-[11px] font-light leading-relaxed text-neutral-500">
-                      Es la foto redonda que aparece al voltear la tarjeta. Puede ser
-                      distinta a la del frente.
-                    </p>
-                  </div>
-                )}
-
                 <div>
                   <SectionLabel>Mensaje destacado</SectionLabel>
                   <div className="grid gap-4 md:grid-cols-2">
