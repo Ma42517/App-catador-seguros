@@ -376,12 +376,18 @@ function ContactChannel({
           aria-checked={enabled}
           aria-label={`${enabled ? 'Ocultar' : 'Mostrar'} ${label}`}
           onClick={() => onToggle(!enabled)}
-          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${enabled
-            ? 'bg-neutral-900' : 'bg-neutral-300'}`}
+          /*
+            box-border + medidas fijas para que el pulgar no desborde el track: el
+            switch encendido se salía de su caja por la derecha. El pulgar se
+            posiciona con `left` (no con translate sobre un absolute sin ancla),
+            que es lo que descuadraba el estado encendido en algunos navegadores.
+          */
+          className={`relative box-border h-6 w-11 shrink-0 rounded-full transition-colors
+                      ${enabled ? 'bg-neutral-900' : 'bg-neutral-300'}`}
         >
           <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm
-                        transition-transform ${enabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+            className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white
+                        shadow-sm transition-all ${enabled ? 'left-[22px]' : 'left-0.5'}`}
           />
         </button>
       </div>
