@@ -158,6 +158,23 @@ export async function uploadGiftCardPhoto(cardId, file, deviceSecret = '') {
   return { data: { ...data, avatarUrl: url }, error: null };
 }
 
+/**
+ * Sube la foto del REVERSO (plantilla Creator) y devuelve su URL pública.
+ *
+ * A diferencia de `uploadGiftCardPhoto`, NO llama a `set_gift_card_photo` —ese RPC
+ * escribe la columna avatar_url del frente y la pisaría—. Aquí sólo se sube el
+ * archivo a Storage; la URL se guarda después dentro de cardExtra.reverso vía
+ * `save_gift_card`, junto con el resto del reverso. Va en su propia carpeta para
+ * no chocar con la del frente.
+ */
+export async function uploadGiftCardBackPhoto(cardId, file) {
+  const { url, error, fileName } = await uploadAttachment(
+    file, `gift-cards/${cardId}/back`, getGiftCardSupabase(),
+  );
+  if (error || !url) return { data: null, error: error ?? { message: 'No se pudo subir la foto.' } };
+  return { data: { url, path: fileName }, error: null };
+}
+
 /** Todas las tarjetas que le pertenecen a la cuenta de cliente que entró. */
 export function fetchMyGiftCards() {
   return callClientRpc('my_gift_cards', {});
