@@ -52,6 +52,24 @@ export function normalizeTemplate(value) {
 }
 
 /**
+ * Encuadre de la foto como { ox, oy, zoom }.
+ *
+ * Acepta el objeto directo (lo que usa el editor en vivo) o su forma serializada
+ * como texto JSON (lo que devuelve la base, porque photo_focus es una columna de
+ * texto). Cualquier cosa rara cae a "centrado y sin zoom", que nunca rompe la
+ * tarjeta. ox/oy son porcentajes de traslación; zoom, el acercamiento.
+ */
+export function normalizeFocus(value) {
+  let v = value;
+  if (typeof v === 'string') {
+    try { v = JSON.parse(v); } catch { v = null; }
+  }
+  if (!v || typeof v !== 'object') return { ox: 0, oy: 0, zoom: 1 };
+  const num = (n, d) => (Number.isFinite(Number(n)) ? Number(n) : d);
+  return { ox: num(v.ox, 0), oy: num(v.oy, 0), zoom: num(v.zoom, 1) || 1 };
+}
+
+/**
  * Píldoras como array de hasta 4 textos no vacíos.
  *
  * Acepta lo que llegue (array o valor suelto), descarta lo que no sea texto útil
@@ -110,7 +128,7 @@ export function normalizeReverso(value) {
     // Foto propia del reverso (sólo la usan las plantillas con backAvatar).
     backAvatarUrl: r.backAvatarUrl ?? null,
     backAvatarPath: r.backAvatarPath ?? null,
-    backPhotoFocus: r.backPhotoFocus ?? null,
+    backPhotoFocus: normalizeFocus(r.backPhotoFocus),
   };
 }
 
@@ -133,7 +151,7 @@ export function normalizeCardData(raw = {}) {
     bio: String(raw.bio ?? '').trim(),
     phone: String(raw.phone ?? '').trim(),
     whatsapp: String(raw.whatsapp ?? '').trim(),
-    photoFocus: raw.photoFocus ?? null,
+    photoFocus: normalizeFocus(raw.photoFocus),
     avatarUrl: raw.avatarUrl ?? null,
     template: normalizeTemplate(raw.template),
     estadoPill: String(raw.estadoPill ?? '').trim(),
@@ -152,6 +170,10 @@ export function normalizeCardData(raw = {}) {
  * phone/whatsapp quedan en el nivel superior porque son columnas propias.
  */
 export function toSavePatch(cardData = {}) {
+  // photo_focus es columna de TEXTO y el RPC la lee con ->> (texto). Se serializa
+  // el encuadre a JSON para que quepa; al leer, normalizeFocus lo vuelve a objeto.
+  const focusText = JSON.stringify(normalizeFocus(cardData.photoFocus));
+  const reverso = normalizeReverso(cardData.reverso);
   return {
     fullName: cardData.fullName,
     title: cardData.title,
@@ -159,13 +181,14 @@ export function toSavePatch(cardData = {}) {
     bio: cardData.bio,
     phone: cardData.phone,
     whatsapp: cardData.whatsapp,
-    photoFocus: cardData.photoFocus,
+    photoFocus: focusText,
     template: normalizeTemplate(cardData.template),
     estadoPill: cardData.estadoPill,
     pildoras: normalizePildoras(cardData.pildoras),
     cardExtra: {
       contactos: normalizeContactos(cardData.contactos),
-      reverso: normalizeReverso(cardData.reverso),
+      // El encuadre del reverso también serializado, por el mismo motivo.
+      reverso: { ...reverso, backPhotoFocus: JSON.stringify(reverso.backPhotoFocus) },
     },
   };
 }

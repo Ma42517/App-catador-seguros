@@ -469,6 +469,8 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     email: Boolean(initial.contactos?.email),
   }));
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl ?? '');
+  // Encuadre de la foto del frente ({ox,oy,zoom}); lo pinta la tarjeta tal cual.
+  const [photoFocus, setPhotoFocus] = useState(initial.photoFocus ?? null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -503,7 +505,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     ...form,
     phone: channels.telefono ? form.contactos.telefono : '',
     whatsapp: channels.whatsapp ? form.contactos.whatsapp : '',
-    photoFocus: initial.photoFocus ?? null,
+    photoFocus,
     contactos: {
       maps: channels.maps ? form.contactos.maps : '',
       instagram: channels.instagram ? form.contactos.instagram : '',
@@ -552,24 +554,49 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     siempre (uploadGiftCardPhoto → columna avatar), y la del reverso se sube a su
     propia carpeta y se guarda dentro de reverso.backAvatarUrl con save_gift_card.
   */
-  const uploadCropped = async (dataUrl) => {
+  /*
+    Recibe { src, focus } del modal. Ya NO se recorta la imagen: se sube TAL CUAL
+    y se guarda el encuadre (focus = {ox,oy,zoom}), que la tarjeta aplica con el
+    mismo translate/scale del modal. Así lo que se ve al ajustar es lo que queda.
+    Sólo se re-sube el archivo si es nuevo (viene como data URL); si se estaba
+    reajustando una foto ya guardada (src remoto), se conserva y sólo cambia el
+    encuadre.
+  */
+  const uploadCropped = async ({ src: photoSrc, focus }) => {
     setUploading(true);
     setError('');
     try {
-      const shrunk = await shrinkImageForUpload(dataUrl);
-      const finalFile = await dataUrlToFile(shrunk, 'tarjeta.jpg');
+      const isNew = String(photoSrc).startsWith('data:');
 
       if (cropTarget === 'back') {
-        const { data, error: e } = await uploadGiftCardBackPhoto(cardId, finalFile);
-        if (e || !data?.url) throw new Error('upload');
-        // Se persiste de inmediato en el reverso para no perderla si no guarda todo.
-        const next = { ...form.reverso, backAvatarUrl: data.url, backAvatarPath: data.path };
+        let url = form.reverso.backAvatarUrl;
+        let path = form.reverso.backAvatarPath;
+        if (isNew) {
+          const shrunk = await shrinkImageForUpload(photoSrc);
+          const finalFile = await dataUrlToFile(shrunk, 'reverso.jpg');
+          const { data, error: e } = await uploadGiftCardBackPhoto(cardId, finalFile);
+          if (e || !data?.url) throw new Error('upload');
+          url = data.url; path = data.path;
+        }
+        const next = {
+          ...form.reverso, backAvatarUrl: url, backAvatarPath: path, backPhotoFocus: focus,
+        };
         setForm((f) => ({ ...f, reverso: next }));
         await saveGiftCard(cardId, toSavePatch({ ...buildCardData(), reverso: next }), deviceSecret);
       } else {
-        const { data, error: e } = await uploadGiftCardPhoto(cardId, finalFile, deviceSecret);
-        if (e || !data?.avatarUrl) throw new Error('upload');
-        setAvatarUrl(data.avatarUrl);
+        if (isNew) {
+          const shrunk = await shrinkImageForUpload(photoSrc);
+          const finalFile = await dataUrlToFile(shrunk, 'tarjeta.jpg');
+          const { data, error: e } = await uploadGiftCardPhoto(cardId, finalFile, deviceSecret);
+          if (e || !data?.avatarUrl) throw new Error('upload');
+          setAvatarUrl(data.avatarUrl);
+        }
+        setPhotoFocus(focus);
+        await saveGiftCard(
+          cardId,
+          toSavePatch({ ...buildCardData(), photoFocus: focus }),
+          deviceSecret,
+        );
       }
       setCropSrc('');
     } catch {
@@ -635,6 +662,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
         <PhotoCropModal
           src={cropSrc}
           cardData={preview}
+          initialFocus={cropTarget === 'back' ? form.reverso.backPhotoFocus : photoFocus}
           onCancel={() => setCropSrc('')}
           onConfirm={uploadCropped}
         />

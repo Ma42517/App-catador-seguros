@@ -6,7 +6,6 @@ import {
 import WhatsAppMark from '../Activities/WhatsAppMark';
 import { normalizeCardData } from '../../data/cardData';
 import { buildVCard, canBuildVCard } from '../../data/vcard';
-import { focusStyle } from '../../data/cardPhoto';
 import { whatsAppLink } from '../../lib/advisorPhone';
 
 /**
@@ -68,7 +67,7 @@ function InstagramMark({ size = 17 }) {
  *   el fondo (el efecto de WhatsApp cuando la foto no cubre el encuadre). Así se
  *   puede bajar la cara para que no la tape el texto sin dejar una banda negra.
  */
-function FramedPortrait({ card, free }) {
+function FramedPortrait({ card, free, focus }) {
   if (!card.avatarUrl) {
     return (
       <div className="absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-700">
@@ -77,34 +76,24 @@ function FramedPortrait({ card, free }) {
     );
   }
 
-  if (!free) {
-    return (
-      <img
-        src={card.avatarUrl}
-        alt={card.fullName || 'Tarjeta'}
-        referrerPolicy="no-referrer"
-        className="absolute inset-0 h-full w-full object-cover"
-        style={focusStyle(card.photoFocus)}
-      />
-    );
-  }
-
-  const { ox, oy, zoom } = free;
   /*
-    Las dos imágenes llevan pointer-events:none a propósito: el gesto de arrastre
-    tiene que llegar SIEMPRE al div de arriba (el que tiene los handlers y el
-    pointer capture). Si las imágenes recibieran el puntero, en móvil el navegador
-    lo tomaría como scroll y el arrastre no respondería —que es justo lo que
-    pasaba—.
+    UN SOLO modelo de encuadre para editar y para publicar: {ox, oy, zoom}, y se
+    pinta SIEMPRE con el mismo `translate(%)/scale`. Antes el modo publicado usaba
+    focusStyle (object-position) y el editor usaba translate: dos matemáticas
+    distintas, así que lo que se recortaba no era lo que se veía. Al compartir el
+    mismo motor, lo que se ajusta es exactamente lo que queda guardado.
 
-    El wrapper con `overflow-hidden` e `isolate` recorta el blur al marco: sin él,
-    el filtro se pinta en una capa que escapa del recorte del contenedor 3D
-    (`preserve-3d` + `transform`) y la copia difuminada se derramaba fuera de la
-    tarjeta, como se veía a la izquierda.
+    `free` (viene del editor mientras se arrastra) manda; si no, se usa el encuadre
+    guardado (`focus`), que es lo mismo que trae la tarjeta ya publicada.
   */
+  const f = free ?? focus ?? { ox: 0, oy: 0, zoom: 1 };
+  const ox = Number.isFinite(f.ox) ? f.ox : 0;
+  const oy = Number.isFinite(f.oy) ? f.oy : 0;
+  const zoom = Number.isFinite(f.zoom) && f.zoom > 0 ? f.zoom : 1;
+
   return (
     <div className="absolute inset-0 isolate overflow-hidden">
-      {/* Fondo de relleno difuminado, recortado al marco. */}
+      {/* Fondo de relleno difuminado (efecto WhatsApp), recortado al marco. */}
       <img
         src={card.avatarUrl}
         alt=""
@@ -114,7 +103,7 @@ function FramedPortrait({ card, free }) {
         className="pointer-events-none absolute inset-0 h-full w-full scale-110 select-none
                    object-cover blur-xl"
       />
-      {/* Retrato movible: se traslada libre siguiendo el gesto. */}
+      {/* Retrato en su posición: mismo translate/scale al editar y al publicar. */}
       <img
         src={card.avatarUrl}
         alt={card.fullName || 'Tarjeta'}
@@ -319,7 +308,7 @@ function EditorialFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
           (posición + acercamiento) se aplica con focusStyle; sin photoFocus queda
           centrado y sin escala, idéntico a como estaba. */}
       <div className="absolute inset-0 overflow-hidden">
-        <FramedPortrait card={card} free={framing?.free} />
+        <FramedPortrait card={card} free={framing?.free} focus={card.photoFocus} />
       </div>
 
       {/*
@@ -397,7 +386,7 @@ function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
       {/* Foto superior con las esquinas inferiores redondeadas. Al encuadrar
           (framing), este bloque recibe la ref y los gestos de arrastre. */}
       <div className="relative h-[55%] w-full overflow-hidden rounded-b-3xl">
-        <FramedPortrait card={card} free={framing?.free} />
+        <FramedPortrait card={card} free={framing?.free} focus={card.photoFocus} />
         {/* Capa de captura del gesto, encima de la foto y su degradado. */}
         {framing?.handlers && (
           <div
@@ -480,7 +469,7 @@ function CreatorFront({
     <div className="flex h-full w-full flex-col bg-neutral-950 p-3 text-white">
       {/* Hero: foto vertical de gran formato con el nombre encima */}
       <div className="relative h-[58%] w-full overflow-hidden rounded-[1.4rem]">
-        <FramedPortrait card={card} free={framing?.free} />
+        <FramedPortrait card={card} free={framing?.free} focus={card.photoFocus} />
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85
                      via-black/10 to-transparent"
@@ -581,7 +570,13 @@ function CreatorBack({ card, onBack }) {
               alt={card.fullName || 'Perfil'}
               referrerPolicy="no-referrer"
               className="h-full w-full object-cover"
-              style={focusStyle(r.backPhotoFocus)}
+              style={(() => {
+                const f = r.backPhotoFocus ?? {};
+                const ox = Number.isFinite(f.ox) ? f.ox : 0;
+                const oy = Number.isFinite(f.oy) ? f.oy : 0;
+                const zoom = Number.isFinite(f.zoom) && f.zoom > 0 ? f.zoom : 1;
+                return { transform: `translate(${ox}%, ${oy}%) scale(${zoom})` };
+              })()}
             />
           ) : (
             <div className="grid h-full w-full place-items-center bg-neutral-800 text-neutral-600">
