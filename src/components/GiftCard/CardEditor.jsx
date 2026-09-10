@@ -6,10 +6,10 @@ import {
 } from 'lucide-react';
 import { getGiftCardSupabase } from '../../lib/supabaseClient';
 import { giftCardUrl } from '../../lib/giftCardRoute';
-import { saveGiftCard, uploadGiftCardPhoto } from '../../data/giftCardsRepo';
+import { saveGiftCard, uploadGiftCardPhoto, uploadGiftCardBackPhoto } from '../../data/giftCardsRepo';
 import { readImageFile, shrinkImageForUpload, dataUrlToFile } from '../../data/cardPhoto';
 import { whatsAppLink } from '../../lib/advisorPhone';
-import { MAX_PILDORAS, toSavePatch } from '../../data/cardData';
+import { MAX_PILDORAS, toSavePatch, templateFeatures } from '../../data/cardData';
 import DigitalCard from './DigitalCard';
 import PhotoCropModal from './PhotoCropModal';
 
@@ -254,6 +254,7 @@ function TemplatePicker({ value, onChange }) {
   const options = [
     { key: 'editorial', label: 'Editorial', hint: 'Foto grande, estilo revista.' },
     { key: 'executive', label: 'Ejecutivo', hint: 'Enmarcada y sobria.' },
+    { key: 'creator', label: 'Creator', hint: 'Perfil con foto atrás y agenda.' },
   ];
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -450,8 +451,12 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
       ctaTitulo: initial.reverso?.ctaTitulo ?? '',
       ctaBadge: initial.reverso?.ctaBadge ?? '',
       ctaSubtitulo: initial.reverso?.ctaSubtitulo ?? '',
+      bookingMode: initial.reverso?.bookingMode === 'link' ? 'link' : 'whatsapp',
       bookingUrl: initial.reverso?.bookingUrl ?? '',
       bookingTexto: initial.reverso?.bookingTexto ?? '',
+      backAvatarUrl: initial.reverso?.backAvatarUrl ?? null,
+      backAvatarPath: initial.reverso?.backAvatarPath ?? null,
+      backPhotoFocus: initial.reverso?.backPhotoFocus ?? null,
     },
   }));
   // Qué canales están encendidos. Arrancan encendidos los que ya traían dato,
@@ -471,7 +476,11 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
   const [copied, setCopied] = useState(false);
   // Imagen elegida a la espera de encuadre en el modal. Vacío = modal cerrado.
   const [cropSrc, setCropSrc] = useState('');
+  // A dónde va la foto que se está recortando: 'front' (la principal) o 'back'
+  // (la del reverso, sólo en plantillas con backAvatar).
+  const [cropTarget, setCropTarget] = useState('front');
   const fileRef = useRef(null);
+  const backFileRef = useRef(null);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const setContacto = (key, value) => setForm((f) => ({
@@ -525,11 +534,12 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     encuadrarla contra la tarjeta real. Se guarda la imagen entera como URL de
     datos y se le pasa al modal; el recorte definitivo lo hace él al confirmar.
   */
-  const openCropper = async (file) => {
+  const openCropper = async (file, target = 'front') => {
     if (!file) return;
     setError('');
     try {
       const dataUrl = await readImageFile(file);
+      setCropTarget(target);
       setCropSrc(dataUrl);
     } catch {
       setError('No pudimos leer la imagen. Prueba con otra.');
@@ -537,9 +547,10 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
   };
 
   /*
-    Sube el recorte que devuelve el modal (ya en la proporción de la tarjeta): se
-    reduce de peso y se manda por el mismo pipeline de siempre. Cierra el modal al
-    terminar.
+    Sube el recorte que devuelve el modal (ya en la proporción de la tarjeta). El
+    destino depende de `cropTarget`: la foto del frente va por el pipeline de
+    siempre (uploadGiftCardPhoto → columna avatar), y la del reverso se sube a su
+    propia carpeta y se guarda dentro de reverso.backAvatarUrl con save_gift_card.
   */
   const uploadCropped = async (dataUrl) => {
     setUploading(true);
@@ -547,9 +558,19 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
     try {
       const shrunk = await shrinkImageForUpload(dataUrl);
       const finalFile = await dataUrlToFile(shrunk, 'tarjeta.jpg');
-      const { data, error: e } = await uploadGiftCardPhoto(cardId, finalFile, deviceSecret);
-      if (e || !data?.avatarUrl) throw new Error('upload');
-      setAvatarUrl(data.avatarUrl);
+
+      if (cropTarget === 'back') {
+        const { data, error: e } = await uploadGiftCardBackPhoto(cardId, finalFile);
+        if (e || !data?.url) throw new Error('upload');
+        // Se persiste de inmediato en el reverso para no perderla si no guarda todo.
+        const next = { ...form.reverso, backAvatarUrl: data.url, backAvatarPath: data.path };
+        setForm((f) => ({ ...f, reverso: next }));
+        await saveGiftCard(cardId, toSavePatch({ ...buildCardData(), reverso: next }), deviceSecret);
+      } else {
+        const { data, error: e } = await uploadGiftCardPhoto(cardId, finalFile, deviceSecret);
+        if (e || !data?.avatarUrl) throw new Error('upload');
+        setAvatarUrl(data.avatarUrl);
+      }
       setCropSrc('');
     } catch {
       setError('No pudimos subir la foto. Prueba con otra imagen.');
@@ -561,18 +582,32 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
   const pickPhoto = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    await openCropper(file);
+    await openCropper(file, 'front');
+  };
+
+  const pickBackPhoto = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    await openCropper(file, 'back');
   };
 
   /*
-    Reajustar la foto que YA está subida, sin volver a elegir uno del teléfono. Se
+    Reajustar la foto que YA está subida, sin volver a elegir una del teléfono. Se
     abre el mismo modal con la foto actual como origen: mover, acercar y guardar de
     nuevo. Útil cuando la cara quedó tapada por el texto y sólo hace falta recolocar.
   */
   const editCurrentPhoto = () => {
     if (!avatarUrl) return;
     setError('');
+    setCropTarget('front');
     setCropSrc(avatarUrl);
+  };
+
+  const editBackPhoto = () => {
+    if (!form.reverso.backAvatarUrl) return;
+    setError('');
+    setCropTarget('back');
+    setCropSrc(form.reverso.backAvatarUrl);
   };
 
   const shareUrl = giftCardUrl(cardId);
@@ -593,6 +628,7 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
   const hidden = (
     <>
       <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
+      <input ref={backFileRef} type="file" accept="image/*" onChange={pickBackPhoto} className="hidden" />
       {/* El recortador vive junto al input: se usa igual en el modo editar y en
           el modo previa, y sobre la tarjeta muestra el encuadre en vivo. */}
       {cropSrc && (
@@ -834,6 +870,24 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
                 en la tarjeta del cliente ya no se puede poner.
               */}
               <div className="space-y-6">
+                {/* Foto del reverso: sólo en plantillas que la usan (Creator). */}
+                {templateFeatures(form.template).backAvatar && (
+                  <div>
+                    <SectionLabel>Foto del reverso</SectionLabel>
+                    <PhotoDropzone
+                      avatarUrl={form.reverso.backAvatarUrl}
+                      uploading={uploading}
+                      onOpenPicker={() => backFileRef.current?.click()}
+                      onFile={(file) => openCropper(file, 'back')}
+                      onEdit={editBackPhoto}
+                    />
+                    <p className="mt-2 text-[11px] font-light leading-relaxed text-neutral-500">
+                      Es la foto redonda que aparece al voltear la tarjeta. Puede ser
+                      distinta a la del frente.
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <SectionLabel>Mensaje destacado</SectionLabel>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -869,18 +923,48 @@ export default function CardEditor({ cardId, initial, deviceSecret = '' }) {
 
                 <div className="border-t border-neutral-200 pt-5">
                   <SectionLabel>Agenda</SectionLabel>
+
+                  {/* Cómo recibe las citas: por WhatsApp o con su enlace de Google. */}
+                  <div className="mb-4 flex rounded-full border border-neutral-200 p-1">
+                    {[
+                      ['whatsapp', 'Por WhatsApp'],
+                      ['link', 'Enlace de Google Calendar'],
+                    ].map(([key, label]) => {
+                      const active = form.reverso.bookingMode === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setReverso('bookingMode', key)}
+                          className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors ${active
+                            ? 'bg-neutral-900 text-white' : 'text-neutral-500'}`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <div className="grid gap-4 md:grid-cols-2">
-                    <TextField
-                      id="reverso-booking-url"
-                      label="Agenda de Google Calendar"
-                      icon={CalendarCheck}
-                      optional
-                      type="url"
-                      value={form.reverso.bookingUrl}
-                      onChange={(v) => setReverso('bookingUrl', v)}
-                      placeholder="Pega el enlace público de tu agenda de Google Calendar"
-                      hint="Aquí irá el enlace de programación de citas de Google Calendar. Si lo dejas vacío, el botón escribirá por WhatsApp a tu número."
-                    />
+                    {form.reverso.bookingMode === 'link' ? (
+                      <TextField
+                        id="reverso-booking-url"
+                        label="Agenda de Google Calendar"
+                        icon={CalendarCheck}
+                        type="url"
+                        value={form.reverso.bookingUrl}
+                        onChange={(v) => setReverso('bookingUrl', v)}
+                        placeholder="Pega el enlace público de tu agenda de Google Calendar"
+                        hint="El enlace de 'programación de citas' que Google te da. El botón Agendar llevará ahí."
+                      />
+                    ) : (
+                      <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3.5
+                                      text-[11px] font-light leading-relaxed text-neutral-500"
+                      >
+                        El botón Agendar abrirá WhatsApp a tu número con un mensaje de cita listo.
+                        Más adelante podrás conectar tu Google Calendar para que se agende solo.
+                      </div>
+                    )}
                     <TextField
                       id="reverso-booking-texto"
                       label="Texto del botón"

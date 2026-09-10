@@ -17,14 +17,36 @@
  *   columna jsonb.
  */
 
-/** Las dos únicas plantillas soportadas; 'editorial' es la de las tarjetas viejas. */
-export const TEMPLATES = ['editorial', 'executive'];
+/** Plantillas soportadas; 'editorial' es la de las tarjetas viejas (default). */
+export const TEMPLATES = ['editorial', 'executive', 'creator'];
 export const DEFAULT_TEMPLATE = 'editorial';
+
+/**
+ * Capacidades por plantilla: qué campos EXTRA usa cada diseño.
+ *
+ * Centralizar esto aquí evita condicionales sueltos por el editor y el visor:
+ * cada componente pregunta `templateFeatures(t).backAvatar` en vez de comparar
+ * el nombre de la plantilla a mano. Una plantilla nueva declara aquí lo que usa
+ * y el resto de la app se adapta sola.
+ *
+ * · backAvatar → la plantilla tiene una FOTO propia en el reverso (además de la
+ *   del frente). Sólo 'creator' la usa hoy; por eso su recortador sólo aparece
+ *   con esa plantilla y las viejas no muestran nada de más.
+ */
+const TEMPLATE_FEATURES = {
+  editorial: { backAvatar: false },
+  executive: { backAvatar: false },
+  creator: { backAvatar: true },
+};
+
+export function templateFeatures(value) {
+  return TEMPLATE_FEATURES[normalizeTemplate(value)] ?? TEMPLATE_FEATURES.editorial;
+}
 
 /** Cuántas píldoras caben en la tarjeta. Más allá de esto no se muestran. */
 export const MAX_PILDORAS = 4;
 
-/** Sólo 'editorial'/'executive' son válidas; cualquier otra cae al default. */
+/** Sólo las plantillas listadas son válidas; cualquier otra cae al default. */
 export function normalizeTemplate(value) {
   return TEMPLATES.includes(value) ? value : DEFAULT_TEMPLATE;
 }
@@ -69,12 +91,26 @@ export function normalizeContactos(value) {
  */
 export function normalizeReverso(value) {
   const r = value && typeof value === 'object' ? value : {};
+  /*
+    bookingMode decide cómo recibe las citas quien no tiene sincronización real de
+    Google todavía:
+     · 'whatsapp' → el botón Agendar abre WhatsApp con el mensaje prellenado.
+     · 'link'     → abre el enlace público de agenda de Google Calendar (bookingUrl).
+    Se guarda desde ya para que, cuando exista la conexión automática con Google,
+    sólo se agregue un modo más sin migrar lo existente.
+  */
+  const mode = r.bookingMode === 'link' ? 'link' : 'whatsapp';
   return {
     ctaTitulo: String(r.ctaTitulo ?? '').trim(),
     ctaBadge: String(r.ctaBadge ?? '').trim(),
     ctaSubtitulo: String(r.ctaSubtitulo ?? '').trim(),
+    bookingMode: mode,
     bookingUrl: String(r.bookingUrl ?? '').trim(),
     bookingTexto: String(r.bookingTexto ?? '').trim(),
+    // Foto propia del reverso (sólo la usan las plantillas con backAvatar).
+    backAvatarUrl: r.backAvatarUrl ?? null,
+    backAvatarPath: r.backAvatarPath ?? null,
+    backPhotoFocus: r.backPhotoFocus ?? null,
   };
 }
 

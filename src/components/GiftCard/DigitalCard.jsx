@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Phone, Mail, MapPin, UserPlus, RotateCcw, ChevronLeft,
-  Camera, Image as ImageIcon, CalendarCheck,
+  Camera, Image as ImageIcon, CalendarCheck, BadgeCheck,
 } from 'lucide-react';
 import WhatsAppMark from '../Activities/WhatsAppMark';
 import { normalizeCardData } from '../../data/cardData';
@@ -175,13 +175,13 @@ function Pildoras({ items }) {
  * Botonera circular de contacto rápido. Sólo aparecen los accesos con dato: un
  * botón muerto promete algo que no cumple.
  */
-function ContactRow({ card }) {
+function ContactRow({ card, center = false }) {
   const whatsapp = String(card.whatsapp ?? '').replace(/[^\d+]/g, '').replace(/^\+/, '');
   const phone = String(card.phone ?? '').replace(/[^\d+]/g, '');
   const { maps, instagram, email } = card.contactos ?? {};
 
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-2.5">
+    <div className={`mt-5 flex flex-wrap items-center gap-2.5 ${center ? 'justify-center' : ''}`}>
       <ContactButton
         label="Escribir por WhatsApp"
         href={whatsapp ? `https://wa.me/${whatsapp}` : ''}
@@ -465,17 +465,231 @@ function ExecutiveFront({ card, onPickPhoto, uploading, onFlip, hasBack, framing
  * enlace de WhatsApp con el número de la tarjeta (whatsAppLink), para que el
  * botón nunca quede muerto.
  */
-function CardBack({ card, onBack }) {
-  const { ctaBadge, ctaTitulo, ctaSubtitulo, bookingUrl, bookingTexto } = card.reverso ?? {};
+/**
+ * ── Anverso Plantilla CREATOR / LIFESTYLE ──
+ *
+ * Estilo "perfil de creador": hero photo grande arriba con el nombre y su badge
+ * de verificación sobre un velo inferior, un bloque "Acerca de mí" con el lema, la
+ * fila de redes en mono y un botón ancho "Ver más" que voltea al reverso. Fondo
+ * oscuro y esquinas muy redondeadas.
+ */
+function CreatorFront({
+  card, onPickPhoto, uploading, onFlip, hasBack, framing,
+}) {
+  return (
+    <div className="flex h-full w-full flex-col bg-neutral-950 p-3 text-white">
+      {/* Hero: foto vertical de gran formato con el nombre encima */}
+      <div className="relative h-[58%] w-full overflow-hidden rounded-[1.4rem]">
+        <FramedPortrait card={card} free={framing?.free} />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85
+                     via-black/10 to-transparent"
+          aria-hidden="true"
+        />
+        <PhotoButton onPickPhoto={onPickPhoto} hasPhoto={Boolean(card.avatarUrl)} />
+        <UploadingVeil uploading={uploading} />
+        {framing?.handlers && (
+          <div
+            ref={framing.frameRef}
+            {...framing.handlers}
+            className="absolute inset-0 z-40 cursor-grab touch-none active:cursor-grabbing"
+            aria-label="Arrastra para mover la foto"
+          />
+        )}
+        <div className="absolute inset-x-0 bottom-0 z-20 p-4">
+          {card.title && (
+            <span className="mb-2 inline-block rounded-full bg-white/15 px-2.5 py-1 text-[10px]
+                             font-medium text-white backdrop-blur-sm"
+            >
+              {card.title}
+            </span>
+          )}
+          <h1 className="flex items-center gap-1 text-lg font-bold text-white
+                         [text-shadow:0_1px_3px_rgb(0_0_0/0.6)]"
+          >
+            {card.fullName || 'Tu nombre'}
+            <BadgeCheck size={16} className="text-sky-400" aria-hidden="true" />
+          </h1>
+        </div>
+      </div>
 
-  // Degradado sensato del botón de reserva: si no hay agenda pero sí número, se
-  // escribe por WhatsApp con el texto ya puesto. Si NO hay ni agenda ni número,
-  // no se pinta el botón: un `wa.me/?text=` sin destinatario abre WhatsApp pero
-  // no lleva a nadie, y un botón "Agendar" que no agenda confunde al prospecto.
-  const bookingNumber = String(card.whatsapp || card.phone || '').replace(/[^\d+]/g, '');
-  const canBook = Boolean(bookingUrl) || Boolean(bookingNumber);
-  const bookingHref = bookingUrl
-    || whatsAppLink(card.whatsapp || card.phone, 'Hola, me gustaría agendar una reunión.');
+      {/* Acerca de mí */}
+      {card.bio && (
+        <div className="mt-3 rounded-2xl border border-neutral-700/50 bg-neutral-800/80 p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+            Acerca de mí
+          </p>
+          <p className="mt-1.5 line-clamp-3 text-sm font-light leading-relaxed text-neutral-200">
+            {card.bio}
+          </p>
+        </div>
+      )}
+
+      {/* Redes, centradas y mono */}
+      <div className="mt-3 flex items-center justify-center">
+        <ContactRow card={card} center />
+      </div>
+
+      {/* Ver más → voltea */}
+      {hasBack && (
+        <button
+          type="button"
+          onClick={onFlip}
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-2xl bg-black
+                     py-3 text-sm font-medium text-white shadow-lg ring-1 ring-white/10
+                     transition-colors hover:bg-neutral-900 active:scale-[0.98]"
+        >
+          Ver más <RotateCcw size={14} aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * ── Reverso Plantilla CREATOR ──
+ *
+ * Cabecera de perfil: botón de volver, avatar circular con aro (la FOTO DE
+ * REVERSO propia de esta plantilla), nombre + especialidad y dos botones
+ * (Contactar / Agendar). Debajo, la agenda con el estilo de la tarjeta.
+ */
+function CreatorBack({ card, onBack }) {
+  const r = card.reverso ?? {};
+  const { canBook, bookingHref } = resolveBooking(card);
+  const whatsapp = String(card.whatsapp || card.phone || '').replace(/[^\d+]/g, '');
+  const contactHref = whatsapp ? `https://wa.me/${whatsapp}` : '';
+
+  return (
+    <div className="flex h-full w-full flex-col overflow-y-auto bg-neutral-950 p-5 text-white">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Volver al frente de la tarjeta"
+        className="mb-3 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-neutral-900
+                   text-white ring-1 ring-white/15 transition-colors hover:bg-neutral-800
+                   active:scale-95"
+      >
+        <ChevronLeft size={20} />
+      </button>
+
+      {/* Avatar de reverso con aro. Si no hay foto de reverso, cae a la del frente. */}
+      <div className="flex flex-col items-center text-center">
+        <div className="h-24 w-24 overflow-hidden rounded-full ring-2 ring-white/20">
+          {(r.backAvatarUrl || card.avatarUrl) ? (
+            <img
+              src={r.backAvatarUrl || card.avatarUrl}
+              alt={card.fullName || 'Perfil'}
+              referrerPolicy="no-referrer"
+              className="h-full w-full object-cover"
+              style={focusStyle(r.backPhotoFocus)}
+            />
+          ) : (
+            <div className="grid h-full w-full place-items-center bg-neutral-800 text-neutral-600">
+              <ImageIcon size={28} strokeWidth={1.3} />
+            </div>
+          )}
+        </div>
+        <h2 className="mt-3 flex items-center gap-1 text-lg font-bold">
+          {card.fullName || 'Tu nombre'}
+          <BadgeCheck size={15} className="text-sky-400" aria-hidden="true" />
+        </h2>
+        {card.title && (
+          <p className="mt-0.5 text-xs font-light text-neutral-400">{card.title}</p>
+        )}
+
+        <div className="mt-4 flex w-full gap-2">
+          <a
+            href={contactHref || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => { if (!contactHref) e.preventDefault(); }}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs
+                        font-semibold transition-colors ${contactHref
+              ? 'bg-white text-black hover:bg-neutral-200'
+              : 'cursor-default bg-white/20 text-white/40'}`}
+          >
+            <WhatsAppMark size={14} /> Contactar
+          </a>
+          {canBook && (
+            <a
+              href={bookingHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border
+                         border-neutral-700 py-2.5 text-xs font-semibold text-neutral-200
+                         transition-colors hover:border-neutral-500 hover:text-white"
+            >
+              <CalendarCheck size={14} /> Agendar
+            </a>
+          )}
+        </div>
+      </div>
+
+      <Pildoras items={card.pildoras} />
+
+      {/* Agenda con el estilo de la tarjeta */}
+      {canBook && (
+        <div className="mt-4 rounded-2xl border border-neutral-700/50 bg-neutral-900/70 p-4">
+          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase
+                        tracking-[0.16em] text-neutral-400"
+          >
+            <CalendarCheck size={12} /> Agenda tu cita
+          </p>
+          {r.ctaTitulo && (
+            <h3 className="mt-2 text-base font-medium leading-snug text-white">{r.ctaTitulo}</h3>
+          )}
+          {r.ctaSubtitulo && (
+            <p className="mt-1 text-xs font-light leading-relaxed text-neutral-400">
+              {r.ctaSubtitulo}
+            </p>
+          )}
+          <a
+            href={bookingHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white
+                       py-3 text-sm font-semibold text-black transition-colors
+                       hover:bg-neutral-200 active:scale-[0.98]"
+          >
+            <CalendarCheck size={16} /> {r.bookingTexto || 'Agendar cita'}
+          </a>
+          <p className="mt-2 text-center text-[10px] font-light text-neutral-500">
+            {r.bookingMode === 'link'
+              ? 'Te llevará a la agenda para elegir día y hora.'
+              : 'Escribirás por WhatsApp para acordar el horario.'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Resuelve a dónde lleva el botón de agendar, según el modo elegido.
+ *
+ * · 'link'     → el enlace público de agenda de Google Calendar (bookingUrl).
+ * · 'whatsapp' → WhatsApp con el mensaje prellenado al número de la tarjeta.
+ *
+ * Si el modo es 'link' pero no hay enlace, cae a WhatsApp para no dejar el botón
+ * muerto. Y si no hay ni enlace ni número, `canBook` es falso y el botón no se
+ * pinta: un "Agendar" que no agenda confunde al visitante.
+ */
+function resolveBooking(card) {
+  const r = card.reverso ?? {};
+  const number = String(card.whatsapp || card.phone || '').replace(/[^\d+]/g, '');
+  const useLink = r.bookingMode === 'link' && Boolean(r.bookingUrl);
+  const canBook = useLink || Boolean(number);
+  const bookingHref = useLink
+    ? r.bookingUrl
+    : whatsAppLink(card.whatsapp || card.phone, 'Hola, me gustaría agendar una cita.');
+  return { canBook, bookingHref };
+}
+
+function CardBack({ card, onBack }) {
+  const { ctaBadge, ctaTitulo, ctaSubtitulo, bookingTexto } = card.reverso ?? {};
+
+  const booking = resolveBooking(card);
+  const { canBook, bookingHref } = booking;
   const bookingLabel = bookingTexto || 'Agendar una reunión';
 
   return (
@@ -551,14 +765,21 @@ export default function DigitalCard({
   // le llega el shape del repo o el del formulario (specialties → pildoras, etc.).
   const data = normalizeCardData(cardData ?? card ?? {});
 
-  // El reverso sólo existe si hay algo que enseñar: sin CTA ni agenda, un botón
-  // para voltear llevaría a una cara vacía. (El video se quitó de la tarjeta.)
   const r = data.reverso ?? {};
-  const hasBack = Boolean(
+  const isCreator = data.template === 'creator';
+  /*
+    El reverso sólo existe si hay algo que enseñar. En Creator SIEMPRE hay reverso
+    (lleva perfil y agenda), así que se muestra el botón de voltear siempre; en
+    las otras, sólo si hay CTA o agenda.
+  */
+  const hasBack = isCreator || Boolean(
     r.ctaBadge || r.ctaTitulo || r.ctaSubtitulo || r.bookingUrl,
   );
 
-  const Front = data.template === 'executive' ? ExecutiveFront : EditorialFront;
+  const Front = isCreator
+    ? CreatorFront
+    : data.template === 'executive' ? ExecutiveFront : EditorialFront;
+  const Back = isCreator ? CreatorBack : CardBack;
 
   // La cara de espaldas se apaga para el ratón y el lector de pantalla:
   // backface-visibility sólo la esconde a la vista, no a los toques.
@@ -629,7 +850,7 @@ export default function DigitalCard({
             transform: 'rotateY(180deg) translateZ(0)',
           }}
         >
-          <CardBack card={data} onBack={() => setIsFlipped(false)} />
+          <Back card={data} onBack={() => setIsFlipped(false)} />
         </div>
       </div>
     </div>
