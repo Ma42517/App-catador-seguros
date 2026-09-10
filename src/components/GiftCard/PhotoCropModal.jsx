@@ -3,7 +3,7 @@ import {
   Check, X, ZoomIn, ZoomOut, RotateCcw,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Crosshair,
 } from 'lucide-react';
-import { CARD_ASPECT, MIN_ZOOM, MAX_ZOOM } from '../../data/cardPhoto';
+import { MIN_ZOOM, MAX_ZOOM } from '../../data/cardPhoto';
 import useFreeFraming, { DEFAULT_FREE_FOCUS, parseFreeFocus } from './useFreeFraming';
 import DigitalCard from './DigitalCard';
 
@@ -21,59 +21,8 @@ import DigitalCard from './DigitalCard';
  * acercamiento. No toca los píxeles del archivo mientras se ajusta.
  */
 
-/**
- * Genera el recorte final reproduciendo en canvas lo mismo que se ve en pantalla:
- * la foto centrada que cubre el marco (object-cover), acercada por `zoom` y
- * trasladada por `ox/oy` (% del marco). El resultado tiene la proporción del
- * hueco del retrato (CARD_ASPECT).
- *
- * Como la foto puede quedar movida dejando huella, primero se pinta el fondo
- * difuminado (misma foto, cubriendo todo) y encima la foto en su posición, igual
- * que en la vista: así lo guardado coincide con lo visto, sin bandas negras.
- */
-async function cropFree(src, focus) {
-  const { ox, oy, zoom } = parseFreeFocus(focus);
-  const image = await new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('No se pudo leer la imagen.'));
-    img.src = src;
-  });
-
-  // Lienzo de salida en la proporción de la tarjeta.
-  const outW = 800;
-  const outH = Math.round(outW / CARD_ASPECT);
-  const canvas = document.createElement('canvas');
-  canvas.width = outW;
-  canvas.height = outH;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Este navegador no pudo procesar la imagen.');
-
-  // Dimensiones de la foto al cubrir el marco (object-cover), antes del zoom.
-  const scaleCover = Math.max(outW / image.width, outH / image.height);
-  const drawW = image.width * scaleCover * zoom;
-  const drawH = image.height * scaleCover * zoom;
-
-  // Fondo: la misma foto ampliada y difuminada, para rellenar cualquier hueco.
-  ctx.save();
-  ctx.filter = 'blur(24px)';
-  const bgScale = Math.max(outW / image.width, outH / image.height) * 1.25;
-  const bgW = image.width * bgScale;
-  const bgH = image.height * bgScale;
-  ctx.drawImage(image, (outW - bgW) / 2, (outH - bgH) / 2, bgW, bgH);
-  ctx.restore();
-
-  // Retrato en su posición: centrado + desplazamiento (ox/oy en % del marco).
-  const dx = (outW - drawW) / 2 + (ox / 100) * outW;
-  const dy = (outH - drawH) / 2 + (oy / 100) * outH;
-  ctx.drawImage(image, dx, dy, drawW, drawH);
-
-  return canvas.toDataURL('image/jpeg', 0.9);
-}
-
-export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
-  const [focus, setFocus] = useState(DEFAULT_FREE_FOCUS);
+export default function PhotoCropModal({ src, cardData, initialFocus, onCancel, onConfirm }) {
+  const [focus, setFocus] = useState(() => parseFreeFocus(initialFocus ?? DEFAULT_FREE_FOCUS));
   const [saving, setSaving] = useState(false);
 
   const dragging = useFreeFraming({ focus, onChange: setFocus });
@@ -87,8 +36,14 @@ export default function PhotoCropModal({ src, cardData, onCancel, onConfirm }) {
     if (saving) return;
     setSaving(true);
     try {
-      const dataUrl = await cropFree(src, focus);
-      await onConfirm(dataUrl);
+      /*
+        Ya NO se recorta en canvas: se entrega la foto TAL CUAL más el encuadre
+        elegido ({ox,oy,zoom}). La tarjeta lo aplica con el mismo translate/scale
+        que el modal, así que lo que se ve aquí es exactamente lo que queda
+        guardado. (Recortar a mano descuadraba: el % de translate es relativo a la
+        imagen, no al marco, y el cálculo del canvas no coincidía.)
+      */
+      await onConfirm({ src, focus: parseFreeFocus(focus) });
     } finally {
       setSaving(false);
     }
