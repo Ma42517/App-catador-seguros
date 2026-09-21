@@ -120,7 +120,12 @@ const SOURCE_LABELS = {
   diagnostic_referral: 'Referido desde una Radiografía Patrimonial',
   vip_menu: 'Pase VIP creado por ti',
   cita_inicial_referral: 'Referido al cerrar una Cita Inicial',
+  // Capturado en el Hub "Obtener Referidos" al obsequiar un regalo (tarjeta/pase).
+  referido_regalo: 'Referido de regalo',
 };
+
+/** Origen que usa el Hub de referidos al capturar contactos por un regalo. */
+export const REFERRAL_GIFT_SOURCE = 'referido_regalo';
 
 /** Origen legible y, cuando existe, la persona que hizo la recomendación. */
 export function leadSourceLabel(lead) {
