@@ -437,7 +437,7 @@ export default function MoreMenu({
               */
               <MenuRow
                 icon={Ticket}
-                label="Pases VIP 360"
+                label="Obtener Referidos"
                 onClick={onOpenVipPasses}
               />
             ) : (

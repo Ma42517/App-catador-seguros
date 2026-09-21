@@ -1,0 +1,341 @@
+import { useState, useMemo, useEffect } from 'react';
+import {
+  IdCard, ClipboardList, Users, TicketCheck, Gift, ArrowRight, Loader2, UserRound, Phone, X,
+} from 'lucide-react';
+import FullScreenView from '../Layout/FullScreenView';
+import BottomSheet from '../Layout/BottomSheet';
+import { useSession } from '../../context/SessionContext';
+import { useEvents } from '../../context/EventContext';
+import { createLead, listMyLeads, REFERRAL_GIFT_SOURCE } from '../../data/leadsRepo';
+
+/**
+ * src/components/Prospecta/ReferralHubView.jsx
+ *
+ * Hub "Obtener Referidos": el espacio del asesor para convertir un regalo (una
+ * Tarjeta Digital o un Pase de Diagnóstico) en prospectos. Sustituye al antiguo
+ * candado "Pases VIP 360" como PANTALLA de entrada, pero NO cambia el flujo del
+ * Diagnóstico: al elegir "Emitir Pase VIP" se entra al mismo candado/diagnóstico
+ * de siempre (onOpenDiagnostico), así que el asesor sigue llegando a su
+ * herramienta sin rodeos.
+ *
+ * ## Por qué reutiliza y no duplica
+ * Los referidos se guardan en la MISMA tabla de prospectos (`leadsRepo.createLead`)
+ * con la etiqueta `referido_regalo`, y el seguimiento se agenda en la MISMA agenda
+ * (`useEvents.addEvent`). No hay store nuevo: el Hub es una vista que orquesta lo
+ * que ya existe. Así "Ver Prospectos" y la métrica del mes leen la única fuente
+ * real de contactos, sin listas paralelas que se desincronizan.
+ *
+ * ## El recordatorio (24 h)
+ * Al obsequiar, se crea una actividad "Llamar a referido de [cliente]" para
+ * MAÑANA. Se eligen 24 h y no 48 porque un referido se enfría rápido: el cliente
+ * que lo recomendó habló de su asesor hoy, y esa recomendación pierde fuerza cada
+ * día que pasa sin contacto. La app recuerda el seguimiento; el Hub sólo muestra
+ * una píldora con cuántos quedan pendientes, sin convertirse en otra lista.
+ */
+
+/** Suma un día a hoy y lo devuelve como 'YYYY-MM-DD', igual que todayKey(). */
+function tomorrowKey() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Título con el que se agenda el recordatorio; sirve también para contarlos. */
+function reminderTitle(clientName) {
+  return `Llamar a referido de ${clientName || 'un cliente'}`;
+}
+
+/** Acción rápida de la cabecera. */
+function QuickAction({ icon: Icon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-800
+                 bg-neutral-900/60 px-3 py-3 text-xs font-medium text-neutral-200
+                 transition-colors hover:border-neutral-600 active:scale-[0.98]"
+    >
+      <Icon size={15} aria-hidden="true" /> {label}
+    </button>
+  );
+}
+
+/**
+ * Carta grande de palanca de intercambio (Bento). Título, subtítulo y un botón
+ * que abre el flujo correspondiente.
+ */
+function LeverCard({
+  icon: Icon, title, subtitle, actionLabel, onAction, accent,
+}) {
+  return (
+    <div className="flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5">
+      <span
+        className={`mb-4 grid h-11 w-11 place-items-center rounded-xl ${accent}`}
+        aria-hidden="true"
+      >
+        <Icon size={20} />
+      </span>
+      <h3 className="text-base font-bold text-white">{title}</h3>
+      <p className="mt-1 text-xs font-light leading-relaxed text-neutral-400">{subtitle}</p>
+      <button
+        type="button"
+        onClick={onAction}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white
+                   px-4 py-3 text-sm font-semibold text-black transition-colors
+                   hover:bg-neutral-200 active:scale-[0.98]"
+      >
+        {actionLabel} <ArrowRight size={15} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Hoja de captura de un referido: nombre, WhatsApp (+52 fijo) y el nombre del
+ * cliente que hizo la recomendación (el "origen del regalo"). Sin textos de
+ * relleno: sólo los tres campos que hacen falta.
+ */
+function CaptureSheet({ open, onClose, gift, onSaved }) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [referredBy, setReferredBy] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const reset = () => {
+    setName(''); setPhone(''); setReferredBy(''); setError(''); setSaving(false);
+  };
+
+  const close = () => { reset(); onClose(); };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (saving) return;
+    const cleanName = name.trim();
+    const digits = phone.replace(/\D/g, '');
+    if (!cleanName) { setError('Escribe el nombre del referido.'); return; }
+    if (digits.length !== 10) { setError('El WhatsApp es a 10 dígitos.'); return; }
+
+    setSaving(true);
+    setError('');
+    const ok = await onSaved({
+      name: cleanName,
+      whatsapp: `+52${digits}`,
+      referredByName: referredBy.trim(),
+    });
+    setSaving(false);
+    if (ok) close();
+    else setError('No pudimos guardar. Revisa tu conexión e inténtalo de nuevo.');
+  };
+
+  return (
+    <BottomSheet isOpen={open} onClose={close} label="Capturar referido" zIndexClass="z-[80]">
+      <div className="pb-2">
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">
+              {gift === 'card' ? 'Obsequiar Tarjeta' : 'Emitir Pase VIP'}
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-white">Nuevo referido</h2>
+          </div>
+          <button
+            type="button" onClick={close} aria-label="Cerrar"
+            className="grid h-9 w-9 place-items-center rounded-full border border-neutral-800
+                       text-neutral-400 hover:text-white"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-3">
+          <label className="block">
+            <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+              Nombre del referido
+            </span>
+            <div className="relative">
+              <UserRound size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ej.: Laura Méndez"
+                className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-3 pl-9 pr-3
+                           text-[16px] font-light text-neutral-100 outline-none focus:border-neutral-500"
+              />
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+              WhatsApp
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="grid h-[46px] shrink-0 place-items-center rounded-xl border
+                               border-neutral-800 bg-neutral-900 px-3 text-sm text-neutral-400"
+              >
+                +52
+              </span>
+              <div className="relative flex-1">
+                <Phone size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10 dígitos"
+                  type="tel"
+                  inputMode="numeric"
+                  className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-3 pl-9 pr-3
+                             text-[16px] font-light text-neutral-100 outline-none focus:border-neutral-500"
+                />
+              </div>
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+              ¿Quién lo recomendó?
+            </span>
+            <input
+              value={referredBy}
+              onChange={(e) => setReferredBy(e.target.value)}
+              placeholder="Nombre del cliente que regaló"
+              className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-3
+                         text-[16px] font-light text-neutral-100 outline-none focus:border-neutral-500"
+            />
+          </label>
+
+          {error && <p role="alert" className="text-xs font-light text-rose-400">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600
+                       px-4 py-3.5 text-sm font-semibold text-white transition-colors
+                       hover:bg-indigo-500 disabled:cursor-wait disabled:opacity-60"
+          >
+            {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando…</> : 'Guardar referido'}
+          </button>
+          <p className="text-center text-[11px] font-light text-neutral-500">
+            Queda en Prospectos y la app te recordará llamarle mañana.
+          </p>
+        </form>
+      </div>
+    </BottomSheet>
+  );
+}
+
+export default function ReferralHubView({
+  isOpen, onClose, onOpenProfile, onOpenLeads, onEmitPass,
+}) {
+  const { identity } = useSession();
+  const username = identity?.key;
+  const { events, addEvent } = useEvents();
+
+  const [captureFor, setCaptureFor] = useState(null); // 'card' | 'diagnostic' | null
+  const [monthCount, setMonthCount] = useState(0);
+  const [flash, setFlash] = useState('');
+
+  // Referidos de regalo capturados ESTE MES, leídos de la única tabla de leads.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    let alive = true;
+    (async () => {
+      const { data } = await listMyLeads();
+      if (!alive) return;
+      const now = new Date();
+      const count = (data ?? []).filter((l) => {
+        if (l.source !== REFERRAL_GIFT_SOURCE) return false;
+        const d = new Date(l.capturedAt);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }).length;
+      setMonthCount(count);
+    })();
+    return () => { alive = false; };
+  }, [isOpen, flash]);
+
+  /*
+    Pendientes de contacto: recordatorios de referido aún sin completar. Se
+    derivan de la agenda (única fuente), reconociendo el título con el que se
+    crean, para no llevar otra lista aparte.
+  */
+  const pending = useMemo(
+    () => events.filter((e) => !e.completed && String(e.title ?? '').startsWith('Llamar a referido de')).length,
+    [events],
+  );
+
+  const handleSaved = async ({ name, whatsapp, referredByName }) => {
+    const { error } = await createLead(username, { name, whatsapp, referredByName }, REFERRAL_GIFT_SOURCE);
+    if (error) return false;
+    // Recordatorio automático para mañana: la app se encarga del seguimiento.
+    addEvent({
+      type: 'actividad',
+      title: reminderTitle(referredByName),
+      date: tomorrowKey(),
+      time: '09:00',
+      telefono: whatsapp,
+      priority: 'maxima',
+    });
+    setFlash(String(Date.now()));
+    return true;
+  };
+
+  return (
+    <FullScreenView
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Obtener Referidos"
+      label="Convierte un regalo en prospectos"
+      backLabel="Cerrar"
+    >
+      <div className="animate-rise space-y-5">
+        {/* Métrica del mes */}
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+            Referidos obtenidos este mes
+          </p>
+          <p className="mt-1 text-4xl font-bold tracking-tight text-white">{monthCount}</p>
+          {pending > 0 && (
+            <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border
+                             border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-medium
+                             text-amber-300"
+            >
+              <TicketCheck size={12} /> {pending} {pending === 1 ? 'referido pendiente' : 'referidos pendientes'} de contacto
+            </span>
+          )}
+        </div>
+
+        {/* Accesos rápidos */}
+        <div className="flex gap-3">
+          <QuickAction icon={IdCard} label="Mi Perfil / Mi Tarjeta" onClick={() => { onClose(); onOpenProfile?.(); }} />
+          <QuickAction icon={ClipboardList} label="Ver Prospectos" onClick={() => { onClose(); onOpenLeads?.(); }} />
+        </div>
+
+        {/* Dos palancas de intercambio */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <LeverCard
+            icon={Users}
+            accent="bg-sky-500/15 text-sky-300"
+            title="Tarjeta Digital Profesional"
+            subtitle="Ideal para doctores, estilistas, arquitectos y comercios."
+            actionLabel="Obsequiar Tarjeta"
+            onAction={() => setCaptureFor('card')}
+          />
+          <LeverCard
+            icon={Gift}
+            accent="bg-indigo-500/15 text-indigo-300"
+            title="Diagnóstico Patrimonial 360"
+            subtitle="Pase VIP intransferible para análisis financiero familiar."
+            actionLabel="Emitir Pase VIP"
+            onAction={() => { onClose(); onEmitPass?.(); }}
+          />
+        </div>
+      </div>
+
+      <CaptureSheet
+        open={captureFor !== null}
+        gift={captureFor}
+        onClose={() => setCaptureFor(null)}
+        onSaved={handleSaved}
+      />
+    </FullScreenView>
+  );
+}
