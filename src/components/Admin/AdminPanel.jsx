@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Database, Trash2, Loader2, HardDrive, Activity, Pencil, X, Save, RefreshCw,
+  IdCard, ExternalLink, Copy, Check,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
+import { createSandboxGiftCard, clearSandboxGiftCards } from '../../data/giftCardsRepo';
+import { giftCardUrl } from '../../lib/giftCardRoute';
+import { useSession } from '../../context/SessionContext';
 import DiagnosticsConsole from './DiagnosticsConsole';
 import { CATEGORY_LIST, categoryOf, relativeTime } from '../../data/announcements';
 import {
@@ -159,7 +163,141 @@ function ManagerRow({ item, isEditing, isDeleting, onEdit, onDelete }) {
  * rastro en la consola, así que cuando algo falla se ve *qué* falló y no sólo
  * *que* falló.
  */
+/**
+ * Simulador de tarjetas del cliente, sólo para el admin.
+ *
+ * Cada clic crea una tarjeta DESECHABLE con su propio código (RPC
+ * create_sandbox_gift_card, que verifica que sea admin) y abre /mi-tarjeta en
+ * una pestaña nueva: el admin se registra ahí con ese código —como si le
+ * hubieran mandado el link— y prueba crear/editar sin tocar datos reales ni
+ * gastar inventario. "Borrar las de prueba" limpia todas de una vez.
+ */
+function SandboxCardTool() {
+  const [busy, setBusy] = useState(false);
+  const [current, setCurrent] = useState(null); // { cardId, code, url }
+  const [copied, setCopied] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const create = async () => {
+    if (busy) return;
+    setBusy(true); setMsg('');
+    const { data, error } = await createSandboxGiftCard();
+    setBusy(false);
+    if (error || data?.outcome !== 'READY') {
+      setMsg(data?.outcome === 'UNAUTHORIZED'
+        ? 'Sólo el administrador puede simular tarjetas.'
+        : 'No se pudo crear la tarjeta de prueba. ¿Aplicaste la migración?');
+      return;
+    }
+    const url = giftCardUrl(data.cardId);
+    setCurrent({ cardId: data.cardId, code: data.code, url });
+    // Se abre en pestaña nueva: es el mundo aislado del cliente, con su sesión.
+    try { window.open(url, '_blank', 'noopener'); } catch { /* bloqueado */ }
+  };
+
+  const clearAll = async () => {
+    if (busy) return;
+    setBusy(true); setMsg('');
+    const { data } = await clearSandboxGiftCards();
+    setBusy(false);
+    setCurrent(null);
+    setMsg(data?.outcome === 'CLEARED'
+      ? `Listo: se borraron ${data.deleted} tarjetas de prueba.`
+      : 'No se pudieron borrar las tarjetas de prueba.');
+  };
+
+  const copyCode = async () => {
+    if (!current) return;
+    try {
+      await navigator.clipboard.writeText(current.code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch { /* sin portapapeles */ }
+  };
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800
+                    dark:bg-zinc-900"
+    >
+      <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-white">
+        <IdCard size={16} className="text-indigo-500" /> Probar el dashboard del cliente
+      </p>
+      <p className="mt-1.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+        Crea una tarjeta de prueba con su código y ábrela como si te hubieran mandado el
+        link. Regístrate ahí con el código, edita cuanto quieras y, cuando algo te guste,
+        pásalo a la tarjeta real. Cada tarjeta es desechable; no afecta datos reales.
+      </p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={create}
+          disabled={busy}
+          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm
+                     font-semibold text-white transition-colors hover:bg-indigo-500
+                     disabled:cursor-wait disabled:opacity-60"
+        >
+          {busy ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={15} />}
+          Nueva tarjeta de prueba
+        </button>
+        <button
+          type="button"
+          onClick={clearAll}
+          disabled={busy}
+          className="flex items-center gap-2 rounded-xl border border-zinc-300 px-4 py-2.5
+                     text-sm font-medium text-zinc-600 transition-colors hover:border-rose-400
+                     hover:text-rose-500 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300"
+        >
+          <Trash2 size={15} /> Borrar las de prueba
+        </button>
+      </div>
+
+      {current && (
+        <div className="mt-4 rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-500">
+            Código de esta tarjeta · un solo uso
+          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-2xl font-bold tracking-[0.3em] text-zinc-900 dark:text-white">
+              {current.code}
+            </span>
+            <button
+              type="button" onClick={copyCode} aria-label="Copiar código"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-zinc-300
+                         text-zinc-500 dark:border-zinc-700"
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+          </div>
+          <a
+            href={current.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex items-center gap-1.5 text-xs font-medium text-indigo-600
+                       hover:underline dark:text-indigo-300"
+          >
+            <ExternalLink size={13} /> Abrir el dashboard de esta tarjeta
+          </a>
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+            Regístrate con un correo cualquiera y este código. Al ser un solo uso, para
+            otra prueba crea una tarjeta nueva.
+          </p>
+        </div>
+      )}
+
+      {msg && <p className="mt-3 text-xs font-light text-zinc-500 dark:text-zinc-400">{msg}</p>}
+    </div>
+  );
+}
+
 export default function AdminPanel({ isOpen, onClose }) {
+  /*
+    El simulador de tarjetas es sólo del ADMIN, no del promotor: este panel lo
+    abren los dos, así que la sección se condiciona al rol. El RPC además lo
+    verifica en el servidor, de modo que ocultarlo aquí es comodidad, no la
+    defensa.
+  */
+  const { isAdmin } = useSession();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [formError, setFormError] = useState('');
@@ -381,6 +519,14 @@ export default function AdminPanel({ isOpen, onClose }) {
 
         <DiagnosticsConsole lines={lines} onClear={clearConsole} />
       </section>
+
+      {/* ── Simulador de tarjetas (SÓLO admin, no promotor) ────────────── */}
+      {isAdmin && (
+        <section className="mb-8">
+          <h3 className={`mb-3 ${SECTION_TITLE}`}>Simulador de tarjetas</h3>
+          <SandboxCardTool />
+        </section>
+      )}
 
       {/*
         ── 2. Edición de un comunicado ──────────────────────────────────

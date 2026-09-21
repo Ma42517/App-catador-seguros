@@ -182,6 +182,20 @@ export function fetchMyGiftCards() {
 
 // ─── Lado del asesor ─────────────────────────────────────────────────────────
 
+/**
+ * Crea una tarjeta de SIMULACIÓN para el admin (sin lead ni inventario) y emite
+ * su código. Devuelve { cardId, code } para abrir /mi-tarjeta y registrarse como
+ * si hubieran mandado el link. Sólo el admin; el RPC lo verifica.
+ */
+export function createSandboxGiftCard() {
+  return callRpc('create_sandbox_gift_card', {});
+}
+
+/** Borra todas las tarjetas de prueba del admin, para no acumular. */
+export function clearSandboxGiftCards() {
+  return callRpc('clear_sandbox_gift_cards', {});
+}
+
 /** Crea la tarjeta de regalo consumiendo del inventario (o emergencia). */
 export function createGiftCardForLead(leadId, useEmergency = false) {
   return callRpc('create_gift_card_for_lead', {
