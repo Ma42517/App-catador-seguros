@@ -78,6 +78,59 @@ function Screen({ icon: Icon, title, children }) {
 
 
 /**
+ * Orden de autoingreso que deja el Simulador del Panel de Administración.
+ *
+ * El admin no debe registrarse a mano para probar: el simulador genera correo,
+ * contraseña y código, los guarda aquí (mismo origen, así que este mundo los lee)
+ * y esta página crea la cuenta y reclama la tarjeta sola. Se consume UNA vez y se
+ * borra, para que una recarga no intente registrar de nuevo.
+ *
+ * Sólo existe si el propio admin la creó desde su navegador: no es un camino que
+ * alguien de fuera pueda provocar.
+ */
+const AUTOLOGIN_KEY = 'df360:giftcard:autologin';
+
+function readAutologin(cardId) {
+  try {
+    const raw = window.localStorage.getItem(AUTOLOGIN_KEY);
+    if (!raw) return null;
+    const order = JSON.parse(raw);
+    return order?.cardId === cardId ? order : null;
+  } catch { return null; }
+}
+
+function clearAutologin() {
+  try { window.localStorage.removeItem(AUTOLOGIN_KEY); } catch { /* sin storage */ }
+}
+
+/**
+ * Ejecuta el autoingreso: crea la cuenta de prueba (marcada como cliente) y deja
+ * el código pendiente + la marca de activación, que es justo lo que el flujo
+ * normal ya sabe retomar para vincular la tarjeta sin pedir nada.
+ */
+async function runAutologin(sb, cardId) {
+  const order = readAutologin(cardId);
+  if (!order?.email || !order?.password) return;
+  clearAutologin();
+
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email: order.email,
+      password: order.password,
+      options: { data: { df360_role: 'client' } },
+    });
+    // Si el correo ya existiera (reintento), se entra con la misma contraseña.
+    if (error || !data?.session) {
+      await sb.auth.signInWithPassword({ email: order.email, password: order.password });
+    }
+    if (order.code) {
+      try { window.localStorage.setItem(PENDING_CODE_KEY, String(order.code)); } catch { /* nada */ }
+    }
+    markActivating(cardId);
+  } catch { /* si falla, la pantalla normal pedirá los datos */ }
+}
+
+/**
  * Toma la sesión que venga en la URL y limpia la dirección.
  *
  * El cliente de la tarjeta tiene `detectSessionInUrl` apagado a propósito: si lo
@@ -133,11 +186,20 @@ export default function GiftCardPage() {
     });
     (async () => {
       await absorbUrlSession(sb);
+      /*
+        Autoingreso del simulador: si el admin dejó la orden para ESTA tarjeta y
+        aún no hay sesión, se crea la cuenta de prueba y se deja el código listo.
+        Después sigue el flujo normal, que ya retoma el código y vincula.
+      */
+      if (cardId) {
+        const { data: current } = await sb.auth.getSession();
+        if (!current?.session) await runAutologin(sb, cardId);
+      }
       const { data } = await sb.auth.getSession();
       if (active) setSession(data.session ?? null);
     })();
     return () => { active = false; sub.subscription.unsubscribe(); };
-  }, []);
+  }, [cardId]);
 
   if (session === undefined) {
     return (
