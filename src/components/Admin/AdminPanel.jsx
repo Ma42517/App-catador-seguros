@@ -189,8 +189,30 @@ function SandboxCardTool() {
         : 'No se pudo crear la tarjeta de prueba. ¿Aplicaste la migración?');
       return;
     }
+
+    /*
+      Acceso temporal COMPLETO: se generan correo y contraseña desechables y se
+      deja una orden de autoingreso en el almacenamiento del navegador. La página
+      de la tarjeta la lee, crea esa cuenta y reclama con el código sola, así que
+      el admin entra directo al dashboard sin registrar nada a mano.
+
+      El correo usa un dominio de ejemplo reservado (example.com, RFC 2606): no
+      existe ni recibe correo, y no se necesita porque la confirmación está
+      desactivada y la cuenta es de un solo uso.
+    */
+    const stamp = Date.now().toString(36);
+    const rand = Math.random().toString(36).slice(2, 8);
+    const email = `sim-${stamp}${rand}@example.com`;
+    const password = `Sim-${stamp}-${Math.random().toString(36).slice(2, 10)}`;
     const url = giftCardUrl(data.cardId);
-    setCurrent({ cardId: data.cardId, code: data.code, url });
+
+    try {
+      window.localStorage.setItem('df360:giftcard:autologin', JSON.stringify({
+        cardId: data.cardId, code: data.code, email, password,
+      }));
+    } catch { /* sin storage: tendrá que registrarse a mano con el código */ }
+
+    setCurrent({ cardId: data.cardId, code: data.code, url, email, password });
     // Se abre en pestaña nueva: es el mundo aislado del cliente, con su sesión.
     try { window.open(url, '_blank', 'noopener'); } catch { /* bloqueado */ }
   };
@@ -223,9 +245,9 @@ function SandboxCardTool() {
         <IdCard size={16} className="text-indigo-500" /> Probar el dashboard del cliente
       </p>
       <p className="mt-1.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-        Crea una tarjeta de prueba con su código y ábrela como si te hubieran mandado el
-        link. Regístrate ahí con el código, edita cuanto quieras y, cuando algo te guste,
-        pásalo a la tarjeta real. Cada tarjeta es desechable; no afecta datos reales.
+        Genera un acceso temporal —correo, contraseña y código— y abre el dashboard del
+        cliente ya dentro, sin registrar nada. Edita cuanto quieras y, cuando algo te
+        guste, pásalo a la tarjeta real. Cada prueba es desechable y no toca datos reales.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -255,20 +277,35 @@ function SandboxCardTool() {
       {current && (
         <div className="mt-4 rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-500">
-            Código de esta tarjeta · un solo uso
+            Acceso temporal generado
           </p>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="text-2xl font-bold tracking-[0.3em] text-zinc-900 dark:text-white">
-              {current.code}
-            </span>
-            <button
-              type="button" onClick={copyCode} aria-label="Copiar código"
-              className="grid h-8 w-8 place-items-center rounded-lg border border-zinc-300
-                         text-zinc-500 dark:border-zinc-700"
-            >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-          </div>
+          <p className="mt-1.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+            Se abrió el dashboard en otra pestaña y entra solo: la cuenta de prueba y el
+            código ya se aplicaron. No tienes que registrar nada.
+          </p>
+
+          <dl className="mt-3 space-y-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+            <div className="flex gap-2">
+              <dt className="w-20 shrink-0 font-semibold">Correo</dt>
+              <dd className="min-w-0 truncate font-mono">{current.email}</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="w-20 shrink-0 font-semibold">Contraseña</dt>
+              <dd className="min-w-0 truncate font-mono">{current.password}</dd>
+            </div>
+            <div className="flex items-center gap-2">
+              <dt className="w-20 shrink-0 font-semibold">Código</dt>
+              <dd className="font-mono tracking-[0.2em]">{current.code}</dd>
+              <button
+                type="button" onClick={copyCode} aria-label="Copiar código"
+                className="grid h-6 w-6 place-items-center rounded-md border border-zinc-300
+                           text-zinc-500 dark:border-zinc-700"
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+              </button>
+            </div>
+          </dl>
+
           <a
             href={current.url}
             target="_blank"
@@ -276,11 +313,11 @@ function SandboxCardTool() {
             className="mt-3 flex items-center gap-1.5 text-xs font-medium text-indigo-600
                        hover:underline dark:text-indigo-300"
           >
-            <ExternalLink size={13} /> Abrir el dashboard de esta tarjeta
+            <ExternalLink size={13} /> Abrir de nuevo esta tarjeta
           </a>
           <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
-            Regístrate con un correo cualquiera y este código. Al ser un solo uso, para
-            otra prueba crea una tarjeta nueva.
+            Para otra prueba, crea una tarjeta nueva: cada una trae su propio acceso y su
+            código de un solo uso.
           </p>
         </div>
       )}
