@@ -1,6 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   IdCard, ClipboardList, Users, TicketCheck, Gift, ArrowRight, Loader2, UserRound, Phone, X,
+  Plus, Sparkles, ChevronRight,
 } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import BottomSheet from '../Layout/BottomSheet';
@@ -46,18 +48,38 @@ function reminderTitle(clientName) {
   return `Llamar a referido de ${clientName || 'un cliente'}`;
 }
 
-/** Acción rápida de la cabecera. */
-function QuickAction({ icon: Icon, label, onClick }) {
+/**
+ * Acción rápida de navegación. Ya no parece un botón secundario perdido: el
+ * icono vive en su propio bloque, el texto queda alineado y la flecha refuerza
+ * que abre otra vista. La animación ocurre al entrar y al tocar, no pulsa para
+ * siempre —debe llamar la atención sin convertir el Hub en un anuncio.
+ */
+function QuickAction({ icon: Icon, label, onClick, delay = 0 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
-      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-800
-                 bg-neutral-900/60 px-3 py-3 text-xs font-medium text-neutral-200
-                 transition-colors hover:border-neutral-600 active:scale-[0.98]"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, delay }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      className="group flex min-w-0 flex-1 items-center gap-3 rounded-2xl border
+                 border-neutral-800 bg-neutral-900/75 p-3 text-left shadow-lg shadow-black/20
+                 transition-colors hover:border-neutral-600 hover:bg-neutral-900"
     >
-      <Icon size={15} aria-hidden="true" /> {label}
-    </button>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border
+                       border-neutral-700 bg-black text-neutral-300 transition-colors
+                       group-hover:text-white"
+      >
+        <Icon size={17} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-neutral-100">
+        {label}
+      </span>
+      <ChevronRight size={15} className="shrink-0 text-neutral-600 transition-transform
+                                              group-hover:translate-x-0.5 group-hover:text-neutral-300" />
+    </motion.button>
   );
 }
 
@@ -135,7 +157,9 @@ function CaptureSheet({ open, onClose, gift, onSaved }) {
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">
-              {gift === 'card' ? 'Obsequiar Tarjeta' : 'Emitir Pase VIP'}
+              {gift === 'quick'
+                ? 'Registro rápido'
+                : gift === 'card' ? 'Obsequiar Tarjeta' : 'Emitir Pase VIP'}
             </p>
             <h2 className="mt-1 text-lg font-bold text-white">Nuevo referido</h2>
           </div>
@@ -230,9 +254,17 @@ export default function ReferralHubView({
   const username = identity?.key;
   const { events, addEvent } = useEvents();
 
-  const [captureFor, setCaptureFor] = useState(null); // 'card' | 'diagnostic' | null
+  const [captureFor, setCaptureFor] = useState(null); // 'quick' | 'card' | 'diagnostic' | null
   const [monthCount, setMonthCount] = useState(0);
   const [flash, setFlash] = useState('');
+  const [successName, setSuccessName] = useState('');
+
+  // El aviso se retira solo: confirma el guardado sin quedarse ocupando el Hub.
+  useEffect(() => {
+    if (!successName) return undefined;
+    const timer = window.setTimeout(() => setSuccessName(''), 3200);
+    return () => window.clearTimeout(timer);
+  }, [successName]);
 
   // Referidos de regalo capturados ESTE MES, leídos de la única tabla de leads.
   useEffect(() => {
@@ -274,6 +306,9 @@ export default function ReferralHubView({
       telefono: whatsapp,
       priority: 'maxima',
     });
+    // Respuesta inmediata mientras la consulta mensual se refresca desde Supabase.
+    setMonthCount((count) => count + 1);
+    setSuccessName(name);
     setFlash(String(Date.now()));
     return true;
   };
@@ -287,26 +322,98 @@ export default function ReferralHubView({
       backLabel="Cerrar"
     >
       <div className="animate-rise space-y-5">
-        {/* Métrica del mes */}
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
-            Referidos obtenidos este mes
-          </p>
-          <p className="mt-1 text-4xl font-bold tracking-tight text-white">{monthCount}</p>
-          {pending > 0 && (
-            <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border
-                             border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-medium
-                             text-amber-300"
-            >
-              <TicketCheck size={12} /> {pending} {pending === 1 ? 'referido pendiente' : 'referidos pendientes'} de contacto
-            </span>
-          )}
-        </div>
+        {/* Métrica del mes + acción principal. Registrar ya no queda escondido
+            dentro de una carta: es la acción más frecuente del Hub. */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/70"
+        >
+          <div className="p-5">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+              Referidos obtenidos este mes
+            </p>
+            <div className="mt-1 flex items-end justify-between gap-4">
+              <motion.p
+                key={monthCount}
+                initial={{ opacity: 0.35, scale: 0.82 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="origin-bottom-left text-4xl font-bold tracking-tight text-white"
+              >
+                {monthCount}
+              </motion.p>
+              {pending > 0 && (
+                <motion.span
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="inline-flex items-center gap-1.5 rounded-full border
+                             border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px]
+                             font-medium text-amber-300"
+                >
+                  <TicketCheck size={12} /> {pending} {pending === 1 ? 'pendiente' : 'pendientes'}
+                </motion.span>
+              )}
+            </div>
+          </div>
 
-        {/* Accesos rápidos */}
-        <div className="flex gap-3">
-          <QuickAction icon={IdCard} label="Mi Perfil / Mi Tarjeta" onClick={() => { onClose(); onOpenProfile?.(); }} />
-          <QuickAction icon={ClipboardList} label="Ver Prospectos" onClick={() => { onClose(); onOpenLeads?.(); }} />
+          <motion.button
+            type="button"
+            onClick={() => setCaptureFor('quick')}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden
+                       border-t border-indigo-400/25 bg-indigo-600 px-5 py-4 text-sm font-bold
+                       text-white shadow-lg shadow-indigo-950/30 transition-colors
+                       hover:bg-indigo-500"
+          >
+            {/* Pulso pequeño, no un neón continuo: señala dónde empezar y se
+                detiene visualmente detrás del icono. */}
+            <span className="relative grid h-8 w-8 place-items-center rounded-full bg-white/15">
+              <span className="absolute inset-0 animate-ping rounded-full bg-white/20" />
+              <Plus size={18} className="relative" strokeWidth={2.5} aria-hidden="true" />
+            </span>
+            Registrar referido rápido
+            <Sparkles size={15} className="text-indigo-100 transition-transform
+                                               group-hover:rotate-6" aria-hidden="true" />
+          </motion.button>
+        </motion.div>
+
+        {/* Confirmación breve: aparece junto al Hub, no dentro de otra lista. */}
+        <AnimatePresence>
+          {successName && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="flex items-center gap-3 rounded-xl border border-emerald-500/25
+                         bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200"
+              role="status"
+            >
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-500/15">
+                <Users size={14} />
+              </span>
+              <span>
+                <strong>{successName}</strong> quedó en Prospectos. Te recordaremos llamarle mañana.
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Accesos rápidos, ahora visibles como tarjetas de navegación. */}
+        <div className="grid grid-cols-2 gap-3">
+          <QuickAction
+            icon={IdCard}
+            label="Mi Perfil / Mi Tarjeta"
+            delay={0.08}
+            onClick={() => { onClose(); onOpenProfile?.(); }}
+          />
+          <QuickAction
+            icon={ClipboardList}
+            label="Ver Prospectos"
+            delay={0.14}
+            onClick={() => { onClose(); onOpenLeads?.(); }}
+          />
         </div>
 
         {/* Dos palancas de intercambio */}
