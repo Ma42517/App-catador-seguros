@@ -562,8 +562,35 @@ function SingleCard({ cardId, session }) {
       return () => { active = false; };
     }
 
-    // Sin cuenta de correo iniciada: se pide identificarse (correo o número+clave).
-    if (!session) { setPhase('login'); return undefined; }
+    /*
+      Sin sesión: hay que distinguir a QUIÉN abre el enlace.
+
+      · Si la tarjeta YA está activada, quien llega es alguien a quien el dueño se
+        la compartió como presentación: sólo debe VERLA, sin pedirle nada. Es el
+        caso que faltaba —antes a cualquiera le salía "entra a tu tarjeta"—.
+      · Si aún NO está activada, quien llega es el destinatario del regalo: se le
+        muestra el acceso para reclamarla con su código.
+
+      El dueño que quiera editar la suya tiene un acceso discreto en la vista
+      pública que lleva a este mismo `login`.
+    */
+    if (!session) {
+      (async () => {
+        const { data } = await fetchPublicGiftCard(cardId);
+        if (!active) return;
+        if (data?.outcome === 'ACTIVA') {
+          setCard(data);
+          setCardClaimed(true);
+          setPhase('public');
+        } else if (data?.outcome === 'REVOCADA') {
+          setPhase('revoked');
+        } else {
+          setCardClaimed(false);
+          setPhase('login');
+        }
+      })();
+      return () => { active = false; };
+    }
 
     (async () => {
       /*
@@ -630,23 +657,6 @@ function SingleCard({ cardId, session }) {
     return () => { active = false; };
   }, [cardId, session, openAsOwner, vincularConCodigo]);
 
-  /*
-    Estado público de la tarjeta mientras no hay sesión.
-
-    `public_gift_card` responde ACTIVA sólo si ya tiene dueño, y es consultable sin
-    sesión (es la vista pública). Con eso basta para no volver a pedir el código a
-    quien sólo cerró sesión.
-  */
-  useEffect(() => {
-    if (session) return undefined;
-    let active = true;
-    (async () => {
-      const { data } = await fetchPublicGiftCard(cardId);
-      if (active) setCardClaimed(data?.outcome === 'ACTIVA');
-    })();
-    return () => { active = false; };
-  }, [cardId, session]);
-
   const dismissWelcome = () => {
     try { window.localStorage.setItem(SEEN_KEY + cardId, '1'); } catch { /* sin storage */ }
     setPhase('editor');
@@ -682,6 +692,29 @@ function SingleCard({ cardId, session }) {
           No pudimos abrir la tarjeta. Revisa tu conexión y vuelve a cargar.
         </p>
       </Screen>
+    );
+  }
+
+  /*
+    Vista pública: quien recibe la tarjeta compartida sólo la VE (con su giro,
+    contactos y "guardar contacto"). No se le pide entrar ni registrarse. Abajo,
+    un acceso discreto para que el dueño —y sólo él, con su cuenta— la edite.
+  */
+  if (phase === 'public') {
+    return (
+      <main className="min-h-[100dvh] bg-black px-5 py-10">
+        {card && <DigitalCard cardData={card} />}
+        <div className="mx-auto mt-6 max-w-sm text-center">
+          <button
+            type="button"
+            onClick={() => setPhase('login')}
+            className="text-[11px] font-light text-neutral-600 underline-offset-2
+                       hover:text-neutral-300 hover:underline"
+          >
+            ¿Es tu tarjeta? Entra para editarla
+          </button>
+        </div>
+      </main>
     );
   }
 
