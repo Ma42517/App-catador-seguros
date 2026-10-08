@@ -495,7 +495,7 @@ export default function MoreMenu({
             {onOpenDiagnosticoDirect && (
               <MenuRow
                 icon={Gauge}
-                label="Diagnóstico Financiero 360"
+                label="Diagnóstico Financiero"
                 onClick={onOpenDiagnosticoDirect}
               />
             )}
