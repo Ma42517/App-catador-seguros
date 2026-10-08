@@ -111,6 +111,41 @@ export const ASSET_RATE_BY_TYPE = {
 };
 
 /**
+ * Tasa de interés anual sugerida, por tipo de deuda.
+ *
+ * SON PROMEDIOS DE MERCADO EN MÉXICO, EDITABLES, NO UN DATO EN VIVO — igual que el resto
+ * de esta tabla. Se muestran afirmadas en verde al elegir el tipo de crédito, con un
+ * "ponerlo manualmente" debajo: casi nadie recuerda el CAT exacto de su tarjeta, pero una
+ * cifra típica puesta convierte "¿cuánto pagas de interés?" en "¿te suena este número?".
+ *
+ * A diferencia de los activos, aquí una tasa más alta es PEOR, así que estas cifras son
+ * las que de verdad cobran estos productos (CAT promedio del mercado), no un ideal. Las
+ * dos tarjetas y la hipoteca salen de los mismos valores de la semana demo.
+ *
+ * `null` donde no hay un promedio que signifique algo: un préstamo familiar puede ser al
+ * 0 % o usurario, y "otra deuda" es por definición lo que no cupo en las demás. Ahí el
+ * campo abre vacío y lo llena quien sabe.
+ */
+export const DEBT_RATE_BY_TYPE = {
+  mortgage: 0.105,     // Crédito hipotecario
+  auto: 0.139,         // Crédito automotriz
+  credit_card: 0.42,   // Tarjeta de crédito (CAT promedio bancario)
+  personal: 0.35,      // Préstamo personal
+  student: 0.12,       // Crédito educativo
+  payroll: 0.25,       // Crédito de nómina
+  business: 0.24,      // Crédito de negocio / PyME
+
+  // Sin promedio que signifique algo: ni el préstamo familiar ni "otra" tienen un CAT típico.
+  family: null,
+  other: null,
+};
+
+/** Tasa de interés sugerida de un tipo de deuda. `null` si no hay una que signifique algo. */
+export function rateForDebtType(type) {
+  return DEBT_RATE_BY_TYPE[type] ?? null;
+}
+
+/**
  * Inflación anual sugerida, por tipo de meta.
  *
  * Son inflaciones del BIEN, no del índice general: lo que sube el precio de aquello que

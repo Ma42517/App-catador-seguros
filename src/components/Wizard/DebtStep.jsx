@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, CreditCard, TrendingDown, Zap, Pencil, Trash2, Landmark, Car, Home,
@@ -7,11 +7,13 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { createDebt } from '../../data/defaults';
+import { rateForDebtType, rateOrBlank, isSuggestedRate } from '../../data/historicalRates';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput, PercentInput,
   Select, Button, Badge, SegmentedControl,
 } from '../ui';
 import RowSheet from './RowSheet';
+import SuggestedField from './SuggestedField';
 import useRowSheet, { newestFirst } from './useRowSheet';
 import { labelOf } from '../../lib/options';
 import { DEBT_TYPES, fmtMXN, fmtPct } from '../../engine/finance';
@@ -234,6 +236,41 @@ export default function DebtStep() {
   const isCard = draft.type === 'credit_card';
   const analyzed = byId[draft.id];
 
+  // Tasa sugerida del tipo elegido (promedio de mercado). `null` = sin sugerencia.
+  const suggestedRate = rateForDebtType(draft.type);
+
+  /*
+    Modo manual de la tasa. Se deduce del valor —si no coincide con la sugerida, es que
+    alguien la escribió— pero el interruptor `rateOverride` deja forzarlo aunque el valor
+    sea idéntico al sugerido: así "ponerlo manualmente" abre el input aun antes de teclear.
+    Mismo patrón que la esperanza de vida en ProfileStep.
+  */
+  const [rateOverride, setRateOverride] = useState(false);
+  const rateIsManual = rateOverride || !isSuggestedRate(draft.interestRate, suggestedRate);
+
+  /*
+    El override no debe sobrevivir entre deudas: al abrir la hoja (nueva o edición) se
+    reinicia, y a partir de ahí el valor guardado decide si abre en verde o en manual.
+    Sin esto, haber tocado "ponerlo manualmente" en una deuda dejaría la siguiente abierta
+    en modo manual aunque su tasa fuera la sugerida.
+  */
+  useEffect(() => {
+    if (sheet.isOpen) setRateOverride(false);
+  }, [sheet.isOpen]);
+
+  /*
+    Al cambiar el tipo, la tasa sigue al nuevo producto SÓLO si venía en modo sugerido:
+    quien ya escribió su CAT a mano no quiere que cambiar "auto" por "nómina" le borre el
+    número. Igual que la tasa de los activos sigue (o no) al tipo de activo.
+  */
+  const changeType = (type) => {
+    if (rateIsManual) {
+      sheet.patch({ type });
+    } else {
+      sheet.patch({ type, interestRate: rateOrBlank(rateForDebtType(type)) });
+    }
+  };
+
   // Estrategia elegida en el selector. Avalancha por omisión: ahorra más intereses.
   const [strategy, setStrategy] = useState('avalanche');
   const bothComparable = plans.avalanche.months !== null && plans.snowball.months !== null;
@@ -403,19 +440,38 @@ export default function DebtStep() {
           <Field label="Tipo">
             <Select
               value={draft.type}
-              onChange={(v) => sheet.patch({ type: v })}
+              onChange={changeType}
               options={DEBT_TYPES}
             />
           </Field>
         </div>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-          <Field label="Tasa anual" help="Tasa de interés anual efectiva del crédito.">
-            <PercentInput
-              value={draft.interestRate}
-              onChange={(v) => sheet.patch({ interestRate: v })}
-            />
-          </Field>
+          <SuggestedField
+            label="Tasa anual"
+            help="Tasa de interés anual efectiva (CAT) del crédito."
+            suggested={suggestedRate}
+            format={fmtPct}
+            note="Promedio de mercado para este tipo de crédito."
+            chipLabel="Sugerida"
+            isManual={rateIsManual}
+            onUseManual={() => setRateOverride(true)}
+            onUseSuggested={() => {
+              setRateOverride(false);
+              sheet.patch({ interestRate: rateOrBlank(suggestedRate) });
+            }}
+            manualLabel="Ponerlo manualmente"
+            manualNote="Tasa escrita por ti. "
+            restoreLabel={(v) => `Usar la sugerida (${v})`}
+          >
+            {(id) => (
+              <PercentInput
+                id={id}
+                value={draft.interestRate}
+                onChange={(v) => sheet.patch({ interestRate: v })}
+              />
+            )}
+          </SuggestedField>
 
           <Field label="Pago mínimo">
             <MoneyInput

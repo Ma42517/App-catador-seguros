@@ -5,7 +5,7 @@
  */
 import { uid } from '../engine/finance.js';
 import {
-  rateForAssetType, inflationForGoalPreset, rateOrBlank,
+  rateForAssetType, rateForDebtType, inflationForGoalPreset, rateOrBlank,
   returnForSavingsVehicle, DEFAULT_SAVINGS_VEHICLE,
   DEFAULT_PPR_PROFILE, DEFAULT_PPR_CURRENCY, GENERAL_INFLATION,
 } from './historicalRates.js';
@@ -121,7 +121,9 @@ export function createDebt(overrides = {}) {
     name: '',
     type: 'personal',
     balance: 0,
-    interestRate: 0,
+    // La tasa acompaña al tipo: un préstamo personal abre en su promedio de mercado,
+    // no en cero. Igual que los activos con `annualReturn`.
+    interestRate: rateOrBlank(rateForDebtType('personal')),
     minPayment: 0,
     actualPayment: 0,
     termMonths: 0,
