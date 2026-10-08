@@ -210,7 +210,7 @@ export default function ProfileStep() {
                 max={AGE_RANGE.max}
               />
             </Field>
-            <Field label="Perceptores de ingreso" help="Cuántas personas del hogar aportan ingreso.">
+            <Field label="¿Quiénes aportan al ingreso?" help="Cuántas personas de la casa ponen dinero para los gastos.">
               <NumberInput value={profile.earners} onChange={(v) => set({ earners: v })} min={1} max={10} />
             </Field>
             <Field label="Dependientes">
