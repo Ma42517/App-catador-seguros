@@ -266,8 +266,8 @@ function CardAvatar({ url }) {
  * quitándole la clase desde el inspector.
  */
 export default function MoreMenu({
-  open, onClose, onOpenDiagnostico, onOpenVipPasses, onOpenPreview, onOpenNotes,
-  onOpenProfile, onOpenAdmin, onOpenApprovals, onOpenCard, onLogout, onLoadDemo,
+  open, onClose, onOpenDiagnostico, onOpenDiagnosticoDirect, onOpenVipPasses, onOpenPreview,
+  onOpenNotes, onOpenProfile, onOpenAdmin, onOpenApprovals, onOpenCard, onLogout, onLoadDemo,
   onClearAgenda, canUsePreview = false, isAdminUser = false, isPromoterUser = false,
   onOpenPromotoria, pendingCount = 0,
 }) {
@@ -484,6 +484,20 @@ export default function MoreMenu({
                   </div>
                 )}
               </div>
+            )}
+
+            {/*
+              Acceso directo al Diagnóstico Financiero 360. A diferencia de la
+              fila de "Obtener Referidos" —que pasa por el candado de pases—,
+              ésta entra directo a la herramienta: es el atajo para el asesor que
+              ya la usa a diario y no quiere emitir un pase cada vez.
+            */}
+            {onOpenDiagnosticoDirect && (
+              <MenuRow
+                icon={Gauge}
+                label="Diagnóstico Financiero 360"
+                onClick={onOpenDiagnosticoDirect}
+              />
             )}
 
             <MenuRow icon={StickyNote} label="Mis Notas" onClick={onOpenNotes} />

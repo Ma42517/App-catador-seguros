@@ -351,6 +351,15 @@ export default function AdminLayout({
         */
         onOpenDiagnostico={(version) => { setVersion(version); goTo('wizard'); }}
         /*
+          Acceso directo a la herramienta desde "Herramientas", sin pasar por el
+          candado de pases: fija la versión por omisión y navega al wizard, el
+          mismo destino al que entra el candado al desbloquearse.
+        */
+        onOpenDiagnosticoDirect={() => {
+          setVersion(DASHBOARD_VERSIONS[0].value);
+          goTo('wizard');
+        }}
+        /*
           La fila abre siempre Pases VIP antes del Diagnóstico. No se omite la
           pantalla aunque el asesor ya haya desbloqueado la herramienta: puede
           invitar a tres amigos nuevos o usar la salida secundaria del propio
