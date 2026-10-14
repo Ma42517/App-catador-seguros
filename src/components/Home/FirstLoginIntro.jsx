@@ -12,6 +12,7 @@ import { joinPromotoriaByCode, describeError } from '../../data/promotoriaRepo';
 import { normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCode';
 import BottomSheet from '../Layout/BottomSheet';
 import { readAppTheme, themeFor } from '../../lib/appTheme';
+import ThemeSwitch from '../Auth/ThemeSwitch';
 
 /*
   Paleta por tema, inyectada como variables CSS en el contenedor raíz y heredada por
@@ -2156,8 +2157,12 @@ export default function FirstLoginIntro({
   const [closing, setClosing] = useState(false);
   const { addEvent } = useEvents();
 
-  // Tema elegido en la bienvenida: pinta el fondo y, vía variables CSS, el texto.
-  const theme = themeFor(readAppTheme());
+  /*
+    Tema elegido en la bienvenida: pinta el fondo y, vía variables CSS, el texto.
+    En estado (no sólo lectura) para que el conmutador flotante lo cambie al instante.
+  */
+  const [themeValue, setThemeValue] = useState(readAppTheme);
+  const theme = themeFor(themeValue);
   const pal = FLI_PALETTE[theme.value] ?? FLI_PALETTE.dark;
 
   /*
@@ -2363,10 +2368,22 @@ export default function FirstLoginIntro({
       */}
       {step === 6 && (
         <div className="fixed left-1/2 top-4 z-[99] -translate-x-1/2 rounded-full
-                        bg-rose-500 px-4 py-1 text-xs font-bold uppercase tracking-widest text-[color:var(--ob-text)]">
+                        bg-rose-500 px-4 py-1 text-xs font-bold uppercase tracking-widest text-white">
           FIN
         </div>
       )}
+
+      {/*
+        Conmutador de tema flotante, igual que en el onboarding pre-registro: deja
+        cambiar negro/blanco/crema al instante y probar los tres aquí también.
+        `stopPropagation` para que tocarlo no acelere la máquina de escribir.
+      */}
+      <div
+        className="fixed bottom-5 left-1/2 z-[99] -translate-x-1/2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ThemeSwitch value={themeValue} onChange={setThemeValue} />
+      </div>
 
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
         {/*
