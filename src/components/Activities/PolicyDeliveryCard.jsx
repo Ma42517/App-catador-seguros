@@ -134,19 +134,20 @@ export default function PolicyDeliveryCard({ event }) {
           label={`Agendar seguimiento de la entrega de ${prospectName}`}
         />
 
-        <button
-          type="button"
+        {/*
+          "Entregada" como botón circular (sólo ícono), igual que los otros tres:
+          antes era un botón ancho con texto, y entre los cuatro botones `shrink-0`
+          no dejaban ancho a la columna del nombre, que acababa partiéndose letra por
+          letra (se veía "vertical"). Circular, el nombre vuelve a caber en horizontal.
+          Misma acción (`handleDelivered`) y mismo verde de confirmación.
+        */}
+        <CircleActionButton
+          icon={CheckCircle2}
+          tone="emeraldSolid"
           onClick={handleDelivered}
           disabled={isSubmitting}
-          aria-label={`Marcar como entregada la póliza de ${prospectName}`}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-3.5
-                     py-2 text-xs font-semibold text-white transition-colors
-                     hover:bg-indigo-500 active:scale-95 disabled:cursor-wait
-                     disabled:opacity-60"
-        >
-          <CheckCircle2 size={15} aria-hidden="true" />
-          Entregada
-        </button>
+          label={`Marcar como entregada la póliza de ${prospectName}`}
+        />
       </ActionCardBase>
 
       <TaskOptionsSheet

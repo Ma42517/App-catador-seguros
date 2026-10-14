@@ -23,13 +23,16 @@
  * dirección), que sus tarjetas omiten por completo.
  */
 
-/** Tonos disponibles; el fondo siempre al 10% para que el ícono mande. */
+/** Tonos disponibles; el fondo al 10% para que el ícono mande, salvo los *Solid. */
 const TONES = {
   emerald: 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20',
   indigo: 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20',
   sky: 'bg-sky-500/10 text-sky-400 hover:bg-sky-500/20',
   amber: 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
   slate: 'bg-slate-500/10 text-slate-300 hover:bg-slate-500/20',
+  // Relleno sólido para la acción PRINCIPAL de confirmación (p. ej. "Entregada"),
+  // para que destaque de los botones de contacto, que van al 10%.
+  emeraldSolid: 'bg-emerald-500 text-slate-950 hover:bg-emerald-400',
 };
 
 const BASE = 'grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors '
