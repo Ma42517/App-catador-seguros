@@ -58,6 +58,7 @@ export default function CircleActionButton({
         aria-disabled={disabled}
         onClick={(e) => { if (disabled) e.preventDefault(); }}
         className={className}
+        data-tone={tone}
       >
         {content}
       </a>
@@ -71,6 +72,7 @@ export default function CircleActionButton({
       disabled={disabled}
       aria-label={label}
       className={className}
+      data-tone={tone}
     >
       {content}
     </button>

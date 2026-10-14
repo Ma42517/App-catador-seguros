@@ -124,9 +124,7 @@
     color de acento (verde, por la regla de arriba). Así combinan sin ser bloques.
   */
   html.theme-cream .bg-indigo-50,
-  html.theme-cream .bg-indigo-100,
-  html.theme-cream [class*="bg-indigo-500/1"],
-  html.theme-cream [class*="bg-indigo-500/2"] {
+  html.theme-cream .bg-indigo-100 {
     background-color: #FFFDF9;
     border-color: #DFD5C0;
   }
@@ -151,6 +149,7 @@
     background-color: #FFFDF9;
     border-color: #DFD5C0;
   }
+
 }
 
 /*
@@ -490,4 +489,45 @@
       animation-iteration-count: 1;
     }
   }
+}
+
+/*
+  ── Botones circulares de las tarjetas en crema (paleta Gemini) ──────────────
+  Sobre el marfil claro, los fondos al 10% casi no se ven. Cada botón lleva un
+  `data-tone`; aquí se le da fondo con cuerpo + borde + ícono nítido para que
+  contraste y no se pierda. Van como CSS plano (fuera de @layer) para no depender
+  del parser de capas.
+*/
+html.theme-cream [data-tone="emerald"] {
+  background-color: #E6F4EA;
+  border: 1px solid #B7DFC2;
+  color: #137333;
+}
+html.theme-cream [data-tone="emerald"]:hover { background-color: #CEEAD6; }
+
+html.theme-cream [data-tone="amber"] {
+  background-color: #FEF3C7;
+  border: 1px solid #FDE68A;
+  color: #B45309;
+}
+html.theme-cream [data-tone="amber"]:hover { background-color: #FDE68A; }
+
+html.theme-cream [data-tone="indigo"] {
+  background-color: #E7EFEA;
+  border: 1px solid #BCCFC4;
+  color: #1B4332;
+}
+html.theme-cream [data-tone="indigo"]:hover { background-color: #D7E6DD; }
+
+html.theme-cream [data-tone="slate"] {
+  background-color: #EFE9DD;
+  border: 1px solid #DFD5C0;
+  color: #5C5346;
+}
+html.theme-cream [data-tone="slate"]:hover { background-color: #E6DEC8; }
+
+html.theme-cream [data-tone="sky"] {
+  background-color: #E3EEF5;
+  border: 1px solid #BCD4E2;
+  color: #1B5E7E;
 }
