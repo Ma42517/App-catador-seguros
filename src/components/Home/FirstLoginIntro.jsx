@@ -24,14 +24,19 @@ const FLI_PALETTE = {
   dark: {
     text: '#f8fafc', soft: 'rgba(248,250,252,0.6)', faint: 'rgba(248,250,252,0.35)',
     border: 'rgba(255,255,255,0.12)', cell: 'rgba(255,255,255,0.06)',
+    // Texto de énfasis: en oscuro sí va amarillo; en claro/crema se cambia por un
+    // gris/tinte oscuro que combina y se distingue sobre el fondo claro.
+    emphasis: '#fcd34d',
   },
   light: {
     text: '#0f172a', soft: 'rgba(15,23,42,0.62)', faint: 'rgba(15,23,42,0.42)',
     border: 'rgba(15,23,42,0.12)', cell: 'rgba(15,23,42,0.05)',
+    emphasis: '#334155',
   },
   cream: {
     text: '#0B1A30', soft: 'rgba(11,26,48,0.62)', faint: 'rgba(11,26,48,0.42)',
     border: 'rgba(11,26,48,0.14)', cell: 'rgba(11,26,48,0.05)',
+    emphasis: '#5b4a2e',
   },
 };
 
@@ -564,8 +569,8 @@ function GreetingStep({ name, onContinue }) {
         onClick={onContinue}
         aria-hidden={isTyping}
         tabIndex={isTyping ? -1 : 0}
-        className={`mt-10 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-[color:var(--ob-text)]
-                    transition-opacity duration-700 hover:bg-indigo-500 active:scale-95
+        className={`mt-10 rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold text-[color:var(--ob-on-accent)]
+                    transition-opacity duration-700 hover:brightness-105 active:scale-95
                     ${GLOW_BUTTON_CLASS}
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       >
@@ -612,7 +617,7 @@ function EmpowermentStep({ text, highlight, onContinue }) {
         <p
           aria-hidden="true"
           className={`mt-4 max-w-md rounded-xl border border-amber-400/30 bg-amber-500/[0.06]
-                      px-4 py-3 text-sm font-medium leading-relaxed text-amber-200
+                      px-4 py-3 text-sm font-medium leading-relaxed text-[color:var(--ob-emphasis)]
                       transition-opacity duration-700
                       ${showHighlight ? 'opacity-100' : 'opacity-0'}`}
         >
@@ -625,8 +630,8 @@ function EmpowermentStep({ text, highlight, onContinue }) {
         onClick={onContinue}
         aria-hidden={isTyping}
         tabIndex={isTyping ? -1 : 0}
-        className={`mt-8 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-[color:var(--ob-text)]
-                    transition-opacity duration-700 hover:bg-indigo-500 active:scale-95
+        className={`mt-8 rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold text-[color:var(--ob-on-accent)]
+                    transition-opacity duration-700 hover:brightness-105 active:scale-95
                     ${GLOW_BUTTON_CLASS}
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       >
@@ -868,8 +873,8 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
           type="button"
           onClick={() => onContinue(cleanEntries)}
           disabled={!isValid}
-          className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     uppercase tracking-wide text-[color:var(--ob-text)] transition-all hover:bg-indigo-500
+          className={`mt-5 w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold
+                     uppercase tracking-wide text-[color:var(--ob-on-accent)] transition-all hover:brightness-105
                      active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
                      disabled:text-[color:var(--ob-faint)] disabled:shadow-none
                      ${isValid ? GLOW_BUTTON_CLASS : ''}`}
@@ -1085,8 +1090,8 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
           type="button"
           onClick={handleSave}
           disabled={!canSave}
-          className={`mt-1 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     text-[color:var(--ob-text)] transition-all hover:bg-indigo-500 active:scale-95
+          className={`mt-1 w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold
+                     text-[color:var(--ob-on-accent)] transition-all hover:brightness-105 active:scale-95
                      disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)] disabled:text-[color:var(--ob-faint)]
                      ${canSave ? GLOW_BUTTON_CLASS : ''}`}
         >
@@ -1198,8 +1203,8 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
           type="button"
           onClick={() => onContinue(cleanEntries)}
           disabled={!isValid}
-          className={`mt-3 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     uppercase tracking-wide text-[color:var(--ob-text)] transition-all hover:bg-indigo-500
+          className={`mt-3 w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold
+                     uppercase tracking-wide text-[color:var(--ob-on-accent)] transition-all hover:brightness-105
                      active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
                      disabled:text-[color:var(--ob-faint)] disabled:shadow-none
                      ${isValid ? GLOW_BUTTON_CLASS : ''}`}
@@ -1375,8 +1380,8 @@ function HybridCaptureStep({ onContinue, onSkip }) {
           type="button"
           onClick={() => onContinue(cleanProspects, cleanTasks)}
           disabled={!isValid}
-          className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     uppercase tracking-wide text-[color:var(--ob-text)] transition-all hover:bg-indigo-500
+          className={`mt-5 w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold
+                     uppercase tracking-wide text-[color:var(--ob-on-accent)] transition-all hover:brightness-105
                      active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
                      disabled:text-[color:var(--ob-faint)] disabled:shadow-none
                      ${isValid ? GLOW_BUTTON_CLASS : ''}`}
@@ -1456,7 +1461,7 @@ function ConsolidatedWelcomeStep({ name, onContinue }) {
 
       <p
         aria-hidden="true"
-        className={`mt-5 max-w-md text-sm font-medium leading-relaxed text-amber-200
+        className={`mt-5 max-w-md text-sm font-medium leading-relaxed text-[color:var(--ob-emphasis)]
                     transition-opacity duration-700
                     ${showSubtext ? 'opacity-100' : 'opacity-0'}`}
       >
@@ -1682,8 +1687,8 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
               type="button"
               onClick={advanceToPhaseB}
               disabled={!canAdvanceToPhaseB}
-              className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                         uppercase tracking-wide text-[color:var(--ob-text)] transition-all hover:bg-indigo-500
+              className={`mt-5 w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold
+                         uppercase tracking-wide text-[color:var(--ob-on-accent)] transition-all hover:brightness-105
                          active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
                          disabled:text-[color:var(--ob-faint)] disabled:shadow-none
                          ${canAdvanceToPhaseB ? GLOW_BUTTON_CLASS : ''}`}
@@ -1766,9 +1771,9 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
             <button
               type="button"
               onClick={handleSaveAgenda}
-              className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
-                         font-semibold uppercase tracking-wide text-[color:var(--ob-text)] transition-all
-                         hover:bg-indigo-500 active:scale-95 ${GLOW_BUTTON_CLASS}`}
+              className={`mt-5 w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm
+                         font-semibold uppercase tracking-wide text-[color:var(--ob-on-accent)] transition-all
+                         hover:brightness-105 active:scale-95 ${GLOW_BUTTON_CLASS}`}
             >
               Guardar en mi Agenda
             </button>
@@ -1895,7 +1900,7 @@ function RewardStep({ capturedCount, achievement, onDone }) {
         >
           <AchievementIcon size={20} className="shrink-0 text-amber-400" aria-hidden="true" />
           <div className="text-left">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--ob-emphasis)]">
               Primera misión completada
             </p>
             <p className="text-sm font-semibold text-[color:var(--ob-text)]">
@@ -1976,8 +1981,8 @@ function JoinTeamStep({ onContinue }) {
         <button
           type="button"
           onClick={onContinue}
-          className={`mt-8 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     text-[color:var(--ob-text)] transition-colors hover:bg-indigo-500 active:scale-95
+          className={`mt-8 rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold
+                     text-[color:var(--ob-on-accent)] transition-colors hover:brightness-105 active:scale-95
                      ${GLOW_BUTTON_CLASS}`}
         >
           Continuar
@@ -2031,8 +2036,8 @@ function JoinTeamStep({ onContinue }) {
           type="submit"
           disabled={isBusy}
           className={`mt-4 flex w-full items-center justify-center gap-2 rounded-full
-                     bg-indigo-600 px-8 py-3 text-sm font-semibold text-[color:var(--ob-text)]
-                     transition-all hover:bg-indigo-500 active:scale-95
+                     bg-[var(--ob-accent)] px-8 py-3 text-sm font-semibold text-[color:var(--ob-on-accent)]
+                     transition-all hover:brightness-105 active:scale-95
                      disabled:cursor-wait disabled:opacity-70 ${GLOW_BUTTON_CLASS}`}
         >
           {isBusy && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
@@ -2342,6 +2347,10 @@ export default function FirstLoginIntro({
         '--ob-faint': pal.faint,
         '--ob-border': pal.border,
         '--ob-cell': pal.cell,
+        '--ob-emphasis': pal.emphasis,
+        // Acento del tema para los botones (cyan/azul), con texto navy encima.
+        '--ob-accent': theme.accent,
+        '--ob-on-accent': '#0B1A30',
       }}
       role="dialog"
       aria-modal="true"
