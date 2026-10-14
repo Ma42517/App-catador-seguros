@@ -70,6 +70,22 @@ export default function WelcomeOnboarding({ onFinish }) {
   const [thread, setThread] = useState([]);
   const bottomRef = useRef(null);
 
+  /*
+    Bienvenida sin scroll: se bloquea el desplazamiento del documento mientras está
+    montada —igual que el login— para que no se pueda arrastrar ni quede hueco, con o
+    sin teclado. Se restaura al desmontar.
+  */
+  useEffect(() => {
+    const { body, documentElement: html } = document;
+    const prev = { body: body.style.overflow, html: html.style.overflow };
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = prev.body;
+      html.style.overflow = prev.html;
+    };
+  }, []);
+
   // Al cambiar de paso, el nuevo contenido queda a la vista (abajo del hilo).
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -109,8 +125,8 @@ export default function WelcomeOnboarding({ onFinish }) {
 
   return (
     <div
-      /* Pantalla fija al alto real del móvil (dvh), sin scroll ni rebote. */
-      className={`relative flex h-[100dvh] w-full flex-col overflow-hidden px-6 ${bg}`}
+      /* Anclada al viewport (`fixed inset-0`), sin scroll ni rebote, con o sin teclado. */
+      className={`fixed inset-0 flex w-full flex-col overflow-hidden px-6 ${bg}`}
       style={t.bgStyle}
     >
       {/* Saltar: siempre a la mano, discreto. No en la pantalla final. */}

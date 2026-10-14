@@ -192,6 +192,24 @@ export default function Login() {
   const isDark = t.value === 'dark';
 
   /*
+    Pantalla de acceso sin scroll: mientras el login está montado se bloquea el
+    desplazamiento del documento. Hace falta porque `#root`/`body` tienen
+    `min-height: 100dvh` (para que las pantallas internas sí puedan crecer y
+    desplazarse), y eso dejaba arrastrar aquí aunque no hubiera contenido —el hueco
+    negro al abrir el teclado en el móvil—. Se restaura al desmontar.
+  */
+  useEffect(() => {
+    const { body, documentElement: html } = document;
+    const prev = { body: body.style.overflow, html: html.style.overflow };
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = prev.body;
+      html.style.overflow = prev.html;
+    };
+  }, []);
+
+  /*
     `revealed` = ya terminó la intro (la cascada de frases) y se mostró el cierre:
     logo + eslogan al centro y los botones de acceso. Mientras es false, sólo corren
     las frases, sin logo ni botones —es la "obertura"—.
@@ -281,11 +299,12 @@ export default function Login() {
   return (
     <div
       /*
-        Pantalla fija, sin scroll: `h-[100dvh]` usa el alto REAL del viewport del
-        móvil (descuenta la barra del navegador, cosa que `100vh`/`min-h-screen` no
-        hace y por eso dejaba arrastrar de más). `overflow-hidden` sella el rebote.
+        `fixed inset-0`: la pantalla de acceso se ancla al viewport real y no al alto
+        del `#root` (que crece con `min-height: 100dvh`). Junto con el bloqueo de
+        scroll del documento (ver useEffect), elimina el arrastre y el hueco negro,
+        esté o no abierto el teclado. `overflow-hidden` sella cualquier rebote interno.
       */
-      className={`relative flex h-[100dvh] w-full flex-col overflow-hidden px-6 py-8 ${bg}`}
+      className={`fixed inset-0 flex w-full flex-col overflow-hidden px-6 py-8 ${bg}`}
       style={t.bgStyle}
     >
       {/* Resplandor con el acento del tema, muy suave, para dar vida al fondo. */}
