@@ -321,7 +321,7 @@ export default function ReferralHubView({
       label="Convierte un regalo en prospectos"
       backLabel="Cerrar"
     >
-      <div className="animate-rise space-y-5">
+      <div className="referral-hub animate-rise space-y-5">
         {/* Métrica del mes + acción principal. Registrar ya no queda escondido
             dentro de una carta: es la acción más frecuente del Hub. */}
         <motion.div

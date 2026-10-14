@@ -657,3 +657,62 @@ html.theme-cream .more-menu .from-zinc-800.to-indigo-950 {
 html.theme-cream .more-menu .from-zinc-800.to-indigo-950 .text-zinc-400 {
   color: #1B4332;
 }
+
+/*
+  ── "Obtener Referidos" (ReferralHubView) por tema ────────────────────────────
+  Esta pantalla se construyó sólo para modo oscuro: usa clases fijas `neutral-*`
+  (gris oscuro) sin pares `dark:`, así que en los temas claros quedaba un fondo
+  blanco —del `FullScreenView`— con tarjetas gris oscuro flotando encima. Aquí se
+  reasignan los `neutral-*` bajo `.referral-hub` para blanco y crema, y el fondo
+  de la carcasa se tiñe con `:has()` (el `FullScreenView` que contiene el hub).
+  El tema negro es el default y no se toca.
+*/
+/* ── Fondo de la pantalla completa que envuelve el hub ── */
+html:not(.dark):not(.theme-cream) .immersive-surface:has(.referral-hub) { background-color: #FFFFFF; }
+html.theme-cream .immersive-surface:has(.referral-hub) { background-color: #F2ECE1; }
+/* La cabecera translúcida del FullScreenView debe seguir al fondo. */
+html.theme-cream .immersive-surface:has(.referral-hub) header { background-color: rgba(242, 236, 225, 0.85); }
+
+/* ── Blanco ── */
+html:not(.dark):not(.theme-cream) .referral-hub .bg-neutral-900\/75,
+html:not(.dark):not(.theme-cream) .referral-hub .bg-neutral-900\/70,
+html:not(.dark):not(.theme-cream) .referral-hub .bg-neutral-900\/60,
+html:not(.dark):not(.theme-cream) .referral-hub .bg-neutral-900 { background-color: #F8FAFC; }
+html:not(.dark):not(.theme-cream) .referral-hub .bg-black { background-color: #F1F5F9; }
+html:not(.dark):not(.theme-cream) .referral-hub .border-neutral-800,
+html:not(.dark):not(.theme-cream) .referral-hub .border-neutral-700,
+html:not(.dark):not(.theme-cream) .referral-hub .border-neutral-600 { border-color: #E5E7EB; }
+html:not(.dark):not(.theme-cream) .referral-hub .text-white,
+html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-100 { color: #0F172A; }
+html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-300,
+html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-400,
+html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-500,
+html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-600 { color: #64748B; }
+
+/* ── Crema ── */
+html.theme-cream .referral-hub .bg-neutral-900\/75,
+html.theme-cream .referral-hub .bg-neutral-900\/70,
+html.theme-cream .referral-hub .bg-neutral-900\/60,
+html.theme-cream .referral-hub .bg-neutral-900 { background-color: #FFFDF9; }
+html.theme-cream .referral-hub .bg-black { background-color: #E6DEC8; }
+html.theme-cream .referral-hub .border-neutral-800,
+html.theme-cream .referral-hub .border-neutral-700,
+html.theme-cream .referral-hub .border-neutral-600 { border-color: #DFD5C0; }
+html.theme-cream .referral-hub .text-white,
+html.theme-cream .referral-hub .text-neutral-100 { color: #231F1B; }
+html.theme-cream .referral-hub .text-neutral-300,
+html.theme-cream .referral-hub .text-neutral-400,
+html.theme-cream .referral-hub .text-neutral-500,
+html.theme-cream .referral-hub .text-neutral-600 { color: #85796A; }
+
+/*
+  Botones de acción blancos (`bg-white text-black`) de las LeverCard: en los
+  temas claros un botón blanco sobre tarjeta clara desaparece. Se pintan con el
+  acento del tema —índigo en blanco, verde bosque en crema— con texto claro.
+*/
+html:not(.dark):not(.theme-cream) .referral-hub .bg-white { background-color: #4F46E5; }
+html:not(.dark):not(.theme-cream) .referral-hub .bg-white.text-black,
+html:not(.dark):not(.theme-cream) .referral-hub .bg-white .text-black { color: #FFFFFF; }
+html.theme-cream .referral-hub .bg-white { background-color: #1B4332; }
+html.theme-cream .referral-hub .bg-white.text-black,
+html.theme-cream .referral-hub .bg-white .text-black { color: #FFFDF9; }
