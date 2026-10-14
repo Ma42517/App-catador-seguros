@@ -37,6 +37,12 @@ export default function ProductivityDashboard({
     junto con `autoOpenProspectaStage`, nunca por su cuenta.
   */
   autoOpenProspectaClient = null,
+  /*
+    `true` cuando la Cita Inicial se reporta con la palomita "¿Qué pasó con la cita?"
+    (`InitialMeetingCard.jsx`): se salta la presentación y se abre directo el router
+    de resultado. Viaja junto a `autoOpenProspectaStage='cita'`.
+  */
+  autoOpenProspectaSkipToResult = false,
   onAutoOpenConsumed,
   onRouteToActivity,
 }) {
@@ -162,6 +168,7 @@ export default function ProductivityDashboard({
         onClose={() => { setProspectaOpen(false); onAutoOpenConsumed?.(); }}
         initialStageKey={autoOpenProspectaStage}
         client={autoOpenProspectaClient}
+        skipToResult={autoOpenProspectaSkipToResult}
         onRouteToActivity={handleRouteToActivity}
       />
 

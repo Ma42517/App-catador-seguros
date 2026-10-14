@@ -642,11 +642,16 @@ const STEPS = [
  * no corresponde a una cita que en verdad se esté cerrando.
  */
 export default function CitaInicialWizard({
-  onBack, onRouteToActivity, requireResolution = false, client = null,
+  onBack, onRouteToActivity, requireResolution = false, client = null, skipToResult = false,
 }) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState(EMPTY);
-  const [showEndModal, setShowEndModal] = useState(false);
+  /*
+    `skipToResult`: la cita se hizo fuera de la app (palomita "¿Qué pasó con la
+    cita?"), así que el router de resultado se abre de una vez, sin recorrer la
+    presentación. En el flujo normal arranca cerrado y lo abre "Terminar cita".
+  */
+  const [showEndModal, setShowEndModal] = useState(skipToResult);
 
   const { identity } = useSession();
   const { resolveEvent } = useEvents();

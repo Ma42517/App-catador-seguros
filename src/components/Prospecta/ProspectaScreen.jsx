@@ -144,6 +144,7 @@ function StageDetail({ stage, onBack }) {
  */
 export default function ProspectaScreen({
   isOpen, onClose, initialStageKey = null, client = null, onRouteToActivity,
+  skipToResult = false,
 }) {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isShown, setIsShown] = useState(false);
@@ -247,6 +248,7 @@ export default function ProspectaScreen({
               onRouteToActivity={onRouteToActivity}
               requireResolution={cameFromNotification}
               client={cameFromNotification ? client : null}
+              skipToResult={cameFromNotification && skipToResult}
             />
           ) : (
             <StageDetail stage={selected} onBack={() => setSelected(null)} />

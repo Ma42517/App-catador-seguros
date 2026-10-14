@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Video, PlayCircle, Clock } from 'lucide-react';
+import { MapPin, Video, PlayCircle, Clock, CheckCircle2 } from 'lucide-react';
 import { useEvents } from '../../context/EventContext';
 import { useSession } from '../../context/SessionContext';
 import useHourglassTimer from '../../lib/useHourglassTimer';
@@ -51,7 +51,7 @@ import SwipeableCard from '../Layout/SwipeableCard';
  * Arena — no se mezcla aquí para no inventar un flujo de puntos que no se
  * pidió en este componente.
  */
-export default function InitialMeetingCard({ event, onStartSession }) {
+export default function InitialMeetingCard({ event, onStartSession, onReportResult }) {
   const { updateEvent, removeEvent } = useEvents();
   const { identity } = useSession();
   const username = identity?.key;
@@ -157,6 +157,18 @@ export default function InitialMeetingCard({ event, onStartSession }) {
   const handleStartSession = () => {
     if (!sessionStarted) updateEvent(event.id, { sessionStarted: true });
     onStartSession?.(event);
+  };
+
+  /*
+    "¿Qué pasó con la cita?" — para cuando la cita se hizo FUERA de la app y sólo
+    falta registrar el resultado. Marca el Seguro de Vida (igual que iniciar, para
+    apagar el reloj de arena) y delega en `onReportResult`, que abre directo el
+    router de resultado (Propuesta/Seguimiento/No califica) sin repetir la
+    presentación. La cadena dominó es la misma: viaja el `event.id`.
+  */
+  const handleReportResult = () => {
+    if (!sessionStarted) updateEvent(event.id, { sessionStarted: true });
+    onReportResult?.(event);
   };
 
   return (
@@ -267,6 +279,23 @@ export default function InitialMeetingCard({ event, onStartSession }) {
                              hover:bg-indigo-500/20 active:scale-95"
                 >
                   <PlayCircle size={16} aria-hidden="true" />
+                </button>
+
+                {/*
+                  Palomita: "¿Ya hiciste la cita?" — salta directo a registrar el
+                  resultado (Propuesta/Seguimiento/No califica), para la cita hecha
+                  fuera de la app. Verde sólido para distinguirla del Iniciar (▶).
+                */}
+                <button
+                  type="button"
+                  onClick={handleReportResult}
+                  aria-label="¿Qué pasó con la cita? Registrar resultado"
+                  title="¿Qué pasó con la cita?"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full
+                             bg-emerald-500 text-slate-950 transition-colors
+                             hover:bg-emerald-400 active:scale-95"
+                >
+                  <CheckCircle2 size={16} aria-hidden="true" />
                 </button>
               </div>
             </div>

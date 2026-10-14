@@ -19,7 +19,7 @@ const DATE_FORMAT = { weekday: 'long', day: 'numeric', month: 'long' };
  */
 export default function TodayView({
   name, horario = [], inquietud = '', mercado = '', perfil = '', username,
-  onOpenDiagnostic, onStartSession, onOpenRequirements, onRouteToActivity,
+  onOpenDiagnostic, onStartSession, onReportResult, onOpenRequirements, onRouteToActivity,
 }) {
   const fecha = new Date().toLocaleDateString('es-MX', DATE_FORMAT);
   const saludo = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
@@ -58,6 +58,7 @@ export default function TodayView({
       username={username}
       onOpenDiagnostic={onOpenDiagnostic}
       onStartSession={onStartSession}
+      onReportResult={onReportResult}
       onOpenRequirements={onOpenRequirements}
       onRouteToActivity={onRouteToActivity}
       header={(

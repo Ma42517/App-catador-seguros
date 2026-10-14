@@ -47,7 +47,7 @@ const SMART_MESSAGE_DELAY_MS = 6500;
  */
 export default function AISequence({
   header, children, puntosActuales = 0, horario = [], username = '', onOpenDiagnostic,
-  onStartSession, onOpenRequirements, onRouteToActivity,
+  onStartSession, onReportResult, onOpenRequirements, onRouteToActivity,
 }) {
   const { highPriorityToday, activeToday } = useEvents();
 
@@ -242,6 +242,7 @@ export default function AISequence({
                 <ActionableCard
                   event={event}
                   onStartSession={onStartSession}
+                  onReportResult={onReportResult}
                   onOpenRequirements={onOpenRequirements}
                   onRouteToActivity={onRouteToActivity}
                 />

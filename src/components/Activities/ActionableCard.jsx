@@ -68,7 +68,7 @@ import useNow from '../../lib/useNow';
  * propio lenguaje de gestos con el toque para voltear).
  */
 export default function ActionableCard({
-  event, onStartSession, onOpenRequirements, onRouteToActivity,
+  event, onStartSession, onReportResult, onOpenRequirements, onRouteToActivity,
 }) {
   const { removeEvent } = useEvents();
   const [isOpen, setIsOpen] = useState(false);
@@ -90,7 +90,7 @@ export default function ActionableCard({
   }
 
   if (event.tipo_actividad === 'cita_inicial') {
-    return <InitialMeetingCard event={event} onStartSession={onStartSession} />;
+    return <InitialMeetingCard event={event} onStartSession={onStartSession} onReportResult={onReportResult} />;
   }
 
   if (event.tipo_actividad === 'cita') {

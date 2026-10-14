@@ -467,7 +467,17 @@ function Shell({
   */
   const [prospectaClient, setProspectaClient] = useState(null);
 
+  /*
+    "¿Qué pasó con la cita?" (palomita de `InitialMeetingCard.jsx`): cuando la cita
+    se hizo FUERA de la app, se salta la presentación y se abre directo el router de
+    resultado. Este flag viaja junto a `prospectaAutoStage='cita'` y hace que
+    `CitaInicialWizard` muestre el `PresentationEndModal` de una vez. En el flujo
+    normal de "Iniciar" queda en `false`.
+  */
+  const [prospectaSkipToResult, setProspectaSkipToResult] = useState(false);
+
   const handleStartSession = useCallback((event) => {
+    setProspectaSkipToResult(false);
     setProspectaAutoStage('cita');
     setProspectaClient({
       /*
@@ -479,6 +489,23 @@ function Shell({
         debe seguir apareciendo en "Hoy" junto con la actividad nueva que
         el router de ventas acaba de crear.
       */
+      id: event?.id,
+      name: prospectNameFrom(event?.title),
+      phone: event?.telefono ?? '',
+    });
+    setSection('productivity');
+  }, []);
+
+  /*
+    Igual que `handleStartSession`, pero marcando `prospectaSkipToResult`: la cita ya
+    se hizo (fuera de la app), así que al abrir Prospecta se va directo al router de
+    resultado sin recorrer la presentación. El `event.id` viaja igual, para que la
+    cadena dominó (borrar la Cita + crear la Propuesta) funcione idéntica.
+  */
+  const handleReportResult = useCallback((event) => {
+    setProspectaSkipToResult(true);
+    setProspectaAutoStage('cita');
+    setProspectaClient({
       id: event?.id,
       name: prospectNameFrom(event?.title),
       phone: event?.telefono ?? '',
@@ -711,6 +738,7 @@ function Shell({
             setSection('wizard');
           }}
           onStartSession={handleStartSession}
+          onReportResult={handleReportResult}
           onOpenRequirements={handleOpenRequirements}
           onRouteToActivity={handleRouteToActivity}
         />
@@ -719,7 +747,12 @@ function Shell({
           username={storageKey}
           autoOpenProspectaStage={prospectaAutoStage}
           autoOpenProspectaClient={prospectaClient}
-          onAutoOpenConsumed={() => { setProspectaAutoStage(null); setProspectaClient(null); }}
+          autoOpenProspectaSkipToResult={prospectaSkipToResult}
+          onAutoOpenConsumed={() => {
+            setProspectaAutoStage(null);
+            setProspectaClient(null);
+            setProspectaSkipToResult(false);
+          }}
           onRouteToActivity={handleRouteToActivity}
         />
       ) : activeSection === 'promotoria' ? (
@@ -735,6 +768,7 @@ function Shell({
         */
         <CalendarView
           onStartSession={handleStartSession}
+          onReportResult={handleReportResult}
           onOpenRequirements={handleOpenRequirements}
           onRouteToActivity={handleRouteToActivity}
         />

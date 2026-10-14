@@ -78,7 +78,7 @@ function formatDay(dateKey) {
  *     así que este caso sólo existe aquí.
  */
 export default function CalendarView({
-  onStartSession, onOpenRequirements, onRouteToActivity,
+  onStartSession, onReportResult, onOpenRequirements, onRouteToActivity,
 }) {
   const { events, removeEvent } = useEvents();
   const grouped = useMemo(() => groupByDate(events), [events]);
@@ -161,6 +161,7 @@ export default function CalendarView({
                         <ActionableCard
                           event={event}
                           onStartSession={onStartSession}
+                          onReportResult={onReportResult}
                           onOpenRequirements={onOpenRequirements}
                           onRouteToActivity={onRouteToActivity}
                         />
