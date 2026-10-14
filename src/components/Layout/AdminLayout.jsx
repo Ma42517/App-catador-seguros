@@ -12,6 +12,7 @@ import LeadsList from '../Profile/LeadsList';
 import PausedProspects from '../Profile/PausedProspects';
 import RankingView from '../Profile/RankingView';
 import StoreView from '../Profile/StoreView';
+import SettingsView from '../Profile/SettingsView';
 import VIPPassGenerator from '../Prospecta/VIPPassGenerator';
 import ReferralHubView from '../Prospecta/ReferralHubView';
 import { DASHBOARD_VERSIONS } from '../../context/dashboardVersion';
@@ -124,6 +125,8 @@ export default function AdminLayout({
   const [rankingOpen, setRankingOpen] = useState(false);
   // "Tienda" (`StoreView.jsx`): catálogo de lo que compran las monedas.
   const [storeOpen, setStoreOpen] = useState(false);
+  // "Configuración" (`SettingsView.jsx`): ajustes de la app, hoy el color del tema.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Hub "Obtener Referidos" del menú: la pantalla de entrada de prospección.
   const [referralHubOpen, setReferralHubOpen] = useState(false);
   // Candado del Diagnóstico 360. Se abre desde el Hub ("Emitir Pase VIP") y sigue
@@ -290,6 +293,8 @@ export default function AdminLayout({
 
       <StoreView isOpen={storeOpen} onClose={() => setStoreOpen(false)} />
 
+      <SettingsView isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
       {/*
         Candado de Pases VIP. Al desbloquear, entra al Diagnóstico en la misma
         acción: el asesor pidió la herramienta, los pases eran el peaje — no
@@ -374,6 +379,7 @@ export default function AdminLayout({
         onOpenNotes={() => { setMoreOpen(false); setNotesOpen(true); }}
         onOpenProfile={() => { setMoreOpen(false); setProfileOpen(true); }}
         onOpenCard={() => { setMoreOpen(false); setCardOpen(true); }}
+        onOpenSettings={() => { setMoreOpen(false); setSettingsOpen(true); }}
         onOpenAdmin={() => { setMoreOpen(false); setAdminOpen(true); }}
         onOpenApprovals={() => { setMoreOpen(false); setApprovalsOpen(true); }}
         onLogout={onLogout}

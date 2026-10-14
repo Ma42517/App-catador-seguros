@@ -267,7 +267,8 @@ function CardAvatar({ url }) {
  */
 export default function MoreMenu({
   open, onClose, onOpenDiagnostico, onOpenDiagnosticoDirect, onOpenVipPasses, onOpenPreview,
-  onOpenNotes, onOpenProfile, onOpenAdmin, onOpenApprovals, onOpenCard, onLogout, onLoadDemo,
+  onOpenNotes, onOpenProfile, onOpenSettings, onOpenAdmin, onOpenApprovals, onOpenCard,
+  onLogout, onLoadDemo,
   onClearAgenda, canUsePreview = false, isAdminUser = false, isPromoterUser = false,
   onOpenPromotoria, pendingCount = 0,
 }) {
@@ -524,7 +525,7 @@ export default function MoreMenu({
           <SectionTitle>Cuenta</SectionTitle>
           <SectionCard>
             <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
-            <MenuRow icon={Settings} label="Configuración" hint="Pronto" />
+            <MenuRow icon={Settings} label="Configuración" onClick={onOpenSettings} />
           </SectionCard>
 
           {/*

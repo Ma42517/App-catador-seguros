@@ -73,23 +73,6 @@ export const APP_THEMES = [
     inputStyle: { backgroundColor: '#1a1a1a' },
   },
   {
-    value: 'light',
-    label: 'Blanco',
-    swatch: BRAND.white,
-    accent: THEME_BUTTON.light.accent,
-    onAccent: THEME_BUTTON.light.onAccent,
-    ring: 'ring-zinc-900/40',
-    bg: 'text-[#0F172A]',
-    bgStyle: { backgroundColor: BRAND.white },
-    panel: 'border-zinc-200 shadow-xl shadow-zinc-200/60',
-    panelStyle: { backgroundColor: BRAND.white },
-    text: 'text-[#0F172A]',
-    muted: 'text-zinc-500',
-    faint: 'text-zinc-400',
-    inputBg: 'border-zinc-300 text-[#0F172A] placeholder:text-zinc-400',
-    inputStyle: { backgroundColor: '#f8fafc' },
-  },
-  {
     value: 'cream',
     label: 'Crema',
     swatch: BRAND.cream,
@@ -114,6 +97,18 @@ const VALUES = APP_THEMES.map((t) => t.value);
 export const DEFAULT_THEME = 'dark';
 
 export function readAppTheme() {
+  /*
+    La app pasó de tres temas a dos (negro y crema): se retiró el blanco, como la
+    mayoría de las apps que ofrecen sólo claro/oscuro. Quien lo tuviera guardado
+    migra a crema —el otro tema claro, el más parecido a su elección— en vez de
+    caer de golpe en el negro. Se reescribe la preferencia para no repetir la
+    traducción en cada arranque.
+  */
+  try {
+    if (localStorage.getItem(STORAGE_KEY) === 'light') writePreference(STORAGE_KEY, 'cream');
+  } catch {
+    // Sin almacenamiento no hay nada que migrar; el fallback se encarga.
+  }
   return readPreference(STORAGE_KEY, VALUES, DEFAULT_THEME);
 }
 
