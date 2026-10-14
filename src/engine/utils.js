@@ -195,6 +195,26 @@ export function pvAnnuity(payment, rate, periods) {
 }
 
 /**
+ * Mensualidad fija que liquida un saldo en `months` meses a una tasa mensual.
+ *
+ * Es la inversa de `payoffMonths`: ahí se parte del pago y se deduce el plazo; aquí se
+ * parte del plazo —el que trae el contrato del banco— y se deduce el pago. Es la fórmula
+ * de amortización francesa estándar (PMT), la misma que usa cualquier tabla de crédito.
+ *
+ * Con tasa cero es el saldo repartido en partes iguales. Con cero meses no hay pago que
+ * calcular (devuelve 0): un plazo sin meses no es un crédito.
+ */
+export function paymentForTerm(balance, monthlyRate, months) {
+  const b = Math.max(0, num(balance));
+  const r = num(monthlyRate);
+  const n = Math.max(0, Math.floor(num(months)));
+  if (b <= 0 || n === 0) return 0;
+  if (r === 0) return b / n;
+  const pmt = (b * r) / (1 - Math.pow(1 + r, -n));
+  return Number.isFinite(pmt) ? pmt : 0;
+}
+
+/**
  * Meses para liquidar un saldo con pago fijo y tasa mensual.
  * Devuelve Infinity lógico como `null` cuando el pago no cubre los intereses.
  */

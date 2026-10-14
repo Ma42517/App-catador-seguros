@@ -10,13 +10,15 @@ import { createDebt } from '../../data/defaults';
 import { rateForDebtType, rateOrBlank, isSuggestedRate } from '../../data/historicalRates';
 import {
   Card, CardTitle, SectionTitle, Field, TextInput, MoneyInput, PercentInput,
-  Select, Button, Badge, SegmentedControl,
+  NumberInput, Select, Button, Badge, SegmentedControl,
 } from '../ui';
 import RowSheet from './RowSheet';
 import SuggestedField from './SuggestedField';
 import useRowSheet, { newestFirst } from './useRowSheet';
 import { labelOf } from '../../lib/options';
-import { DEBT_TYPES, fmtMXN, fmtPct } from '../../engine/finance';
+import {
+  DEBT_TYPES, fmtMXN, fmtPct, paymentForTerm, toMonthlyRate,
+} from '../../engine/finance';
 
 /* ── Helpers de presentación ─────────────────────────────────────────────── */
 
@@ -264,12 +266,39 @@ export default function DebtStep() {
     número. Igual que la tasa de los activos sigue (o no) al tipo de activo.
   */
   const changeType = (type) => {
-    if (rateIsManual) {
-      sheet.patch({ type });
-    } else {
-      sheet.patch({ type, interestRate: rateOrBlank(rateForDebtType(type)) });
-    }
+    /*
+      La tarjeta no tiene plazo fijo: es revolvente. Al elegirla se fuerza el modo pago;
+      al salir de ella, si la deuda no traía un modo propio, se vuelve al modo plazo que es
+      el natural de un crédito de pago fijo.
+    */
+    const patch = rateIsManual
+      ? { type }
+      : { type, interestRate: rateOrBlank(rateForDebtType(type)) };
+    if (type === 'credit_card') patch.captureMode = 'payment';
+    sheet.patch(patch);
   };
+
+  /*
+    Modo de captura efectivo. La tarjeta siempre va por pago; el resto respeta lo elegido,
+    con 'term' por omisión. Una deuda vieja sin el campo se lee como pago (como la trataba
+    el motor antes de existir el modo plazo).
+  */
+  const captureMode = isCard ? 'payment' : (draft.captureMode ?? 'payment');
+  const isTermMode = captureMode === 'term';
+
+  // Mensualidad que el motor calculará con el plazo capturado. Se muestra en vivo en verde
+  // para que la persona vea su pago real antes de guardar — es el mismo cálculo del motor.
+  const termPayment = isTermMode
+    ? paymentForTerm(draft.balance, toMonthlyRate(draft.interestRate), draft.termMonths)
+    : 0;
+
+  // El plazo se captura en años o en meses, a elección. Años por defecto: "a 5 años" es
+  // como la gente nombra su crédito. El valor guardado siempre es termMonths.
+  const [termUnit, setTermUnit] = useState('years');
+  useEffect(() => { if (sheet.isOpen) setTermUnit('years'); }, [sheet.isOpen]);
+
+  // ¿Se está usando la tasa sugerida (verde)? Entonces se avisa que es una estimación.
+  const usingSuggestedRate = !rateIsManual && suggestedRate !== null;
 
   // Estrategia elegida en el selector. Avalancha por omisión: ahorra más intereses.
   const [strategy, setStrategy] = useState('avalanche');
@@ -417,7 +446,8 @@ export default function DebtStep() {
         isEditing={sheet.isEditing}
         title="deuda"
         hint="El concepto y el saldo son obligatorios."
-        canSave={(draft.name || '').trim() !== '' && draft.balance > 0}
+        canSave={(draft.name || '').trim() !== '' && draft.balance > 0
+          && (!isTermMode || draft.termMonths > 0)}
         saveLabel="Agregar deuda"
       >
         <Field label="Concepto">
@@ -446,47 +476,129 @@ export default function DebtStep() {
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-          <SuggestedField
-            label="Tasa anual"
-            help="Tasa de interés anual efectiva (CAT) del crédito."
-            suggested={suggestedRate}
-            format={fmtPct}
-            note="Promedio de mercado para este tipo de crédito."
-            chipLabel="Sugerida"
-            isManual={rateIsManual}
-            onUseManual={() => setRateOverride(true)}
-            onUseSuggested={() => {
-              setRateOverride(false);
-              sheet.patch({ interestRate: rateOrBlank(suggestedRate) });
-            }}
-            manualLabel="Ponerlo manualmente"
-            manualNote="Tasa escrita por ti. "
-            restoreLabel={(v) => `Usar la sugerida (${v})`}
-          >
-            {(id) => (
-              <PercentInput
-                id={id}
-                value={draft.interestRate}
-                onChange={(v) => sheet.patch({ interestRate: v })}
-              />
-            )}
-          </SuggestedField>
+        <SuggestedField
+          label="Tasa anual"
+          help="Tasa de interés anual efectiva (CAT) del crédito."
+          suggested={suggestedRate}
+          format={fmtPct}
+          note="Promedio de mercado para este tipo de crédito."
+          chipLabel="Sugerida"
+          isManual={rateIsManual}
+          onUseManual={() => setRateOverride(true)}
+          onUseSuggested={() => {
+            setRateOverride(false);
+            sheet.patch({ interestRate: rateOrBlank(suggestedRate) });
+          }}
+          manualLabel="Ponerlo manualmente"
+          manualNote="Tasa escrita por ti. "
+          restoreLabel={(v) => `Usar la sugerida (${v})`}
+        >
+          {(id) => (
+            <PercentInput
+              id={id}
+              value={draft.interestRate}
+              onChange={(v) => sheet.patch({ interestRate: v })}
+            />
+          )}
+        </SuggestedField>
 
-          <Field label="Pago mínimo">
-            <MoneyInput
-              value={draft.minPayment}
-              onChange={(v) => sheet.patch({ minPayment: v })}
+        {/*
+          Aviso de precisión. Mientras la tasa sea la sugerida (verde), se advierte que es
+          un promedio y no la tasa exacta del contrato: con ella el pago y los meses salen
+          aproximados. Al escribir la tasa real, el aviso desaparece — el cálculo pasa a ser
+          el de su crédito.
+        */}
+        {usingSuggestedRate && (
+          <div className="-mt-1 flex items-start gap-2 rounded-xl border border-amber-500/25
+                          bg-amber-500/[0.07] p-2.5 text-[11px] leading-relaxed text-amber-200/90"
+          >
+            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
+            <span>
+              Esta tasa es un <span className="font-semibold">promedio estimado</span>, no es
+              100% precisa. Para un cálculo exacto, usa la tasa real de tu contrato.
+            </span>
+          </div>
+        )}
+
+        {/*
+          Cómo se captura la deuda. La tarjeta no lo muestra: es revolvente, no tiene plazo
+          fijo, así que siempre va por pago.
+        */}
+        {!isCard && (
+          <Field
+            label="¿Cómo quieres capturarla?"
+            hint={isTermMode
+              ? 'Pones el plazo de tu crédito y calculamos tu mensualidad.'
+              : 'Pones tu pago mensual y calculamos en cuánto la liquidas.'}
+          >
+            <SegmentedControl
+              className="flex w-full"
+              value={captureMode}
+              onChange={(mode) => sheet.patch({ captureMode: mode })}
+              options={[
+                { value: 'term', label: 'Por plazo' },
+                { value: 'payment', label: 'Por pago mensual' },
+              ]}
             />
           </Field>
-        </div>
+        )}
 
-        <Field label="Pago real" hint="Lo que efectivamente pagas">
-          <MoneyInput
-            value={draft.actualPayment}
-            onChange={(v) => sheet.patch({ actualPayment: v })}
-          />
-        </Field>
+        {isTermMode ? (
+          <>
+            <Field label="Plazo del crédito">
+              <div className="flex items-stretch gap-2">
+                <div className="flex-1">
+                  <NumberInput
+                    value={termUnit === 'years'
+                      ? Math.round((draft.termMonths / 12) * 10) / 10
+                      : draft.termMonths}
+                    onChange={(v) => sheet.patch({
+                      termMonths: termUnit === 'years' ? Math.round(v * 12) : Math.round(v),
+                    })}
+                    min={1}
+                    suffix={termUnit === 'years' ? 'años' : 'meses'}
+                  />
+                </div>
+                <SegmentedControl
+                  value={termUnit}
+                  onChange={setTermUnit}
+                  options={[
+                    { value: 'years', label: 'Años' },
+                    { value: 'months', label: 'Meses' },
+                  ]}
+                />
+              </div>
+            </Field>
+
+            {/* Mensualidad calculada, afirmada en verde: es su pago real, del motor. */}
+            <div className="flex items-center justify-between rounded-xl border border-dashed
+                            border-emerald-500/40 bg-emerald-500/[0.07] px-3.5 py-3"
+            >
+              <span className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/80">
+                Tu pago mensual
+              </span>
+              <span className="text-base font-bold tabular-nums text-emerald-300">
+                {draft.balance > 0 && draft.termMonths > 0 ? `${fmtMXN(termPayment)}/mes` : '—'}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <Field label="Pago mínimo">
+              <MoneyInput
+                value={draft.minPayment}
+                onChange={(v) => sheet.patch({ minPayment: v })}
+              />
+            </Field>
+
+            <Field label="Pago real" hint="Lo que efectivamente pagas">
+              <MoneyInput
+                value={draft.actualPayment}
+                onChange={(v) => sheet.patch({ actualPayment: v })}
+              />
+            </Field>
+          </div>
+        )}
 
         {isCard && (
           <Field label="Línea de crédito" help="Necesaria para calcular tu porcentaje de utilización.">

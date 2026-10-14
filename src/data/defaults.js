@@ -124,9 +124,21 @@ export function createDebt(overrides = {}) {
     // La tasa acompaña al tipo: un préstamo personal abre en su promedio de mercado,
     // no en cero. Igual que los activos con `annualReturn`.
     interestRate: rateOrBlank(rateForDebtType('personal')),
+    /*
+      Cómo se captura esta deuda:
+      - 'term'    → la persona pone el PLAZO del banco (termMonths) y el motor calcula la
+                     mensualidad exacta. Es el modo de los créditos de pago fijo.
+      - 'payment' → la persona pone su PAGO mensual y el motor deduce el plazo. Es el modo
+                     de las tarjetas (revolventes, sin plazo fijo).
+      Un préstamo personal abre en 'term'. Las deudas guardadas antes de este campo no lo
+      tienen; el motor las trata como 'payment' para no mover ningún diagnóstico viejo.
+    */
+    captureMode: 'term',
     minPayment: 0,
     actualPayment: 0,
-    termMonths: 0,
+    // Plazo restante del crédito, en meses. Lo usa el modo 'term'. 60 meses (5 años) es
+    // un plazo típico de un préstamo o un auto, un punto de partida razonable.
+    termMonths: 60,
     creditLimit: 0,
     linkedAsset: '',
     ...overrides,

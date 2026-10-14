@@ -4,7 +4,9 @@
  * El servicio de deuda usa el pago REAL (actualPayment), con el pago mínimo
  * como piso. Liquidar una deuda libera su pago del flujo de inmediato.
  */
-import { num, safeDiv, toMonthlyRate, payoffMonths, totalInterest } from './utils.js';
+import {
+  num, safeDiv, toMonthlyRate, payoffMonths, totalInterest, paymentForTerm,
+} from './utils.js';
 
 export const DEBT_TYPES = [
   { value: 'mortgage', label: 'Hipoteca' },
@@ -29,13 +31,35 @@ export function analyzeDebt(debt) {
   const annualRate = num(debt.interestRate);
   const monthlyRate = toMonthlyRate(annualRate);
   const minPayment = Math.max(0, num(debt.minPayment));
-  // El pago real nunca puede ser menor al mínimo declarado.
-  const payment = Math.max(minPayment, num(debt.actualPayment));
+
+  /*
+    De dónde sale la mensualidad depende de cómo se capturó la deuda:
+
+    - 'term'  → crédito de pago fijo. La persona dio el PLAZO del banco (termMonths) y la
+                 mensualidad es la que de verdad liquida el saldo en ese plazo a esa tasa:
+                 la misma fórmula de la tabla de amortización del banco. Así la deuda que
+                 ve el prospecto es la suya, no una aproximación de un pago redondeado.
+    - otro    → tarjeta o deuda vieja sin este campo. Se usa el PAGO declarado (real, con
+                 el mínimo como piso) y el plazo se deduce. Comportamiento de siempre.
+  */
+  const termMonths = Math.max(0, Math.floor(num(debt.termMonths)));
+  const isTermBased = debt.captureMode === 'term' && termMonths > 0;
+
+  const payment = isTermBased
+    ? paymentForTerm(balance, monthlyRate, termMonths)
+    // El pago real nunca puede ser menor al mínimo declarado.
+    : Math.max(minPayment, num(debt.actualPayment));
 
   const monthlyInterest = balance * monthlyRate;
   const principalPortion = Math.max(0, payment - monthlyInterest);
-  const months = payoffMonths(balance, monthlyRate, payment);
-  const interestCost = totalInterest(balance, monthlyRate, payment);
+  /*
+    En modo plazo el número de meses es el que capturó la persona, por definición: el pago
+    se calculó justo para liquidar en ese plazo. En modo pago se deduce de la fórmula.
+  */
+  const months = isTermBased ? termMonths : payoffMonths(balance, monthlyRate, payment);
+  const interestCost = isTermBased
+    ? Math.max(0, payment * termMonths - balance)
+    : totalInterest(balance, monthlyRate, payment);
 
   const isCreditCard = debt.type === 'credit_card';
   const creditLimit = num(debt.creditLimit);
