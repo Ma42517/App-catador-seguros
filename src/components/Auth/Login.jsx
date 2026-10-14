@@ -72,17 +72,26 @@ const DEPTH_LOOK = [
  * difumina, se apaga y sube— en lugar de borrarse de golpe, y las del medio se
  * recorren con `layout` para que todo se mueva en bloque, suave.
  */
-function MotivationCascade({ colorClass, accentColor }) {
+function MotivationCascade({ colorClass, accentColor, onComplete }) {
   const [lines, setLines] = useState([{ id: 0, text: MOTIVATION[0] }]);
 
   const advance = useCallback(() => {
     setLines((prev) => {
-      const nextId = prev[prev.length - 1].id + 1;
-      // Al llegar a la última frase, se queda ahí: no se agrega nada más.
-      if (nextId >= MOTIVATION.length) return prev;
+      const lastId = prev[prev.length - 1].id;
+      const nextId = lastId + 1;
+      /*
+        La última frase de la cascada es la ANTERIOR al eslogan: al terminarla se
+        avisa (onComplete) para que la pantalla pase al cierre —logo + eslogan
+        centrados—, en vez de escribir aquí "Multiplica tus posibilidades". Ese
+        eslogan vive en el cierre, no en la cascada.
+      */
+      if (nextId >= MOTIVATION.length - 1) {
+        onComplete?.();
+        return prev;
+      }
       return [...prev, { id: nextId, text: MOTIVATION[nextId] }].slice(-STACK);
     });
-  }, []);
+  }, [onComplete]);
 
   return (
     <div className="flex h-[7.5rem] flex-col items-center justify-end gap-2 overflow-visible">
@@ -182,6 +191,13 @@ export default function Login() {
   const t = themeFor(readAppTheme());
   const isDark = t.value === 'dark';
 
+  /*
+    `revealed` = ya terminó la intro (la cascada de frases) y se mostró el cierre:
+    logo + eslogan al centro y los botones de acceso. Mientras es false, sólo corren
+    las frases, sin logo ni botones —es la "obertura"—.
+  */
+  const [revealed, setRevealed] = useState(false);
+
   // 'choice' = pantalla limpia con los dos botones. 'email' = formulario revelado.
   const [view, setView] = useState('choice');
   const [mode, setMode] = useState('signIn');
@@ -278,16 +294,64 @@ export default function Login() {
         aria-hidden="true"
       />
 
-      {/* ── Encabezado: logo + cascada motivacional ── */}
-      <div className="relative mx-auto mt-12 flex w-full max-w-sm flex-col items-center">
-        <ExpandiaMark theme={t.value} size="text-5xl" />
-        <div className="mt-8 w-full">
-          <MotivationCascade colorClass={t.text} accentColor={t.accent} />
-        </div>
-      </div>
+      {/*
+        ── Obertura ──
+        Mientras no se ha revelado, la pantalla es sólo la cascada de frases,
+        centrada en medio: sin logo y sin botones. Al terminar la última frase,
+        `onComplete` revela el cierre.
+      */}
+      {!revealed && (
+        <motion.div
+          key="overture"
+          exit={{ opacity: 0 }}
+          className="relative mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center"
+        >
+          <MotivationCascade
+            colorClass={t.text}
+            accentColor={t.accent}
+            onComplete={() => setRevealed(true)}
+          />
+        </motion.div>
+      )}
 
-      {/* ── Parte inferior: botones o formulario ── */}
-      <div className="relative mx-auto flex w-full max-w-sm flex-1 flex-col justify-end pb-2">
+      {/*
+        ── Cierre ──
+        Ya revelado: el bloque logo + eslogan, centrado en medio de la pantalla
+        (logo arriba, eslogan debajo, acomodados juntos), y abajo los accesos.
+      */}
+      {revealed && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="relative mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <ExpandiaMark theme={t.value} size="text-5xl sm:text-6xl" />
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className={`mt-4 text-center font-display text-xl italic sm:text-2xl ${t.text}`}
+          >
+            Multiplica tus posibilidades.
+          </motion.p>
+        </motion.div>
+      )}
+
+      {/* ── Parte inferior: botones o formulario (sólo tras el cierre) ── */}
+      {revealed && (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55, duration: 0.5 }}
+        className="relative mx-auto flex w-full max-w-sm flex-col justify-end pb-2"
+      >
         <AnimatePresence mode="wait">
           {view === 'choice' ? (
             <motion.div
@@ -485,7 +549,8 @@ export default function Login() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
+      )}
     </div>
   );
 }
