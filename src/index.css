@@ -981,3 +981,96 @@ html.theme-cream .df360-shell .dark\:text-zinc-200 { color: #231F1B; }
   solos. Aquí se completó lo que faltaba: fondo, textos zinc, bordes, inputs y
   las superficies (porque el `.dark` del shell activaba su variante oscura).
 */
+
+/*
+  ══════════════════════════════════════════════════════════════════════════════
+  DIAGNÓSTICO 360 — contraste de BADGES, SEMÁFOROS y recuadros de color (crema)
+  ══════════════════════════════════════════════════════════════════════════════
+  Regla de oro: NUNCA recuadro de un color con texto del mismo tono. Los badges
+  del módulo (`ui/Badge.jsx`) y muchos avisos usan `bg-X-500/10` + `text-X-300`
+  —pensado para fondo negro, donde el texto claro luce—; sobre crema el fondo
+  tenue y el texto claro quedan casi del mismo color (verde/verde, rojo/rojo,
+  amarillo ilegible). Aquí, por cada familia, el fondo queda CLARO del matiz y el
+  texto en un tono OSCURO del mismo matiz, con alto contraste.
+
+  Verde  → fondo salvia #E6F0EC · texto verde bosque #14532D
+  Ámbar  → fondo #FDEFC8      · texto cobre oscuro  #92400E
+  Rojo   → fondo #FBE0E0      · texto rojo vino      #B91C1C
+  (El índigo/violeta ya migra a verde globalmente; aquí se refuerza su contraste.)
+*/
+
+/* ── Fondos tenues de color → fondos claros del matiz ── */
+html.theme-cream .df360-shell .bg-emerald-500\/10,
+html.theme-cream .df360-shell .bg-emerald-500\/15,
+html.theme-cream .df360-shell .bg-emerald-500\/20,
+html.theme-cream .df360-shell .bg-indigo-500\/10,
+html.theme-cream .df360-shell .bg-indigo-500\/15,
+html.theme-cream .df360-shell .bg-indigo-500\/20,
+html.theme-cream .df360-shell .bg-violet-500\/15 { background-color: #E6F0EC; }
+html.theme-cream .df360-shell .bg-amber-500\/10,
+html.theme-cream .df360-shell .bg-amber-500\/15 { background-color: #FDEFC8; }
+html.theme-cream .df360-shell .bg-rose-500\/10,
+html.theme-cream .df360-shell .bg-rose-500\/15 { background-color: #FBE0E0; }
+
+/* ── Textos de color claros → tonos OSCUROS del mismo matiz (contraste) ── */
+html.theme-cream .df360-shell .text-emerald-200,
+html.theme-cream .df360-shell .text-emerald-300,
+html.theme-cream .df360-shell .text-emerald-400,
+html.theme-cream .df360-shell .text-indigo-200,
+html.theme-cream .df360-shell .text-indigo-300,
+html.theme-cream .df360-shell .text-indigo-400,
+html.theme-cream .df360-shell .text-violet-200,
+html.theme-cream .df360-shell .text-violet-300,
+html.theme-cream .df360-shell .text-violet-400 { color: #14532D; }
+html.theme-cream .df360-shell .text-amber-200,
+html.theme-cream .df360-shell .text-amber-300,
+html.theme-cream .df360-shell .text-amber-300\/80,
+html.theme-cream .df360-shell .text-amber-400 { color: #92400E; }
+html.theme-cream .df360-shell .text-rose-200,
+html.theme-cream .df360-shell .text-rose-300,
+html.theme-cream .df360-shell .text-rose-400,
+html.theme-cream .df360-shell .text-rose-400\/80,
+html.theme-cream .df360-shell .text-rose-500 { color: #B91C1C; }
+
+/* ── Rings/bordes de color → tono medio del matiz, visibles sobre crema ── */
+html.theme-cream .df360-shell .ring-emerald-500\/25,
+html.theme-cream .df360-shell .ring-emerald-500\/30,
+html.theme-cream .df360-shell .border-emerald-500\/30,
+html.theme-cream .df360-shell .border-emerald-500\/40,
+html.theme-cream .df360-shell .ring-indigo-500\/25,
+html.theme-cream .df360-shell .border-indigo-500\/30,
+html.theme-cream .df360-shell .border-indigo-500\/40,
+html.theme-cream .df360-shell .border-indigo-500\/50,
+html.theme-cream .df360-shell .ring-violet-500\/30 { --tw-ring-color: rgba(27,67,50,0.35); border-color: rgba(27,67,50,0.35); }
+html.theme-cream .df360-shell .ring-amber-500\/25,
+html.theme-cream .df360-shell .ring-amber-500\/30,
+html.theme-cream .df360-shell .border-amber-500\/25,
+html.theme-cream .df360-shell .border-amber-500\/30 { --tw-ring-color: rgba(146,64,14,0.3); border-color: rgba(146,64,14,0.3); }
+html.theme-cream .df360-shell .ring-rose-500\/25,
+html.theme-cream .df360-shell .ring-rose-500\/30,
+html.theme-cream .df360-shell .border-rose-500\/30 { --tw-ring-color: rgba(185,28,28,0.3); border-color: rgba(185,28,28,0.3); }
+
+/*
+  ── Pestañas del stepper (StepWizard) ──
+  La pestaña ACTIVA usa `bg-indigo-600 text-white`; como el índigo migra a verde
+  bosque y el shell es claro, el texto blanco sobre verde bosque se mantiene
+  (alto contraste, correcto). Pero las pestañas "hechas"/inactivas usaban
+  `bg-zinc-900 text-indigo-300`/`text-zinc-500` → ya cubiertas arriba. Se refuerza
+  que la activa conserve texto marfil sobre el verde.
+*/
+html.theme-cream .df360-shell .bg-indigo-600 { background-color: #1B4332; }
+html.theme-cream .df360-shell .bg-indigo-600 .text-white,
+html.theme-cream .df360-shell .bg-indigo-600.text-white,
+html.theme-cream .df360-shell .bg-indigo-600 > .text-white { color: #FFFDF9; }
+/* El punto/badge interno de la pestaña activa (bg-white/25) y su texto. */
+html.theme-cream .df360-shell .bg-white\/25 { background-color: rgba(255,253,249,0.25); }
+
+/*
+  ── Barra superior "Diagnóstico Financiero" (Header) ──
+  La columna/encabezado quedaba negra con texto gris. El shell ya es crema; se
+  asegura que el encabezado tome el marfil y su texto el expreso para que el
+  título y el stepper del header se distingan.
+*/
+html.theme-cream .df360-shell header .text-zinc-300,
+html.theme-cream .df360-shell header .text-zinc-400 { color: #5C5346; }
+html.theme-cream .df360-shell header .text-white { color: #231F1B; }
