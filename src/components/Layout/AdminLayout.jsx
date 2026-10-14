@@ -380,6 +380,18 @@ export default function AdminLayout({
         onOpenProfile={() => { setMoreOpen(false); setProfileOpen(true); }}
         onOpenCard={() => { setMoreOpen(false); setCardOpen(true); }}
         onOpenSettings={() => { setMoreOpen(false); setSettingsOpen(true); }}
+        /*
+          "Ver tutorial de nuevo": cierra el menú, navega a "Hoy" y avisa por un
+          evento de ventana para que `TodayView` relance el tour desde cero —da
+          igual que el perfil ya lo tenga marcado como visto, el relanzamiento es
+          una acción explícita de la persona—.
+        */
+        onReplayTutorial={() => {
+          setMoreOpen(false);
+          goTo('home');
+          // El evento se emite tras el cambio de sección, ya montado TodayView.
+          setTimeout(() => window.dispatchEvent(new Event('expandia:replay-tour')), 60);
+        }}
         onOpenAdmin={() => { setMoreOpen(false); setAdminOpen(true); }}
         onOpenApprovals={() => { setMoreOpen(false); setApprovalsOpen(true); }}
         onLogout={onLogout}

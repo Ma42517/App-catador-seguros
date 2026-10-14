@@ -196,6 +196,7 @@ export default function AISequence({
         <p className="sr-only">{smartText ?? text}</p>
 
         <p
+          data-tour="hoy-step-3"
           className="max-w-md text-center text-xl font-light text-zinc-800 dark:text-white"
           aria-hidden="true"
         >

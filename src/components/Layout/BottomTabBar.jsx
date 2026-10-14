@@ -230,6 +230,7 @@ export default function BottomTabBar({
         {/* ── Capa 2: el botón de Agregar, encajado en el hueco ── */}
         <button
           type="button"
+          data-tour="hoy-step-1"
           onClick={withTap(onAdd)}
           aria-label="Agregar"
           /*

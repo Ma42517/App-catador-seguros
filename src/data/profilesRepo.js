@@ -190,6 +190,13 @@ function fromRow(row) {
       cuestionario pendiente.
     */
     advisorProfileData: row.advisor_profile_data ?? null,
+
+    /*
+      ¿Ya vio el tutorial de la pestaña "Hoy"? Columna opcional: `false` cuando
+      la migración no corrió o cuando de verdad no lo ha visto —ambos casos se
+      tratan igual (se le muestra el tutorial), que es el comportamiento seguro—.
+    */
+    tutorialHoySeen: row.tutorial_hoy_seen ?? false,
   };
 }
 
@@ -515,6 +522,34 @@ export async function saveExperienceLevel(userId, level) {
 
   if (error) {
     if (isMissingColumn(error, 'experience_level')) return { data: null, error: null };
+    return { data: null, error };
+  }
+  return { data: data ? fromRow(data) : null, error: null };
+}
+
+/**
+ * Marca que esta persona ya vio el tutorial de la pestaña "Hoy", para que no le
+ * vuelva a salir aunque abra sesión en otro dispositivo.
+ *
+ * `tutorial_hoy_seen` es una columna opcional, igual que `experience_level`: si
+ * la migración todavía no corrió, la escritura falla en silencio y la app sigue
+ * apoyándose en la memoria local (`tutorialHoy.js`). El peor caso es que el tour
+ * reaparezca en otro dispositivo, no un error visible.
+ */
+export async function saveTutorialHoySeen(userId) {
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: { message: 'Supabase no está configurado.' } };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ tutorial_hoy_seen: true })
+    .eq('id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingColumn(error, 'tutorial_hoy_seen')) return { data: null, error: null };
     return { data: null, error };
   }
   return { data: data ? fromRow(data) : null, error: null };

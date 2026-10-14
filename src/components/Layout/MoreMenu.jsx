@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, ChevronDown, X, MonitorSmartphone,
   StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard, ShieldCheck,
-  Users, FlaskConical, Ticket,
+  Users, FlaskConical, Ticket, GraduationCap,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import { DASHBOARD_VERSIONS, useDashboardVersion } from '../../context/dashboardVersion';
@@ -267,8 +267,8 @@ function CardAvatar({ url }) {
  */
 export default function MoreMenu({
   open, onClose, onOpenDiagnostico, onOpenDiagnosticoDirect, onOpenVipPasses, onOpenPreview,
-  onOpenNotes, onOpenProfile, onOpenSettings, onOpenAdmin, onOpenApprovals, onOpenCard,
-  onLogout, onLoadDemo,
+  onOpenNotes, onOpenProfile, onOpenSettings, onReplayTutorial, onOpenAdmin, onOpenApprovals,
+  onOpenCard, onLogout, onLoadDemo,
   onClearAgenda, canUsePreview = false, isAdminUser = false, isPromoterUser = false,
   onOpenPromotoria, pendingCount = 0,
 }) {
@@ -526,6 +526,8 @@ export default function MoreMenu({
           <SectionCard>
             <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
             <MenuRow icon={Settings} label="Configuración" onClick={onOpenSettings} />
+            {/* Re-lanza el mini-tutorial de la pestaña Hoy desde cero. */}
+            <MenuRow icon={GraduationCap} label="Ver tutorial de nuevo" onClick={onReplayTutorial} />
           </SectionCard>
 
           {/*

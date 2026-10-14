@@ -19,6 +19,7 @@ export default function DailyGoalBar({ puntosActuales = 0 }) {
 
   return (
     <div
+      data-tour="hoy-step-2"
       role="status"
       aria-label={`Objetivo diario: ${displayPoints} de ${DAILY_POINTS_GOAL} puntos`}
     >

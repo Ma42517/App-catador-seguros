@@ -131,6 +131,10 @@ function identityFromProfile(profile) {
       consulta que ya resolvió `SessionContext` al entrar.
     */
     advisorProfileData: profile.advisorProfileData ?? null,
+
+    // ¿Ya vio el tutorial de "Hoy"? Lo lee `TodayView` para no repetirlo en
+    // otro dispositivo (la memoria local sólo cubre este navegador).
+    tutorialHoySeen: profile.tutorialHoySeen ?? false,
   };
 }
 
