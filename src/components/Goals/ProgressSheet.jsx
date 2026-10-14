@@ -51,7 +51,7 @@ export default function ProgressSheet({ isOpen, onClose, goal, onSubmit }) {
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} label="Registrar avance">
+    <BottomSheet isOpen={isOpen} onClose={onClose} label="Registrar avance" zIndexClass="z-[80]">
       <div className="mb-1 flex items-center gap-2">
         <TrendingUp size={16} className="text-amber-500" aria-hidden="true" />
         <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Registrar avance</h2>

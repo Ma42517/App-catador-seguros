@@ -179,7 +179,7 @@ export default function GoalFormSheet({ isOpen, onClose, onSubmit, goal }) {
   const metric = metricOf(form.metric);
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} label={isEdit ? 'Editar meta' : 'Nueva meta'}>
+    <BottomSheet isOpen={isOpen} onClose={onClose} label={isEdit ? 'Editar meta' : 'Nueva meta'} zIndexClass="z-[80]">
       <h2 className="mb-5 text-lg font-bold text-zinc-900 dark:text-white">
         {isEdit ? 'Editar meta' : 'Nueva meta'}
       </h2>
