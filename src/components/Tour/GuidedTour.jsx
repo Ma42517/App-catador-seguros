@@ -196,6 +196,18 @@ export default function GuidedTour({
   };
 
   /*
+    ¿El elemento es casi cuadrado (como el botón "+")? Entonces el recorte es
+    circular, no un rectángulo con esquinas: así el halo abraza el botón redondo
+    en lugar de encajonarlo. El radio se calcula para cubrir el elemento + aire.
+  */
+  const isRound = Math.abs(rect.width - rect.height) < 12;
+  const holeRadius = isRound ? '9999px' : '20px';
+  // Centro y radio del resplandor difuso que rodea el elemento.
+  const glowCx = hole.left + hole.width / 2;
+  const glowCy = hole.top + hole.height / 2;
+  const glowR = Math.max(hole.width, hole.height) / 2 + 46;
+
+  /*
     Posición de la tarjeta: debajo del elemento si cabe, si no arriba. Centrada
     horizontalmente respecto al elemento pero sin salirse de los bordes. Si no
     se encontró el elemento, la tarjeta se centra en la pantalla (respaldo).
@@ -231,21 +243,45 @@ export default function GuidedTour({
       aria-label={`Tutorial, paso ${index + 1} de ${total}`}
     >
       {/*
-        Capa que oscurece y recorta: un rectángulo sobre el elemento con una
-        sombra gigante que tapa todo MENOS ese hueco, más el aro verde. Hace
-        fade-in suave al aparecer. Tocar fuera de la tarjeta avanza el tour.
+        Capa que oscurece y recorta: una caja sobre el elemento con una sombra
+        gigante que tapa todo MENOS ese hueco. El hueco es circular si el
+        elemento es redondo (botón "+") o de esquinas suaves si es rectangular.
+        Sin aro/borde duro: el resplandor lo pone la capa de abajo. Hace fade-in
+        suave. Tocar fuera de la tarjeta avanza el tour.
       */}
       <div
         aria-hidden="true"
         onClick={next}
-        className="absolute rounded-2xl transition-all duration-500 ease-out"
+        className="absolute transition-all duration-500 ease-out"
         style={{
           top: hole.top,
           left: hole.left,
           width: hole.width,
           height: hole.height,
+          borderRadius: holeRadius,
           opacity: on ? 1 : 0,
-          boxShadow: '0 0 0 9999px rgba(0,0,0,0.62), 0 0 0 3px rgba(27,67,50,0.9), 0 0 24px 6px rgba(27,67,50,0.55)',
+          boxShadow: '0 0 0 9999px rgba(0,0,0,0.62)',
+        }}
+      />
+
+      {/*
+        Resplandor difuso alrededor del elemento: una luz radial clara que se
+        desvanece hacia afuera, SIN bordes duros —el efecto suave de la
+        referencia—. Va encima del oscurecimiento y no intercepta toques
+        (`pointer-events-none`). El `blur` remata el degradado para que no quede
+        ningún filo del círculo.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute rounded-full transition-opacity duration-500 ease-out"
+        style={{
+          top: glowCy - glowR,
+          left: glowCx - glowR,
+          width: glowR * 2,
+          height: glowR * 2,
+          opacity: on ? 1 : 0,
+          background: 'radial-gradient(circle, rgba(255,253,249,0.55) 30%, rgba(190,242,210,0.28) 55%, transparent 72%)',
+          filter: 'blur(6px)',
         }}
       />
 
