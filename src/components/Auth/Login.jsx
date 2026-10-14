@@ -62,17 +62,27 @@ function MotivationCascade({ colorClass, accentColor }) {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className={`text-center font-light leading-snug ${colorClass} ${fade[h.depth] ?? fade[2]}`}
+            className={`max-w-[18rem] text-center font-light leading-snug ${colorClass}
+                        ${fade[h.depth] ?? fade[2]}`}
           >
             {h.text}
           </motion.p>
         ))}
       </AnimatePresence>
 
-      <p className={`text-center text-xl font-light leading-snug ${colorClass}`}>
-        {typed}
-        {isTyping && <span style={{ color: accentColor }} className="animate-pulse">|</span>}
-      </p>
+      {/*
+        La frase viva reserva de antemano el alto de DOS renglones (`min-h`) y se
+        alinea abajo: así, cuando una frase larga pasa de una línea a dos a mitad de
+        la escritura, el bloque no crece de golpe ni empuja al resto —el salto que se
+        veía justo en "Tu esfuerzo de hoy, tu libertad de mañana."—. El ancho fijo
+        hace que el reparto en líneas sea estable, no dependiente de cada letra.
+      */}
+      <div className="flex min-h-[3.5rem] w-[18rem] items-end justify-center">
+        <p className={`text-center text-xl font-light leading-snug ${colorClass}`}>
+          {typed}
+          {isTyping && <span style={{ color: accentColor }} className="animate-pulse">|</span>}
+        </p>
+      </div>
     </div>
   );
 }
