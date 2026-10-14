@@ -344,12 +344,11 @@ export default function Login() {
         </motion.div>
       )}
 
-      {/* ── Parte inferior: botones o formulario (sólo tras el cierre) ── */}
-      {revealed && (
+      {/* ── Parte inferior: botones o formulario (siempre presentes) ── */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55, duration: 0.5 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
         className="relative mx-auto flex w-full max-w-sm flex-col justify-end pb-2"
       >
         <AnimatePresence mode="wait">
@@ -550,7 +549,6 @@ export default function Login() {
           )}
         </AnimatePresence>
       </motion.div>
-      )}
     </div>
   );
 }
