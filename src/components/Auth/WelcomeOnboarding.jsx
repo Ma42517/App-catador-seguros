@@ -190,9 +190,9 @@ export default function WelcomeOnboarding({ onFinish }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.68, duration: 0.5 }}
             whileTap={{ scale: 0.95 }}
-            style={{ backgroundColor: t.accent }}
+            style={{ backgroundColor: t.accent, color: t.onAccent }}
             className="mt-9 flex items-center gap-2 rounded-full px-10 py-3.5 text-base
-                       font-bold text-[#0B1A30] shadow-lg transition-transform
+                       font-bold shadow-lg transition-transform
                        hover:brightness-105"
           >
             Comenzar
@@ -268,8 +268,8 @@ export default function WelcomeOnboarding({ onFinish }) {
           <button
             type="button"
             onClick={finish}
-            style={{ backgroundColor: t.accent }}
-            className="mt-10 rounded-full px-10 py-3.5 text-base font-bold text-[#0B1A30]
+            style={{ backgroundColor: t.accent, color: t.onAccent }}
+            className="mt-10 rounded-full px-10 py-3.5 text-base font-bold
                        shadow-lg transition-transform hover:brightness-105 active:scale-95"
           >
             Continuar
@@ -332,8 +332,8 @@ function ThemeChooser({ theme, onChoose, onContinue, activeTheme }) {
       <button
         type="button"
         onClick={onContinue}
-        style={{ backgroundColor: activeTheme.accent }}
-        className="rounded-full px-10 py-3 text-base font-bold text-[#0B1A30]
+        style={{ backgroundColor: activeTheme.accent, color: activeTheme.onAccent }}
+        className="rounded-full px-10 py-3 text-base font-bold
                    shadow-lg transition-transform hover:brightness-105 active:scale-95"
       >
         Continuar
@@ -379,8 +379,8 @@ function SizeChooser({ size, onChoose, onContinue, activeTheme }) {
       <button
         type="button"
         onClick={onContinue}
-        style={{ backgroundColor: activeTheme.accent }}
-        className="rounded-full px-10 py-3 text-base font-bold text-[#0B1A30]
+        style={{ backgroundColor: activeTheme.accent, color: activeTheme.onAccent }}
+        className="rounded-full px-10 py-3 text-base font-bold
                    shadow-lg transition-transform hover:brightness-105 active:scale-95"
       >
         Continuar

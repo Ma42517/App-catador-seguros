@@ -31,6 +31,20 @@ export const BRAND = {
   blue: '#2563EB',
 };
 
+/*
+  Color de los botones por tema. El cyan brillante sólo luce sobre el negro; sobre
+  blanco o crema se ve chillante y no combina. Por eso cada tema usa un botón que
+  armoniza con su fondo, con su propio color de texto encima:
+    - negro  → cyan brillante, texto navy (destaca sobre el fondo oscuro)
+    - blanco → navy profundo, texto blanco (sobrio, elegante sobre blanco)
+    - crema  → navy de marca, texto crema (combina con el beige)
+*/
+const THEME_BUTTON = {
+  dark: { accent: '#38BDF8', onAccent: '#0B1A30' },
+  light: { accent: '#0B1A30', onAccent: '#FFFFFF' },
+  cream: { accent: '#0B1A30', onAccent: '#F5EFE6' },
+};
+
 /**
  * Los tres temas ofrecidos. `swatch` es el color del círculo selector. `accent`
  * es la chispa/acento de ese tema (botones, detalles). Los campos de clase
@@ -43,7 +57,8 @@ export const APP_THEMES = [
     value: 'dark',
     label: 'Negro',
     swatch: BRAND.carbon,
-    accent: BRAND.cyan,
+    accent: THEME_BUTTON.dark.accent,
+    onAccent: THEME_BUTTON.dark.onAccent,
     ring: 'ring-white/40',
     bg: 'text-[#F5EFE6]',
     bgStyle: { backgroundColor: BRAND.carbon },
@@ -59,7 +74,8 @@ export const APP_THEMES = [
     value: 'light',
     label: 'Blanco',
     swatch: BRAND.white,
-    accent: BRAND.cyan,
+    accent: THEME_BUTTON.light.accent,
+    onAccent: THEME_BUTTON.light.onAccent,
     ring: 'ring-zinc-900/40',
     bg: 'text-[#0F172A]',
     bgStyle: { backgroundColor: BRAND.white },
@@ -75,7 +91,8 @@ export const APP_THEMES = [
     value: 'cream',
     label: 'Crema',
     swatch: BRAND.cream,
-    accent: BRAND.blue,
+    accent: THEME_BUTTON.cream.accent,
+    onAccent: THEME_BUTTON.cream.onAccent,
     ring: 'ring-[#0B1A30]/35',
     bg: 'text-[#0B1A30]',
     bgStyle: { backgroundColor: BRAND.cream },

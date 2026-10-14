@@ -2350,7 +2350,7 @@ export default function FirstLoginIntro({
         '--ob-emphasis': pal.emphasis,
         // Acento del tema para los botones (cyan/azul), con texto navy encima.
         '--ob-accent': theme.accent,
-        '--ob-on-accent': '#0B1A30',
+        '--ob-on-accent': theme.onAccent,
       }}
       role="dialog"
       aria-modal="true"

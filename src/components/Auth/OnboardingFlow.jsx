@@ -326,9 +326,9 @@ function NameStep({ initialValue, onContinue }) {
         <button
           type="submit"
           disabled={!isValid}
-          className="mt-8 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
-                     font-semibold text-[color:var(--ob-text)] shadow-lg shadow-indigo-600/30
-                     transition-all hover:bg-indigo-500 active:scale-95
+          className="mt-8 w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm
+                     font-semibold text-[color:var(--ob-on-accent)] shadow-lg
+                     transition-all hover:brightness-105 active:scale-95
                      disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
                      disabled:text-[color:var(--ob-faint)] disabled:shadow-none"
         >
@@ -626,9 +626,9 @@ function HourGridStep({
           type="button"
           onClick={() => onContinue(selected)}
           disabled={selected.length === 0}
-          className="w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
-                     font-semibold text-[color:var(--ob-text)] shadow-lg shadow-indigo-600/30
-                     transition-all hover:bg-indigo-500 active:scale-95
+          className="w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm
+                     font-semibold text-[color:var(--ob-on-accent)] shadow-lg
+                     transition-all hover:brightness-105 active:scale-95
                      disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
                      disabled:text-[color:var(--ob-faint)] disabled:shadow-none"
         >
@@ -926,6 +926,8 @@ export default function OnboardingFlow({
         '--ob-cell': pal.cell,
         '--ob-cell-text': pal.cellText,
         '--ob-amber': pal.amber,
+        '--ob-accent': theme.accent,
+        '--ob-on-accent': theme.onAccent,
       }}
       onClick={() => setFastTyping(true)}
     >

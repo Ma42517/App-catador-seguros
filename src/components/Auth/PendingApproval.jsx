@@ -112,9 +112,9 @@ export default function PendingApproval() {
             type="button"
             onClick={check}
             disabled={isChecking}
-            style={{ backgroundColor: t.accent }}
+            style={{ backgroundColor: t.accent, color: t.onAccent }}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-full px-4 py-4
-                       text-base font-bold text-[#0B1A30] shadow-lg transition-all
+                       text-base font-bold shadow-lg transition-all
                        hover:brightness-105 active:scale-[0.98] disabled:cursor-wait
                        disabled:opacity-70"
           >
