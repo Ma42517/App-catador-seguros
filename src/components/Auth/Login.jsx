@@ -64,13 +64,13 @@ const DEPTH_LOOK = [
 ];
 
 /**
- * Hilo motivacional en cascada, continuo.
+ * Hilo motivacional en cascada, de una sola pasada.
  *
- * Cada frase lleva su propio id (no su texto), así el ciclo nunca "reinicia": al
- * volver a la primera frase simplemente entra una línea nueva abajo y la más vieja
- * sale por arriba DESVANECIÉNDOSE —se difumina, se apaga y sube— en lugar de
- * borrarse de golpe. Las del medio se recorren con `layout` para que todo se mueva
- * en bloque, suave.
+ * Recorre las frases en orden y SE DETIENE en la última ("Multiplica tus
+ * posibilidades."), que se queda fija como cierre —no vuelve a empezar el ciclo—.
+ * Cada frase lleva su propio id: la más vieja sale por arriba DESVANECIÉNDOSE —se
+ * difumina, se apaga y sube— en lugar de borrarse de golpe, y las del medio se
+ * recorren con `layout` para que todo se mueva en bloque, suave.
  */
 function MotivationCascade({ colorClass, accentColor }) {
   const [lines, setLines] = useState([{ id: 0, text: MOTIVATION[0] }]);
@@ -78,7 +78,9 @@ function MotivationCascade({ colorClass, accentColor }) {
   const advance = useCallback(() => {
     setLines((prev) => {
       const nextId = prev[prev.length - 1].id + 1;
-      return [...prev, { id: nextId, text: MOTIVATION[nextId % MOTIVATION.length] }].slice(-STACK);
+      // Al llegar a la última frase, se queda ahí: no se agrega nada más.
+      if (nextId >= MOTIVATION.length) return prev;
+      return [...prev, { id: nextId, text: MOTIVATION[nextId] }].slice(-STACK);
     });
   }, []);
 
