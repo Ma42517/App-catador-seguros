@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock, Mail, User, Loader2, AlertTriangle, MailCheck, Eye, EyeOff, ArrowRight, ArrowLeft,
@@ -185,7 +185,8 @@ function explain(error) {
  */
 export default function Login() {
   const {
-    signInWithGoogle, signInWithPassword, signUpWithPassword, googleEnabled, error: sessionError,
+    signInWithGoogle, signInWithPassword, signUpWithPassword, emailExists,
+    googleEnabled, error: sessionError,
   } = useSession();
 
   const t = themeFor(readAppTheme());
@@ -221,18 +222,39 @@ export default function Login() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [isBusy, setBusy] = useState(false);
   const [isGoogleBusy, setGoogleBusy] = useState(false);
 
+  /*
+    `autoSwitched` marca que el formulario cambió de modo SOLO (no por un toque de
+    la persona): de Login→Registro cuando el correo no existe, o de
+    Registro→Login cuando el correo ya está tomado. Mientras es true se muestra el
+    banner que explica el cambio con calidez. Un cambio manual (el enlace de
+    abajo) lo limpia, para no dejar un aviso que ya no corresponde.
+  */
+  const [autoSwitched, setAutoSwitched] = useState(false);
+  const [autoSwitchMsg, setAutoSwitchMsg] = useState('');
+
+  /*
+    Para enfocar el campo "Nombre" en cuanto el formulario se transforma en
+    registro automáticamente: así la persona sólo tiene que empezar a escribir, sin
+    buscar dónde tocar. Es la clave de "fácil para cualquiera".
+  */
+  const nameRef = useRef(null);
+
   const isSignUp = mode === 'signUp';
 
+  // Cambio MANUAL de modo (el enlace inferior): limpia el banner automático.
   const switchMode = () => {
     setMode(isSignUp ? 'signIn' : 'signUp');
     setError('');
     setNotice('');
+    setAutoSwitched(false);
+    setAutoSwitchMsg('');
   };
 
   const backToChoice = () => {
@@ -241,6 +263,16 @@ export default function Login() {
     setNotice('');
   };
 
+  /*
+    Transición amable Login → Registro.
+
+    Si al intentar entrar el correo NO está registrado, en vez de un error rojo el
+    formulario se vuelve registro solo, conservando correo y contraseña y
+    enfocando "Nombre". Se consulta `emailExists` ANTES de autenticar: si
+    devuelve `false` (no existe) se hace la transición; si devuelve `true` o
+    `null` (ya existe, o no se pudo saber) se intenta el login normal y, si falla,
+    se muestra el error de siempre —nunca se afirma "no existe" sin estar seguro—.
+  */
   const submit = async (event) => {
     event.preventDefault();
     setError('');
@@ -250,15 +282,60 @@ export default function Login() {
       setError('Escribe tu correo y tu contraseña.');
       return;
     }
-    if (isSignUp && !fullName.trim()) {
+
+    // ── Intento de INICIAR SESIÓN ──
+    if (!isSignUp) {
+      setBusy(true);
+      const exists = await emailExists(email);
+
+      // El correo no está registrado → convertir en registro, sin error rojo.
+      if (exists === false) {
+        setBusy(false);
+        setMode('signUp');
+        setAutoSwitched(true);
+        setAutoSwitchMsg(
+          'Usuario no registrado. Regístrate completando tu nombre y confirmando '
+          + 'tu contraseña abajo.',
+        );
+        // Se conservan email y password; sólo se prepara el registro.
+        setConfirmPassword(password);
+        return;
+      }
+
+      // Existe (o no se pudo verificar): login normal, con su error si falla.
+      const result = await signInWithPassword(email, password);
+      setBusy(false);
+      if (result.error) setError(explain(result.error));
+      // Si entra, la app cambia de pantalla sola.
+      return;
+    }
+
+    // ── Intento de REGISTRARSE ──
+    if (!fullName.trim()) {
       setError('Escribe tu nombre completo.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Las dos contraseñas no coinciden.');
       return;
     }
 
     setBusy(true);
-    const result = isSignUp
-      ? await signUpWithPassword(email, password, fullName)
-      : await signInWithPassword(email, password);
+
+    /*
+      Caso inverso: si el correo YA existe, no tiene sentido crear la cuenta.
+      Se vuelve a Login solo, conservando lo escrito, con una nota cálida.
+    */
+    const exists = await emailExists(email);
+    if (exists === true) {
+      setBusy(false);
+      setMode('signIn');
+      setAutoSwitched(true);
+      setAutoSwitchMsg('Este correo ya está registrado. Inicia sesión con tu contraseña.');
+      return;
+    }
+
+    const result = await signUpWithPassword(email, password, fullName);
     setBusy(false);
 
     if (result.error) {
@@ -266,16 +343,25 @@ export default function Login() {
       return;
     }
 
-    if (isSignUp) {
-      setNotice(result.needsConfirmation
-        ? 'Cuenta creada. Abre el enlace que te enviamos por correo para activarla '
-          + 'y luego vuelve aquí a iniciar sesión.'
-        : 'Cuenta creada. Un administrador debe aprobar tu acceso.');
-      setPassword('');
-      setMode('signIn');
-    }
-    // Al iniciar sesión con éxito, la app cambia de pantalla sola.
+    setNotice(result.needsConfirmation
+      ? 'Cuenta creada. Abre el enlace que te enviamos por correo para activarla '
+        + 'y luego vuelve aquí a iniciar sesión.'
+      : 'Cuenta creada. Un administrador debe aprobar tu acceso.');
+    setPassword('');
+    setConfirmPassword('');
+    setMode('signIn');
+    setAutoSwitched(false);
+    setAutoSwitchMsg('');
   };
+
+  /*
+    Enfoca "Nombre" cuando el formulario se transformó en registro SOLO. Va en un
+    efecto porque el input aún no existe en el DOM en el instante en que se cambia
+    el modo; se espera al render en el que ya está montado.
+  */
+  useEffect(() => {
+    if (autoSwitched && isSignUp && nameRef.current) nameRef.current.focus();
+  }, [autoSwitched, isSignUp]);
 
   const enterWithGoogle = async () => {
     setGoogleBusy(true);
@@ -452,6 +538,31 @@ export default function Login() {
                 </p>
               </div>
 
+              {/*
+                Banner de transición automática. Aparece cuando el formulario
+                cambió de modo solo (correo no registrado → registro, o correo ya
+                tomado → login). Usa el ACENTO del tema (cyan en negro, verde
+                bosque en crema) con una transparencia suave — NUNCA el rojo de
+                error, porque esto no es un fallo de la persona, es una ayuda.
+              */}
+              {autoSwitched && autoSwitchMsg && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  transition={{ duration: 0.3 }}
+                  role="status"
+                  className="mb-4 flex items-start gap-2.5 rounded-2xl border p-3 text-sm
+                             leading-relaxed"
+                  style={{
+                    borderColor: `${t.accent}55`,
+                    backgroundColor: `${t.accent}1a`,
+                  }}
+                >
+                  <MailCheck size={16} className="mt-0.5 shrink-0" style={{ color: t.accent }} />
+                  <span className={t.text}>{autoSwitchMsg}</span>
+                </motion.div>
+              )}
+
               <form onSubmit={submit} className="space-y-3.5">
                 {isSignUp && (
                   <div className="relative">
@@ -462,6 +573,7 @@ export default function Login() {
                     />
                     <input
                       id="login-name"
+                      ref={nameRef}
                       className={fieldClass}
                       style={inputStyle}
                       value={fullName}
@@ -523,6 +635,29 @@ export default function Login() {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+
+                {/* Confirmar contraseña: sólo al registrarse, para no equivocarse
+                    al teclear una contraseña nueva que no se ve. */}
+                {isSignUp && (
+                  <div className="relative">
+                    <Lock
+                      size={18}
+                      className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${t.faint}`}
+                      aria-hidden="true"
+                    />
+                    <input
+                      id="login-confirm"
+                      className={fieldClass}
+                      style={inputStyle}
+                      type={showPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
+                      placeholder="Repite tu contraseña"
+                      autoComplete="new-password"
+                      aria-label="Repite tu contraseña"
+                    />
+                  </div>
+                )}
 
                 {error && (
                   <p

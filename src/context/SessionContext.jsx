@@ -303,6 +303,30 @@ export function SessionProvider({ children }) {
   }, []);
 
   /**
+   * ¿Ya existe una cuenta con este correo?
+   *
+   * El acceso por correo lo usa para distinguir "aún no tienes cuenta" de
+   * "contraseña equivocada": Supabase devuelve el mismo error para ambos, así que
+   * sin esta consulta el formulario no puede llevar al registro a quien no está
+   * registrado sin arriesgarse a mandar ahí a alguien que sólo se equivocó de
+   * contraseña. Apoyado en la función `email_exists` (SECURITY DEFINER), que sólo
+   * devuelve un booleano, nunca datos del usuario.
+   *
+   * Ante cualquier fallo (red, Supabase sin configurar) devuelve `null`: el
+   * formulario entonces NO fuerza la transición automática y cae al mensaje de
+   * error normal, que es el comportamiento seguro —nunca afirmar que un correo no
+   * existe sin estar seguro—.
+   */
+  const emailExists = useCallback(async (email) => {
+    if (!isSupabaseConfigured || !supabase) return null;
+    const { data, error: rpcError } = await supabase.rpc('email_exists', {
+      p_email: email.trim().toLowerCase(),
+    });
+    if (rpcError) return null;
+    return Boolean(data);
+  }, []);
+
+  /**
    * Alta de una cuenta nueva.
    *
    * El nombre viaja en los metadatos del usuario para que la ficha de `profiles`
@@ -451,13 +475,14 @@ export function SessionProvider({ children }) {
       signInWithGoogle,
       signInWithPassword,
       signUpWithPassword,
+      emailExists,
       signOut,
       refreshRole,
       refreshIdentity,
     };
   }, [
     status, identity, error,
-    signInWithGoogle, signInWithPassword, signUpWithPassword, signOut, refreshRole,
+    signInWithGoogle, signInWithPassword, signUpWithPassword, emailExists, signOut, refreshRole,
     refreshIdentity,
   ]);
 
