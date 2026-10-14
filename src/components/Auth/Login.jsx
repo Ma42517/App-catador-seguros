@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock, Mail, User, Loader2, AlertTriangle, MailCheck, Eye, EyeOff, ArrowRight, ArrowLeft,
@@ -31,58 +31,85 @@ const STACK = 3;
  * Hilo motivacional en cascada. Escribe una frase, la empuja hacia arriba
  * (difuminada) y entra la siguiente, en bucle. Reutiliza `useTypewriter`.
  */
-function MotivationCascade({ colorClass, accentColor }) {
-  const [index, setIndex] = useState(0);
-  const phrase = MOTIVATION[index];
-  const { typed, isTyping } = useTypewriter(phrase);
+/**
+ * La frase viva: se escribe letra por letra y, ya completa, espera un momento y
+ * avisa que es hora de que entre la siguiente.
+ */
+function TypedPhrase({ text, onDone, accentColor }) {
+  const { typed, isTyping } = useTypewriter(text);
 
   useEffect(() => {
     if (isTyping) return undefined;
-    const timer = setTimeout(() => {
-      setIndex((i) => (i + 1) % MOTIVATION.length);
-    }, PHRASE_HOLD_MS);
+    const timer = setTimeout(onDone, PHRASE_HOLD_MS);
     return () => clearTimeout(timer);
-  }, [isTyping, index]);
-
-  // Las ya dichas (hasta STACK-1), de la más vieja arriba a la más reciente abajo.
-  const history = [];
-  for (let k = Math.min(index, STACK - 1); k >= 1; k -= 1) {
-    history.push({ text: MOTIVATION[index - k], depth: k });
-  }
-
-  const fade = { 1: 'opacity-45 blur-[0.3px] text-base', 2: 'opacity-25 blur-[1px] text-sm' };
+  }, [isTyping, onDone]);
 
   return (
-    <div className="flex min-h-[7rem] flex-col items-center justify-end gap-2.5">
-      <AnimatePresence initial={false}>
-        {history.map((h) => (
-          <motion.p
-            key={h.text}
-            layout
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className={`whitespace-nowrap text-center font-display italic ${colorClass}
-                        ${fade[h.depth] ?? fade[2]}`}
-          >
-            {h.text}
-          </motion.p>
-        ))}
-      </AnimatePresence>
+    <>
+      {typed}
+      {isTyping && <span style={{ color: accentColor }} className="animate-pulse not-italic">|</span>}
+    </>
+  );
+}
 
-      {/*
-        Una sola línea siempre (`whitespace-nowrap`): el salto feo venía de que una
-        frase larga se partía en dos. En serif itálica (`font-display`) y a un tamaño
-        que deja caber la frase más larga completa. El alto se reserva para que el
-        bloque no brinque cuando entra la siguiente.
-      */}
-      <div className="flex min-h-[2.5rem] items-end justify-center">
-        <p className={`whitespace-nowrap text-center font-display text-[1.05rem] italic
-                       leading-snug sm:text-2xl ${colorClass}`}>
-          {typed}
-          {isTyping && <span style={{ color: accentColor }} className="animate-pulse not-italic">|</span>}
-        </p>
-      </div>
+/*
+  Cómo se ve cada renglón según qué tan atrás quedó (0 = la viva, abajo). Se anima
+  con opacidad, desenfoque y escala —no cambiando el tamaño de letra—, así el paso de
+  un nivel al otro es una transición continua y no un brinco.
+*/
+const DEPTH_LOOK = [
+  { opacity: 1, filter: 'blur(0px)', scale: 1 },
+  { opacity: 0.45, filter: 'blur(0.6px)', scale: 0.9 },
+  { opacity: 0.18, filter: 'blur(1.6px)', scale: 0.82 },
+];
+
+/**
+ * Hilo motivacional en cascada, continuo.
+ *
+ * Cada frase lleva su propio id (no su texto), así el ciclo nunca "reinicia": al
+ * volver a la primera frase simplemente entra una línea nueva abajo y la más vieja
+ * sale por arriba DESVANECIÉNDOSE —se difumina, se apaga y sube— en lugar de
+ * borrarse de golpe. Las del medio se recorren con `layout` para que todo se mueva
+ * en bloque, suave.
+ */
+function MotivationCascade({ colorClass, accentColor }) {
+  const [lines, setLines] = useState([{ id: 0, text: MOTIVATION[0] }]);
+
+  const advance = useCallback(() => {
+    setLines((prev) => {
+      const nextId = prev[prev.length - 1].id + 1;
+      return [...prev, { id: nextId, text: MOTIVATION[nextId % MOTIVATION.length] }].slice(-STACK);
+    });
+  }, []);
+
+  return (
+    <div className="flex h-[7.5rem] flex-col items-center justify-end gap-2 overflow-visible">
+      <AnimatePresence initial={false} mode="popLayout">
+        {lines.map((line, i) => {
+          const depth = lines.length - 1 - i;
+          const isLive = depth === 0;
+          return (
+            <motion.p
+              key={line.id}
+              layout
+              initial={{ opacity: 0, y: 18, filter: 'blur(4px)', scale: 1 }}
+              animate={{ ...DEPTH_LOOK[depth], y: 0 }}
+              exit={{
+                opacity: 0, y: -22, filter: 'blur(6px)', scale: 0.78,
+                transition: { duration: 0.7, ease: 'easeOut' },
+              }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              style={{ transformOrigin: 'center' }}
+              className={`whitespace-nowrap text-center font-display text-[1.05rem] italic
+                          leading-snug sm:text-2xl ${colorClass}`}
+            >
+              {isLive
+                ? <TypedPhrase text={line.text} onDone={advance} accentColor={accentColor} />
+                : line.text}
+            </motion.p>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }
