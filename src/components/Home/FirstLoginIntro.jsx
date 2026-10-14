@@ -663,7 +663,7 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
     return (
       <div
         className="flex h-14 items-center gap-2 rounded-xl border border-indigo-500/50
-                   bg-slate-800/50 px-3"
+                   bg-[var(--ob-cell)] px-3"
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) onEdit(null);
         }}
@@ -697,7 +697,7 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
           inputMode="tel"
           autoComplete="off"
           enterKeyHint="done"
-          className="w-24 shrink-0 border-l border-slate-700 bg-transparent pl-2 text-sm
+          className="w-24 shrink-0 border-l border-[color:var(--ob-border)] bg-transparent pl-2 text-sm
                      text-[color:var(--ob-text)] placeholder:text-[color:var(--ob-faint)] focus:outline-none"
         />
       </div>
@@ -709,8 +709,8 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
       <button
         type="button"
         onClick={() => onEdit(index)}
-        className="flex h-14 w-full items-center gap-3 rounded-xl border border-slate-700
-                   bg-slate-800/50 px-4 text-left transition-colors hover:border-slate-600"
+        className="flex h-14 w-full items-center gap-3 rounded-xl border border-[color:var(--ob-border)]
+                   bg-[var(--ob-cell)] px-4 text-left transition-colors hover:border-[color:var(--ob-border)]"
       >
         <User size={16} className="shrink-0 text-[color:var(--ob-soft)]" aria-hidden="true" />
         <span className="min-w-0 flex-1">
@@ -730,8 +730,8 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
       type="button"
       onClick={() => onEdit(index)}
       className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2
-                 border-dashed border-slate-700 text-sm text-[color:var(--ob-faint)] transition-colors
-                 hover:border-slate-600 hover:text-[color:var(--ob-soft)]"
+                 border-dashed border-[color:var(--ob-border)] text-sm text-[color:var(--ob-faint)] transition-colors
+                 hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-soft)]"
     >
       <User size={16} aria-hidden="true" />
       Agregar contacto
@@ -862,8 +862,8 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
             type="button"
             onClick={handleOpenContacts}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
-                       border border-slate-700 py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
-                       transition-colors hover:border-slate-600 hover:text-[color:var(--ob-text)]"
+                       border border-[color:var(--ob-border)] py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
+                       transition-colors hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-text)]"
           >
             <BookUser size={14} aria-hidden="true" />
             Elegir desde mi agenda
@@ -909,8 +909,8 @@ function TaskSlot({ index, value, onOpen }) {
       <button
         type="button"
         onClick={() => onOpen(index)}
-        className="flex h-14 w-full items-center gap-3 rounded-xl border border-slate-700
-                   bg-slate-800/50 px-4 text-left transition-colors hover:border-slate-600"
+        className="flex h-14 w-full items-center gap-3 rounded-xl border border-[color:var(--ob-border)]
+                   bg-[var(--ob-cell)] px-4 text-left transition-colors hover:border-[color:var(--ob-border)]"
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-[color:var(--ob-text)]">
@@ -931,8 +931,8 @@ function TaskSlot({ index, value, onOpen }) {
       type="button"
       onClick={() => onOpen(index)}
       className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2
-                 border-dashed border-slate-700 text-sm text-[color:var(--ob-faint)] transition-colors
-                 hover:border-slate-600 hover:text-[color:var(--ob-soft)]"
+                 border-dashed border-[color:var(--ob-border)] text-sm text-[color:var(--ob-faint)] transition-colors
+                 hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-soft)]"
     >
       <Plus size={16} aria-hidden="true" />
       Agregar actividad
@@ -1006,7 +1006,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
             onChange={(event) => setDraft((current) => (
               { ...current, tipo: event.target.value }
             ))}
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+            className="w-full rounded-xl border border-[color:var(--ob-border)] bg-[var(--ob-cell)] px-3 py-2.5
                        text-sm text-[color:var(--ob-text)] focus:border-indigo-500 focus:outline-none"
           >
             {TASK_TYPE_OPTIONS.map((option) => (
@@ -1029,7 +1029,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
             ))}
             placeholder="Ej. Laura Gómez"
             autoComplete="off"
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+            className="w-full rounded-xl border border-[color:var(--ob-border)] bg-[var(--ob-cell)] px-3 py-2.5
                        text-sm text-[color:var(--ob-text)] placeholder:text-[color:var(--ob-faint)] focus:border-indigo-500
                        focus:outline-none"
           />
@@ -1055,7 +1055,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
               { ...current, hora: event.target.value }
             ))}
             type="time"
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
+            className="w-full rounded-xl border border-[color:var(--ob-border)] bg-[var(--ob-cell)] px-3 py-2.5
                        text-sm text-[color:var(--ob-text)] [color-scheme:dark] focus:border-indigo-500
                        focus:outline-none"
           />
@@ -1067,8 +1067,8 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
           >
             Teléfono
           </label>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-700
-                          bg-slate-800/60 px-3"
+          <div className="flex items-center gap-2 rounded-xl border border-[color:var(--ob-border)]
+                          bg-[var(--ob-cell)] px-3"
           >
             <Phone size={15} className="shrink-0 text-[color:var(--ob-faint)]" aria-hidden="true" />
             <input
@@ -1361,8 +1361,8 @@ function HybridCaptureStep({ onContinue, onSkip }) {
             type="button"
             onClick={handleOpenContacts}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
-                       border border-slate-700 py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
-                       transition-colors hover:border-slate-600 hover:text-[color:var(--ob-text)]"
+                       border border-[color:var(--ob-border)] py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
+                       transition-colors hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-text)]"
           >
             <BookUser size={14} aria-hidden="true" />
             Elegir desde mi agenda
@@ -1490,8 +1490,8 @@ function ConsolidatedWelcomeStep({ name, onContinue }) {
                   visible: { opacity: 1, y: 0 },
                 }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="flex items-start gap-3 rounded-xl border border-slate-800
-                           bg-slate-900/60 px-4 py-3 text-left"
+                className="flex items-start gap-3 rounded-xl border border-[color:var(--ob-border)]
+                           bg-[var(--ob-cell)] px-4 py-3 text-left"
               >
                 <span
                   className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg
@@ -1676,8 +1676,8 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                 type="button"
                 onClick={handleOpenContacts}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
-                           border border-slate-700 py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
-                           transition-colors hover:border-slate-600 hover:text-[color:var(--ob-text)]"
+                           border border-[color:var(--ob-border)] py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
+                           transition-colors hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-text)]"
               >
                 <BookUser size={14} aria-hidden="true" />
                 Elegir desde mi agenda
@@ -1712,7 +1712,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
               {confirmedContacts.map((contact, index) => (
                 <div
                   key={index}
-                  className="rounded-xl border border-slate-700 bg-slate-800/50 p-4 text-left"
+                  className="rounded-xl border border-[color:var(--ob-border)] bg-[var(--ob-cell)] p-4 text-left"
                 >
                   <p className="flex items-center gap-2 text-sm font-semibold text-[color:var(--ob-text)]">
                     <User size={15} className="shrink-0 text-[color:var(--ob-soft)]" aria-hidden="true" />
@@ -1732,7 +1732,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                         id={`sequential-action-${index}`}
                         value={actions[index]?.tipo ?? config.actionOptions[0].value}
                         onChange={(event) => updateAction(index, { tipo: event.target.value })}
-                        className="w-full rounded-lg border border-slate-700 bg-slate-900/60
+                        className="w-full rounded-lg border border-[color:var(--ob-border)] bg-[var(--ob-cell)]
                                    px-2.5 py-2 text-sm text-[color:var(--ob-text)] focus:border-indigo-500
                                    focus:outline-none"
                       >
@@ -1759,7 +1759,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                         onChange={(event) => (
                           updateAction(index, { fechaHora: event.target.value })
                         )}
-                        className="w-full rounded-lg border border-slate-700 bg-slate-900/60
+                        className="w-full rounded-lg border border-[color:var(--ob-border)] bg-[var(--ob-cell)]
                                    px-2.5 py-2 text-sm text-[color:var(--ob-text)] [color-scheme:dark]
                                    focus:border-indigo-500 focus:outline-none"
                       />
@@ -2016,7 +2016,7 @@ function JoinTeamStep({ onContinue }) {
           autoCapitalize="characters"
           spellCheck="false"
           maxLength={15}
-          className="w-full rounded-xl border border-slate-700 bg-transparent px-3 py-3
+          className="w-full rounded-xl border border-[color:var(--ob-border)] bg-transparent px-3 py-3
                      text-center font-mono text-lg tracking-[0.15em] text-[color:var(--ob-text)]
                      placeholder:text-[color:var(--ob-faint)] transition-colors focus:border-indigo-500
                      focus:outline-none"
