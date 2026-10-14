@@ -108,13 +108,13 @@ STEP2_TEXT_BY_CONCERN.low_ticket_market = 'Para elevar tu nivel de ingresos, no 
   que `step2HighlightFor` sigue devolviendo `null` para ambas.
 */
 STEP2_TEXT_BY_CONCERN.referral_dependent = 'Vivir de referidos espontáneos es dejar tu '
-  + 'negocio a la suerte. Vamos a sistematizarlo. Hemos depositado 3 Diagnósticos '
-  + 'Financieros de cortesía en tu cuenta. Tu misión no es usarlos tú, es regalárselos a tus '
-  + 'mejores clientes para que ellos los compartan con la gente que más quieren.';
+  + 'negocio a la suerte. Vamos a sistematizarlo. Hemos depositado en tu cuenta 9 Diagnósticos '
+  + 'Financieros 360 y 6 Tarjetas Digitales de cortesía. Tu misión no es usarlos tú, es '
+  + 'regalárselos a tus mejores clientes para que ellos los compartan con la gente que más quieren.';
 STEP2_TEXT_BY_CONCERN.none_scale = 'Excelente actitud. Si vienes a romper récords, te '
-  + 'daremos la tecnología para lograrlo. Hemos habilitado el Diagnóstico Financiero 360 en '
-  + 'tu arsenal. Úsalo como diferenciador premium en tus reuniones para fulminar objeciones y '
-  + 'acelerar el cierre.';
+  + 'daremos la tecnología para lograrlo. Hemos habilitado en tu arsenal 9 Diagnósticos '
+  + 'Financieros 360 y 6 Tarjetas Digitales de cortesía. Úsalos como diferenciador premium en '
+  + 'tus reuniones para fulminar objeciones y acelerar el cierre.';
 const DEFAULT_STEP2_TEXT = STEP2_TEXT_BY_CONCERN.rejection;
 
 /**
@@ -130,17 +130,17 @@ function step2TextFor(inquietud) {
   Subtexto resaltado del Paso 2, sólo para quien lo tiene: a diferencia del
   texto principal (`STEP2_TEXT_BY_CONCERN`, siempre presente con un
   respaldo), este segundo bloque es la excepción, no la regla — hoy sólo
-  existe para `low_ticket_market`, el anuncio de que ya tiene 3 Diagnósticos
-  Financieros 360 de cortesía desbloqueados, la herramienta que va a usar
+  existe para `low_ticket_market`, el anuncio de que ya tiene 9 Diagnósticos
+  Financieros 360 y 6 Tarjetas Digitales de cortesía desbloqueados, la herramienta que va a usar
   para acercarse a los prospectos de alto perfil del Paso 3. El resto de
   las inquietudes no tienen nada que resaltar aquí, así que
   `step2HighlightFor` devuelve `null` para ellas y `EmpowermentStep` no
   dibuja el bloque en absoluto.
 */
 const STEP2_HIGHLIGHT_BY_CONCERN = {
-  low_ticket_market: 'Por eso, hemos desbloqueado 3 Diagnósticos Financieros 360 de cortesía '
-    + 'en tu cuenta. Esta herramienta será tu excusa perfecta para acercarte a prospectos de '
-    + 'alto nivel regalándoles una consultoría.',
+  low_ticket_market: 'Por eso, hemos desbloqueado en tu cuenta 9 Diagnósticos Financieros 360 '
+    + 'y 6 Tarjetas Digitales de cortesía. Son tu excusa perfecta para acercarte a prospectos '
+    + 'de alto nivel regalándoles una consultoría.',
 };
 
 /** Subtexto resaltado del Paso 2 para esta inquietud, o `null` si no tiene uno declarado. */
