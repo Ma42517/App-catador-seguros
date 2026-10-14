@@ -80,14 +80,14 @@ export default function FullScreenView({
               ? 'immersive-back text-white/70 hover:text-white'
               : 'text-sm font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white'}`}
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={immersive ? 22 : 18} />
             {/*
               En modo inmersivo "Atrás" se muestra en la cursiva manuscrita (Caveat),
               arriba a la izquierda: es la única salida visible de una pantalla que por
               lo demás sólo tiene el reloj. En las vistas normales se mantiene como antes.
             */}
             {immersive
-              ? <span className="font-hand text-xl leading-none">Atrás</span>
+              ? <span className="font-hand text-2xl leading-none">Atrás</span>
               : backLabel}
           </button>
 
