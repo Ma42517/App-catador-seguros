@@ -814,25 +814,11 @@ export default function OnboardingFlow({
   useEffect(() => () => setAlive(false), []);
 
   /*
-    `overscroll-behavior: contain` en vez de `overflow: hidden`: así se corta el
-    rebote elástico y el arrastre sobrante (lo que molestaba), PERO se conserva el
-    "jalar para actualizar" nativo del navegador —ese gesto necesita que la página
-    siga siendo desplazable desde el borde, cosa que `overflow: hidden` mataba—. Se
-    restaura el valor previo al desmontar.
+    El onboarding NO bloquea el scroll del documento, a diferencia del login/bienvenida:
+    aquí se conserva el "jalar para actualizar" nativo del navegador —útil para recargar
+    y verificar cambios—. El contenedor usa su alto natural (`min-h-[100dvh]`), así que
+    no hay arrastre sobrante cuando el contenido cabe, y el gesto de recarga sigue vivo.
   */
-  useEffect(() => {
-    const { body, documentElement: html } = document;
-    const prev = {
-      bodyOverscroll: body.style.overscrollBehavior,
-      htmlOverscroll: html.style.overscrollBehavior,
-    };
-    body.style.overscrollBehavior = 'contain';
-    html.style.overscrollBehavior = 'contain';
-    return () => {
-      body.style.overscrollBehavior = prev.bodyOverscroll;
-      html.style.overscrollBehavior = prev.htmlOverscroll;
-    };
-  }, []);
 
   const answer = (field) => (value) => {
     setAdvisorData((current) => ({ ...current, [field]: value }));
