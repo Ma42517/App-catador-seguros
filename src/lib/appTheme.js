@@ -123,3 +123,25 @@ export function writeAppTheme(value) {
 export function themeFor(value) {
   return APP_THEMES.find((t) => t.value === value) ?? APP_THEMES[0];
 }
+
+/**
+ * Aplica el tema a TODA la app, escribiendo la clase correcta en el `<html>`.
+ *
+ * La app interior está construida con el sistema `dark:` de Tailwind (pares
+ * `bg-white dark:bg-zinc-900`), gobernado por la clase del `<html>`. Antes esa clase
+ * era `dark` fija; ahora la decide el tema elegido:
+ *   - negro  → `dark`  (mitad oscura de cada par)
+ *   - blanco → sin clase (mitad clara, que ya existía y nunca se veía)
+ *   - crema  → `theme-cream` (mitad clara + un tinte beige propio, ver index.css)
+ *
+ * Se llama al arrancar (main.jsx) antes del primer render, y cada vez que se cambia
+ * el tema, para que todo repinte sin recargar.
+ */
+export function applyAppTheme(value) {
+  const t = themeFor(value);
+  const html = document.documentElement;
+  // Oscuro usa la clase `dark` de Tailwind; blanco y crema NO (son "modo claro").
+  html.classList.toggle('dark', t.value === 'dark');
+  // Crema añade su propia clase para el tinte beige por encima del modo claro.
+  html.classList.toggle('theme-cream', t.value === 'cream');
+}

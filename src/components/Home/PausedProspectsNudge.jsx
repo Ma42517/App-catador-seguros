@@ -209,23 +209,23 @@ export default function PausedProspectsNudge() {
               tarjetas.
             · Texto `text-xs` y acciones como texto, nunca botones rellenos.
         */
-        className="w-full rounded-xl border border-dashed border-slate-800 bg-slate-900/30 p-3"
+        className="w-full rounded-xl border border-dashed border-zinc-300 bg-zinc-100/50 dark:border-slate-800 dark:bg-slate-900/30 p-3"
       >
         <div className="flex items-start gap-2.5">
           <RotateCcw
             size={13}
-            className="mt-0.5 shrink-0 text-slate-500"
+            className="mt-0.5 shrink-0 text-zinc-400 dark:text-slate-500"
             strokeWidth={1.8}
             aria-hidden="true"
           />
 
           <div className="min-w-0 flex-1">
-            <p className="break-words text-xs leading-relaxed text-slate-400">
-              ¿Retomas a <span className="font-medium text-slate-300">{name}</span>?
+            <p className="break-words text-xs leading-relaxed text-zinc-600 dark:text-slate-400">
+              ¿Retomas a <span className="font-medium text-zinc-800 dark:text-slate-300">{name}</span>?
               {' '}
               {pauseReason(record)}
               {days > 0 && (
-                <span className="text-slate-600">
+                <span className="text-zinc-400 dark:text-slate-600">
                   {' '}
                   (hace {days} {days === 1 ? 'día' : 'días'})
                 </span>
@@ -248,12 +248,12 @@ export default function PausedProspectsNudge() {
                 Dar seguimiento
               </button>
 
-              <span className="text-slate-700" aria-hidden="true">·</span>
+              <span className="text-zinc-300 dark:text-slate-700" aria-hidden="true">·</span>
 
               <button
                 type="button"
                 onClick={resolveWithDiscard}
-                className="py-1 text-slate-500 transition-colors hover:text-rose-400
+                className="py-1 text-zinc-500 dark:text-slate-500 transition-colors hover:text-rose-500 dark:hover:text-rose-400
                            focus-visible:outline-none focus-visible:underline"
               >
                 Descartar
@@ -266,7 +266,7 @@ export default function PausedProspectsNudge() {
               siente como un dato perdido; anunciado, se lee como lo que es
               —la app dejando de insistir— y empuja a resolver el último.
             */}
-            <p className="mt-0.5 text-[10px] leading-relaxed text-slate-600">
+            <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-400 dark:text-slate-600">
               {isLastChance
                 ? 'Último aviso: si no decides, se descarta solo.'
                 : `Aviso ${attempt} de ${total}. Si no decides, vuelve más adelante.`}
@@ -277,8 +277,8 @@ export default function PausedProspectsNudge() {
             type="button"
             onClick={() => setDismissed(true)}
             aria-label="No ahora"
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-600
-                       transition-colors hover:bg-white/5 hover:text-slate-400
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-zinc-400 dark:text-slate-600
+                       transition-colors hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-600 dark:hover:text-slate-400
                        focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
           >
             <X size={12} aria-hidden="true" />

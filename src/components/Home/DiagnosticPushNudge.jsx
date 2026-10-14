@@ -116,7 +116,7 @@ export default function DiagnosticPushNudge({
           para sí misma.
         */
         className="group flex w-full items-center gap-2 rounded-xl border
-                   border-slate-800/50 bg-slate-900 p-3 transition-colors
+                   border-zinc-200 bg-white dark:border-slate-800/50 dark:bg-slate-900 p-3 transition-colors
                    hover:border-amber-500/30"
       >
         <Row
@@ -141,14 +141,14 @@ export default function DiagnosticPushNudge({
             la fila crece unos píxeles y conserva su escala de "aviso
             delgado", que es lo que la distingue de una tarjeta.
           */}
-          <span className="min-w-0 flex-1 break-words text-sm font-medium text-slate-200">
+          <span className="min-w-0 flex-1 break-words text-sm font-medium text-zinc-800 dark:text-slate-200">
             {state.message}
           </span>
 
           {state.actionable && (
             <ArrowRight
               size={15}
-              className="shrink-0 text-slate-500 transition-colors group-hover:text-amber-400"
+              className="shrink-0 text-zinc-400 dark:text-slate-500 transition-colors group-hover:text-amber-500 dark:group-hover:text-amber-400"
               aria-hidden="true"
             />
           )}
@@ -158,8 +158,8 @@ export default function DiagnosticPushNudge({
           type="button"
           onClick={dismiss}
           aria-label="Descartar por hoy"
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-500
-                     transition-colors hover:bg-white/5 hover:text-slate-300
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-zinc-400 dark:text-slate-500
+                     transition-colors hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-600 dark:hover:text-slate-300
                      focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
         >
           <X size={12} aria-hidden="true" />

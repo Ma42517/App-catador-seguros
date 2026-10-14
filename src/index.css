@@ -68,6 +68,32 @@
   }
 }
 
+/* ─── Tema Crema ─────────────────────────────────────────────────────────
+   El modo claro de Tailwind (sin la clase `dark`) ya pinta la app en blanco.
+   El tema crema parte de ese modo claro y sólo cambia los fondos a beige, con
+   el navy de marca como color de texto. Vive aquí, en CSS, porque reescribe las
+   mismas superficies que todo el interior comparte (`body`, `.surface`), en un
+   solo lugar, sin tocar los cientos de componentes que ya usan `white dark:*`.
+   La clase la pone `applyAppTheme` en el <html>. */
+@layer base {
+  html.theme-cream body {
+    background-color: #efe9dd;
+    color: #0B1A30;
+  }
+}
+
+@layer components {
+  html.theme-cream .surface {
+    background-color: #f6f1e7;
+    border-color: rgb(214 203 184 / 0.7);
+    box-shadow: 0 10px 30px -12px rgb(120 100 60 / 0.25);
+  }
+  html.theme-cream .surface-sunken {
+    background-color: #efe7d7;
+    border-color: rgb(214 203 184 / 0.6);
+  }
+}
+
 /* ─── Utilidades del sistema visual ─────────────────────────────────────── */
 
 @layer components {

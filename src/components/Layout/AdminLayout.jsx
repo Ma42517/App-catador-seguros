@@ -205,7 +205,7 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="w-full min-h-screen overflow-x-hidden flex flex-col relative bg-white dark:bg-black">
+    <div className="w-full min-h-screen overflow-x-hidden flex flex-col relative bg-transparent">
       {/*
         `pb-28 mb-24` reserva el alto de la barra inferior. En modo inmersivo la barra
         no existe, y ese hueco tiene que irse con ella: dejarlo abriría trece
