@@ -298,13 +298,19 @@ export default function BottomTabBar({
           {/*
             Hueco del botón. Es un espaciador y no un destino más: mide algo
             más que el diámetro del recorte para que los íconos vecinos no
-            queden pegados al botón ni por debajo de él.
+            queden pegados al botón ni por debajo de él. Alberga la firma de
+            marca, centrada bajo el FAB, en el espacio que de otro modo queda
+            vacío — pequeña para no competir con las pestañas vecinas.
           */}
           <span
-            className="shrink-0"
+            className="flex shrink-0 items-end justify-center"
             style={{ width: NOTCH_RADIUS * 2 + 12 }}
             aria-hidden="true"
-          />
+          >
+            <span className="navbar-brand text-[11px] font-black tracking-tight text-white/90">
+              Expandia
+            </span>
+          </span>
 
           {/* Agenda — con el aviso de lo que queda pendiente hoy */}
           <TabButton

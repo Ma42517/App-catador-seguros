@@ -183,6 +183,11 @@
     background: #1B4332;       /* --accent-primary */
     box-shadow: 0 6px 16px rgba(27, 67, 50, 0.28);
   }
+
+  /* Firma de marca bajo el FAB: color por tema (clara sobre la barra negra,
+     oscura/acento sobre las barras claras). */
+  html:not(.dark):not(.theme-cream) .navbar-brand { color: #0B1A30; }
+  html.theme-cream .navbar-brand { color: #1B4332; }
 }
 
 /* ─── Utilidades del sistema visual ─────────────────────────────────────── */
