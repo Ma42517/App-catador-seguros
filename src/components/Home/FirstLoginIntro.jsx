@@ -11,6 +11,29 @@ import { useEvents, todayKey } from '../../context/EventContext';
 import { joinPromotoriaByCode, describeError } from '../../data/promotoriaRepo';
 import { normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCode';
 import BottomSheet from '../Layout/BottomSheet';
+import { readAppTheme, themeFor } from '../../lib/appTheme';
+
+/*
+  Paleta por tema, inyectada como variables CSS en el contenedor raíz y heredada por
+  todos los pasos —mismo criterio que el OnboardingFlow—. `text` el color principal;
+  `soft`/`faint` el mismo tono a menor presencia; `border` las líneas; `cell` el fondo
+  de las tarjetas/celdas tenues. En oscuro es blanco con alfa (como estaba); en
+  claro/crema, el tinte oscuro del tema.
+*/
+const FLI_PALETTE = {
+  dark: {
+    text: '#f8fafc', soft: 'rgba(248,250,252,0.6)', faint: 'rgba(248,250,252,0.35)',
+    border: 'rgba(255,255,255,0.12)', cell: 'rgba(255,255,255,0.06)',
+  },
+  light: {
+    text: '#0f172a', soft: 'rgba(15,23,42,0.62)', faint: 'rgba(15,23,42,0.42)',
+    border: 'rgba(15,23,42,0.12)', cell: 'rgba(15,23,42,0.05)',
+  },
+  cream: {
+    text: '#0B1A30', soft: 'rgba(11,26,48,0.62)', faint: 'rgba(11,26,48,0.42)',
+    border: 'rgba(11,26,48,0.14)', cell: 'rgba(11,26,48,0.05)',
+  },
+};
 
 /** Cuánto tarda cada fundido de esta pantalla (el de la recompensa hacia "Iniciar", y el del overlay completo al presionarlo), en ms — usado tanto en las clases de Tailwind como en los temporizadores que esperan a que termine antes de avanzar. */
 const FADE_OUT_MS = 700;
@@ -211,7 +234,7 @@ const HYBRID_STEP3_TEXT = 'Comencemos. Para desbloquear tu herramienta, seleccio
   + 'prospectos de alto perfil.';
 /*
   Aviso de privacidad, no aclaración menor: la especificación lo pide en
-  `text-slate-500` (más visible que el subtexto tenue del resto de la
+  `text-[color:var(--ob-faint)]` (más visible que el subtexto tenue del resto de la
   pantalla, ver `STEP3_SUBTEXT`) porque aquí se está pidiendo el contacto
   de gente ajena a la cuenta, no apoyos cercanos de quien se está
   registrando — la promesa de "no los contactaremos" necesita leerse con
@@ -529,7 +552,7 @@ function GreetingStep({ name, onContinue }) {
     <div className="flex flex-col items-center px-6 text-center">
       <p className="sr-only">{STEP1_TEXT_TEMPLATE(name)}</p>
       <p
-        className="max-w-lg text-2xl font-light leading-relaxed text-white sm:text-3xl"
+        className="max-w-lg text-2xl font-light leading-relaxed text-[color:var(--ob-text)] sm:text-3xl"
         aria-hidden="true"
       >
         {typed}
@@ -541,7 +564,7 @@ function GreetingStep({ name, onContinue }) {
         onClick={onContinue}
         aria-hidden={isTyping}
         tabIndex={isTyping ? -1 : 0}
-        className={`mt-10 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-white
+        className={`mt-10 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-[color:var(--ob-text)]
                     transition-opacity duration-700 hover:bg-indigo-500 active:scale-95
                     ${GLOW_BUTTON_CLASS}
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
@@ -573,7 +596,7 @@ function EmpowermentStep({ text, highlight, onContinue }) {
     <div className="flex flex-col items-center px-6 text-center">
       <p className="sr-only">{highlight ? `${text} ${highlight}` : text}</p>
       <p
-        className="max-w-lg text-xl font-light leading-snug text-white sm:text-2xl"
+        className="max-w-lg text-xl font-light leading-snug text-[color:var(--ob-text)] sm:text-2xl"
         aria-hidden="true"
       >
         {typed}
@@ -602,7 +625,7 @@ function EmpowermentStep({ text, highlight, onContinue }) {
         onClick={onContinue}
         aria-hidden={isTyping}
         tabIndex={isTyping ? -1 : 0}
-        className={`mt-8 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-white
+        className={`mt-8 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold text-[color:var(--ob-text)]
                     transition-opacity duration-700 hover:bg-indigo-500 active:scale-95
                     ${GLOW_BUTTON_CLASS}
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
@@ -639,7 +662,7 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
           if (!event.currentTarget.contains(event.relatedTarget)) onEdit(null);
         }}
       >
-        <User size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+        <User size={16} className="shrink-0 text-[color:var(--ob-faint)]" aria-hidden="true" />
 
         <label className="sr-only" htmlFor={`prospect-name-${index}`}>
           {`Nombre del prospecto ${index + 1}`}
@@ -652,7 +675,7 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
           placeholder="Nombre"
           autoComplete="off"
           enterKeyHint="next"
-          className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-slate-500
+          className="min-w-0 flex-1 bg-transparent text-sm text-[color:var(--ob-text)] placeholder:text-[color:var(--ob-faint)]
                      focus:outline-none"
         />
 
@@ -669,7 +692,7 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
           autoComplete="off"
           enterKeyHint="done"
           className="w-24 shrink-0 border-l border-slate-700 bg-transparent pl-2 text-sm
-                     text-white placeholder:text-slate-500 focus:outline-none"
+                     text-[color:var(--ob-text)] placeholder:text-[color:var(--ob-faint)] focus:outline-none"
         />
       </div>
     );
@@ -683,13 +706,13 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
         className="flex h-14 w-full items-center gap-3 rounded-xl border border-slate-700
                    bg-slate-800/50 px-4 text-left transition-colors hover:border-slate-600"
       >
-        <User size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
+        <User size={16} className="shrink-0 text-[color:var(--ob-soft)]" aria-hidden="true" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-white">
+          <span className="block truncate text-sm font-semibold text-[color:var(--ob-text)]">
             {value.nombre}
           </span>
           {value.telefono && (
-            <span className="block truncate text-xs text-slate-500">{value.telefono}</span>
+            <span className="block truncate text-xs text-[color:var(--ob-faint)]">{value.telefono}</span>
           )}
         </span>
       </button>
@@ -701,8 +724,8 @@ function ProspectSlot({ index, value, isEditing, onEdit, onChange }) {
       type="button"
       onClick={() => onEdit(index)}
       className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2
-                 border-dashed border-slate-700 text-sm text-slate-500 transition-colors
-                 hover:border-slate-600 hover:text-slate-400"
+                 border-dashed border-slate-700 text-sm text-[color:var(--ob-faint)] transition-colors
+                 hover:border-slate-600 hover:text-[color:var(--ob-soft)]"
     >
       <User size={16} aria-hidden="true" />
       Agregar contacto
@@ -789,7 +812,7 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
     <div className="flex w-full flex-col items-center px-6 text-center">
       <p className="sr-only">{`${step3Text(slotCount)} ${STEP3_SUBTEXT}`}</p>
       <p
-        className="max-w-md text-lg leading-snug text-white sm:text-xl"
+        className="max-w-md text-lg leading-snug text-[color:var(--ob-text)] sm:text-xl"
         aria-hidden="true"
       >
         {typed}
@@ -797,7 +820,7 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
       </p>
 
       <p
-        className={`mt-2 max-w-sm text-[11px] leading-snug text-white/40
+        className={`mt-2 max-w-sm text-[11px] leading-snug text-[color:var(--ob-faint)]
                     transition-opacity duration-700
                     ${showSubtext ? 'opacity-100' : 'opacity-0'}`}
         aria-hidden="true"
@@ -833,8 +856,8 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
             type="button"
             onClick={handleOpenContacts}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
-                       border border-slate-700 py-2.5 text-xs font-semibold text-slate-300
-                       transition-colors hover:border-slate-600 hover:text-white"
+                       border border-slate-700 py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
+                       transition-colors hover:border-slate-600 hover:text-[color:var(--ob-text)]"
           >
             <BookUser size={14} aria-hidden="true" />
             Elegir desde mi agenda
@@ -846,9 +869,9 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
           onClick={() => onContinue(cleanEntries)}
           disabled={!isValid}
           className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     uppercase tracking-wide text-white transition-all hover:bg-indigo-500
-                     active:scale-95 disabled:cursor-not-allowed disabled:bg-white/[0.06]
-                     disabled:text-white/25 disabled:shadow-none
+                     uppercase tracking-wide text-[color:var(--ob-text)] transition-all hover:bg-indigo-500
+                     active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
+                     disabled:text-[color:var(--ob-faint)] disabled:shadow-none
                      ${isValid ? GLOW_BUTTON_CLASS : ''}`}
         >
           Continuar
@@ -857,7 +880,7 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
         <button
           type="button"
           onClick={() => onSkip()}
-          className="mt-4 block w-full text-sm text-slate-500 transition-colors hover:text-white"
+          className="mt-4 block w-full text-sm text-[color:var(--ob-faint)] transition-colors hover:text-[color:var(--ob-text)]"
         >
           Saltar paso
         </button>
@@ -884,15 +907,15 @@ function TaskSlot({ index, value, onOpen }) {
                    bg-slate-800/50 px-4 text-left transition-colors hover:border-slate-600"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-white">
+          <span className="block truncate text-sm font-semibold text-[color:var(--ob-text)]">
             {value.descripcion}
           </span>
-          <span className="block truncate text-xs text-slate-500">
+          <span className="block truncate text-xs text-[color:var(--ob-faint)]">
             {value.hora || DEFAULT_TASK_HOUR} · {taskTypeLabel(value.tipo)}
             {value.telefono && ` · ${value.telefono}`}
           </span>
         </span>
-        <ChevronRight size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+        <ChevronRight size={16} className="shrink-0 text-[color:var(--ob-faint)]" aria-hidden="true" />
       </button>
     );
   }
@@ -902,8 +925,8 @@ function TaskSlot({ index, value, onOpen }) {
       type="button"
       onClick={() => onOpen(index)}
       className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border-2
-                 border-dashed border-slate-700 text-sm text-slate-500 transition-colors
-                 hover:border-slate-600 hover:text-slate-400"
+                 border-dashed border-slate-700 text-sm text-[color:var(--ob-faint)] transition-colors
+                 hover:border-slate-600 hover:text-[color:var(--ob-soft)]"
     >
       <Plus size={16} aria-hidden="true" />
       Agregar actividad
@@ -962,12 +985,12 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
       label="Nueva actividad"
       zIndexClass="z-[100]"
     >
-      <h2 className="mb-5 text-lg font-bold text-white">Nueva actividad</h2>
+      <h2 className="mb-5 text-lg font-bold text-[color:var(--ob-text)]">Nueva actividad</h2>
 
       <div className="flex flex-col gap-4 pb-2">
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
-                             text-slate-500" htmlFor="task-sheet-type"
+                             text-[color:var(--ob-faint)]" htmlFor="task-sheet-type"
           >
             Tipo de Acción
           </label>
@@ -978,7 +1001,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
               { ...current, tipo: event.target.value }
             ))}
             className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
-                       text-sm text-white focus:border-indigo-500 focus:outline-none"
+                       text-sm text-[color:var(--ob-text)] focus:border-indigo-500 focus:outline-none"
           >
             {TASK_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -988,7 +1011,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
 
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
-                             text-slate-500" htmlFor="task-sheet-name"
+                             text-[color:var(--ob-faint)]" htmlFor="task-sheet-name"
           >
             Nombre del cliente o prospecto
           </label>
@@ -1001,7 +1024,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
             placeholder="Ej. Laura Gómez"
             autoComplete="off"
             className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
-                       text-sm text-white placeholder:text-slate-500 focus:border-indigo-500
+                       text-sm text-[color:var(--ob-text)] placeholder:text-[color:var(--ob-faint)] focus:border-indigo-500
                        focus:outline-none"
           />
         </div>
@@ -1015,7 +1038,7 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
         */}
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
-                             text-slate-500" htmlFor="task-sheet-time"
+                             text-[color:var(--ob-faint)]" htmlFor="task-sheet-time"
           >
             Hora
           </label>
@@ -1027,21 +1050,21 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
             ))}
             type="time"
             className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5
-                       text-sm text-white [color-scheme:dark] focus:border-indigo-500
+                       text-sm text-[color:var(--ob-text)] [color-scheme:dark] focus:border-indigo-500
                        focus:outline-none"
           />
         </div>
 
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider
-                             text-slate-500" htmlFor="task-sheet-phone"
+                             text-[color:var(--ob-faint)]" htmlFor="task-sheet-phone"
           >
             Teléfono
           </label>
           <div className="flex items-center gap-2 rounded-xl border border-slate-700
                           bg-slate-800/60 px-3"
           >
-            <Phone size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
+            <Phone size={15} className="shrink-0 text-[color:var(--ob-faint)]" aria-hidden="true" />
             <input
               id="task-sheet-phone"
               value={draft.telefono}
@@ -1052,8 +1075,8 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
               type="tel"
               inputMode="tel"
               autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white
-                         placeholder:text-slate-500 focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[color:var(--ob-text)]
+                         placeholder:text-[color:var(--ob-faint)] focus:outline-none"
             />
           </div>
         </div>
@@ -1063,8 +1086,8 @@ function TaskEditorSheet({ isOpen, initialValue, onSave, onClose }) {
           onClick={handleSave}
           disabled={!canSave}
           className={`mt-1 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     text-white transition-all hover:bg-indigo-500 active:scale-95
-                     disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30
+                     text-[color:var(--ob-text)] transition-all hover:bg-indigo-500 active:scale-95
+                     disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)] disabled:text-[color:var(--ob-faint)]
                      ${canSave ? GLOW_BUTTON_CLASS : ''}`}
         >
           Guardar
@@ -1140,7 +1163,7 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
       </p>
 
       <p
-        className="mt-2 max-w-md text-lg leading-snug text-white sm:text-xl"
+        className="mt-2 max-w-md text-lg leading-snug text-[color:var(--ob-text)] sm:text-xl"
         aria-hidden="true"
       >
         {typed}
@@ -1148,7 +1171,7 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
       </p>
 
       <p
-        className={`mt-2 max-w-sm text-[11px] leading-snug text-white/40
+        className={`mt-2 max-w-sm text-[11px] leading-snug text-[color:var(--ob-faint)]
                     transition-opacity duration-700
                     ${showSubtext ? 'opacity-100' : 'opacity-0'}`}
         aria-hidden="true"
@@ -1167,7 +1190,7 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
           ))}
         </div>
 
-        <p className="mt-3 text-[11px] text-slate-500">
+        <p className="mt-3 text-[11px] text-[color:var(--ob-faint)]">
           {cleanEntries.length} / {MIN_FILLED_TASKS} pendientes mínimos para continuar
         </p>
 
@@ -1176,9 +1199,9 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
           onClick={() => onContinue(cleanEntries)}
           disabled={!isValid}
           className={`mt-3 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     uppercase tracking-wide text-white transition-all hover:bg-indigo-500
-                     active:scale-95 disabled:cursor-not-allowed disabled:bg-white/[0.06]
-                     disabled:text-white/25 disabled:shadow-none
+                     uppercase tracking-wide text-[color:var(--ob-text)] transition-all hover:bg-indigo-500
+                     active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
+                     disabled:text-[color:var(--ob-faint)] disabled:shadow-none
                      ${isValid ? GLOW_BUTTON_CLASS : ''}`}
         >
           Continuar
@@ -1187,7 +1210,7 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
         <button
           type="button"
           onClick={() => onSkip()}
-          className="mt-4 block w-full text-sm text-slate-500 transition-colors hover:text-white"
+          className="mt-4 block w-full text-sm text-[color:var(--ob-faint)] transition-colors hover:text-[color:var(--ob-text)]"
         >
           Saltar paso
         </button>
@@ -1293,7 +1316,7 @@ function HybridCaptureStep({ onContinue, onSkip }) {
       </p>
 
       <p
-        className="max-w-md text-lg leading-snug text-white sm:text-xl"
+        className="max-w-md text-lg leading-snug text-[color:var(--ob-text)] sm:text-xl"
         aria-hidden="true"
       >
         {typed}
@@ -1301,7 +1324,7 @@ function HybridCaptureStep({ onContinue, onSkip }) {
       </p>
 
       <p
-        className={`mt-2 max-w-sm text-[11px] leading-snug text-slate-500
+        className={`mt-2 max-w-sm text-[11px] leading-snug text-[color:var(--ob-faint)]
                     transition-opacity duration-700
                     ${showRest ? 'opacity-100' : 'opacity-0'}`}
         aria-hidden="true"
@@ -1332,15 +1355,15 @@ function HybridCaptureStep({ onContinue, onSkip }) {
             type="button"
             onClick={handleOpenContacts}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
-                       border border-slate-700 py-2.5 text-xs font-semibold text-slate-300
-                       transition-colors hover:border-slate-600 hover:text-white"
+                       border border-slate-700 py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
+                       transition-colors hover:border-slate-600 hover:text-[color:var(--ob-text)]"
           >
             <BookUser size={14} aria-hidden="true" />
             Elegir desde mi agenda
           </button>
         )}
 
-        <p className="mt-6 text-xs text-slate-500">{HYBRID_BRIDGE_TEXT}</p>
+        <p className="mt-6 text-xs text-[color:var(--ob-faint)]">{HYBRID_BRIDGE_TEXT}</p>
 
         <div className="mt-3 space-y-3">
           {tasks.map((value, index) => (
@@ -1353,9 +1376,9 @@ function HybridCaptureStep({ onContinue, onSkip }) {
           onClick={() => onContinue(cleanProspects, cleanTasks)}
           disabled={!isValid}
           className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     uppercase tracking-wide text-white transition-all hover:bg-indigo-500
-                     active:scale-95 disabled:cursor-not-allowed disabled:bg-white/[0.06]
-                     disabled:text-white/25 disabled:shadow-none
+                     uppercase tracking-wide text-[color:var(--ob-text)] transition-all hover:bg-indigo-500
+                     active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
+                     disabled:text-[color:var(--ob-faint)] disabled:shadow-none
                      ${isValid ? GLOW_BUTTON_CLASS : ''}`}
         >
           Continuar
@@ -1364,7 +1387,7 @@ function HybridCaptureStep({ onContinue, onSkip }) {
         <button
           type="button"
           onClick={() => onSkip()}
-          className="mt-4 block w-full text-sm text-slate-500 transition-colors hover:text-white"
+          className="mt-4 block w-full text-sm text-[color:var(--ob-faint)] transition-colors hover:text-[color:var(--ob-text)]"
         >
           Saltar paso
         </button>
@@ -1424,7 +1447,7 @@ function ConsolidatedWelcomeStep({ name, onContinue }) {
       </p>
 
       <p
-        className="max-w-lg text-xl font-light leading-snug text-white sm:text-2xl"
+        className="max-w-lg text-xl font-light leading-snug text-[color:var(--ob-text)] sm:text-2xl"
         aria-hidden="true"
       >
         {typed}
@@ -1470,7 +1493,7 @@ function ConsolidatedWelcomeStep({ name, onContinue }) {
                 >
                   <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
                 </span>
-                <span className="text-sm leading-relaxed text-slate-200">
+                <span className="text-sm leading-relaxed text-[color:var(--ob-soft)]">
                   {benefit.text}
                 </span>
               </motion.li>
@@ -1604,7 +1627,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
       </p>
 
       <p
-        className="max-w-md text-lg leading-snug text-white sm:text-xl"
+        className="max-w-md text-lg leading-snug text-[color:var(--ob-text)] sm:text-xl"
         aria-hidden="true"
       >
         {typed}
@@ -1613,7 +1636,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
 
       {phase === 'A' && (
         <p
-          className={`mt-2 max-w-sm text-[11px] leading-snug text-slate-500
+          className={`mt-2 max-w-sm text-[11px] leading-snug text-[color:var(--ob-faint)]
                       transition-opacity duration-700
                       ${showRest ? 'opacity-100' : 'opacity-0'}`}
           aria-hidden="true"
@@ -1647,8 +1670,8 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                 type="button"
                 onClick={handleOpenContacts}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
-                           border border-slate-700 py-2.5 text-xs font-semibold text-slate-300
-                           transition-colors hover:border-slate-600 hover:text-white"
+                           border border-slate-700 py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
+                           transition-colors hover:border-slate-600 hover:text-[color:var(--ob-text)]"
               >
                 <BookUser size={14} aria-hidden="true" />
                 Elegir desde mi agenda
@@ -1660,9 +1683,9 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
               onClick={advanceToPhaseB}
               disabled={!canAdvanceToPhaseB}
               className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                         uppercase tracking-wide text-white transition-all hover:bg-indigo-500
-                         active:scale-95 disabled:cursor-not-allowed disabled:bg-white/[0.06]
-                         disabled:text-white/25 disabled:shadow-none
+                         uppercase tracking-wide text-[color:var(--ob-text)] transition-all hover:bg-indigo-500
+                         active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
+                         disabled:text-[color:var(--ob-faint)] disabled:shadow-none
                          ${canAdvanceToPhaseB ? GLOW_BUTTON_CLASS : ''}`}
             >
               Continuar
@@ -1671,8 +1694,8 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
             <button
               type="button"
               onClick={() => onSkip()}
-              className="mt-4 block w-full text-sm text-slate-500 transition-colors
-                         hover:text-white"
+              className="mt-4 block w-full text-sm text-[color:var(--ob-faint)] transition-colors
+                         hover:text-[color:var(--ob-text)]"
             >
               Saltar paso
             </button>
@@ -1685,8 +1708,8 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                   key={index}
                   className="rounded-xl border border-slate-700 bg-slate-800/50 p-4 text-left"
                 >
-                  <p className="flex items-center gap-2 text-sm font-semibold text-white">
-                    <User size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
+                  <p className="flex items-center gap-2 text-sm font-semibold text-[color:var(--ob-text)]">
+                    <User size={15} className="shrink-0 text-[color:var(--ob-soft)]" aria-hidden="true" />
                     {contact.nombre}
                   </p>
 
@@ -1694,7 +1717,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                     <div>
                       <label
                         className="mb-1 block text-[10px] font-semibold uppercase
-                                   tracking-wider text-slate-500"
+                                   tracking-wider text-[color:var(--ob-faint)]"
                         htmlFor={`sequential-action-${index}`}
                       >
                         Acción
@@ -1704,7 +1727,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                         value={actions[index]?.tipo ?? config.actionOptions[0].value}
                         onChange={(event) => updateAction(index, { tipo: event.target.value })}
                         className="w-full rounded-lg border border-slate-700 bg-slate-900/60
-                                   px-2.5 py-2 text-sm text-white focus:border-indigo-500
+                                   px-2.5 py-2 text-sm text-[color:var(--ob-text)] focus:border-indigo-500
                                    focus:outline-none"
                       >
                         {config.actionOptions.map((option) => (
@@ -1718,7 +1741,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                     <div>
                       <label
                         className="mb-1 block text-[10px] font-semibold uppercase
-                                   tracking-wider text-slate-500"
+                                   tracking-wider text-[color:var(--ob-faint)]"
                         htmlFor={`sequential-datetime-${index}`}
                       >
                         Fecha y hora
@@ -1731,7 +1754,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
                           updateAction(index, { fechaHora: event.target.value })
                         )}
                         className="w-full rounded-lg border border-slate-700 bg-slate-900/60
-                                   px-2.5 py-2 text-sm text-white [color-scheme:dark]
+                                   px-2.5 py-2 text-sm text-[color:var(--ob-text)] [color-scheme:dark]
                                    focus:border-indigo-500 focus:outline-none"
                       />
                     </div>
@@ -1744,7 +1767,7 @@ function SequentialCaptureStep({ config, onContinue, onSkip }) {
               type="button"
               onClick={handleSaveAgenda}
               className={`mt-5 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
-                         font-semibold uppercase tracking-wide text-white transition-all
+                         font-semibold uppercase tracking-wide text-[color:var(--ob-text)] transition-all
                          hover:bg-indigo-500 active:scale-95 ${GLOW_BUTTON_CLASS}`}
             >
               Guardar en mi Agenda
@@ -1868,14 +1891,14 @@ function RewardStep({ capturedCount, achievement, onDone }) {
 
         <div
           className="mt-6 flex items-center gap-3 rounded-2xl border border-amber-400/30
-                     bg-white/[0.04] px-4 py-3 shadow-[0_0_20px_rgba(245,158,11,0.15)]"
+                     bg-[var(--ob-cell)] px-4 py-3 shadow-[0_0_20px_rgba(245,158,11,0.15)]"
         >
           <AchievementIcon size={20} className="shrink-0 text-amber-400" aria-hidden="true" />
           <div className="text-left">
             <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">
               Primera misión completada
             </p>
-            <p className="text-sm font-semibold text-white">
+            <p className="text-sm font-semibold text-[color:var(--ob-text)]">
               {achievement.label(capturedCount)}
             </p>
           </div>
@@ -1944,9 +1967,9 @@ function JoinTeamStep({ onContinue }) {
           <CheckCircle2 size={24} strokeWidth={1.8} aria-hidden="true" />
         </span>
 
-        <p className="text-lg font-semibold text-white">Solicitud enviada</p>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-400">
-          Pediste unirte a <span className="font-semibold text-slate-200">{joined}</span>.
+        <p className="text-lg font-semibold text-[color:var(--ob-text)]">Solicitud enviada</p>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-[color:var(--ob-soft)]">
+          Pediste unirte a <span className="font-semibold text-[color:var(--ob-soft)]">{joined}</span>.
           Falta que tu promotor apruebe tu acceso.
         </p>
 
@@ -1954,7 +1977,7 @@ function JoinTeamStep({ onContinue }) {
           type="button"
           onClick={onContinue}
           className={`mt-8 rounded-full bg-indigo-600 px-8 py-3 text-sm font-semibold
-                     text-white transition-colors hover:bg-indigo-500 active:scale-95
+                     text-[color:var(--ob-text)] transition-colors hover:bg-indigo-500 active:scale-95
                      ${GLOW_BUTTON_CLASS}`}
         >
           Continuar
@@ -1973,8 +1996,8 @@ function JoinTeamStep({ onContinue }) {
         <Users size={24} strokeWidth={1.8} aria-hidden="true" />
       </span>
 
-      <p className="max-w-sm text-lg leading-snug text-white sm:text-xl">{STEP5_TEXT}</p>
-      <p className="mt-2 max-w-xs text-[11px] leading-snug text-white/40">{STEP5_SUBTEXT}</p>
+      <p className="max-w-sm text-lg leading-snug text-[color:var(--ob-text)] sm:text-xl">{STEP5_TEXT}</p>
+      <p className="mt-2 max-w-xs text-[11px] leading-snug text-[color:var(--ob-faint)]">{STEP5_SUBTEXT}</p>
 
       <div className="mt-6 w-full max-w-xs">
         <label className="sr-only" htmlFor="join-team-code">Código de promotoría</label>
@@ -1988,8 +2011,8 @@ function JoinTeamStep({ onContinue }) {
           spellCheck="false"
           maxLength={15}
           className="w-full rounded-xl border border-slate-700 bg-transparent px-3 py-3
-                     text-center font-mono text-lg tracking-[0.15em] text-white
-                     placeholder:text-slate-600 transition-colors focus:border-indigo-500
+                     text-center font-mono text-lg tracking-[0.15em] text-[color:var(--ob-text)]
+                     placeholder:text-[color:var(--ob-faint)] transition-colors focus:border-indigo-500
                      focus:outline-none"
         />
 
@@ -2008,7 +2031,7 @@ function JoinTeamStep({ onContinue }) {
           type="submit"
           disabled={isBusy}
           className={`mt-4 flex w-full items-center justify-center gap-2 rounded-full
-                     bg-indigo-600 px-8 py-3 text-sm font-semibold text-white
+                     bg-indigo-600 px-8 py-3 text-sm font-semibold text-[color:var(--ob-text)]
                      transition-all hover:bg-indigo-500 active:scale-95
                      disabled:cursor-wait disabled:opacity-70 ${GLOW_BUTTON_CLASS}`}
         >
@@ -2019,7 +2042,7 @@ function JoinTeamStep({ onContinue }) {
         <button
           type="button"
           onClick={onContinue}
-          className="mt-4 block w-full text-sm text-slate-500 transition-colors hover:text-white"
+          className="mt-4 block w-full text-sm text-[color:var(--ob-faint)] transition-colors hover:text-[color:var(--ob-text)]"
         >
           Hacerlo después
         </button>
@@ -2057,7 +2080,7 @@ function StartStep({ onStart }) {
       className={`flex flex-col items-center px-6 text-center transition-opacity duration-700
                   ${visible ? 'opacity-100' : 'opacity-0'}`}
     >
-      <p className="mb-6 text-sm text-slate-400">Tu entorno de trabajo está listo.</p>
+      <p className="mb-6 text-sm text-[color:var(--ob-soft)]">Tu entorno de trabajo está listo.</p>
 
       <button
         type="button"
@@ -2127,6 +2150,10 @@ export default function FirstLoginIntro({
   const [capturedCount, setCapturedCount] = useState(0);
   const [closing, setClosing] = useState(false);
   const { addEvent } = useEvents();
+
+  // Tema elegido en la bienvenida: pinta el fondo y, vía variables CSS, el texto.
+  const theme = themeFor(readAppTheme());
+  const pal = FLI_PALETTE[theme.value] ?? FLI_PALETTE.dark;
 
   /*
     Tocar en cualquier parte de la pantalla acelera un 50% la máquina de
@@ -2306,13 +2333,32 @@ export default function FirstLoginIntro({
   return (
     <div
       className={`fixed inset-0 z-[95] flex min-h-screen w-full items-center justify-center
-                  bg-slate-950 transition-opacity duration-700
-                  ${closing ? 'opacity-0' : 'opacity-100'}`}
+                  transition-opacity duration-700
+                  ${theme.bgStyle ? '' : theme.bg} ${closing ? 'opacity-0' : 'opacity-100'}`}
+      style={{
+        ...(theme.bgStyle ?? {}),
+        '--ob-text': pal.text,
+        '--ob-soft': pal.soft,
+        '--ob-faint': pal.faint,
+        '--ob-border': pal.border,
+        '--ob-cell': pal.cell,
+      }}
       role="dialog"
       aria-modal="true"
       aria-label="Bienvenida"
       onClick={() => setFastTyping(true)}
     >
+      {/*
+        PROVISIONAL: marcador "FIN" en la última lámina (step 6), para ubicar dónde
+        termina el recorrido durante el ajuste. Se eliminará después.
+      */}
+      {step === 6 && (
+        <div className="fixed left-1/2 top-4 z-[99] -translate-x-1/2 rounded-full
+                        bg-rose-500 px-4 py-1 text-xs font-bold uppercase tracking-widest text-[color:var(--ob-text)]">
+          FIN
+        </div>
+      )}
+
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
         {/*
           Rama Consolidado — "Alfombra Roja": un solo paso informativo
