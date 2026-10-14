@@ -13,6 +13,34 @@ import {
   CONSOLIDATED_MOTIVATION_OPTIONS,
 } from '../../lib/advisorOnboarding';
 import { saveExperienceLevel, saveAdvisorProfile } from '../../data/profilesRepo';
+import { readAppTheme, themeFor } from '../../lib/appTheme';
+import ThemeSwitch from './ThemeSwitch';
+
+/*
+  Paleta del onboarding por tema. Se inyecta como variables CSS en el contenedor
+  raíz y los pasos la heredan por cascada —sin pasar props por ocho componentes—.
+  `text` es el color del texto principal; `soft`/`faint` son el mismo tono a menor
+  presencia (subtítulos, celdas apagadas); `border` las líneas divisorias; `cell`
+  el fondo de las celdas libres del mapa de horas. En oscuro todo es blanco con
+  alfa (como estaba); en claro/crema, el tinte oscuro del tema.
+*/
+const OB_PALETTE = {
+  dark: {
+    text: '#f8fafc', soft: 'rgba(248,250,252,0.55)', faint: 'rgba(248,250,252,0.3)',
+    border: 'rgba(255,255,255,0.12)', cell: 'rgba(255,255,255,0.05)',
+    cellText: 'rgba(255,255,255,0.35)',
+  },
+  light: {
+    text: '#0f172a', soft: 'rgba(15,23,42,0.6)', faint: 'rgba(15,23,42,0.4)',
+    border: 'rgba(15,23,42,0.12)', cell: 'rgba(15,23,42,0.05)',
+    cellText: 'rgba(15,23,42,0.45)',
+  },
+  cream: {
+    text: '#0B1A30', soft: 'rgba(11,26,48,0.6)', faint: 'rgba(11,26,48,0.4)',
+    border: 'rgba(11,26,48,0.14)', cell: 'rgba(11,26,48,0.05)',
+    cellText: 'rgba(11,26,48,0.45)',
+  },
+};
 
 /** Mínimo de letras para dar por contestado el nombre del Paso 1. */
 const MIN_NAME = 2;
@@ -139,7 +167,7 @@ function BackArrow({ onBack }) {
         condicionalmente.
       */
       className="fixed left-4 top-4 z-[60] grid h-10 w-10 place-items-center rounded-full
-                 text-white/40 transition-colors hover:bg-white/5 hover:text-white/80
+                 text-[color:var(--ob-faint)] transition-colors hover:bg-[var(--ob-cell)] hover:text-[color:var(--ob-soft)]
                  focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
     >
       <ArrowLeft size={20} aria-hidden="true" />
@@ -173,9 +201,9 @@ function ChoiceOption({ option, onSelect, disabled }) {
                  disabled:opacity-40 focus-visible:outline-none
                  focus-visible:ring-1 focus-visible:ring-white/30"
     >
-      <p className="text-lg font-semibold text-white">{title}</p>
+      <p className="text-lg font-semibold text-[color:var(--ob-text)]">{title}</p>
       {option.subtitle && (
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500">{option.subtitle}</p>
+        <p className="mt-1 text-xs leading-relaxed text-[color:var(--ob-faint)]">{option.subtitle}</p>
       )}
     </button>
   );
@@ -199,7 +227,7 @@ function ChoiceStep({ text, options, onSelect, busyValue = null }) {
     <div className="flex w-full flex-col items-center px-6 text-center">
       <p className="sr-only">{text}</p>
       <p
-        className="max-w-md text-xl font-light leading-snug text-white sm:text-2xl"
+        className="max-w-md text-xl font-light leading-snug text-[color:var(--ob-text)] sm:text-2xl"
         aria-hidden="true"
       >
         {typed}
@@ -211,7 +239,7 @@ function ChoiceStep({ text, options, onSelect, busyValue = null }) {
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
         aria-hidden={isTyping}
       >
-        <div className="flex flex-col divide-y divide-white/10">
+        <div className="flex flex-col divide-y divide-[color:var(--ob-border)]">
           {options.map((option) => (
             <ChoiceOption
               key={String(option.value)}
@@ -223,7 +251,7 @@ function ChoiceStep({ text, options, onSelect, busyValue = null }) {
         </div>
 
         {busyValue && (
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-zinc-500">
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-[color:var(--ob-faint)]">
             <Loader2 size={13} className="animate-spin" aria-hidden="true" />
             Guardando...
           </p>
@@ -264,7 +292,7 @@ function NameStep({ initialValue, onContinue }) {
     <form onSubmit={submit} className="flex w-full flex-col items-center px-6 text-center">
       <p className="sr-only">{text}</p>
       <p
-        className="max-w-lg text-2xl font-light leading-relaxed text-white sm:text-3xl"
+        className="max-w-lg text-2xl font-light leading-relaxed text-[color:var(--ob-text)] sm:text-3xl"
         aria-hidden="true"
       >
         {typed}
@@ -284,19 +312,19 @@ function NameStep({ initialValue, onContinue }) {
           placeholder="Escribe tu nombre"
           autoComplete="given-name"
           enterKeyHint="go"
-          className="w-full border-b border-white/20 bg-transparent pb-2 text-center
-                     text-xl text-white caret-indigo-400 transition-colors
-                     placeholder:text-white/25 focus:border-indigo-500 focus:outline-none"
+          className="w-full border-b border-[color:var(--ob-border)] bg-transparent pb-2 text-center
+                     text-xl text-[color:var(--ob-text)] caret-indigo-400 transition-colors
+                     placeholder:text-[color:var(--ob-faint)] focus:border-indigo-500 focus:outline-none"
         />
 
         <button
           type="submit"
           disabled={!isValid}
           className="mt-8 w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
-                     font-semibold text-white shadow-lg shadow-indigo-600/30
+                     font-semibold text-[color:var(--ob-text)] shadow-lg shadow-indigo-600/30
                      transition-all hover:bg-indigo-500 active:scale-95
-                     disabled:cursor-not-allowed disabled:bg-white/[0.06]
-                     disabled:text-white/25 disabled:shadow-none"
+                     disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
+                     disabled:text-[color:var(--ob-faint)] disabled:shadow-none"
         >
           Continuar
         </button>
@@ -328,7 +356,7 @@ function WelcomeStep({ name, onContinue }) {
     <div className="flex flex-col items-center px-6 text-center">
       <p className="sr-only">{text}</p>
       <p
-        className="max-w-lg text-2xl font-light leading-relaxed text-white sm:text-3xl"
+        className="max-w-lg text-2xl font-light leading-relaxed text-[color:var(--ob-text)] sm:text-3xl"
         aria-hidden="true"
       >
         {typed}
@@ -340,7 +368,7 @@ function WelcomeStep({ name, onContinue }) {
         onClick={onContinue}
         aria-hidden={isTyping}
         tabIndex={isTyping ? -1 : 0}
-        className={`mt-10 text-base font-semibold text-white transition-opacity
+        className={`mt-10 text-base font-semibold text-[color:var(--ob-text)] transition-opacity
                     duration-700 hover:opacity-70 active:scale-95
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       >
@@ -371,7 +399,7 @@ function HourCell({ hour, isSelected, onToggle }) {
                  font-semibold transition-all active:scale-90 ${
         isSelected
           ? 'bg-amber-500 text-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
-          : 'bg-white/[0.04] text-white/30 hover:bg-white/[0.08] hover:text-white/50'
+          : 'bg-[var(--ob-cell)] text-[color:var(--ob-faint)] hover:bg-[var(--ob-cell)] hover:text-[color:var(--ob-soft)]'
       }`}
     >
       {formatHour(hour)}
@@ -404,7 +432,7 @@ function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
     <div>
       <div className="mb-1.5 flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-xs font-semibold uppercase
-                         tracking-wider text-white/40"
+                         tracking-wider text-[color:var(--ob-faint)]"
         >
           <Icon size={12} aria-hidden="true" />
           {block.label}
@@ -500,7 +528,7 @@ function HourGridStep({
     <div className="flex h-screen w-full flex-col items-center justify-center px-6 text-center">
       <p className="sr-only">{`${text} ${hintText}`}</p>
       <p
-        className="max-w-sm text-lg leading-snug text-white"
+        className="max-w-sm text-lg leading-snug text-[color:var(--ob-text)]"
         aria-hidden="true"
       >
         {typed}
@@ -514,7 +542,7 @@ function HourGridStep({
         tocar el mapa.
       */}
       <p
-        className={`mt-1.5 max-w-xs text-[11px] leading-snug text-white/40
+        className={`mt-1.5 max-w-xs text-[11px] leading-snug text-[color:var(--ob-faint)]
                     transition-opacity duration-700
                     ${isTyping ? 'opacity-0' : 'opacity-100'}`}
         aria-hidden="true"
@@ -540,7 +568,7 @@ function HourGridStep({
                      transition-colors ${
             isFreelanceAllDay
               ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-              : 'border-white/15 text-white/50 hover:border-white/30 hover:text-white'
+              : 'border-[color:var(--ob-border)] text-[color:var(--ob-soft)] hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-text)]'
           }`}
         >
           {isFreelanceAllDay ? 'Todo el día está marcado libre' : 'Tengo todo el día libre'}
@@ -573,8 +601,8 @@ function HourGridStep({
             <button
               type="button"
               onClick={() => setShowDawn(true)}
-              className="flex items-center gap-1 text-xs text-slate-500
-                         transition-colors hover:text-slate-300"
+              className="flex items-center gap-1 text-xs text-[color:var(--ob-faint)]
+                         transition-colors hover:text-[color:var(--ob-soft)]"
             >
               <ChevronDown size={12} aria-hidden="true" />
               Mostrar horario de madrugada
@@ -582,7 +610,7 @@ function HourGridStep({
           )}
         </div>
 
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-[color:var(--ob-faint)]">
           {selected.length === 0
             ? 'Todavía no marcas ninguna hora.'
             : `${selected.length} ${selected.length === 1 ? 'hora libre' : 'horas libres'} marcadas.`}
@@ -593,10 +621,10 @@ function HourGridStep({
           onClick={() => onContinue(selected)}
           disabled={selected.length === 0}
           className="w-full rounded-full bg-indigo-600 px-8 py-3 text-sm
-                     font-semibold text-white shadow-lg shadow-indigo-600/30
+                     font-semibold text-[color:var(--ob-text)] shadow-lg shadow-indigo-600/30
                      transition-all hover:bg-indigo-500 active:scale-95
-                     disabled:cursor-not-allowed disabled:bg-white/[0.06]
-                     disabled:text-white/25 disabled:shadow-none"
+                     disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
+                     disabled:text-[color:var(--ob-faint)] disabled:shadow-none"
         >
           Continuar
         </button>
@@ -648,7 +676,7 @@ function AnalysisRoomStep({ onSimulateApproval }) {
       <p className="sr-only">{`${CONFIRM_TEXT} ${SECONDARY_TEXT}`}</p>
 
       <p
-        className="max-w-md text-xl font-light leading-snug text-white sm:text-2xl"
+        className="max-w-md text-xl font-light leading-snug text-[color:var(--ob-text)] sm:text-2xl"
         aria-hidden="true"
       >
         {typed}
@@ -656,7 +684,7 @@ function AnalysisRoomStep({ onSimulateApproval }) {
       </p>
 
       <p
-        className={`mt-4 max-w-sm text-sm leading-relaxed text-zinc-400
+        className={`mt-4 max-w-sm text-sm leading-relaxed text-[color:var(--ob-soft)]
                     transition-opacity duration-1000 ${isTyping ? 'opacity-0' : 'opacity-100'}`}
         aria-hidden={isTyping}
       >
@@ -727,6 +755,15 @@ export default function OnboardingFlow({
 }) {
   const [step, setStep] = useState(1);
   const [busyValue, setBusyValue] = useState(null);
+
+  /*
+    Tema elegido en la bienvenida: pinta el fondo y, vía variables CSS, el texto.
+    Vive en estado (no sólo lectura) para que el conmutador flotante lo cambie en el
+    acto, sin recargar.
+  */
+  const [themeValue, setThemeValue] = useState(readAppTheme);
+  const theme = themeFor(themeValue);
+  const pal = OB_PALETTE[theme.value] ?? OB_PALETTE.dark;
 
   /*
     Tocar en cualquier parte de la pantalla acelera un 50% la máquina de
@@ -853,10 +890,33 @@ export default function OnboardingFlow({
 
   return (
     <div
-      className="relative flex min-h-screen w-full items-center justify-center bg-slate-950
-                 px-4 py-10"
+      className={`relative flex min-h-screen w-full items-center justify-center px-4 py-10
+                  ${theme.bgStyle ? '' : theme.bg}`}
+      style={{
+        ...(theme.bgStyle ?? {}),
+        // Variables heredadas por todos los pasos (texto, bordes, celdas del mapa).
+        '--ob-text': pal.text,
+        '--ob-soft': pal.soft,
+        '--ob-faint': pal.faint,
+        '--ob-border': pal.border,
+        '--ob-cell': pal.cell,
+        '--ob-cell-text': pal.cellText,
+      }}
       onClick={() => setFastTyping(true)}
     >
+      {/*
+        Conmutador de tema, flotante en la esquina inferior. Esquina distinta a la
+        flecha "Atrás" (arriba izq.) y a "¿No es tu cuenta?" (arriba der.) para no
+        encimarse. `stopPropagation`: tocarlo no debe, de paso, acelerar la máquina
+        de escribir (el onClick del contenedor raíz).
+      */}
+      <div
+        className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ThemeSwitch value={themeValue} onChange={setThemeValue} />
+      </div>
+
       {/*
         Del Paso 2 al 9: el Paso 1 no tiene pregunta anterior a la que
         volver, y el Paso 10 (Sala de Análisis) es una vista terminal —ver
@@ -873,8 +933,8 @@ export default function OnboardingFlow({
         <button
           type="button"
           onClick={onExit}
-          className="absolute right-4 top-5 z-20 text-[11px] font-light text-zinc-500
-                     underline-offset-2 hover:text-zinc-300 hover:underline"
+          className="absolute right-4 top-5 z-20 text-[11px] font-light text-[color:var(--ob-faint)]
+                     underline-offset-2 hover:text-[color:var(--ob-soft)] hover:underline"
         >
           ¿No es tu cuenta? Salir
         </button>
