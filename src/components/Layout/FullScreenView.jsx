@@ -59,10 +59,11 @@ export default function FullScreenView({
       role="dialog"
       aria-modal="true"
       aria-label={label ?? title}
-      className={`fixed inset-0 z-[70] overflow-y-auto overscroll-contain
+      className={`immersive-surface fixed inset-0 z-[70] overflow-y-auto overscroll-contain
                   transition-all duration-300 ease-out
                   ${immersive ? 'bg-black' : 'bg-white dark:bg-black'}
                   ${isShown ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
+      data-immersive={immersive ? 'true' : undefined}
     >
       {/* Cabecera fija: acompaña al scroll del contenido */}
       <header

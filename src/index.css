@@ -536,3 +536,38 @@ html.theme-cream [data-tone="sky"] {
   border: 1px solid #BCD4E2;
   color: #1B5E7E;
 }
+
+/*
+  ── Pantalla inmersiva (cronómetro de bloques de tiempo) por tema ────────────
+  El modo inmersivo (`data-immersive`) va en negro por omisión. En blanco y crema
+  se pinta claro y se invierten los blancos de dentro (texto, bordes, botones), que
+  de otro modo quedarían invisibles sobre fondo claro. Acotado a `[data-immersive]`
+  para no afectar las demás pantallas.
+*/
+/* ── Blanco ── */
+html:not(.dark):not(.theme-cream) [data-immersive="true"] { background-color: #FFFFFF; }
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .text-white { color: #0F172A; }
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .text-white\/60 { color: rgba(15,23,42,0.6); }
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .text-white\/40,
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .text-white\/30 { color: rgba(15,23,42,0.45); }
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .text-white\/15 { color: rgba(15,23,42,0.25); }
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .border-white\/20,
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .border-white\/15 { border-color: rgba(15,23,42,0.18); }
+/* Botones blancos sólidos (Iniciar/Reanudar) → navy con texto marfil. */
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .bg-white { background-color: #0B1A30; }
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .bg-white.text-black,
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .bg-white .text-black { color: #FFFFFF; }
+html:not(.dark):not(.theme-cream) [data-immersive="true"] .text-black { color: #FFFFFF; }
+
+/* ── Crema ── */
+html.theme-cream [data-immersive="true"] { background-color: #F2ECE1; }
+html.theme-cream [data-immersive="true"] .text-white { color: #231F1B; }
+html.theme-cream [data-immersive="true"] .text-white\/60 { color: rgba(35,31,27,0.65); }
+html.theme-cream [data-immersive="true"] .text-white\/40,
+html.theme-cream [data-immersive="true"] .text-white\/30 { color: rgba(35,31,27,0.5); }
+html.theme-cream [data-immersive="true"] .text-white\/15 { color: rgba(35,31,27,0.28); }
+html.theme-cream [data-immersive="true"] .border-white\/20,
+html.theme-cream [data-immersive="true"] .border-white\/15 { border-color: #DFD5C0; }
+/* Botones sólidos (Iniciar/Reanudar) → verde bosque con texto marfil. */
+html.theme-cream [data-immersive="true"] .bg-white { background-color: #1B4332; }
+html.theme-cream [data-immersive="true"] .text-black { color: #FFFDF9; }
