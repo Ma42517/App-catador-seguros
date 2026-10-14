@@ -284,8 +284,17 @@ export default function Login() {
     if (oauthError) setGoogleBusy(false);
   };
 
+  /*
+    El anillo de foco toma el ACENTO del tema (cyan en negro, verde bosque en
+    crema), no el azul por defecto de Tailwind: `focus:ring-2` sin color definido
+    pintaba un contorno azul ajeno a la paleta —el "azul raro"—. Se fija el color
+    del anillo con la variable de Tailwind y se afina su grosor y foco. El color
+    va en `inputStyle` de cada input (abajo), que ya se pasa por `style`.
+  */
   const fieldClass = `w-full rounded-2xl border py-4 pl-12 pr-4 text-base outline-none
-    transition-all focus:ring-2 ${t.inputBg}`;
+    transition-all focus:ring-2 focus:border-transparent ${t.inputBg}`;
+  // Estilo de input + color del anillo de foco con el acento del tema.
+  const inputStyle = { ...(t.inputStyle || {}), '--tw-ring-color': t.accent };
   const bg = t.bgStyle ? '' : t.bg;
 
   // Botón de proveedor (correo/Google): píldora clara con borde, estilo Sesame.
@@ -435,10 +444,14 @@ export default function Login() {
                 Volver
               </button>
 
-              {/* Logo compacto: la zona superior grande se ocultó para dejar sitio
-                  al teclado, así que la marca se mantiene aquí, en pequeño. */}
-              <div className="mb-5 flex justify-center">
+              {/* Logo compacto + eslogan: la zona superior grande se ocultó para
+                  dejar sitio al teclado, así que la marca y su eslogan se mantienen
+                  aquí, en pequeño. El eslogan se había perdido al abrir el correo. */}
+              <div className="mb-5 flex flex-col items-center">
                 <ExpandiaMark theme={t.value} size="text-3xl" />
+                <p className={`mt-1.5 text-center font-display text-sm italic ${t.text}`}>
+                  Multiplica tus posibilidades.
+                </p>
               </div>
 
               <form onSubmit={submit} className="space-y-3.5">
@@ -452,7 +465,7 @@ export default function Login() {
                     <input
                       id="login-name"
                       className={fieldClass}
-                      style={t.inputStyle}
+                      style={inputStyle}
                       value={fullName}
                       onChange={(e) => { setFullName(e.target.value); setError(''); }}
                       placeholder="Tu nombre completo"
@@ -471,7 +484,7 @@ export default function Login() {
                   <input
                     id="login-email"
                     className={fieldClass}
-                    style={t.inputStyle}
+                    style={inputStyle}
                     type="email"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(''); }}
@@ -494,7 +507,7 @@ export default function Login() {
                   <input
                     id="login-password"
                     className={`${fieldClass} pr-12`}
-                    style={t.inputStyle}
+                    style={inputStyle}
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setError(''); }}
