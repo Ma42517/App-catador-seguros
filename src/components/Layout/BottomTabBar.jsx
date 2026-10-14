@@ -286,10 +286,14 @@ export default function BottomTabBar({
             </span>
           </TabButton>
 
-          {/* Productividad */}
+          {/* Progreso (antes "Productividad", que no cabía y se cortaba a
+              "Producti..."): agrupa Workplace, metas, bloques, dinero en mesa,
+              rachas... "Progreso" es corto, cabe entero y engloba todo eso. El
+              nombre accesible conserva el término completo. */}
           <TabButton
             isActive={activeSection === 'productivity'}
-            label="Productividad"
+            label="Progreso"
+            srLabel="Progreso y productividad"
             onClick={withTap(onProductivity)}
           >
             <TrendingUp size={22} strokeWidth={1.8} aria-hidden="true" />
