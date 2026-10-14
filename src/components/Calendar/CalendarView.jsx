@@ -3,6 +3,8 @@ import { CalendarDays, Bell, Calendar as CalendarIcon } from 'lucide-react';
 import { useEvents, todayKey } from '../../context/EventContext';
 import TaskOptionsSheet from '../Activities/TaskOptionsSheet';
 import ActionableCard from '../Activities/ActionableCard';
+import ActivityGroup from '../Activities/ActivityGroup';
+import { groupActivities } from '../../lib/activityGroups';
 import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from '../Activities/eventStatus';
 import useNow from '../../lib/useNow';
@@ -112,7 +114,14 @@ export default function CalendarView({
   const selected = events.find((e) => e.id === selectedId) ?? null;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    /*
+      `pb-16` propio además del `pb-28` del layout: con muchas citas la última
+      quedaba pegada —o por debajo— de la barra inferior y daba la sensación de
+      que la lista "se trababa" y no dejaba ver el final. Este colchón extra
+      garantiza que la última tarjeta siempre quede por encima de la barra, con
+      aire para desplazarse hasta ella.
+    */
+    <div className="mx-auto max-w-2xl px-4 pt-8 pb-16">
       <h1 className="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl dark:text-white">
         Agenda
       </h1>
@@ -146,7 +155,34 @@ export default function CalendarView({
               </h2>
 
               <ul className="flex flex-col gap-2">
-                {items.map((event) => {
+                {/*
+                  Dentro de cada día, los eventos pasan por `groupActivities`
+                  antes de pintarse: un tipo con más de cuatro actividades vivas
+                  se colapsa en una sola tarjeta de grupo (`ActivityGroup`), que
+                  al tocarse abre la lista completa en una pantalla con scroll.
+                  Mismo criterio que "Hoy", para que una agenda con muchas citas
+                  del mismo tipo no se vuelva una lista interminable que trabe la
+                  vista. Los recordatorios y los eventos ya completados nunca se
+                  agrupan (el agrupador les da clave propia), así que conservan
+                  su fila con el gesto de deslizar.
+                */}
+                {groupActivities(items).map((cell) => {
+                  if (cell.kind === 'group') {
+                    return (
+                      <li key={`group-${date}-${cell.tipo}`}>
+                        <ActivityGroup
+                          tipo={cell.tipo}
+                          events={cell.events}
+                          onStartSession={onStartSession}
+                          onReportResult={onReportResult}
+                          onOpenRequirements={onOpenRequirements}
+                          onRouteToActivity={onRouteToActivity}
+                        />
+                      </li>
+                    );
+                  }
+
+                  const event = cell.event;
                   /*
                     Una actividad del embudo todavía viva se dibuja con su
                     tarjeta real, la misma de "Hoy": así su botón de

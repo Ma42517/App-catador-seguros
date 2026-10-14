@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useEvents } from '../../context/EventContext';
 import ActionableCard from '../Activities/ActionableCard';
+import ActivityGroup from '../Activities/ActivityGroup';
+import { groupActivities } from '../../lib/activityGroups';
 import PriorityAlerts from './PriorityAlerts';
 import useTypewriter from '../../lib/useTypewriter';
 import useNow from '../../lib/useNow';
@@ -234,19 +236,42 @@ export default function AISequence({
           <PriorityAlerts />
         </div>
 
-        {/* Eventos de máxima prioridad para hoy, accionables al tocarlos */}
+        {/*
+          Eventos de máxima prioridad para hoy, accionables al tocarlos.
+
+          No se pintan uno a uno: pasan antes por `groupActivities`, que colapsa
+          en una sola tarjeta de grupo (`ActivityGroup`) cada tipo con más de
+          cuatro actividades. Así la pantalla principal nunca se llena de
+          decenas de tarjetas del mismo tipo —lo que la hacía sentir trabada—;
+          el excedente vive detrás de la tarjeta de grupo, en su propia pantalla
+          con scroll. Los tipos con cuatro o menos siguen sueltos, igual que
+          antes.
+        */}
         {highPriorityToday.length > 0 && (
           <ul className={`mt-10 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
-            {highPriorityToday.map((event) => (
-              <li key={event.id} className="mb-3">
-                <ActionableCard
-                  event={event}
-                  onStartSession={onStartSession}
-                  onReportResult={onReportResult}
-                  onOpenRequirements={onOpenRequirements}
-                  onRouteToActivity={onRouteToActivity}
-                />
-              </li>
+            {groupActivities(highPriorityToday).map((cell) => (
+              cell.kind === 'group' ? (
+                <li key={`group-${cell.tipo}`} className="mb-3">
+                  <ActivityGroup
+                    tipo={cell.tipo}
+                    events={cell.events}
+                    onStartSession={onStartSession}
+                    onReportResult={onReportResult}
+                    onOpenRequirements={onOpenRequirements}
+                    onRouteToActivity={onRouteToActivity}
+                  />
+                </li>
+              ) : (
+                <li key={cell.event.id} className="mb-3">
+                  <ActionableCard
+                    event={cell.event}
+                    onStartSession={onStartSession}
+                    onReportResult={onReportResult}
+                    onOpenRequirements={onOpenRequirements}
+                    onRouteToActivity={onRouteToActivity}
+                  />
+                </li>
+              )
             ))}
           </ul>
         )}
