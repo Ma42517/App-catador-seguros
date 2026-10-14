@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, Play } from 'lucide-react';
+import { ArrowRight, Play, Check } from 'lucide-react';
 import TypedLine from './TypedLine';
 import { DAILY_TARGET_MINUTES, formatDuration } from '../../data/timeBlocks';
 
@@ -79,7 +79,33 @@ function DailyGoal({ minutes }) {
   );
 }
 
-export default function FocusFlow({ blocks, minutes, onReady }) {
+/**
+ * Los últimos bloques completados: nombre, duración y una palomita de "completado".
+ * Flota sobre el fondo como el resto del acto 1 —sin caja— y usa los mismos
+ * `text-white/XX` que el tema ya sabe invertir en claro/crema.
+ */
+function RecentBlocks({ recent }) {
+  if (!recent || recent.length === 0) return null;
+
+  return (
+    <div className="mt-8 w-full max-w-xs">
+      <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/25">
+        Últimos bloques
+      </p>
+      <ul className="space-y-1.5">
+        {recent.map((b, i) => (
+          <li key={b.at ?? i} className="flex items-center gap-2 text-sm">
+            <Check size={13} className="shrink-0 text-emerald-400" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-white/70">{b.label}</span>
+            <span className="shrink-0 tabular-nums text-white/40">{formatDuration(b.minutes)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default function FocusFlow({ blocks, minutes, recent, onReady }) {
   /*
     'idle'    el "+" respirando
     'leaving' el "+" yéndose (existe sólo para poder animar su salida)
@@ -132,7 +158,7 @@ export default function FocusFlow({ blocks, minutes, onReady }) {
           type="button"
           onClick={() => setAct('leaving')}
           aria-label="Empezar un bloque de enfoque"
-          className={`transition-all duration-300 ease-out
+          className={`relative flex flex-col items-center transition-all duration-300 ease-out
                       ${leaving ? 'scale-90 opacity-0' : 'scale-100 opacity-100'}`}
         >
           {/*
@@ -154,6 +180,10 @@ export default function FocusFlow({ blocks, minutes, onReady }) {
             className="animate-plus-breathe block select-none text-zinc-900"
             aria-hidden="true"
           />
+          {/* La palabra, debajo del triángulo: dice qué hace sin deformar el ícono. */}
+          <span className="mt-4 text-sm font-semibold uppercase tracking-widest text-white/70">
+            Empezar
+          </span>
         </button>
 
         {/*
@@ -173,6 +203,8 @@ export default function FocusFlow({ blocks, minutes, onReady }) {
           <div className="mt-10 w-full">
             <DailyGoal minutes={minutes} />
           </div>
+
+          <RecentBlocks recent={recent} />
         </div>
       </div>
     );

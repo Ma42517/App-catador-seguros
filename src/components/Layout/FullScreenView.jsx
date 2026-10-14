@@ -75,18 +75,20 @@ export default function FullScreenView({
           <button
             type="button"
             onClick={onClose}
-            className={`relative z-10 -ml-1 flex items-center gap-0.5 rounded-lg py-1 pl-1 pr-2
-                        text-sm font-semibold transition-colors ${immersive
-              ? 'text-white/30 hover:text-white'
-              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'}`}
+            className={`relative z-10 -ml-1 flex items-center gap-1 rounded-lg py-1 pl-1 pr-2
+                        transition-colors ${immersive
+              ? 'immersive-back text-white/70 hover:text-white'
+              : 'text-sm font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white'}`}
           >
             <ChevronLeft size={18} />
             {/*
-              En modo inmersivo el botón se queda en el gesto y suelta la palabra:
-              "Volver" en la esquina de una pantalla que sólo tiene un reloj es la
-              única cosa que se puede leer, y se convierte en el centro de atención.
+              En modo inmersivo "Atrás" se muestra en la cursiva manuscrita (Caveat),
+              arriba a la izquierda: es la única salida visible de una pantalla que por
+              lo demás sólo tiene el reloj. En las vistas normales se mantiene como antes.
             */}
-            {immersive ? <span className="sr-only">{backLabel}</span> : backLabel}
+            {immersive
+              ? <span className="font-hand text-xl leading-none">Atrás</span>
+              : backLabel}
           </button>
 
           {/*

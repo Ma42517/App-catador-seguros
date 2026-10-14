@@ -176,6 +176,23 @@ export function recordCompletion(username, { label, minutes }) {
   return next;
 }
 
+/**
+ * Los últimos `n` bloques completados, el más reciente primero.
+ *
+ * Aplana todos los días del historial en una sola lista y la ordena por el
+ * instante de término (`at`). Sólo hay bloques completados aquí —`recordCompletion`
+ * se llama al terminar, no al cancelar—, así que todos cuentan como "completado".
+ */
+export function recentBlocks(history, n = 5) {
+  const all = Object.values(history)
+    .filter(Array.isArray)
+    .flat()
+    .filter((b) => b && b.label);
+  return all
+    .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
+    .slice(0, n);
+}
+
 /** Días consecutivos con al menos un bloque, contando hacia atrás desde hoy. */
 export function streakDays(history) {
   let streak = 0;

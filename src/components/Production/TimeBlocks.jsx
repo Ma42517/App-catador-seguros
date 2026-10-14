@@ -5,7 +5,7 @@ import FocusClock, { STEP_SEC } from './FocusClock';
 import TypedLine from './TypedLine';
 import {
   readSession, writeSession, remainingSeconds, formatClock, formatDuration,
-  readHistory, recordCompletion, statsFor, MAX_MINUTES,
+  readHistory, recordCompletion, statsFor, recentBlocks, MAX_MINUTES,
 } from '../../data/timeBlocks';
 import { primeAudio, playChime } from '../../data/chime';
 import {
@@ -384,6 +384,11 @@ export default function TimeBlocks({ username }) {
 
   // ── Actos 1 y 2 ─────────────────────────────────────────────────────────
   return (
-    <FocusFlow blocks={today.blocks} minutes={today.minutes} onReady={askForTime} />
+    <FocusFlow
+      blocks={today.blocks}
+      minutes={today.minutes}
+      recent={recentBlocks(history, 5)}
+      onReady={askForTime}
+    />
   );
 }
