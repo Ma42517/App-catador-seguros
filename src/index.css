@@ -682,7 +682,7 @@ html.theme-cream .more-menu .from-zinc-800.to-indigo-950 .text-zinc-400 {
 html:not(.dark):not(.theme-cream) .immersive-surface:has(.referral-hub) { background-color: #FFFFFF; }
 html.theme-cream .immersive-surface:has(.referral-hub) { background-color: #F2ECE1; }
 html.theme-cream .immersive-surface:has(.referral-hub) header {
-  background-color: #FAF7F2;
+  background-color: rgba(250, 247, 242, 0.85);
   border-bottom: 1px solid #DFD5C0;
 }
 html.theme-cream .immersive-surface:has(.referral-hub) header h1 { color: #231F1B; font-weight: 700; }
@@ -1097,3 +1097,23 @@ html.theme-cream .df360-shell header .text-zinc-100 { color: #231F1B; }
 html.theme-cream .df360-shell header .text-zinc-300,
 html.theme-cream .df360-shell header .text-zinc-400,
 html.theme-cream .df360-shell header .text-zinc-500 { color: #5C5346; }
+
+/*
+  ══════════════════════════════════════════════════════════════════════════════
+  FullScreenView (pantallas de "Mi Perfil") — fondo BEIGE en tema crema
+  ══════════════════════════════════════════════════════════════════════════════
+  Las pantallas Mi Perfil, Editar Tarjeta Digital, Ranking, Tienda, Prospectos
+  capturados y Prospectos en pausa usan `FullScreenView`, que en modo NO inmersivo
+  pinta `bg-white dark:bg-black`. En tema crema (modo claro, sin `.dark`) caía en
+  `bg-white` → fondo blanco frío en vez del beige del tema. Aquí, bajo
+  `html.theme-cream`, se tiñe de beige toda carcasa `.immersive-surface` que NO sea
+  inmersiva (las inmersivas, con `data-immersive`, siguen en negro a propósito).
+  Afecta a todas esas pantallas de un solo golpe, incluida la cabecera sticky.
+*/
+html.theme-cream .immersive-surface:not([data-immersive]) { background-color: #F2ECE1; }
+/* Cabecera fija translúcida (`bg-white/85`) → crema translúcido con borde arena. */
+html.theme-cream .immersive-surface:not([data-immersive]) header.sticky,
+html.theme-cream .immersive-surface:not([data-immersive]) > header {
+  background-color: rgba(250, 247, 242, 0.85);
+  border-bottom-color: #DFD5C0;
+}
