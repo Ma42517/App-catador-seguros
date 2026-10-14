@@ -3,6 +3,7 @@ import {
   Lock, Mail, User, LogIn, UserPlus, Loader2, AlertTriangle, MailCheck,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
+import ExpandiaMark from './ExpandiaMark';
 
 const INPUT =
   'w-full rounded-xl border border-zinc-700 bg-zinc-950/60 py-3 pl-10 pr-3 text-sm '
@@ -176,11 +177,9 @@ export default function Login() {
           className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl
                      shadow-zinc-950/60 backdrop-blur-md sm:p-8"
         >
-          <div className="mb-6 text-center">
-            <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">
-              EXPANDIA
-            </h1>
-            <p className="mt-1.5 text-[11px] tracking-[0.2em] text-zinc-500">
+          <div className="mb-6 flex flex-col items-center text-center">
+            <ExpandiaMark theme="dark" size="text-4xl" />
+            <p className="mt-2 text-[11px] tracking-[0.2em] text-zinc-500">
               MULTIPLICA TUS POSIBILIDADES
             </p>
           </div>

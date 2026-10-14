@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, ArrowRight } from 'lucide-react';
+import ExpandiaMark from './ExpandiaMark';
 import { APP_THEMES, themeFor, readAppTheme, writeAppTheme } from '../../lib/appTheme';
 import {
   TEXT_SCALES, readTextScale, writeTextScale, applyTextScale,
@@ -22,7 +23,6 @@ import { markWelcomeSeen } from '../../lib/welcomeOnboarding';
  * vista y le cede la pantalla al login. Se muestra una sola vez por dispositivo.
  */
 
-const MARCA = 'EXPANDIA';
 const ESLOGAN = 'Multiplica tus posibilidades';
 
 /* Pasos del recorrido. 'intro' no es pregunta; las otras dos sí. */
@@ -124,33 +124,65 @@ export default function WelcomeOnboarding({ onFinish }) {
         </button>
       )}
 
-      {/* ── INTRO: marca + eslogan + comenzar ── */}
+      {/* ── INTRO: wordmark + eslogan + comenzar ── */}
       {step === STEP_INTRO && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex flex-1 flex-col items-center justify-center text-center"
-        >
-          <h1 className={`text-4xl font-black tracking-tight sm:text-5xl ${t.text}`}>
-            {MARCA}
-          </h1>
-          <p className={`mt-3 text-base sm:text-lg ${t.muted}`}>{ESLOGAN}</p>
+        <div className="relative flex flex-1 flex-col items-center justify-center text-center">
+          {/*
+            Resplandor con el acento del tema detrás del wordmark: le quita el
+            vacío al fondo. Se atenúa en claro/crema para no ensuciar el fondo.
+          */}
+          <div
+            className="pointer-events-none absolute left-1/2 top-[40%] -z-0 h-64 w-80
+                       -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
+            style={{
+              background: `radial-gradient(circle, ${t.accent}44, transparent 70%)`,
+              opacity: theme === 'dark' ? 1 : 0.45,
+            }}
+            aria-hidden="true"
+          />
 
-          <p className={`mt-14 max-w-xs text-lg font-light leading-relaxed ${t.text}`}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+          >
+            <ExpandiaMark theme={theme} size="text-5xl sm:text-6xl" />
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className={`mt-4 text-base font-medium tracking-wide sm:text-lg ${t.muted}`}
+          >
+            {ESLOGAN}
+          </motion.p>
+
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            className={`mt-10 max-w-[16rem] text-base font-light leading-relaxed ${t.text} opacity-80`}
+          >
             Antes de empezar, dejemos la app a tu gusto.
-          </p>
+          </motion.p>
 
-          <button
+          <motion.button
             type="button"
             onClick={() => setStep(STEP_THEME)}
-            className="mt-10 rounded-full bg-indigo-600 px-10 py-3.5 text-base font-semibold
-                       text-white shadow-lg shadow-indigo-600/30 transition-all
-                       hover:bg-indigo-500 active:scale-95"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.68, duration: 0.5 }}
+            whileTap={{ scale: 0.95 }}
+            style={{ backgroundColor: t.accent }}
+            className="mt-9 flex items-center gap-2 rounded-full px-10 py-3.5 text-base
+                       font-bold text-[#0B1A30] shadow-lg transition-transform
+                       hover:brightness-105"
           >
             Comenzar
-          </button>
-        </motion.div>
+            <ArrowRight size={18} />
+          </motion.button>
+        </div>
       )}
 
       {/* ── PREGUNTAS: hilo que sube + control vivo abajo ── */}
@@ -181,7 +213,12 @@ export default function WelcomeOnboarding({ onFinish }) {
               className="mt-6 w-full"
             >
               {step === STEP_THEME ? (
-                <ThemeChooser theme={theme} onChoose={chooseTheme} onContinue={confirmTheme} />
+                <ThemeChooser
+                  theme={theme}
+                  onChoose={chooseTheme}
+                  onContinue={confirmTheme}
+                  activeTheme={t}
+                />
               ) : (
                 <SizeChooser size={size} onChoose={chooseSize} onContinue={confirmSize} activeTheme={t} />
               )}
@@ -203,7 +240,8 @@ export default function WelcomeOnboarding({ onFinish }) {
             initial={{ opacity: 0, y: 10, rotate: -2 }}
             animate={{ opacity: 1, y: 0, rotate: -2 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="font-hand text-6xl text-indigo-500 sm:text-7xl"
+            className="font-hand text-6xl sm:text-7xl"
+            style={{ color: t.accent }}
           >
             ¡Listo!
           </motion.p>
@@ -214,9 +252,9 @@ export default function WelcomeOnboarding({ onFinish }) {
           <button
             type="button"
             onClick={finish}
-            className="mt-10 rounded-full bg-indigo-600 px-10 py-3.5 text-base font-semibold
-                       text-white shadow-lg shadow-indigo-600/30 transition-all
-                       hover:bg-indigo-500 active:scale-95"
+            style={{ backgroundColor: t.accent }}
+            className="mt-10 rounded-full px-10 py-3.5 text-base font-bold text-[#0B1A30]
+                       shadow-lg transition-transform hover:brightness-105 active:scale-95"
           >
             Continuar
           </button>
@@ -227,7 +265,7 @@ export default function WelcomeOnboarding({ onFinish }) {
 }
 
 /* ── Selector de tema: tres círculos de color ── */
-function ThemeChooser({ theme, onChoose, onContinue }) {
+function ThemeChooser({ theme, onChoose, onContinue, activeTheme }) {
   return (
     <div className="flex flex-col items-center gap-8">
       <div className="flex items-center justify-center gap-8">
@@ -259,7 +297,15 @@ function ThemeChooser({ theme, onChoose, onContinue }) {
                   />
                 )}
               </span>
-              <span className={`text-sm font-semibold ${active ? 'opacity-100' : 'opacity-60'}`}>
+              {/*
+                El color del rótulo viene del tema elegido (`activeTheme.text`), no
+                del blanco global: en crema o claro, "Oscuro/Claro/Crema" tienen que
+                leerse en oscuro. Ése era el texto que se perdía sobre el crema.
+              */}
+              <span
+                className={`text-sm font-semibold ${activeTheme.text}
+                            ${active ? 'opacity-100' : 'opacity-55'}`}
+              >
                 {option.label}
               </span>
             </button>
@@ -270,8 +316,9 @@ function ThemeChooser({ theme, onChoose, onContinue }) {
       <button
         type="button"
         onClick={onContinue}
-        className="rounded-full bg-indigo-600 px-10 py-3 text-base font-semibold text-white
-                   shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500 active:scale-95"
+        style={{ backgroundColor: activeTheme.accent }}
+        className="rounded-full px-10 py-3 text-base font-bold text-[#0B1A30]
+                   shadow-lg transition-transform hover:brightness-105 active:scale-95"
       >
         Continuar
       </button>
@@ -293,18 +340,21 @@ function SizeChooser({ size, onChoose, onContinue, activeTheme }) {
               type="button"
               onClick={() => onChoose(scale.value)}
               aria-pressed={active}
-              className={`flex items-center justify-between rounded-2xl border px-5 py-4
-                          transition-all active:scale-[0.98] ${
-                active
-                  ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500'
-                  : `${activeTheme.inputBg}`
-              }`}
-              style={!active ? activeTheme.inputStyle : undefined}
+              className="flex items-center justify-between rounded-2xl border px-5 py-4
+                         transition-all active:scale-[0.98]"
+              style={{
+                ...(activeTheme.inputStyle ?? {}),
+                borderColor: active ? activeTheme.accent : undefined,
+                boxShadow: active ? `inset 0 0 0 1px ${activeTheme.accent}` : undefined,
+              }}
             >
               <span className={`font-semibold ${preview[scale.value]} ${activeTheme.text}`}>
                 {SIZE_LABEL[scale.value]}
               </span>
-              {active && <Check size={20} strokeWidth={3} className="shrink-0 text-indigo-500" />}
+              {active && (
+                <Check size={20} strokeWidth={3} className="shrink-0"
+                  style={{ color: activeTheme.accent }} />
+              )}
             </button>
           );
         })}
@@ -313,8 +363,9 @@ function SizeChooser({ size, onChoose, onContinue, activeTheme }) {
       <button
         type="button"
         onClick={onContinue}
-        className="rounded-full bg-indigo-600 px-10 py-3 text-base font-semibold text-white
-                   shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500 active:scale-95"
+        style={{ backgroundColor: activeTheme.accent }}
+        className="rounded-full px-10 py-3 text-base font-bold text-[#0B1A30]
+                   shadow-lg transition-transform hover:brightness-105 active:scale-95"
       >
         Continuar
       </button>
