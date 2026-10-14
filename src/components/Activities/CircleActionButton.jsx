@@ -35,7 +35,7 @@ const TONES = {
   emeraldSolid: 'bg-emerald-500 text-slate-950 hover:bg-emerald-400',
 };
 
-const BASE = 'grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors '
+const BASE = 'grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors '
   + 'active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
 
 export default function CircleActionButton({

@@ -41,14 +41,14 @@ export default function ActionCardBase({
 }) {
   const card = (
     <div
-      className={`funnel-card flex items-center gap-3 rounded-xl border p-3.5 transition-colors ${
+      className={`funnel-card flex items-center gap-2 rounded-xl border p-3.5 transition-colors ${
         isWarning
           ? 'animate-pulse border-amber-500/60 bg-white dark:bg-slate-900'
           : 'border-zinc-200 bg-white dark:border-slate-800 dark:bg-slate-900'
       }`}
     >
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
+        <p className="truncate text-[10px] font-bold uppercase tracking-wide text-indigo-400">
           {label}
         </p>
         {/*
@@ -64,8 +64,14 @@ export default function ActionCardBase({
           caso de una palabra sin espacios más ancha que la columna (un
           correo, un teléfono pegado), que sí se saldría del borde.
         */}
-        <p className="break-words text-sm font-semibold text-zinc-900 dark:text-white">{title}</p>
-        {subtitle && <p className="mt-0.5 break-words text-xs text-zinc-500 dark:text-slate-500">{subtitle}</p>}
+        {/*
+          `truncate`: el nombre va en UNA línea horizontal y, si no cabe, se corta
+          con "…" en vez de partirse letra por letra (que se veía "vertical"). El
+          subtítulo del Seguimiento sí puede ocupar dos líneas (su motivo es largo),
+          pero sin romper palabras —`break-words` sólo si no hay más remedio—.
+        */}
+        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">{title}</p>
+        {subtitle && <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500 dark:text-slate-500">{subtitle}</p>}
         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-slate-500">
           <Clock size={11} aria-hidden="true" />
           {time || 'Sin hora'}
