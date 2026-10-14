@@ -5,7 +5,7 @@ import useTypewriter, { TypewriterSpeedContext } from '../../lib/useTypewriter';
 import { EXPERIENCE_LEVELS } from '../../lib/experienceLevels';
 import {
   STRENGTH_OPTIONS, CONCERN_OPTIONS, MARKET_OPTIONS, AVAILABILITY_OPTIONS,
-  HOUR_BLOCKS, ALL_DAY_HOURS, formatHour, formatHourLabel,
+  formatHourLabel,
   MOTIVATION_OPTIONS, EMPTY_ADVISOR_DATA,
   PROFESSIONAL_FOCUS_OPTIONS, PROFESSIONAL_BOTTLENECK_OPTIONS, PORTFOLIO_SIZE_OPTIONS,
   CONSOLIDATED_STRENGTH_OPTIONS, CONSOLIDATED_BOTTLENECK_OPTIONS,
@@ -61,8 +61,42 @@ const BLOCK_ICONS = { dawn: Moon, morning: Sunrise, afternoon: Sun, evening: Sun
  * espacio de la pantalla que el resto del mapa necesita para caber sin
  * scroll.
  */
-const DEFAULT_VISIBLE_BLOCKS = HOUR_BLOCKS.filter((block) => block.key !== 'dawn');
-const DAWN_BLOCK = HOUR_BLOCKS.find((block) => block.key === 'dawn');
+/*
+  Bloques SÓLO para el mapa de horas rediseñado (accesibilidad): seis horas por
+  fila exactas, para que ninguna celda caiga huérfana a un segundo renglón (antes
+  Tarde tenía 7 y la 6ª quedaba sola). NO sustituye a `HOUR_BLOCKS` de
+  `advisorOnboarding.js` —ésa define la agrupación estándar del día para el resto
+  de la app—; aquí sólo cambia cómo se DIBUJA la grilla. La hora sigue siendo un
+  número 0-23 y lo que se guarda es idéntico: no se toca ninguna lógica.
+    Mañana 6–11 · Tarde 12–17 · Noche 18–23 · (Madrugada 0–5, opcional).
+*/
+const GRID_BLOCKS = [
+  { key: 'morning', label: 'Mañana', verb: 'la mañana', hours: [6, 7, 8, 9, 10, 11] },
+  { key: 'afternoon', label: 'Tarde', verb: 'la tarde', hours: [12, 13, 14, 15, 16, 17] },
+  { key: 'evening', label: 'Noche', verb: 'la noche', hours: [18, 19, 20, 21, 22, 23] },
+];
+const GRID_DAWN_BLOCK = {
+  key: 'dawn', label: 'Madrugada', verb: 'la madrugada', hours: [0, 1, 2, 3, 4, 5],
+};
+
+/*
+  Horarios rápidos (presets): un toque marca todo el rango. Si el rango ya está
+  seleccionado exactamente, un segundo toque lo vacía (toggle). Las horas que
+  componen cada preset son el contrato con el pedido; el resto del mapa sigue
+  editable hora por hora después.
+*/
+const SCHEDULE_PRESETS = [
+  { key: 'full', label: 'Mañana y Tarde', hint: '9 am a 7 pm', hours: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] },
+  { key: 'morning', label: 'Solo Mañanas', hint: '9 am a 2 pm', hours: [9, 10, 11, 12, 13, 14] },
+  { key: 'afternoon', label: 'Solo Tardes', hint: '3 pm a 8 pm', hours: [15, 16, 17, 18, 19, 20] },
+];
+
+/** La hora con su número grande y el am/pm, para la celda accesible. */
+function hourParts(hour) {
+  const num = hour % 12 === 0 ? 12 : hour % 12;
+  const period = hour < 12 ? 'am' : 'pm';
+  return { num: String(num), period };
+}
 
 const CONCERN_TEXT = 'Para que podamos guiarte con precisión, ¿qué es lo que más '
   + 'te inquieta o te impone en esta etapa inicial?';
@@ -395,20 +429,34 @@ function WelcomeStep({ name, onContinue }) {
  * noche.
  */
 function HourCell({ hour, isSelected, onToggle }) {
+  const { num, period } = hourParts(hour);
   return (
     <button
       type="button"
       onClick={() => onToggle(hour)}
       aria-pressed={isSelected}
       aria-label={`${formatHourLabel(hour)}: ${isSelected ? 'disponible' : 'ocupado'}`}
-      className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm
-                 font-semibold transition-all active:scale-90 ${
+      /*
+        Celda accesible: número grande + "am/pm" debajo (para que un adulto mayor
+        vea que es una HORA, no un día del calendario), alto mínimo cómodo (52px) y
+        borde SIEMPRE visible —también sin seleccionar— para que se note que es un
+        botón tocable sobre el fondo. Seleccionada: acento del tema con texto de
+        alto contraste.
+      */
+      className={`flex min-h-[52px] flex-col items-center justify-center rounded-xl border
+                 leading-none transition-all active:scale-95 ${
         isSelected
-          ? 'bg-amber-500 text-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
-          : 'bg-[var(--ob-cell)] text-[color:var(--ob-faint)] hover:bg-[var(--ob-cell)] hover:text-[color:var(--ob-soft)]'
+          ? 'border-[var(--ob-accent)] bg-[var(--ob-accent)] text-[color:var(--ob-on-accent)] shadow-md'
+          : 'border-[color:var(--ob-border)] bg-[var(--ob-cell)] text-[color:var(--ob-text)] hover:border-[var(--ob-accent)]'
       }`}
     >
-      {formatHour(hour)}
+      <span className="text-base font-bold">{num}</span>
+      <span className={`mt-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+        isSelected ? 'opacity-90' : 'text-[color:var(--ob-soft)]'
+      }`}
+      >
+        {period}
+      </span>
     </button>
   );
 }
@@ -436,25 +484,31 @@ function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
 
   return (
     <div>
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase
-                         tracking-wider text-[color:var(--ob-faint)]"
+      <div className="mb-2 flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-sm font-bold uppercase
+                         tracking-wide text-[color:var(--ob-text)]"
         >
-          <Icon size={12} aria-hidden="true" />
+          <Icon size={14} aria-hidden="true" />
           {block.label}
         </span>
 
+        {/*
+          Pastilla clara en vez del ambiguo "Todo libre": dice qué hace. Marca
+          todo el bloque, o lo quita si ya está completo. Usa el acento del tema
+          para leerse como una acción, no como texto apagado.
+        */}
         <button
           type="button"
           onClick={() => onToggleBlock(block.hours, !allSelected)}
-          className="text-[11px] font-semibold text-indigo-400 transition-colors
-                     hover:text-indigo-300"
+          className="rounded-full border border-[color:var(--ob-border)] px-2.5 py-1
+                     text-[11px] font-semibold text-[color:var(--ob-text)]
+                     transition-colors hover:border-[var(--ob-accent)]"
         >
-          {allSelected ? 'Vaciar' : 'Todo libre'}
+          {allSelected ? 'Quitar bloque' : `Marcar toda ${block.verb}`}
         </button>
       </div>
 
-      <div className="grid grid-cols-6 gap-1.5">
+      <div className="grid grid-cols-6 gap-2">
         {block.hours.map((hour) => (
           <HourCell
             key={hour}
@@ -465,6 +519,37 @@ function HourBlockRow({ block, selectedHours, onToggleHour, onToggleBlock }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/** ¿El conjunto de horas seleccionadas coincide EXACTO con las de un preset? */
+function presetMatches(presetHours, selected) {
+  if (presetHours.length !== selected.length) return false;
+  return presetHours.every((h) => selected.includes(h));
+}
+
+/** Botón de horario rápido (preset): etiqueta grande + rango en pequeño. */
+function PresetButton({ preset, active, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(preset)}
+      aria-pressed={active}
+      className={`flex min-h-[56px] flex-col items-center justify-center rounded-xl border
+                 px-2 py-2 text-center leading-tight transition-all active:scale-95 ${
+        active
+          ? 'border-[var(--ob-accent)] bg-[var(--ob-accent)] text-[color:var(--ob-on-accent)] shadow-md'
+          : 'border-[color:var(--ob-border)] bg-[var(--ob-cell)] text-[color:var(--ob-text)] hover:border-[var(--ob-accent)]'
+      }`}
+    >
+      <span className="text-[13px] font-bold">{preset.label}</span>
+      <span className={`mt-0.5 text-[11px] font-medium ${
+        active ? 'opacity-90' : 'text-[color:var(--ob-soft)]'
+      }`}
+      >
+        {preset.hint}
+      </span>
+    </button>
   );
 }
 
@@ -506,7 +591,7 @@ function HourGridStep({
     una respuesta dentro escondería esa respuesta, no sólo la sección.
   */
   const [showDawn, setShowDawn] = useState(
-    () => DAWN_BLOCK.hours.some((h) => initialHours.includes(h)),
+    () => GRID_DAWN_BLOCK.hours.some((h) => initialHours.includes(h)),
   );
 
   const toggleHour = (hour) => {
@@ -522,66 +607,61 @@ function HourGridStep({
     });
   };
 
-  const toggleAllDay = () => {
+  /*
+    Toca un preset: si ya está puesto EXACTO lo vacía, si no, aplica su rango.
+    Reemplaza las horas por las del preset (no las suma) para que "Solo Mañanas"
+    signifique de verdad sólo esas, no las de antes más éstas.
+  */
+  const applyPreset = (preset) => {
     setSelected((current) => (
-      current.length === ALL_DAY_HOURS.length ? [] : [...ALL_DAY_HOURS]
+      presetMatches(preset.hours, current) ? [] : [...preset.hours]
     ));
   };
 
-  const isFreelanceAllDay = selected.length === ALL_DAY_HOURS.length;
+  const hasHours = selected.length > 0;
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center px-6 text-center">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center px-6 py-8 text-center">
       <p className="sr-only">{`${text} ${hintText}`}</p>
-      <p
-        className="max-w-sm text-lg leading-snug text-[color:var(--ob-text)]"
+
+      {/* Encabezado claro, de alto contraste. */}
+      <h2
+        className="max-w-sm text-2xl font-bold leading-snug text-[color:var(--ob-text)]"
         aria-hidden="true"
       >
         {typed}
         <Caret show={isTyping} />
-      </p>
+      </h2>
 
-      {/*
-        Leyenda pequeña, no una segunda oración del mismo tamaño: aclara el
-        caso de la hora suelta (la de comer, por ejemplo) sin competir con
-        la instrucción principal por la atención de quien recién empieza a
-        tocar el mapa.
-      */}
       <p
-        className={`mt-1.5 max-w-xs text-[11px] leading-snug text-[color:var(--ob-faint)]
+        className={`mt-2 max-w-sm text-[15px] leading-snug text-[color:var(--ob-soft)]
                     transition-opacity duration-700
                     ${isTyping ? 'opacity-0' : 'opacity-100'}`}
         aria-hidden="true"
       >
-        {hintText}
+        Elige un horario rápido arriba o toca las horas exactas abajo.
       </p>
 
       <div
-        className={`mt-4 w-full max-w-sm space-y-3 transition-opacity duration-700
+        className={`mt-5 w-full max-w-md space-y-5 transition-opacity duration-700
                     ${isTyping ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
         aria-hidden={isTyping}
       >
-        {/*
-          Atajo para quien de verdad tiene el día entero libre (el caso del
-          freelance del pedido): marca las 24 horas de una vez, y el propio
-          mapa que se enciende abajo es lo que le permite, en el siguiente
-          toque, vaciar sólo la hora de la comida sin perder el resto.
-        */}
-        <button
-          type="button"
-          onClick={toggleAllDay}
-          className={`w-full rounded-lg border px-4 py-1.5 text-xs font-semibold
-                     transition-colors ${
-            isFreelanceAllDay
-              ? 'border-amber-500/40 bg-amber-500/10 text-[color:var(--ob-amber)]'
-              : 'border-[color:var(--ob-border)] text-[color:var(--ob-soft)] hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-text)]'
-          }`}
-        >
-          {isFreelanceAllDay ? 'Todo el día está marcado libre' : 'Tengo todo el día libre'}
-        </button>
+        {/* ── Horarios rápidos (presets) ── */}
+        <div className="grid grid-cols-3 gap-2">
+          {SCHEDULE_PRESETS.map((preset) => (
+            <PresetButton
+              key={preset.key}
+              preset={preset}
+              active={presetMatches(preset.hours, selected)}
+              onToggle={applyPreset}
+            />
+          ))}
+        </div>
 
-        <div className="space-y-3 text-left">
-          {DEFAULT_VISIBLE_BLOCKS.map((block) => (
+        {/* ── Cuadrícula de horas, 6 por fila, siempre visible ── */}
+        <div className="space-y-4 text-left">
+          {GRID_BLOCKS.map((block) => (
             <HourBlockRow
               key={block.key}
               block={block}
@@ -592,13 +672,12 @@ function HourGridStep({
           ))}
 
           {/*
-            Madrugada, escondida detrás de un botón fantasma: es la franja
-            menos común (ver la nota junto a `DEFAULT_VISIBLE_BLOCKS`), así
-            que sólo ocupa espacio en pantalla si alguien la pide.
+            Madrugada, opcional detrás de un botón: la franja menos común, sólo
+            ocupa espacio si alguien la pide. Mismo comportamiento que antes.
           */}
           {showDawn ? (
             <HourBlockRow
-              block={DAWN_BLOCK}
+              block={GRID_DAWN_BLOCK}
               selectedHours={selected}
               onToggleHour={toggleHour}
               onToggleBlock={toggleBlock}
@@ -607,27 +686,31 @@ function HourGridStep({
             <button
               type="button"
               onClick={() => setShowDawn(true)}
-              className="flex items-center gap-1 text-xs text-[color:var(--ob-faint)]
-                         transition-colors hover:text-[color:var(--ob-soft)]"
+              className="flex items-center gap-1 text-sm font-medium text-[color:var(--ob-soft)]
+                         transition-colors hover:text-[color:var(--ob-text)]"
             >
-              <ChevronDown size={12} aria-hidden="true" />
+              <ChevronDown size={14} aria-hidden="true" />
               Mostrar horario de madrugada
             </button>
           )}
         </div>
 
-        <p className="text-xs text-[color:var(--ob-faint)]">
-          {selected.length === 0
-            ? 'Todavía no marcas ninguna hora.'
-            : `${selected.length} ${selected.length === 1 ? 'hora libre' : 'horas libres'} marcadas.`}
+        {/* Contador de alto contraste. */}
+        <p className={`text-[15px] font-semibold ${
+          hasHours ? 'text-[color:var(--ob-text)]' : 'text-[color:var(--ob-soft)]'
+        }`}
+        >
+          {hasHours
+            ? `✅ Has seleccionado ${selected.length} ${selected.length === 1 ? 'hora' : 'horas'} para tu negocio.`
+            : 'Toca al menos una hora para continuar.'}
         </p>
 
         <button
           type="button"
           onClick={() => onContinue(selected)}
-          disabled={selected.length === 0}
-          className="w-full rounded-full bg-[var(--ob-accent)] px-8 py-3 text-sm
-                     font-semibold text-[color:var(--ob-on-accent)] shadow-lg
+          disabled={!hasHours}
+          className="w-full rounded-full bg-[var(--ob-accent)] px-8 py-4 text-base
+                     font-bold text-[color:var(--ob-on-accent)] shadow-lg
                      transition-all hover:brightness-105 active:scale-95
                      disabled:cursor-not-allowed disabled:bg-[var(--ob-cell)]
                      disabled:text-[color:var(--ob-faint)] disabled:shadow-none"
