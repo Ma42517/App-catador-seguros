@@ -500,8 +500,9 @@ const STEP3_SUBTEXT = 'No haremos nada con ellos hoy ni te pediremos que les lla
   nada de eso — es una invitación aparte, con su propia salida ("Saltar por
   ahora"), para quien ya tiene el código de su promotoría a la mano.
 */
-const STEP5_TEXT = '¿Ya tienes tu código? ¡Únete a tu equipo!';
-const STEP5_SUBTEXT = '¿No lo tienes a la mano? Tranquilo, puedes hacerlo luego desde tu perfil.';
+const STEP5_TEXT = '¿Tienes un código de Promotoría?';
+const STEP5_SUBTEXT = 'Si tu promotor o equipo te dio una clave, escríbela aquí. Si no la tienes '
+  + 'a la mano, puedes saltar este paso y agregarla después en tu perfil.';
 
 /*
   Resplandor compartido por los botones de avance (Continuar, Entendido,
@@ -2005,9 +2006,24 @@ function JoinTeamStep({ onContinue }) {
   const [error, setError] = useState('');
   const [joined, setJoined] = useState('');
 
+  /*
+    Guía suave para quien no lee y sólo toca el botón grande con el campo vacío:
+    en vez de un error rojo, se señala el camino —escribir arriba o salir abajo—
+    y se resalta el botón de saltar. Se apaga en cuanto la persona empieza a
+    escribir, porque entonces ya entendió qué hacer.
+  */
+  const [showSkipHint, setShowSkipHint] = useState(false);
+
   const submit = async (event) => {
     event.preventDefault();
     setError('');
+
+    // Campo vacío + toque al botón principal: no es un error, es que no leyó.
+    // Se activa la guía hacia la salida en vez de regañar con rojo.
+    if (code.trim() === '') {
+      setShowSkipHint(true);
+      return;
+    }
 
     const normalized = normalizeCode(code);
     if (!isValidCode(normalized)) {
@@ -2072,14 +2088,20 @@ function JoinTeamStep({ onContinue }) {
       </span>
 
       <p className="max-w-sm text-lg leading-snug text-[color:var(--ob-text)] sm:text-xl">{STEP5_TEXT}</p>
-      <p className="mt-2 max-w-xs text-[11px] leading-snug text-[color:var(--ob-faint)]">{STEP5_SUBTEXT}</p>
+      {/* Subtítulo con más contraste y tamaño (--ob-soft, text-sm) para que una
+          persona mayor lo lea sin esfuerzo, sin perder la jerarquía del título. */}
+      <p className="mt-2 max-w-sm text-sm leading-relaxed text-[color:var(--ob-soft)]">{STEP5_SUBTEXT}</p>
 
       <div className="mt-6 w-full max-w-xs">
         <label className="sr-only" htmlFor="join-team-code">Código de promotoría</label>
         <input
           id="join-team-code"
           value={code}
-          onChange={(event) => { setCode(normalizeCode(event.target.value)); setError(''); }}
+          onChange={(event) => {
+            setCode(normalizeCode(event.target.value));
+            setError('');
+            setShowSkipHint(false);
+          }}
           placeholder="PROMO-XXX-XX"
           autoComplete="off"
           autoCapitalize="characters"
@@ -2102,6 +2124,33 @@ function JoinTeamStep({ onContinue }) {
           </p>
         )}
 
+        {/*
+          Guía suave (no error): aparece cuando se tocó "¡Unirme!" con el campo
+          vacío. Usa SÓLO el acento del tema (verde en crema, cyan en negro) con
+          mucha transparencia, para señalar sin alarmar. Dirige la vista hacia las
+          dos salidas: escribir arriba o tocar el botón de abajo.
+        */}
+        {showSkipHint && (
+          <p
+            role="status"
+            /*
+              Borde base con la variable del tema (siempre presente) y, encima, el
+              acento del tema vía `color-mix`. Si un navegador viejo no soporta
+              `color-mix`, el borde cae al `--ob-border` y el fondo queda sin tinte
+              —la nota sigue legible, nunca se rompe—.
+            */
+            className="mt-2.5 rounded-xl border border-[color:var(--ob-border)] p-3 text-left
+                       text-xs leading-relaxed text-[color:var(--ob-text)]"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--ob-accent) 45%, var(--ob-border))',
+              backgroundColor: 'color-mix(in srgb, var(--ob-accent) 12%, transparent)',
+            }}
+          >
+            Escribe la clave de tu promotoría arriba, o toca la opción de abajo si aún no
+            tienes una.
+          </p>
+        )}
+
         <button
           type="submit"
           disabled={isBusy}
@@ -2114,12 +2163,23 @@ function JoinTeamStep({ onContinue }) {
           {isBusy ? 'Enviando…' : '¡Unirme!'}
         </button>
 
+        {/*
+          Salida secundaria en estilo ghost (sin fondo sólido, para no competir con
+          el botón primario). Texto más descriptivo y con mejor contraste
+          (`--ob-soft`), área táctil cómoda. Cuando la guía está activa
+          (`showSkipHint`) se le enciende un borde del acento del tema y un pulso
+          suave para atraer la vista hacia la salida.
+        */}
         <button
           type="button"
           onClick={onContinue}
-          className="mt-4 block w-full text-sm text-[color:var(--ob-faint)] transition-colors hover:text-[color:var(--ob-text)]"
+          className={`mt-4 block w-full rounded-full border px-4 py-2.5 text-sm font-semibold
+                     transition-all text-[color:var(--ob-soft)] hover:text-[color:var(--ob-text)]
+                     ${showSkipHint
+                       ? 'animate-pulse border-[var(--ob-accent)] text-[color:var(--ob-text)]'
+                       : 'border-transparent hover:border-[color:var(--ob-border)]'}`}
         >
-          Ahora no, gracias
+          No tengo código, entrar directo ➔
         </button>
       </div>
     </form>
