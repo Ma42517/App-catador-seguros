@@ -307,7 +307,7 @@ export default function BottomTabBar({
             style={{ width: NOTCH_RADIUS * 2 + 12 }}
             aria-hidden="true"
           >
-            <span className="navbar-brand font-hand text-xl font-bold leading-none text-white/90">
+            <span className="navbar-brand font-hand text-2xl font-bold leading-none text-white/90">
               Expandia
             </span>
           </span>
