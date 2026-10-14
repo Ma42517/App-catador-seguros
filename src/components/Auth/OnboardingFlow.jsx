@@ -813,13 +813,6 @@ export default function OnboardingFlow({
   const [alive, setAlive] = useState(true);
   useEffect(() => () => setAlive(false), []);
 
-  /*
-    El onboarding NO bloquea el scroll del documento, a diferencia del login/bienvenida:
-    aquí se conserva el "jalar para actualizar" nativo del navegador —útil para recargar
-    y verificar cambios—. El contenedor usa su alto natural (`min-h-[100dvh]`), así que
-    no hay arrastre sobrante cuando el contenido cabe, y el gesto de recarga sigue vivo.
-  */
-
   const answer = (field) => (value) => {
     setAdvisorData((current) => ({ ...current, [field]: value }));
   };
@@ -903,14 +896,8 @@ export default function OnboardingFlow({
 
   return (
     <div
-      /*
-        `min-h-[100dvh]`: ocupa al menos la pantalla, y crece si un paso trae mucho
-        contenido (el mapa de 24 horas en un teléfono chico). No se fija con alto
-        rígido para que el "jalar para actualizar" del navegador siga disponible; el
-        rebote sobrante lo controla `overscroll-behavior: contain` (ver useEffect).
-      */
-      className={`relative flex min-h-[100dvh] w-full items-center justify-center
-                  px-4 py-10 ${theme.bgStyle ? '' : theme.bg}`}
+      className={`relative flex min-h-screen w-full items-center justify-center px-4 py-10
+                  ${theme.bgStyle ? '' : theme.bg}`}
       style={{
         ...(theme.bgStyle ?? {}),
         // Variables heredadas por todos los pasos (texto, bordes, celdas del mapa).
