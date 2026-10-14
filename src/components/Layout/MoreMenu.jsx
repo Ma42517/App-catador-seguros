@@ -324,7 +324,7 @@ export default function MoreMenu({
         ella, imposibles de alcanzar. `dvh` mide el espacio que de verdad se ve.
       */}
       <div
-        className="animate-rise absolute inset-x-0 bottom-0 mx-auto flex max-h-[88dvh] w-full
+        className="more-menu animate-rise absolute inset-x-0 bottom-0 mx-auto flex max-h-[88dvh] w-full
                    max-w-lg flex-col rounded-t-3xl border-t border-zinc-800 bg-zinc-950"
       >
         {/*

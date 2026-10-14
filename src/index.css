@@ -582,3 +582,49 @@ html.theme-cream [data-immersive="true"] .border-white\/15 { border-color: #DFD5
 /* Botones sólidos (Iniciar/Reanudar) → verde bosque con texto marfil. */
 html.theme-cream [data-immersive="true"] .bg-white { background-color: #1B4332; }
 html.theme-cream [data-immersive="true"] .text-black { color: #FFFDF9; }
+
+/*
+  ── Menú "Ver más" por tema ──────────────────────────────────────────────────
+  El panel es `bg-zinc-950` con filas `bg-zinc-800`, texto zinc y divisores
+  oscuros. En blanco y crema se reasigna todo bajo `.more-menu` para que combine
+  con el tema, sin tocar los zinc del resto de la app. El tema negro es el default.
+*/
+/* ── Blanco ── */
+html:not(.dark):not(.theme-cream) .more-menu { background-color: #FFFFFF; border-color: #E5E7EB; }
+html:not(.dark):not(.theme-cream) .more-menu .bg-zinc-950,
+html:not(.dark):not(.theme-cream) .more-menu .bg-zinc-950\/40 { background-color: #FFFFFF; }
+html:not(.dark):not(.theme-cream) .more-menu .bg-zinc-900\/50 { background-color: #F8FAFC; }
+html:not(.dark):not(.theme-cream) .more-menu .bg-zinc-800 { background-color: #F1F5F9; }
+html:not(.dark):not(.theme-cream) .more-menu .bg-zinc-700 { background-color: #E2E8F0; }
+html:not(.dark):not(.theme-cream) .more-menu .text-white,
+html:not(.dark):not(.theme-cream) .more-menu .text-zinc-100,
+html:not(.dark):not(.theme-cream) .more-menu .text-zinc-200,
+html:not(.dark):not(.theme-cream) .more-menu .text-zinc-300 { color: #0F172A; }
+html:not(.dark):not(.theme-cream) .more-menu .text-zinc-400,
+html:not(.dark):not(.theme-cream) .more-menu .text-zinc-500,
+html:not(.dark):not(.theme-cream) .more-menu .text-zinc-600 { color: #64748B; }
+html:not(.dark):not(.theme-cream) .more-menu .border-zinc-700,
+html:not(.dark):not(.theme-cream) .more-menu .border-zinc-800,
+html:not(.dark):not(.theme-cream) .more-menu .border-zinc-800\/60,
+html:not(.dark):not(.theme-cream) .more-menu .border-zinc-800\/50 { border-color: #E5E7EB; }
+html:not(.dark):not(.theme-cream) .more-menu .divide-zinc-800\/50 > * + * { border-color: #E5E7EB; }
+
+/* ── Crema ── */
+html.theme-cream .more-menu { background-color: #F2ECE1; border-color: #DFD5C0; }
+html.theme-cream .more-menu .bg-zinc-950,
+html.theme-cream .more-menu .bg-zinc-950\/40 { background-color: #F2ECE1; }
+html.theme-cream .more-menu .bg-zinc-900\/50 { background-color: #FFFDF9; }
+html.theme-cream .more-menu .bg-zinc-800 { background-color: #FFFDF9; }
+html.theme-cream .more-menu .bg-zinc-700 { background-color: #E6DEC8; }
+html.theme-cream .more-menu .text-white,
+html.theme-cream .more-menu .text-zinc-100,
+html.theme-cream .more-menu .text-zinc-200,
+html.theme-cream .more-menu .text-zinc-300 { color: #231F1B; }
+html.theme-cream .more-menu .text-zinc-400,
+html.theme-cream .more-menu .text-zinc-500,
+html.theme-cream .more-menu .text-zinc-600 { color: #85796A; }
+html.theme-cream .more-menu .border-zinc-700,
+html.theme-cream .more-menu .border-zinc-800,
+html.theme-cream .more-menu .border-zinc-800\/60,
+html.theme-cream .more-menu .border-zinc-800\/50 { border-color: #DFD5C0; }
+html.theme-cream .more-menu .divide-zinc-800\/50 > * + * { border-color: #DFD5C0; }
