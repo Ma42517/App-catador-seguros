@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Sparkles, RefreshCw, LogOut, Loader2, Check } from 'lucide-react';
+import { RefreshCw, LogOut, Loader2, Check } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import { readAppTheme, themeFor } from '../../lib/appTheme';
+import ExpandiaMark from './ExpandiaMark';
 
 /**
  * Sala de espera: la cuenta existe pero todavía no se ha activado el acceso.
@@ -60,14 +61,10 @@ export default function PendingApproval() {
 
       <div className="animate-rise relative w-full max-w-sm text-center">
         <div className={panelClass} style={t.panelStyle}>
-          {/* Sparkles con el acento del tema: "algo bueno viene", no un trámite. */}
-          <span
-            className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl"
-            style={{ backgroundColor: `${t.accent}1f`, color: t.accent }}
-            aria-hidden="true"
-          >
-            <Sparkles size={30} />
-          </span>
+          {/* El logo de la marca da identidad y continuidad con el resto del acceso. */}
+          <div className="mb-6 flex justify-center">
+            <ExpandiaMark theme={t.value} size="text-4xl" />
+          </div>
 
           <h1 className={`text-2xl font-bold ${t.text}`}>
             ¡Ya casi estás dentro!
