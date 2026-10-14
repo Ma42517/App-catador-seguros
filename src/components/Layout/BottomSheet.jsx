@@ -44,20 +44,31 @@ export default function BottomSheet({
   /*
     El tema no se hereda a través de un portal.
 
-    Las clases `dark:` dependen de tener un `.dark` por encima en el árbol del DOM, y
-    el Diagnóstico 360 fuerza esa clase en su propio contenedor, no en la raíz. Al
-    saltar a `document.body` la hoja se quedaba fuera de ese contenedor y salía en
-    tema claro —fondo casi blanco— en medio de una pantalla negra.
+    Las clases de tema viven en el `<html>` (`dark` para negro, `theme-cream` para
+    crema, sin clase para blanco) y, además, el Diagnóstico 360 fuerza `.dark` en su
+    propio contenedor. Al saltar a `document.body` el portal se quedaba fuera de ese
+    contenedor y perdía el tema: en crema salía en tema claro —fondo casi blanco— y
+    en el diagnóstico oscuro salía claro en medio de una pantalla negra.
 
-    El ancla se queda en el sitio original del árbol y sólo sirve para preguntar, con
-    `closest`, si a la hoja le tocaba ser oscura. Se resuelve en un efecto de
-    disposición, antes de pintar, para que no se vea un fogonazo claro.
+    Por eso se replica el tema en el envoltorio del portal. Se mira tanto el
+    contexto local del ancla (`.dark` de un contenedor que lo fuerce, como el
+    diagnóstico) como la clase del `<html>` (el tema global elegido por la persona):
+      - `.dark` cerca del ancla o en el `<html>` → se repite `dark` en el portal.
+      - `theme-cream` en el `<html>` → se repite `theme-cream`, para que las reglas
+        del tema beige (index.css) también tiñan la hoja.
+    Se resuelve en un efecto de disposición, antes de pintar, para que no se vea un
+    fogonazo con el tema equivocado.
   */
   const anchorRef = useRef(null);
-  const [isDarkContext, setDarkContext] = useState(false);
+  const [themeClass, setThemeClass] = useState('');
 
   useLayoutEffect(() => {
-    if (isOpen) setDarkContext(!!anchorRef.current?.closest('.dark'));
+    if (!isOpen) return;
+    const root = document.documentElement;
+    const localDark = !!anchorRef.current?.closest('.dark');
+    if (localDark || root.classList.contains('dark')) setThemeClass('dark');
+    else if (root.classList.contains('theme-cream')) setThemeClass('theme-cream');
+    else setThemeClass('');
   }, [isOpen]);
 
   useEffect(() => {
@@ -92,7 +103,7 @@ export default function BottomSheet({
     <>
       {anchor}
       {createPortal(
-        <div className={isDarkContext ? 'dark' : undefined}>
+        <div className={themeClass || undefined}>
           <div className={`fixed inset-0 ${zIndexClass}`} role="dialog" aria-modal="true" aria-label={label}>
             <button
               type="button"

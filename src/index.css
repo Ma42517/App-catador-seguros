@@ -799,3 +799,56 @@ html:not(.dark):not(.theme-cream) .referral-hub .rh-cta {
 html:not(.dark):not(.theme-cream) .referral-hub .rh-cta:hover { background-color: #1E293B; }
 html:not(.dark):not(.theme-cream) .referral-hub .rh-cta .text-black,
 html:not(.dark):not(.theme-cream) .referral-hub .rh-cta.text-black { color: #FFFFFF; }
+
+/*
+  ══════════════════════════════════════════════════════════════════════════════
+  BottomSheet (hojas inferiores) en tema CREMA
+  ══════════════════════════════════════════════════════════════════════════════
+  El `BottomSheet` se dibuja en un portal a `document.body` y replica la clase de
+  tema en su envoltorio (`.dark` / `.theme-cream`). Su panel usa `bg-zinc-50
+  dark:bg-zinc-900`: en negro queda oscuro (bien) y en blanco queda `zinc-50`
+  (bien), pero en crema `zinc-50` es un gris frío que no combina. Como el
+  envoltorio del portal lleva `.theme-cream` —no `html.theme-cream`—, estas reglas
+  apuntan a `.theme-cream` directo para teñir el panel con marfil cálido y el asa
+  con un tono arena. Aplica a TODA hoja abierta en crema, que es justo lo que se
+  quiere: ninguna debe salir gris/blanca fría sobre el beige.
+*/
+.theme-cream .bg-zinc-50 { background-color: #FFFDF9; }
+.theme-cream .bg-zinc-300 { background-color: #DFD5C0; }
+
+/*
+  ── Hoja de captura de referido (CaptureSheet) — Editorial Ejecutivo ──
+  Reasigna los `neutral-*` fijos de la hoja a la paleta beige: inputs marfil con
+  borde arena y texto expreso, etiquetas en gris topo, y el botón "Guardar
+  referido" en verde bosque. Acotado a `.rh-capture` para no tocar otras hojas.
+*/
+.theme-cream .rh-capture .text-white { color: #231F1B; }
+.theme-cream .rh-capture .text-indigo-400 { color: #1B4332; }
+.theme-cream .rh-capture .text-neutral-500 { color: #85796A; }
+.theme-cream .rh-capture .text-neutral-400,
+.theme-cream .rh-capture .text-neutral-100 { color: #5C5346; }
+/* Inputs: fondo marfil, borde arena, texto expreso */
+.theme-cream .rh-capture .bg-neutral-950,
+.theme-cream .rh-capture .bg-neutral-900 { background-color: #FFFDF9; }
+.theme-cream .rh-capture .border-neutral-800 { border-color: #DFD5C0; }
+.theme-cream .rh-capture input { color: #231F1B; }
+.theme-cream .rh-capture input::placeholder { color: #A89B88; }
+.theme-cream .rh-capture .focus\:border-neutral-500:focus { border-color: #1B4332; }
+/* Botón de cerrar (X) */
+.theme-cream .rh-capture .text-neutral-400 { color: #85796A; }
+/* Botón principal "Guardar referido" → verde bosque */
+.theme-cream .rh-capture .bg-indigo-600 { background-color: #1B4332; }
+.theme-cream .rh-capture .bg-indigo-600:hover,
+.theme-cream .rh-capture .hover\:bg-indigo-500:hover { background-color: #163A2A; }
+.theme-cream .rh-capture .text-rose-400 { color: #B91C1C; }
+
+/* ── Hoja de captura en tema BLANCO ── */
+html:not(.dark):not(.theme-cream) .rh-capture .text-white { color: #0F172A; }
+html:not(.dark):not(.theme-cream) .rh-capture .text-neutral-400,
+html:not(.dark):not(.theme-cream) .rh-capture .text-neutral-100 { color: #475569; }
+html:not(.dark):not(.theme-cream) .rh-capture .text-neutral-500 { color: #64748B; }
+html:not(.dark):not(.theme-cream) .rh-capture .bg-neutral-950,
+html:not(.dark):not(.theme-cream) .rh-capture .bg-neutral-900 { background-color: #FFFFFF; }
+html:not(.dark):not(.theme-cream) .rh-capture .border-neutral-800 { border-color: #E5E7EB; }
+html:not(.dark):not(.theme-cream) .rh-capture input { color: #0F172A; }
+html:not(.dark):not(.theme-cream) .rh-capture input::placeholder { color: #94A3B8; }

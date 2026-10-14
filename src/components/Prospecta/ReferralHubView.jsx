@@ -153,7 +153,7 @@ function CaptureSheet({ open, onClose, gift, onSaved }) {
 
   return (
     <BottomSheet isOpen={open} onClose={close} label="Capturar referido" zIndexClass="z-[80]">
-      <div className="pb-2">
+      <div className="rh-capture pb-2">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">
