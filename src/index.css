@@ -895,11 +895,13 @@ html.theme-cream .df360-shell .text-zinc-600 { color: #85796A; }
 
 /* ── Fondos oscuros fijos / variantes dark → marfil y arena ── */
 html.theme-cream .df360-shell .bg-zinc-950,
+html.theme-cream .df360-shell .bg-zinc-950\/85,
+html.theme-cream .df360-shell .bg-zinc-950\/80,
 html.theme-cream .df360-shell .bg-zinc-950\/60,
 html.theme-cream .df360-shell .bg-zinc-950\/40,
-html.theme-cream .df360-shell .bg-zinc-950\/80,
 html.theme-cream .df360-shell .bg-zinc-950\/30,
 html.theme-cream .df360-shell .bg-zinc-900,
+html.theme-cream .df360-shell .bg-zinc-900\/80,
 html.theme-cream .df360-shell .bg-zinc-900\/70,
 html.theme-cream .df360-shell .bg-zinc-900\/60,
 html.theme-cream .df360-shell .bg-zinc-900\/40,
@@ -1059,18 +1061,39 @@ html.theme-cream .df360-shell .border-rose-500\/30 { --tw-ring-color: rgba(185,2
   que la activa conserve texto marfil sobre el verde.
 */
 html.theme-cream .df360-shell .bg-indigo-600 { background-color: #1B4332; }
-html.theme-cream .df360-shell .bg-indigo-600 .text-white,
-html.theme-cream .df360-shell .bg-indigo-600.text-white,
-html.theme-cream .df360-shell .bg-indigo-600 > .text-white { color: #FFFDF9; }
 /* El punto/badge interno de la pestaña activa (bg-white/25) y su texto. */
 html.theme-cream .df360-shell .bg-white\/25 { background-color: rgba(255,253,249,0.25); }
 
 /*
-  ── Barra superior "Diagnóstico Financiero" (Header) ──
-  La columna/encabezado quedaba negra con texto gris. El shell ya es crema; se
-  asegura que el encabezado tome el marfil y su texto el expreso para que el
-  título y el stepper del header se distingan.
+  ── CRÍTICO: texto blanco SOBRE fondos de acento oscuros ──
+  `bg-indigo-600`/`bg-emerald-500`/`bg-indigo-500` migran a verde bosque u otros
+  tonos OSCUROS. Su `text-white` NO debe volverse café expreso (quedaría texto
+  oscuro sobre fondo oscuro, como el botón "Desbloquear mi Diagnóstico 360"): se
+  fuerza a marfil para que el texto resalte sobre el acento. Igual para el ícono
+  blanco del chip del paso activo del stepper. Estas reglas van DESPUÉS de la
+  regla general de `text-white`→expreso, así que ganan por orden de cascada.
 */
+html.theme-cream .df360-shell .bg-indigo-600.text-white,
+html.theme-cream .df360-shell .bg-indigo-600 .text-white,
+html.theme-cream .df360-shell .bg-indigo-500.text-white,
+html.theme-cream .df360-shell .bg-indigo-500 .text-white,
+html.theme-cream .df360-shell .bg-emerald-500.text-white,
+html.theme-cream .df360-shell .bg-emerald-500 .text-white,
+html.theme-cream .df360-shell .bg-white\/25.text-white,
+html.theme-cream .df360-shell .bg-white\/25 .text-white { color: #FFFDF9; }
+/* El botón `success` (bg-emerald-500 text-zinc-950) ya tiene texto oscuro: ok. */
+
+/*
+  ── Barra superior "Diagnóstico Financiero" (Header, App.jsx) ──
+  Era `bg-zinc-950/85` con texto `text-zinc-50`/`text-zinc-400`: negra con letras
+  grises. Se tiñe la cabecera de marfil con borde arena, y sus textos quedan en
+  expreso/carbón. El "360" (indigo) y "Datos de ejemplo" (emerald) ya migran por
+  las reglas de acento. El fondo `bg-zinc-950/85` lo cubre la regla de fondos
+  oscuros de arriba; aquí se refuerzan borde y textos del header.
+*/
+html.theme-cream .df360-shell header { border-bottom-color: #DFD5C0; }
+html.theme-cream .df360-shell header .text-zinc-50,
+html.theme-cream .df360-shell header .text-zinc-100 { color: #231F1B; }
 html.theme-cream .df360-shell header .text-zinc-300,
-html.theme-cream .df360-shell header .text-zinc-400 { color: #5C5346; }
-html.theme-cream .df360-shell header .text-white { color: #231F1B; }
+html.theme-cream .df360-shell header .text-zinc-400,
+html.theme-cream .df360-shell header .text-zinc-500 { color: #5C5346; }
