@@ -71,6 +71,14 @@ export default function GuidedTour({
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState(null);
   const [shown, setShown] = useState(false);
+  /*
+    `visible` separa "ya hay elemento medido" (rect) de "pintarlo a plena
+    opacidad". Es la clave para que la entrada sea SUAVE y no un corte seco: el
+    overlay se monta primero en opacidad 0 y, un frame después, `visible` pasa a
+    true y la transición CSS lo lleva a opacidad 1. Sin este desfase de un frame,
+    el navegador pinta directo al estado final y no hay fundido que ver.
+  */
+  const [visible, setVisible] = useState(false);
 
   const total = steps?.length ?? 0;
   const step = steps?.[index] ?? null;
@@ -109,7 +117,10 @@ export default function GuidedTour({
   useLayoutEffect(() => {
     if (!isOpen) return undefined;
 
-    setRect(null); // Cada paso arranca "esperando" hasta confirmar su elemento.
+    // Cada paso arranca "esperando" (sin rect) y en opacidad 0, para que su
+    // aparición —o el paso al siguiente— sea un fundido suave y no un salto.
+    setRect(null);
+    setVisible(false);
     let tries = 0;
     const poll = setInterval(() => {
       tries += 1;
@@ -126,8 +137,22 @@ export default function GuidedTour({
     };
   }, [measure, isOpen, index]);
 
-  const finish = () => { setShown(false); setTimeout(() => onFinish?.(), 200); };
-  const skip = () => { setShown(false); setTimeout(() => onSkip?.(), 200); };
+  /*
+    Cuando el elemento ya está medido (`rect`), se enciende `visible` en el frame
+    siguiente —no en el mismo— para que la transición CSS de opacidad/escala
+    arranque desde el estado inicial y se vea el fundido. Encenderlo en el mismo
+    render haría que el navegador pintara directo al estado final, sin animación.
+  */
+  useLayoutEffect(() => {
+    if (!rect) return undefined;
+    const raf = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, [rect]);
+
+  // Al cerrar, se apaga `visible` (fade-out) y se desmonta tras la transición
+  // de 500 ms, para que la salida también sea suave y no un corte seco.
+  const finish = () => { setVisible(false); setShown(false); setTimeout(() => onFinish?.(), 420); };
+  const skip = () => { setVisible(false); setShown(false); setTimeout(() => onSkip?.(), 420); };
 
   const next = () => {
     if (isLast) finish();
@@ -192,47 +217,57 @@ export default function GuidedTour({
 
   const title = (step.title || '').replace('{name}', name || '');
 
+  // Entrada suave: el fondo se funde y la tarjeta sube y crece un poco. Ambos
+  // gobernados por `visible` (que se enciende un frame después de medir), y por
+  // `shown` para el cierre. El recorte también transiciona su posición/tamaño,
+  // así que al pasar de un paso a otro el halo se "desliza" al nuevo elemento.
+  const on = shown && visible;
+
   return createPortal(
     <div
-      className={`fixed inset-0 z-[120] transition-opacity duration-200
-                  ${shown ? 'opacity-100' : 'opacity-0'}`}
+      className="fixed inset-0 z-[120]"
       role="dialog"
       aria-modal="true"
       aria-label={`Tutorial, paso ${index + 1} de ${total}`}
     >
       {/*
         Capa que oscurece y recorta: un rectángulo sobre el elemento con una
-        sombra gigante que tapa todo MENOS ese hueco, más el aro verde. Tocar
-        fuera de la tarjeta avanza el tour, para que quien no vea los botones
-        igual pueda continuar.
+        sombra gigante que tapa todo MENOS ese hueco, más el aro verde. Hace
+        fade-in suave al aparecer. Tocar fuera de la tarjeta avanza el tour.
       */}
       <div
         aria-hidden="true"
         onClick={next}
-        className="absolute rounded-2xl transition-all duration-300"
+        className="absolute rounded-2xl transition-all duration-500 ease-out"
         style={{
           top: hole.top,
           left: hole.left,
           width: hole.width,
           height: hole.height,
+          opacity: on ? 1 : 0,
           boxShadow: '0 0 0 9999px rgba(0,0,0,0.62), 0 0 0 3px rgba(27,67,50,0.9), 0 0 24px 6px rgba(27,67,50,0.55)',
         }}
       />
 
-      {/* ── Tarjeta del tutorial ── */}
+      {/* ── Tarjeta del tutorial (fade + deslizamiento/escala suaves) ── */}
       <div
         className="absolute rounded-2xl border-2 border-[#1B4332] bg-[#F9F6F0] p-4 text-left
-                   shadow-2xl dark:border-emerald-500/60 dark:bg-zinc-900"
-        style={cardStyle}
+                   shadow-2xl transition-all duration-500 ease-out
+                   dark:border-emerald-500/60 dark:bg-zinc-900"
+        style={{
+          ...cardStyle,
+          opacity: on ? 1 : 0,
+          transform: `${cardStyle.transform ? `${cardStyle.transform} ` : ''}translateY(${on ? '0' : '10px'}) scale(${on ? 1 : 0.97})`,
+        }}
       >
-        {/* Caret: triángulo que apunta al elemento. */}
+        {/* Caret: triángulo que apunta al elemento. Acompaña el fade de la tarjeta. */}
         <span
           aria-hidden="true"
-          className="fixed h-3 w-3 rotate-45 border-[#1B4332] bg-[#F9F6F0]
-                     dark:border-emerald-500/60 dark:bg-zinc-900"
+          className="fixed h-3 w-3 rotate-45 border-[#1B4332] bg-[#F9F6F0] transition-opacity
+                     duration-500 ease-out dark:border-emerald-500/60 dark:bg-zinc-900"
           style={caretBelow
-            ? { top: (cardStyle.top ?? 0) - 6, left: caretLeft - 6, borderLeftWidth: 2, borderTopWidth: 2 }
-            : { bottom: (cardStyle.bottom ?? 0) - 6, left: caretLeft - 6, borderRightWidth: 2, borderBottomWidth: 2 }}
+            ? { top: (cardStyle.top ?? 0) - 6, left: caretLeft - 6, borderLeftWidth: 2, borderTopWidth: 2, opacity: on ? 1 : 0 }
+            : { bottom: (cardStyle.bottom ?? 0) - 6, left: caretLeft - 6, borderRightWidth: 2, borderBottomWidth: 2, opacity: on ? 1 : 0 }}
         />
 
         {/* Badge: PASO X DE N 🌟 */}
