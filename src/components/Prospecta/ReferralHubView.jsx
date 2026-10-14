@@ -64,11 +64,11 @@ function QuickAction({ icon: Icon, label, onClick, delay = 0 }) {
       transition={{ duration: 0.28, delay }}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.97 }}
-      className="group flex min-w-0 flex-1 items-center gap-3 rounded-2xl border
+      className="rh-quick group flex min-w-0 flex-1 items-center gap-3 rounded-2xl border
                  border-neutral-800 bg-neutral-900/75 p-3 text-left shadow-lg shadow-black/20
                  transition-colors hover:border-neutral-600 hover:bg-neutral-900"
     >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border
+      <span className="rh-icon grid h-10 w-10 shrink-0 place-items-center rounded-xl border
                        border-neutral-700 bg-black text-neutral-300 transition-colors
                        group-hover:text-white"
       >
@@ -91,9 +91,9 @@ function LeverCard({
   icon: Icon, title, subtitle, actionLabel, onAction, accent,
 }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5">
+    <div className="rh-lever flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5">
       <span
-        className={`mb-4 grid h-11 w-11 place-items-center rounded-xl ${accent}`}
+        className={`rh-icon mb-4 grid h-11 w-11 place-items-center rounded-xl ${accent}`}
         aria-hidden="true"
       >
         <Icon size={20} />
@@ -103,7 +103,7 @@ function LeverCard({
       <button
         type="button"
         onClick={onAction}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white
+        className="rh-cta mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white
                    px-4 py-3 text-sm font-semibold text-black transition-colors
                    hover:bg-neutral-200 active:scale-[0.98]"
       >
@@ -328,9 +328,9 @@ export default function ReferralHubView({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/70"
+          className="rh-counter-card overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/70"
         >
-          <div className="p-5">
+          <div className="rh-counter p-5">
             <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
               Referidos obtenidos este mes
             </p>
@@ -362,7 +362,7 @@ export default function ReferralHubView({
             onClick={() => setCaptureFor('quick')}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden
+            className="rh-action-bar group relative flex w-full items-center justify-center gap-3 overflow-hidden
                        border-t border-indigo-400/25 bg-indigo-600 px-5 py-4 text-sm font-bold
                        text-white shadow-lg shadow-indigo-950/30 transition-colors
                        hover:bg-indigo-500"

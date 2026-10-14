@@ -659,60 +659,143 @@ html.theme-cream .more-menu .from-zinc-800.to-indigo-950 .text-zinc-400 {
 }
 
 /*
-  ── "Obtener Referidos" (ReferralHubView) por tema ────────────────────────────
-  Esta pantalla se construyó sólo para modo oscuro: usa clases fijas `neutral-*`
-  (gris oscuro) sin pares `dark:`, así que en los temas claros quedaba un fondo
-  blanco —del `FullScreenView`— con tarjetas gris oscuro flotando encima. Aquí se
-  reasignan los `neutral-*` bajo `.referral-hub` para blanco y crema, y el fondo
-  de la carcasa se tiñe con `:has()` (el `FullScreenView` que contiene el hub).
-  El tema negro es el default y no se toca.
+  ══════════════════════════════════════════════════════════════════════════════
+  "Obtener Referidos" (ReferralHubView) — Sistema "Editorial Ejecutivo" (Beige)
+  ══════════════════════════════════════════════════════════════════════════════
+  La pantalla se construyó sólo para modo oscuro (clases fijas `neutral-*`), así
+  que en los temas claros quedaba fondo blanco con tarjetas gris cemento y texto
+  blanco ilegible. Aquí se reconstruye su colorimetría por tema sin tocar el JSX
+  más allá de unas clases marcadoras finas (`rh-*`), para no romper el modo
+  oscuro (el default, que no se toca).
+
+  Paleta Beige (Editorial Ejecutivo):
+    #F2ECE1 crema arena  · #FAF7F2 crema cabecera · #FFFDF9 marfil cálido
+    #E6DEC8 arena media  · #DFD5C0 borde           · #D5C9B1 borde cálido
+    #231F1B café expreso · #5C5346 café carbón     · #85796A gris topo
+    #1B4332 verde bosque · #E6F0EC salvia suave    · #B45309 cobre
+    #FEF3C7 ámbar suave
+
+  La paleta blanca conserva un neutro frío (slate/índigo) para diferenciarse.
 */
-/* ── Fondo de la pantalla completa que envuelve el hub ── */
+
+/* ── Fondo general y cabecera (FullScreenView que envuelve el hub) ── */
 html:not(.dark):not(.theme-cream) .immersive-surface:has(.referral-hub) { background-color: #FFFFFF; }
 html.theme-cream .immersive-surface:has(.referral-hub) { background-color: #F2ECE1; }
-/* La cabecera translúcida del FullScreenView debe seguir al fondo. */
-html.theme-cream .immersive-surface:has(.referral-hub) header { background-color: rgba(242, 236, 225, 0.85); }
+html.theme-cream .immersive-surface:has(.referral-hub) header {
+  background-color: #FAF7F2;
+  border-bottom: 1px solid #DFD5C0;
+}
+html.theme-cream .immersive-surface:has(.referral-hub) header h1 { color: #231F1B; font-weight: 700; }
+html.theme-cream .immersive-surface:has(.referral-hub) header button { color: #5C5346; font-weight: 500; }
 
-/* ── Blanco ── */
-html:not(.dark):not(.theme-cream) .referral-hub .bg-neutral-900\/75,
-html:not(.dark):not(.theme-cream) .referral-hub .bg-neutral-900\/70,
-html:not(.dark):not(.theme-cream) .referral-hub .bg-neutral-900\/60,
-html:not(.dark):not(.theme-cream) .referral-hub .bg-neutral-900 { background-color: #F8FAFC; }
-html:not(.dark):not(.theme-cream) .referral-hub .bg-black { background-color: #F1F5F9; }
-html:not(.dark):not(.theme-cream) .referral-hub .border-neutral-800,
-html:not(.dark):not(.theme-cream) .referral-hub .border-neutral-700,
-html:not(.dark):not(.theme-cream) .referral-hub .border-neutral-600 { border-color: #E5E7EB; }
-html:not(.dark):not(.theme-cream) .referral-hub .text-white,
-html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-100 { color: #0F172A; }
-html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-300,
-html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-400,
-html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-500,
-html:not(.dark):not(.theme-cream) .referral-hub .text-neutral-600 { color: #64748B; }
+/* ════════════ TEMA BEIGE (crema) ════════════ */
 
-/* ── Crema ── */
-html.theme-cream .referral-hub .bg-neutral-900\/75,
-html.theme-cream .referral-hub .bg-neutral-900\/70,
-html.theme-cream .referral-hub .bg-neutral-900\/60,
-html.theme-cream .referral-hub .bg-neutral-900 { background-color: #FFFDF9; }
-html.theme-cream .referral-hub .bg-black { background-color: #E6DEC8; }
-html.theme-cream .referral-hub .border-neutral-800,
-html.theme-cream .referral-hub .border-neutral-700,
-html.theme-cream .referral-hub .border-neutral-600 { border-color: #DFD5C0; }
-html.theme-cream .referral-hub .text-white,
-html.theme-cream .referral-hub .text-neutral-100 { color: #231F1B; }
-html.theme-cream .referral-hub .text-neutral-300,
-html.theme-cream .referral-hub .text-neutral-400,
-html.theme-cream .referral-hub .text-neutral-500,
-html.theme-cream .referral-hub .text-neutral-600 { color: #85796A; }
+/* ── 2. Tarjeta superior: contenedor, zona contador, barra de acción ── */
+html.theme-cream .referral-hub .rh-counter-card {
+  border: 1px solid #DFD5C0;
+  box-shadow: 0 6px 18px rgba(35, 31, 27, 0.06);
+}
+html.theme-cream .referral-hub .rh-counter { background-color: #FFFDF9; }
+/* Etiqueta "REFERIDOS OBTENIDOS ESTE MES" */
+html.theme-cream .referral-hub .rh-counter .text-neutral-500 {
+  color: #85796A;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+/* Número gigante */
+html.theme-cream .referral-hub .rh-counter .text-white { color: #231F1B; font-weight: 800; }
+/* Barra de acción "Registrar referido rápido" → verde bosque */
+html.theme-cream .referral-hub .rh-action-bar {
+  background-color: #1B4332;
+  border-top-color: rgba(255, 253, 249, 0.18);
+}
+html.theme-cream .referral-hub .rh-action-bar:hover { background-color: #163A2A; }
+html.theme-cream .referral-hub .rh-action-bar .text-white,
+html.theme-cream .referral-hub .rh-action-bar .text-indigo-100 { color: #FFFDF9; }
+/* Círculo del ícono "+" dentro de la barra */
+html.theme-cream .referral-hub .rh-action-bar .bg-white\/15 { background-color: rgba(255, 253, 249, 0.18); }
 
-/*
-  Botones de acción blancos (`bg-white text-black`) de las LeverCard: en los
-  temas claros un botón blanco sobre tarjeta clara desaparece. Se pintan con el
-  acento del tema —índigo en blanco, verde bosque en crema— con texto claro.
-*/
-html:not(.dark):not(.theme-cream) .referral-hub .bg-white { background-color: #4F46E5; }
-html:not(.dark):not(.theme-cream) .referral-hub .bg-white.text-black,
-html:not(.dark):not(.theme-cream) .referral-hub .bg-white .text-black { color: #FFFFFF; }
-html.theme-cream .referral-hub .bg-white { background-color: #1B4332; }
-html.theme-cream .referral-hub .bg-white.text-black,
-html.theme-cream .referral-hub .bg-white .text-black { color: #FFFDF9; }
+/* ── 3. Botones dobles intermedios (QuickAction) ── */
+html.theme-cream .referral-hub .rh-quick {
+  background-color: #FFFDF9;
+  border: 1px solid #DFD5C0;
+  box-shadow: 0 4px 12px rgba(35, 31, 27, 0.04);
+}
+html.theme-cream .referral-hub .rh-quick:hover { background-color: #FFFDF9; border-color: #D5C9B1; }
+html.theme-cream .referral-hub .rh-quick .text-neutral-100 { color: #231F1B; font-weight: 600; }
+/* Recuadro del ícono: fuera el negro → salvia con ícono verde bosque */
+html.theme-cream .referral-hub .rh-quick .rh-icon {
+  background-color: #E6F0EC;
+  border-color: #DCE8E1;
+  color: #1B4332;
+}
+html.theme-cream .referral-hub .rh-quick .text-neutral-600 { color: #85796A; }
+
+/* ── 4. Tarjetas de herramientas (LeverCard) ── */
+html.theme-cream .referral-hub .rh-lever {
+  background-color: #FFFDF9;
+  border: 1px solid #DFD5C0;
+  box-shadow: 0 6px 16px rgba(35, 31, 27, 0.05);
+}
+html.theme-cream .referral-hub .rh-lever .text-white { color: #231F1B; font-weight: 700; }
+html.theme-cream .referral-hub .rh-lever .text-neutral-400 { color: #5C5346; }
+/* Recuadro de ícono "Tarjeta Digital" (accent sky) → salvia + verde bosque */
+html.theme-cream .referral-hub .rh-lever .rh-icon.bg-sky-500\/15 { background-color: #E6F0EC; }
+html.theme-cream .referral-hub .rh-lever .rh-icon.text-sky-300 { color: #1B4332; }
+/* Recuadro de ícono "Diagnóstico 360" (accent índigo) → ámbar + cobre */
+html.theme-cream .referral-hub .rh-lever .rh-icon.bg-indigo-500\/15 { background-color: #FEF3C7; }
+html.theme-cream .referral-hub .rh-lever .rh-icon.text-indigo-300 { color: #B45309; }
+/* Botón CTA interno ("Obsequiar Tarjeta" / "Emitir Pase VIP") → café expreso */
+html.theme-cream .referral-hub .rh-cta {
+  background-color: #231F1B;
+  color: #FFFDF9;
+  font-weight: 600;
+  border-radius: 12px;
+}
+html.theme-cream .referral-hub .rh-cta:hover { background-color: #38322C; }
+html.theme-cream .referral-hub .rh-cta .text-black,
+html.theme-cream .referral-hub .rh-cta.text-black { color: #FFFDF9; }
+
+/* ── Píldora "pendientes" (ámbar) legible sobre crema ── */
+html.theme-cream .referral-hub .text-amber-300 { color: #B45309; }
+html.theme-cream .referral-hub .border-amber-500\/30 { border-color: rgba(180, 83, 9, 0.3); }
+html.theme-cream .referral-hub .bg-amber-500\/10 { background-color: rgba(180, 83, 9, 0.08); }
+
+/* ════════════ TEMA BLANCO ════════════ */
+/* Neutro frío + acento índigo, para que se distinga del Beige. */
+html:not(.dark):not(.theme-cream) .referral-hub .rh-counter-card {
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+html:not(.dark):not(.theme-cream) .referral-hub .rh-counter { background-color: #FFFFFF; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-counter .text-neutral-500 {
+  color: #64748B; font-weight: 700; letter-spacing: 0.06em;
+}
+html:not(.dark):not(.theme-cream) .referral-hub .rh-counter .text-white { color: #0F172A; font-weight: 800; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-action-bar { background-color: #4F46E5; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-action-bar:hover { background-color: #4338CA; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-action-bar .text-white { color: #FFFFFF; }
+
+html:not(.dark):not(.theme-cream) .referral-hub .rh-quick,
+html:not(.dark):not(.theme-cream) .referral-hub .rh-lever {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+html:not(.dark):not(.theme-cream) .referral-hub .rh-quick .text-neutral-100,
+html:not(.dark):not(.theme-cream) .referral-hub .rh-lever .text-white { color: #0F172A; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-lever .text-neutral-400,
+html:not(.dark):not(.theme-cream) .referral-hub .rh-quick .text-neutral-600 { color: #475569; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-quick .rh-icon {
+  background-color: #EEF2FF; border-color: #E0E7FF; color: #4F46E5;
+}
+html:not(.dark):not(.theme-cream) .referral-hub .rh-lever .rh-icon.bg-sky-500\/15 { background-color: #E0F2FE; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-lever .rh-icon.text-sky-300 { color: #0284C7; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-lever .rh-icon.bg-indigo-500\/15 { background-color: #EEF2FF; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-lever .rh-icon.text-indigo-300 { color: #4F46E5; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-cta {
+  background-color: #0F172A; color: #FFFFFF; font-weight: 600; border-radius: 12px;
+}
+html:not(.dark):not(.theme-cream) .referral-hub .rh-cta:hover { background-color: #1E293B; }
+html:not(.dark):not(.theme-cream) .referral-hub .rh-cta .text-black,
+html:not(.dark):not(.theme-cream) .referral-hub .rh-cta.text-black { color: #FFFFFF; }
