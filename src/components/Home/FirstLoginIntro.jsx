@@ -13,6 +13,7 @@ import { normalizeCode, isValidCode, explainCode } from '../../data/promotoriaCo
 import BottomSheet from '../Layout/BottomSheet';
 import { readAppTheme, themeFor } from '../../lib/appTheme';
 import ThemeSwitch from '../Auth/ThemeSwitch';
+import ExpandiaMark from '../Auth/ExpandiaMark';
 
 /*
   Paleta por tema, inyectada como variables CSS en el contenedor raíz y heredada por
@@ -2099,7 +2100,7 @@ function JoinTeamStep({ onContinue }) {
  * avisa al padre (`onComplete`) para registrar que el intro terminó y
  * montar "Hoy" por detrás.
  */
-function StartStep({ onStart }) {
+function StartStep({ onStart, themeValue }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -2112,17 +2113,27 @@ function StartStep({ onStart }) {
       className={`flex flex-col items-center px-6 text-center transition-opacity duration-700
                   ${visible ? 'opacity-100' : 'opacity-0'}`}
     >
-      <p className="mb-6 text-sm text-[color:var(--ob-soft)]">Tu entorno de trabajo está listo.</p>
+      {/* Logo de la marca: da identidad y bienvenida a la lámina final. */}
+      <div className="mb-7">
+        <ExpandiaMark theme={themeValue} size="text-5xl sm:text-6xl" />
+      </div>
+
+      <h2 className="font-display text-4xl italic text-[color:var(--ob-text)] sm:text-5xl">
+        ¡Todo listo!
+      </h2>
+      <p className="mt-3 max-w-xs text-sm leading-relaxed text-[color:var(--ob-soft)]">
+        Tu espacio de trabajo está preparado. Es momento de hacer crecer tu negocio.
+      </p>
 
       <button
         type="button"
         onClick={onStart}
-        className="flex w-[85%] max-w-sm items-center justify-center gap-3 rounded-xl
-                   border border-amber-400/50 bg-amber-500 py-4 text-lg font-bold
-                   tracking-wide text-slate-950 shadow-[0_0_30px_rgba(245,158,11,0.3)]
-                   transition-all hover:bg-amber-400 active:scale-95"
+        style={{ backgroundColor: 'var(--ob-accent)', color: 'var(--ob-on-accent)' }}
+        className="mt-9 flex w-[85%] max-w-sm items-center justify-center gap-3 rounded-full
+                   py-4 text-lg font-bold tracking-wide shadow-lg transition-all
+                   hover:brightness-105 active:scale-95"
       >
-        INICIAR
+        COMENZAR
         <ArrowRight size={20} aria-hidden="true" />
       </button>
     </div>
@@ -2389,17 +2400,6 @@ export default function FirstLoginIntro({
       onClick={() => setFastTyping(true)}
     >
       {/*
-        PROVISIONAL: marcador "FIN" en la última lámina (step 6), para ubicar dónde
-        termina el recorrido durante el ajuste. Se eliminará después.
-      */}
-      {step === 6 && (
-        <div className="fixed left-1/2 top-4 z-[99] -translate-x-1/2 rounded-full
-                        bg-rose-500 px-4 py-1 text-xs font-bold uppercase tracking-widest text-white">
-          FIN
-        </div>
-      )}
-
-      {/*
         Conmutador de tema flotante en la esquina INFERIOR derecha: arriba tapaba el
         título "Para desbloquear...". Abajo-derecha queda junto a los botones de salida
         sin encimarse con el contenido. `stopPropagation` para que tocarlo no acelere
@@ -2435,7 +2435,7 @@ export default function FirstLoginIntro({
                 onDone={() => setStep(6)}
               />
             )}
-            {step === 6 && <StartStep onStart={handleStart} />}
+            {step === 6 && <StartStep onStart={handleStart} themeValue={themeValue} />}
           </>
         ) : (
           <>
@@ -2486,7 +2486,7 @@ export default function FirstLoginIntro({
               />
             )}
             {step === 5 && <JoinTeamStep onContinue={() => setStep(6)} />}
-            {step === 6 && <StartStep onStart={handleStart} />}
+            {step === 6 && <StartStep onStart={handleStart} themeValue={themeValue} />}
           </>
         )}
       </TypewriterSpeedContext.Provider>
