@@ -813,6 +813,23 @@ export default function OnboardingFlow({
   const [alive, setAlive] = useState(true);
   useEffect(() => () => setAlive(false), []);
 
+  /*
+    Pantalla fija: se bloquea el scroll del documento mientras el onboarding está
+    montado, para que no se pueda arrastrar arriba/abajo. El contenedor conserva un
+    scroll interno de respaldo por si un paso largo (el mapa de 24 horas) no cabe en un
+    teléfono chico. Se restaura al salir.
+  */
+  useEffect(() => {
+    const { body, documentElement: html } = document;
+    const prev = { body: body.style.overflow, html: html.style.overflow };
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = prev.body;
+      html.style.overflow = prev.html;
+    };
+  }, []);
+
   const answer = (field) => (value) => {
     setAdvisorData((current) => ({ ...current, [field]: value }));
   };
@@ -896,8 +913,9 @@ export default function OnboardingFlow({
 
   return (
     <div
-      className={`relative flex min-h-screen w-full items-center justify-center px-4 py-10
-                  ${theme.bgStyle ? '' : theme.bg}`}
+      /* Pantalla fija al viewport, con scroll interno de respaldo para pasos largos. */
+      className={`relative flex h-[100dvh] w-full items-center justify-center overflow-y-auto
+                  px-4 py-10 ${theme.bgStyle ? '' : theme.bg}`}
       style={{
         ...(theme.bgStyle ?? {}),
         // Variables heredadas por todos los pasos (texto, bordes, celdas del mapa).

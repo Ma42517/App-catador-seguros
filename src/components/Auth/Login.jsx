@@ -192,6 +192,23 @@ export default function Login() {
   const isDark = t.value === 'dark';
 
   /*
+    Pantalla fija: se bloquea el scroll del documento mientras el login está montado,
+    para que la pantalla no se pueda arrastrar arriba/abajo. `#root`/`body` tienen
+    `min-height: 100dvh` (para que las pantallas internas sí puedan desplazarse), y sin
+    este bloqueo el acceso dejaba hacer scroll aunque no hubiera nada. Se restaura al salir.
+  */
+  useEffect(() => {
+    const { body, documentElement: html } = document;
+    const prev = { body: body.style.overflow, html: html.style.overflow };
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = prev.body;
+      html.style.overflow = prev.html;
+    };
+  }, []);
+
+  /*
     `revealed` = ya terminó la intro (la cascada de frases) y se mostró el cierre:
     logo + eslogan al centro y los botones de acceso. Mientras es false, sólo corren
     las frases, sin logo ni botones —es la "obertura"—.
@@ -280,7 +297,8 @@ export default function Login() {
 
   return (
     <div
-      className={`relative flex min-h-screen w-full flex-col overflow-hidden px-6 py-8 ${bg}`}
+      /* Anclada al viewport, pantalla fija sin scroll (ver bloqueo en el useEffect). */
+      className={`fixed inset-0 flex w-full flex-col overflow-hidden px-6 py-8 ${bg}`}
       style={t.bgStyle}
     >
       {/* Resplandor con el acento del tema, muy suave, para dar vida al fondo. */}

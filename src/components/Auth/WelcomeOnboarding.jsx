@@ -70,6 +70,21 @@ export default function WelcomeOnboarding({ onFinish }) {
   const [thread, setThread] = useState([]);
   const bottomRef = useRef(null);
 
+  /*
+    Pantalla fija: se bloquea el scroll del documento mientras la bienvenida está
+    montada, para que no se pueda arrastrar arriba/abajo. Se restaura al salir.
+  */
+  useEffect(() => {
+    const { body, documentElement: html } = document;
+    const prev = { body: body.style.overflow, html: html.style.overflow };
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = prev.body;
+      html.style.overflow = prev.html;
+    };
+  }, []);
+
   // Al cambiar de paso, el nuevo contenido queda a la vista (abajo del hilo).
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -109,7 +124,8 @@ export default function WelcomeOnboarding({ onFinish }) {
 
   return (
     <div
-      className={`relative flex min-h-screen w-full flex-col overflow-hidden px-6 ${bg}`}
+      /* Anclada al viewport, pantalla fija sin scroll (ver bloqueo en el useEffect). */
+      className={`fixed inset-0 flex w-full flex-col overflow-hidden px-6 ${bg}`}
       style={t.bgStyle}
     >
       {/* Saltar: siempre a la mano, discreto. No en la pantalla final. */}
