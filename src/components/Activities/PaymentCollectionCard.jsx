@@ -162,17 +162,18 @@ export default function PaymentCollectionCard({ event }) {
           label={`Agendar seguimiento del cobro de ${prospectName}`}
         />
 
-        <button
-          type="button"
+        {/*
+          "Cobrado" como botón circular (sólo ícono), igual que los otros tres:
+          antes era un botón ancho con texto y, entre los cuatro botones shrink-0, no
+          dejaba ancho a la columna del nombre, que se partía letra por letra (se veía
+          "vertical"). Circular, el nombre vuelve a caber en horizontal. Misma acción.
+        */}
+        <CircleActionButton
+          icon={CheckCircle2}
+          tone="emeraldSolid"
           onClick={() => setCollectedOpen(true)}
-          aria-label={`Registrar el cobro de la prima de ${prospectName}`}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-3.5
-                     py-2 text-xs font-semibold text-white transition-colors
-                     hover:bg-emerald-500 active:scale-95"
-        >
-          <CheckCircle2 size={15} aria-hidden="true" />
-          Cobrado
-        </button>
+          label={`Registrar el cobro de la prima de ${prospectName}`}
+        />
       </ActionCardBase>
 
       <TaskOptionsSheet
