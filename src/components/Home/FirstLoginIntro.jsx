@@ -815,6 +815,17 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
     .filter((p) => p.nombre);
   const isValid = cleanEntries.length > 0;
 
+  /*
+    Revelado progresivo: sólo los slots con algo + uno vacío para seguir, hasta
+    `slotCount`. Arranca con un slot y crece al capturar, en vez de mostrarlos todos
+    vacíos a la vez. El slot en edición se mantiene visible aunque esté vacío.
+  */
+  const filledCount = prospects.filter((p) => p.nombre.trim()).length;
+  const prospectVisible = Math.min(
+    slotCount,
+    Math.max(filledCount + 1, (editingIndex ?? -1) + 1),
+  );
+
   return (
     <div className="flex w-full flex-col items-center px-6 text-center">
       <p className="sr-only">{`${step3Text(slotCount)} ${STEP3_SUBTEXT}`}</p>
@@ -841,7 +852,7 @@ function ProspectCaptureStep({ slotCount, onContinue, onSkip }) {
         aria-hidden={!showSubtext}
       >
         <div className="space-y-3">
-          {prospects.map((value, index) => (
+          {prospects.slice(0, prospectVisible).map((value, index) => (
             <ProspectSlot
               key={index}
               index={index}
@@ -1158,6 +1169,17 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
     .filter((t) => t.descripcion);
   const isValid = cleanEntries.length >= MIN_FILLED_TASKS;
 
+  /*
+    Revelado progresivo: se muestran los pendientes llenos + uno vacío, pero nunca
+    menos que el mínimo exigido (`MIN_FILLED_TASKS`), para que de entrada se vea que
+    hay que capturar varios. Evita el muro de 10 cajas vacías cuando `slotCount` es alto.
+  */
+  const filledTasks = tasks.filter((t) => t.descripcion.trim()).length;
+  const taskVisible = Math.min(
+    slotCount,
+    Math.max(MIN_FILLED_TASKS, filledTasks + 1, (openIndex ?? -1) + 1),
+  );
+
   return (
     <div className="flex w-full flex-col items-center px-6 text-center">
       <p className="sr-only">{`${TASK_STEP_TITLE}. ${TASK_STEP_TEXT} ${TASK_STEP_SUBTEXT}`}</p>
@@ -1192,7 +1214,7 @@ function TaskCaptureStep({ slotCount, onContinue, onSkip }) {
         aria-hidden={!showSubtext}
       >
         <div className="max-h-[46vh] space-y-3 overflow-y-auto pr-1">
-          {tasks.map((value, index) => (
+          {tasks.slice(0, taskVisible).map((value, index) => (
             <TaskSlot key={index} index={index} value={value} onOpen={setOpenIndex} />
           ))}
         </div>
@@ -1316,6 +1338,25 @@ function HybridCaptureStep({ onContinue, onSkip }) {
     .filter((t) => t.descripcion);
   const isValid = cleanProspects.length > 0 || cleanTasks.length > 0;
 
+  /*
+    Revelado progresivo: en vez de mostrar los 2 prospectos y las 3 actividades
+    vacíos de golpe —que se veían amontonados—, se muestran sólo los que ya tienen
+    algo más UNO vacío para seguir. Así la pantalla arranca compacta (1 slot por
+    sección) y crece conforme la persona captura, hasta el tope de cada sección. El
+    slot en edición/abierto cuenta como visible aunque aún esté vacío, para no
+    cerrarlo mientras se escribe.
+  */
+  const filledProspects = prospects.filter((p) => p.nombre.trim()).length;
+  const prospectVisible = Math.min(
+    HYBRID_PROSPECT_SLOT_COUNT,
+    Math.max(filledProspects + 1, (editingIndex ?? -1) + 1),
+  );
+  const filledTasks = tasks.filter((t) => t.descripcion.trim()).length;
+  const taskVisible = Math.min(
+    HYBRID_TASK_SLOT_COUNT,
+    Math.max(filledTasks + 1, (openIndex ?? -1) + 1),
+  );
+
   return (
     <div className="flex w-full flex-col items-center px-6 text-center">
       <p className="sr-only">
@@ -1356,7 +1397,7 @@ function HybridCaptureStep({ onContinue, onSkip }) {
         </div>
 
         <div className="space-y-3">
-          {prospects.map((value, index) => (
+          {prospects.slice(0, prospectVisible).map((value, index) => (
             <ProspectSlot
               key={index}
               index={index}
@@ -1399,7 +1440,7 @@ function HybridCaptureStep({ onContinue, onSkip }) {
         </p>
 
         <div className="space-y-3">
-          {tasks.map((value, index) => (
+          {tasks.slice(0, taskVisible).map((value, index) => (
             <TaskSlot key={index} index={index} value={value} onOpen={setOpenIndex} />
           ))}
         </div>
