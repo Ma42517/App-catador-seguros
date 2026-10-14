@@ -497,8 +497,8 @@ const STEP3_SUBTEXT = 'No haremos nada con ellos hoy ni te pediremos que les lla
   nada de eso — es una invitación aparte, con su propia salida ("Saltar por
   ahora"), para quien ya tiene el código de su promotoría a la mano.
 */
-const STEP5_TEXT = '¿Ya tienes el código de tu promotoría? Únete a tu equipo de trabajo.';
-const STEP5_SUBTEXT = 'Si no lo tienes a la mano, puedes hacerlo después desde tu perfil.';
+const STEP5_TEXT = '¿Ya tienes tu código? ¡Únete a tu equipo!';
+const STEP5_SUBTEXT = '¿No lo tienes a la mano? Tranquilo, puedes hacerlo luego desde tu perfil.';
 
 /*
   Resplandor compartido por los botones de avance (Continuar, Entendido,
@@ -1972,10 +1972,10 @@ function JoinTeamStep({ onContinue }) {
           <CheckCircle2 size={24} strokeWidth={1.8} aria-hidden="true" />
         </span>
 
-        <p className="text-lg font-semibold text-[color:var(--ob-text)]">Solicitud enviada</p>
+        <p className="text-lg font-semibold text-[color:var(--ob-text)]">¡Listo, ya casi!</p>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-[color:var(--ob-soft)]">
           Pediste unirte a <span className="font-semibold text-[color:var(--ob-soft)]">{joined}</span>.
-          Falta que tu promotor apruebe tu acceso.
+          Solo falta que acepten tu solicitud.
         </p>
 
         <button
@@ -2010,7 +2010,7 @@ function JoinTeamStep({ onContinue }) {
           id="join-team-code"
           value={code}
           onChange={(event) => { setCode(normalizeCode(event.target.value)); setError(''); }}
-          placeholder="PROMO-866-01"
+          placeholder="PROMO-XXX-XX"
           autoComplete="off"
           autoCapitalize="characters"
           spellCheck="false"
@@ -2041,7 +2041,7 @@ function JoinTeamStep({ onContinue }) {
                      disabled:cursor-wait disabled:opacity-70 ${GLOW_BUTTON_CLASS}`}
         >
           {isBusy && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
-          {isBusy ? 'Enviando…' : 'Unirme al equipo'}
+          {isBusy ? 'Enviando…' : '¡Unirme!'}
         </button>
 
         <button
@@ -2049,7 +2049,7 @@ function JoinTeamStep({ onContinue }) {
           onClick={onContinue}
           className="mt-4 block w-full text-sm text-[color:var(--ob-faint)] transition-colors hover:text-[color:var(--ob-text)]"
         >
-          Hacerlo después
+          Ahora no, gracias
         </button>
       </div>
     </form>
