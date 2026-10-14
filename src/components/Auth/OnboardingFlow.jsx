@@ -29,16 +29,22 @@ const OB_PALETTE = {
     text: '#f8fafc', soft: 'rgba(248,250,252,0.55)', faint: 'rgba(248,250,252,0.3)',
     border: 'rgba(255,255,255,0.12)', cell: 'rgba(255,255,255,0.05)',
     cellText: 'rgba(255,255,255,0.35)',
+    // Acento ámbar legible sobre fondo oscuro: amarillo claro.
+    amber: '#fcd34d',
   },
   light: {
     text: '#0f172a', soft: 'rgba(15,23,42,0.6)', faint: 'rgba(15,23,42,0.4)',
     border: 'rgba(15,23,42,0.12)', cell: 'rgba(15,23,42,0.05)',
     cellText: 'rgba(15,23,42,0.45)',
+    // Sobre fondo claro el amarillo no contrasta: se usa un ámbar oscuro.
+    amber: '#b45309',
   },
   cream: {
     text: '#0B1A30', soft: 'rgba(11,26,48,0.6)', faint: 'rgba(11,26,48,0.4)',
     border: 'rgba(11,26,48,0.14)', cell: 'rgba(11,26,48,0.05)',
     cellText: 'rgba(11,26,48,0.45)',
+    // Mismo criterio que el claro: ámbar oscuro, legible sobre el beige.
+    amber: '#b45309',
   },
 };
 
@@ -567,7 +573,7 @@ function HourGridStep({
           className={`w-full rounded-lg border px-4 py-1.5 text-xs font-semibold
                      transition-colors ${
             isFreelanceAllDay
-              ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+              ? 'border-amber-500/40 bg-amber-500/10 text-[color:var(--ob-amber)]'
               : 'border-[color:var(--ob-border)] text-[color:var(--ob-soft)] hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-text)]'
           }`}
         >
@@ -696,7 +702,7 @@ function AnalysisRoomStep({ onSimulateApproval }) {
           type="button"
           onClick={onSimulateApproval}
           className={`mt-8 rounded-full border border-amber-500/30 bg-amber-500/10
-                     px-5 py-2 text-xs font-semibold text-amber-300
+                     px-5 py-2 text-xs font-semibold text-[color:var(--ob-amber)]
                      transition-opacity duration-1000 hover:bg-amber-500/20
                      ${isTyping ? 'opacity-0' : 'opacity-100'}`}
         >
@@ -901,6 +907,7 @@ export default function OnboardingFlow({
         '--ob-border': pal.border,
         '--ob-cell': pal.cell,
         '--ob-cell-text': pal.cellText,
+        '--ob-amber': pal.amber,
       }}
       onClick={() => setFastTyping(true)}
     >

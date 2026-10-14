@@ -22,8 +22,8 @@ export default function ThemeSwitch({ value, onChange, className = '' }) {
     <div
       role="radiogroup"
       aria-label="Color de la app"
-      className={`flex items-center gap-2 rounded-full border border-black/10 bg-black/5
-                  px-2 py-1.5 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 ${className}`}
+      className={`flex items-center gap-3 rounded-full border border-black/10 bg-black/5
+                  px-3 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 ${className}`}
     >
       {APP_THEMES.map((option) => {
         const active = value === option.value;
@@ -36,10 +36,16 @@ export default function ThemeSwitch({ value, onChange, className = '' }) {
             aria-label={option.label}
             title={option.label}
             onClick={() => choose(option.value)}
-            className={`h-5 w-5 rounded-full ring-2 transition-all active:scale-90
-                        ${active ? 'ring-indigo-500 ring-offset-1 ring-offset-transparent scale-110'
-                          : 'ring-transparent opacity-60 hover:opacity-100'}`}
-            style={{ backgroundColor: option.swatch }}
+            className={`h-8 w-8 rounded-full border transition-all active:scale-90
+                        ${active
+                          ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-transparent scale-110 border-transparent'
+                          : 'opacity-80 hover:opacity-100'}`}
+            style={{
+              backgroundColor: option.swatch,
+              // Borde gris medio para que el blanco y el crema no se fundan con el
+              // fondo claro: sin él, dos de los tres circulitos desaparecían.
+              borderColor: active ? 'transparent' : 'rgba(120,120,120,0.5)',
+            }}
           />
         );
       })}
