@@ -215,14 +215,14 @@ export default function BottomTabBar({
           ningún hueco donde encajar.
         */}
         <div
-          className="absolute inset-0 rounded-t-[1.75rem] bg-white/[0.12]"
+          className="navbar-outline absolute inset-0 rounded-t-[1.75rem] bg-white/[0.12]"
           style={OUTLINE_MASK}
           aria-hidden="true"
         />
 
-        {/* ── Capa 1b: el relleno negro, 1px por debajo del contorno ── */}
+        {/* ── Capa 1b: el relleno (negro por omisión; cambia según el tema) ── */}
         <div
-          className="absolute inset-x-0 bottom-0 rounded-t-[1.7rem] bg-black"
+          className="navbar-fill absolute inset-x-0 bottom-0 rounded-t-[1.7rem] bg-black"
           style={{ top: OUTLINE, ...FILL_MASK }}
           aria-hidden="true"
         />
@@ -257,8 +257,8 @@ export default function BottomTabBar({
             resplandor.
           */}
           <span
-            className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br
-                       from-indigo-500 via-indigo-500 to-violet-600 text-white
+            className="navbar-fab grid h-full w-full place-items-center rounded-full
+                       bg-gradient-to-br from-indigo-500 via-indigo-500 to-violet-600 text-white
                        shadow-[0_6px_18px_rgba(124,58,237,0.35)] ring-1 ring-white/15
                        transition-transform group-hover:scale-105 group-active:scale-95"
             aria-hidden="true"

@@ -42,7 +42,9 @@ export const BRAND = {
 const THEME_BUTTON = {
   dark: { accent: '#38BDF8', onAccent: '#0B1A30' },
   light: { accent: '#0B1A30', onAccent: '#FFFFFF' },
-  cream: { accent: '#0B1A30', onAccent: '#F5EFE6' },
+  // Crema: verde bosque ejecutivo (paleta del rediseño del tema beige), con texto
+  // marfil encima. Reemplaza el navy para dar la calidez del tema crema.
+  cream: { accent: '#1B4332', onAccent: '#FFFDF9' },
 };
 
 /**

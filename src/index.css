@@ -77,20 +77,77 @@
    La clase la pone `applyAppTheme` en el <html>. */
 @layer base {
   html.theme-cream body {
-    background-color: #efe9dd;
-    color: #0B1A30;
+    background-color: #F2ECE1; /* --bg-main */
+    color: #231F1B;           /* --text-primary (café espresso) */
   }
 }
 
 @layer components {
+  /* Tarjetas/contenedores/modales: marfil con borde sólido obligatorio. */
   html.theme-cream .surface {
-    background-color: #f6f1e7;
-    border-color: rgb(214 203 184 / 0.7);
-    box-shadow: 0 10px 30px -12px rgb(120 100 60 / 0.25);
+    background-color: #FFFDF9; /* --bg-surface */
+    border-color: #DFD5C0;     /* --border-card */
+    box-shadow: 0 4px 14px rgba(35, 31, 27, 0.05);
   }
+  /* Superficie hundida (filas/inputs dentro de tarjeta): fondo secundario. */
   html.theme-cream .surface-sunken {
-    background-color: #efe7d7;
-    border-color: rgb(214 203 184 / 0.6);
+    background-color: #E6DEC8; /* --bg-subtle */
+    border-color: #DFD5C0;
+  }
+}
+
+/*
+  ── Acentos del tema crema ──────────────────────────────────────────────────
+  Los componentes del interior usan índigo (morado frío) y ámbar claro como
+  acentos; sobre el beige se ven fuera de lugar o ilegibles. En vez de reescribir
+  cada archivo, aquí se reasignan esos acentos SÓLO en el tema crema:
+    · índigo (nombre de usuario, enlaces, acentos) → verde bosque #1B4332
+    · ámbar/amarillo claro (puntos, íconos de alerta) → cobre oscuro #B45309
+  Las utilidades de Tailwind se generan como `.text-indigo-400 { color: ... }`, así
+  que basta sobrescribir esas clases bajo `html.theme-cream` para teñir todo el
+  interior de un golpe, sin tocar los temas negro ni blanco.
+*/
+@layer utilities {
+  html.theme-cream .text-indigo-400,
+  html.theme-cream .text-indigo-500,
+  html.theme-cream .text-indigo-600,
+  html.theme-cream .text-indigo-300 { color: #1B4332; }
+
+  html.theme-cream .text-amber-300,
+  html.theme-cream .text-amber-400,
+  html.theme-cream .text-amber-500 { color: #B45309; }
+}
+
+/*
+  ── Barra de navegación inferior por tema ───────────────────────────────────
+  El relleno de la barra es `bg-black` por omisión (tema negro). En blanco y crema
+  se cambia por un tono claro acorde, con su borde y el botón flotante (FAB) en el
+  acento del tema, para que la barra combine con el resto en vez de quedar negra y
+  desconectada. El tema negro no necesita regla: es el valor por defecto.
+*/
+@layer components {
+  /* ── Blanco ── barra marfil muy claro, FAB navy ── */
+  html:not(.dark):not(.theme-cream) .navbar-fill {
+    background-color: #FFFFFF;
+  }
+  html:not(.dark):not(.theme-cream) .navbar-outline {
+    background-color: rgb(15 23 42 / 0.12);
+  }
+  html:not(.dark):not(.theme-cream) .navbar-fab {
+    background: #0B1A30;
+    box-shadow: 0 6px 16px rgba(11, 26, 48, 0.28);
+  }
+
+  /* ── Crema ── barra marfil cálido, FAB verde bosque (paleta Gemini) ── */
+  html.theme-cream .navbar-fill {
+    background-color: #FAF7F2; /* --nav-bg */
+  }
+  html.theme-cream .navbar-outline {
+    background-color: #E2D9C5; /* --nav-border */
+  }
+  html.theme-cream .navbar-fab {
+    background: #1B4332;       /* --accent-primary */
+    box-shadow: 0 6px 16px rgba(27, 67, 50, 0.28);
   }
 }
 
