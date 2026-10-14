@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Lock, Mail, User, Loader2, AlertTriangle, MailCheck, Eye, EyeOff, ArrowRight,
+  Lock, Mail, User, Loader2, AlertTriangle, MailCheck, Eye, EyeOff, ArrowRight, ArrowLeft,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import useTypewriter from '../../lib/useTypewriter';
@@ -8,9 +9,10 @@ import { readAppTheme, themeFor } from '../../lib/appTheme';
 import ExpandiaMark from './ExpandiaMark';
 
 /*
-  Frases motivacionales que van rotando bajo el logo, con efecto de escritura.
-  Cierran con el eslogan de la marca para enlazar con la identidad. El tono es
-  aspiracional a propósito: entrar a la app es el momento de recordar para qué.
+  Frases motivacionales que se van APILANDO en cascada bajo el logo: cada una se
+  escribe, sube y queda difuminada arriba mientras entra la siguiente. Cierran con
+  el eslogan de la marca. Es el mismo lenguaje de la bienvenida, para que el acceso
+  se sienta de una pieza.
 */
 const MOTIVATION = [
   'Hoy es un buen día para crecer.',
@@ -19,14 +21,17 @@ const MOTIVATION = [
   'Multiplica tus posibilidades.',
 ];
 
-/** Cuánto se queda una frase ya escrita antes de pasar a la siguiente. */
-const PHRASE_HOLD_MS = 2200;
+/** Cuánto se queda una frase ya escrita antes de que entre la siguiente. */
+const PHRASE_HOLD_MS = 1600;
+
+/** Cuántas frases se ven apiladas a la vez (la viva + las difuminadas de arriba). */
+const STACK = 3;
 
 /**
- * Frase que se escribe sola y, al terminar, cede su lugar a la siguiente en bucle.
- * Reutiliza `useTypewriter` (el mismo efecto del onboarding) para no inventar otro.
+ * Hilo motivacional en cascada. Escribe una frase, la empuja hacia arriba
+ * (difuminada) y entra la siguiente, en bucle. Reutiliza `useTypewriter`.
  */
-function RotatingMotivation({ colorClass, accentColor }) {
+function MotivationCascade({ colorClass, accentColor }) {
   const [index, setIndex] = useState(0);
   const phrase = MOTIVATION[index];
   const { typed, isTyping } = useTypewriter(phrase);
@@ -39,11 +44,36 @@ function RotatingMotivation({ colorClass, accentColor }) {
     return () => clearTimeout(timer);
   }, [isTyping, index]);
 
+  // Las ya dichas (hasta STACK-1), de la más vieja arriba a la más reciente abajo.
+  const history = [];
+  for (let k = Math.min(index, STACK - 1); k >= 1; k -= 1) {
+    history.push({ text: MOTIVATION[index - k], depth: k });
+  }
+
+  const fade = { 1: 'opacity-40 blur-[0.4px] text-lg', 2: 'opacity-20 blur-[1px] text-base' };
+
   return (
-    <p className={`min-h-[3.5rem] max-w-xs text-center text-xl font-light leading-snug ${colorClass}`}>
-      {typed}
-      {isTyping && <span style={{ color: accentColor }} className="animate-pulse">|</span>}
-    </p>
+    <div className="flex min-h-[8rem] flex-col items-center justify-end gap-2">
+      <AnimatePresence initial={false}>
+        {history.map((h) => (
+          <motion.p
+            key={h.text}
+            layout
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className={`text-center font-light leading-snug ${colorClass} ${fade[h.depth] ?? fade[2]}`}
+          >
+            {h.text}
+          </motion.p>
+        ))}
+      </AnimatePresence>
+
+      <p className={`text-center text-xl font-light leading-snug ${colorClass}`}>
+        {typed}
+        {isTyping && <span style={{ color: accentColor }} className="animate-pulse">|</span>}
+      </p>
+    </div>
   );
 }
 
@@ -64,9 +94,6 @@ function GoogleMark({ size = 18 }) {
 
 /**
  * Traduce los fallos de Supabase Auth a instrucciones en español.
- *
- * Los mensajes originales están en inglés y describen el síntoma. "Email not
- * confirmed" no le dice a nadie que hay un correo esperando en su bandeja.
  */
 function explain(error) {
   const raw = error?.message ?? '';
@@ -98,24 +125,26 @@ function explain(error) {
 }
 
 /**
- * Pantalla de acceso, estilo cálido y vivo.
+ * Pantalla de acceso, estilo cálido y vivo (inspirado en el patrón de Sesame).
  *
- * Respeta el tema (negro/blanco/crema) que la persona eligió en la bienvenida, con
- * un saludo motivacional que rota bajo el logo. El acceso con correo y contraseña es
- * la vía principal, y Google queda como alternativa. Las dos crean la misma cuenta
- * en Supabase y pasan por la misma revisión de acceso. La lógica de autenticación no
- * cambió con el rediseño: sólo la piel.
+ * Arranca LIMPIA: logo, frases motivacionales en cascada y dos botones —correo y
+ * Google—. El formulario de correo/contraseña no se muestra hasta pulsar "Continuar
+ * con correo"; Google se dispara al pulsar su botón. Así la primera impresión es
+ * aire y motivación, no un formulario. Respeta el tema elegido en la bienvenida.
+ *
+ * La lógica de autenticación no cambió con el rediseño: sólo la piel y el momento en
+ * que aparece cada cosa.
  */
 export default function Login() {
   const {
     signInWithGoogle, signInWithPassword, signUpWithPassword, googleEnabled, error: sessionError,
   } = useSession();
 
-  // Tema elegido en la bienvenida: el login se pinta igual para no romper la
-  // continuidad. Se lee una vez al montar; esta pantalla no lo cambia.
   const t = themeFor(readAppTheme());
   const isDark = t.value === 'dark';
 
+  // 'choice' = pantalla limpia con los dos botones. 'email' = formulario revelado.
+  const [view, setView] = useState('choice');
   const [mode, setMode] = useState('signIn');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -130,6 +159,12 @@ export default function Login() {
 
   const switchMode = () => {
     setMode(isSignUp ? 'signIn' : 'signUp');
+    setError('');
+    setNotice('');
+  };
+
+  const backToChoice = () => {
+    setView('choice');
     setError('');
     setNotice('');
   };
@@ -177,10 +212,16 @@ export default function Login() {
     if (oauthError) setGoogleBusy(false);
   };
 
-  // Clases de campo según el tema. Altos y redondeados, fáciles de tocar.
   const fieldClass = `w-full rounded-2xl border py-4 pl-12 pr-4 text-base outline-none
     transition-all focus:ring-2 ${t.inputBg}`;
   const bg = t.bgStyle ? '' : t.bg;
+
+  // Botón de proveedor (correo/Google): píldora clara con borde, estilo Sesame.
+  const providerBtn = `flex w-full items-center justify-center gap-2.5 rounded-full border
+    px-4 py-4 text-base font-semibold transition-all active:scale-[0.98]
+    disabled:cursor-wait disabled:opacity-70
+    ${isDark ? 'border-white/15 text-[#F5EFE6] hover:bg-white/5' : 'border-black/10 hover:bg-black/[0.03]'}
+    ${!isDark ? t.text : ''}`;
 
   return (
     <div
@@ -198,183 +239,213 @@ export default function Login() {
         aria-hidden="true"
       />
 
-      <div className="relative mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
-        {/* ── Logo + saludo motivacional rotativo ── */}
-        <div className="mb-10 flex flex-col items-center">
-          <ExpandiaMark theme={t.value} size="text-5xl" />
-          <div className="mt-6">
-            <RotatingMotivation colorClass={t.text} accentColor={t.accent} />
-          </div>
+      {/* ── Encabezado: logo + cascada motivacional ── */}
+      <div className="relative mx-auto mt-12 flex w-full max-w-sm flex-col items-center">
+        <ExpandiaMark theme={t.value} size="text-5xl" />
+        <div className="mt-8 w-full">
+          <MotivationCascade colorClass={t.text} accentColor={t.accent} />
         </div>
+      </div>
 
-        {/* ── Formulario ── */}
-        <form onSubmit={submit} className="space-y-3.5">
-          {isSignUp && (
-            <div className="relative">
-              <User
-                size={18}
-                className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${t.faint}`}
-                aria-hidden="true"
-              />
-              <input
-                id="login-name"
-                className={fieldClass}
-                style={t.inputStyle}
-                value={fullName}
-                onChange={(e) => { setFullName(e.target.value); setError(''); }}
-                placeholder="Tu nombre completo"
-                autoComplete="name"
-                aria-label="Tu nombre completo"
-              />
-            </div>
-          )}
-
-          <div className="relative">
-            <Mail
-              size={18}
-              className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${t.faint}`}
-              aria-hidden="true"
-            />
-            <input
-              id="login-email"
-              className={fieldClass}
-              style={t.inputStyle}
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(''); }}
-              placeholder="Tu correo"
-              autoComplete="email"
-              autoCapitalize="none"
-              inputMode="email"
-              aria-label="Tu correo"
-            />
-          </div>
-
-          <div className="relative">
-            <Lock
-              size={18}
-              className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${t.faint}`}
-              aria-hidden="true"
-            />
-            <input
-              id="login-password"
-              className={`${fieldClass} pr-12`}
-              style={t.inputStyle}
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(''); }}
-              placeholder="Tu contraseña"
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              aria-label="Tu contraseña"
-            />
-            {/* Ojito: ver u ocultar lo escrito, para comprobar sin errores. */}
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
-              className={`absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center
-                          rounded-full transition-colors hover:bg-black/5 ${t.muted}`}
+      {/* ── Parte inferior: botones o formulario ── */}
+      <div className="relative mx-auto flex w-full max-w-sm flex-1 flex-col justify-end pb-2">
+        <AnimatePresence mode="wait">
+          {view === 'choice' ? (
+            <motion.div
+              key="choice"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.35 }}
+              className="space-y-3"
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => { setView('email'); setError(''); setNotice(''); }}
+                style={{ backgroundColor: t.accent }}
+                className="flex w-full items-center justify-center gap-2 rounded-full px-4 py-4
+                           text-base font-bold text-[#0B1A30] shadow-lg transition-all
+                           hover:brightness-105 active:scale-[0.98]"
+              >
+                <Mail size={18} />
+                Continuar con correo
+              </button>
 
-          {error && (
-            <p
-              role="alert"
-              className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3
-                         text-sm leading-relaxed text-rose-500"
+              <button
+                type="button"
+                onClick={enterWithGoogle}
+                disabled={isGoogleBusy}
+                className={providerBtn}
+                style={!isDark ? t.inputStyle : undefined}
+              >
+                {isGoogleBusy ? <Loader2 size={18} className="animate-spin" /> : <GoogleMark />}
+                {isGoogleBusy ? 'Abriendo Google...' : 'Continuar con Google'}
+              </button>
+
+              {!googleEnabled && (
+                <p
+                  className="flex items-start gap-2 rounded-2xl border border-amber-500/30
+                             bg-amber-500/10 p-3 text-sm leading-relaxed text-amber-600"
+                >
+                  <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  Falta configurar Supabase en este entorno, así que todavía no se puede entrar.
+                </p>
+              )}
+
+              <p className={`pt-3 text-center text-xs leading-relaxed ${t.faint}`}>
+                Un administrador revisará tu solicitud antes de entrar.
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="email"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.35 }}
             >
-              {error}
-            </p>
+              {/* Volver a los dos botones. */}
+              <button
+                type="button"
+                onClick={backToChoice}
+                className={`mb-3 flex items-center gap-1.5 text-sm font-semibold
+                            transition-opacity hover:opacity-70 ${t.muted}`}
+              >
+                <ArrowLeft size={16} />
+                Volver
+              </button>
+
+              <form onSubmit={submit} className="space-y-3.5">
+                {isSignUp && (
+                  <div className="relative">
+                    <User
+                      size={18}
+                      className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${t.faint}`}
+                      aria-hidden="true"
+                    />
+                    <input
+                      id="login-name"
+                      className={fieldClass}
+                      style={t.inputStyle}
+                      value={fullName}
+                      onChange={(e) => { setFullName(e.target.value); setError(''); }}
+                      placeholder="Tu nombre completo"
+                      autoComplete="name"
+                      aria-label="Tu nombre completo"
+                    />
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Mail
+                    size={18}
+                    className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${t.faint}`}
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="login-email"
+                    className={fieldClass}
+                    style={t.inputStyle}
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                    placeholder="Tu correo"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    inputMode="email"
+                    aria-label="Tu correo"
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
+                    autoFocus
+                  />
+                </div>
+
+                <div className="relative">
+                  <Lock
+                    size={18}
+                    className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${t.faint}`}
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="login-password"
+                    className={`${fieldClass} pr-12`}
+                    style={t.inputStyle}
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                    placeholder="Tu contraseña"
+                    autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                    aria-label="Tu contraseña"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                    className={`absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center
+                                rounded-full transition-colors hover:bg-black/5 ${t.muted}`}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                {error && (
+                  <p
+                    role="alert"
+                    className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3
+                               text-sm leading-relaxed text-rose-500"
+                  >
+                    {error}
+                  </p>
+                )}
+
+                {notice && (
+                  <p
+                    role="status"
+                    className="flex items-start gap-2 rounded-2xl border border-emerald-500/30
+                               bg-emerald-500/10 p-3 text-sm leading-relaxed text-emerald-600"
+                  >
+                    <MailCheck size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+                    {notice}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isBusy}
+                  style={{ backgroundColor: t.accent }}
+                  className="flex w-full items-center justify-center gap-2 rounded-full px-4 py-4
+                             text-base font-bold text-[#0B1A30] shadow-lg transition-all
+                             hover:brightness-105 active:scale-[0.98] disabled:cursor-wait
+                             disabled:opacity-70"
+                >
+                  {isBusy && <Loader2 size={18} className="animate-spin" />}
+                  {isBusy
+                    ? (isSignUp ? 'Creando tu cuenta...' : 'Entrando...')
+                    : (isSignUp ? 'Crear mi cuenta' : 'Entrar')}
+                  {!isBusy && <ArrowRight size={18} />}
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={switchMode}
+                className={`mx-auto mt-4 block rounded-lg px-3 py-2 text-sm font-semibold
+                            transition-opacity hover:opacity-70 ${t.muted}`}
+              >
+                {isSignUp ? 'Ya tengo cuenta' : 'Soy nuevo, quiero crear mi cuenta'}
+              </button>
+
+              {sessionError && (
+                <p
+                  role="alert"
+                  className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3
+                             text-sm leading-relaxed text-rose-500"
+                >
+                  {sessionError}
+                </p>
+              )}
+            </motion.div>
           )}
-
-          {notice && (
-            <p
-              role="status"
-              className="flex items-start gap-2 rounded-2xl border border-emerald-500/30
-                         bg-emerald-500/10 p-3 text-sm leading-relaxed text-emerald-600"
-            >
-              <MailCheck size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
-              {notice}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isBusy}
-            style={{ backgroundColor: t.accent }}
-            className="flex w-full items-center justify-center gap-2 rounded-full px-4 py-4
-                       text-base font-bold text-[#0B1A30] shadow-lg transition-all
-                       hover:brightness-105 active:scale-[0.98] disabled:cursor-wait
-                       disabled:opacity-70"
-          >
-            {isBusy
-              ? <Loader2 size={18} className="animate-spin" />
-              : null}
-            {isBusy
-              ? (isSignUp ? 'Creando tu cuenta...' : 'Entrando...')
-              : (isSignUp ? 'Crear mi cuenta' : 'Entrar')}
-            {!isBusy && <ArrowRight size={18} />}
-          </button>
-        </form>
-
-        <button
-          type="button"
-          onClick={switchMode}
-          className={`mx-auto mt-4 block rounded-lg px-3 py-2 text-sm font-semibold
-                      transition-opacity hover:opacity-70 ${t.muted}`}
-        >
-          {isSignUp ? 'Ya tengo cuenta' : 'Soy nuevo, quiero crear mi cuenta'}
-        </button>
-
-        {/* ── Google, como alternativa ── */}
-        <div className="my-5 flex items-center gap-3" aria-hidden="true">
-          <span className={`h-px flex-1 ${isDark ? 'bg-white/15' : 'bg-black/10'}`} />
-          <span className={`text-[11px] font-semibold uppercase tracking-wider ${t.faint}`}>o</span>
-          <span className={`h-px flex-1 ${isDark ? 'bg-white/15' : 'bg-black/10'}`} />
-        </div>
-
-        <button
-          type="button"
-          onClick={enterWithGoogle}
-          disabled={isGoogleBusy}
-          className={`flex w-full items-center justify-center gap-2.5 rounded-full border
-                      px-4 py-4 text-base font-semibold transition-all active:scale-[0.98]
-                      disabled:cursor-wait disabled:opacity-70
-                      ${isDark ? 'border-white/15 text-[#F5EFE6] hover:bg-white/5'
-                        : 'border-black/10 hover:bg-black/[0.03]'} ${!isDark ? t.text : ''}`}
-          style={!isDark ? t.inputStyle : undefined}
-        >
-          {isGoogleBusy
-            ? <Loader2 size={18} className="animate-spin" />
-            : <GoogleMark />}
-          {isGoogleBusy ? 'Abriendo Google...' : 'Continuar con Google'}
-        </button>
-
-        {!googleEnabled && (
-          <p
-            className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-500/30
-                       bg-amber-500/10 p-3 text-sm leading-relaxed text-amber-600"
-          >
-            <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
-            Falta configurar Supabase en este entorno, así que todavía no se puede entrar.
-          </p>
-        )}
-
-        {sessionError && (
-          <p
-            role="alert"
-            className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3
-                       text-sm leading-relaxed text-rose-500"
-          >
-            {sessionError}
-          </p>
-        )}
-
-        <p className={`mt-8 text-center text-xs leading-relaxed ${t.faint}`}>
-          Un administrador revisará tu solicitud antes de entrar.
-        </p>
+        </AnimatePresence>
       </div>
     </div>
   );
