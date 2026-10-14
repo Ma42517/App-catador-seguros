@@ -116,6 +116,34 @@
   html.theme-cream .text-amber-300,
   html.theme-cream .text-amber-400,
   html.theme-cream .text-amber-500 { color: #B45309; }
+
+  /*
+    Píldoras/toggles con relleno índigo claro (botón de contacto, modalidad activa,
+    chips seleccionados): en crema el relleno de color se ve como un parche fuera de
+    tono. Se neutraliza a fondo beige con un borde gris suave; la letra conserva su
+    color de acento (verde, por la regla de arriba). Así combinan sin ser bloques.
+  */
+  html.theme-cream .bg-indigo-50,
+  html.theme-cream .bg-indigo-100,
+  html.theme-cream [class*="bg-indigo-500/1"],
+  html.theme-cream [class*="bg-indigo-500/2"] {
+    background-color: #FFFDF9;
+    border-color: #DFD5C0;
+  }
+
+  /*
+    Botones sólidos índigo (Guardar, acciones primarias): en crema pasan al verde
+    bosque del tema, con texto marfil, para que combinen en vez de quedar morados.
+    Son `bg-indigo-500/600` sin alfa — distintos de las píldoras claras de arriba.
+  */
+  html.theme-cream .bg-indigo-600,
+  html.theme-cream .bg-indigo-500 {
+    background-color: #1B4332;
+  }
+  html.theme-cream .bg-indigo-600:hover,
+  html.theme-cream .bg-indigo-500:hover {
+    background-color: #15362a;
+  }
 }
 
 /*
