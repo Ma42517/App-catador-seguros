@@ -1343,6 +1343,17 @@ function HybridCaptureStep({ onContinue, onSkip }) {
                     ${showRest ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         aria-hidden={!showRest}
       >
+        {/* ── Sección A: prospectos ── encabezado con contador para dar jerarquía */}
+        <div className="mb-2 flex items-center gap-2 text-left">
+          <User size={13} className="shrink-0 text-[color:var(--ob-soft)]" aria-hidden="true" />
+          <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--ob-soft)]">
+            Tus prospectos
+          </span>
+          <span className="text-xs text-[color:var(--ob-faint)]">
+            {cleanProspects.length}/{HYBRID_PROSPECT_SLOT_COUNT}
+          </span>
+        </div>
+
         <div className="space-y-3">
           {prospects.map((value, index) => (
             <ProspectSlot
@@ -1360,7 +1371,7 @@ function HybridCaptureStep({ onContinue, onSkip }) {
           <button
             type="button"
             onClick={handleOpenContacts}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-full
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-full
                        border border-[color:var(--ob-border)] py-2.5 text-xs font-semibold text-[color:var(--ob-soft)]
                        transition-colors hover:border-[color:var(--ob-border)] hover:text-[color:var(--ob-text)]"
           >
@@ -1369,9 +1380,24 @@ function HybridCaptureStep({ onContinue, onSkip }) {
           </button>
         )}
 
-        <p className="mt-6 text-xs text-[color:var(--ob-faint)]">{HYBRID_BRIDGE_TEXT}</p>
+        {/* Separador entre las dos secciones, para que no se lean como una sola lista. */}
+        <div className="my-5 h-px w-full bg-[color:var(--ob-border)]" aria-hidden="true" />
 
-        <div className="mt-3 space-y-3">
+        {/* ── Sección B: actividades ── mismo patrón de encabezado + contador */}
+        <div className="mb-2 flex items-center gap-2 text-left">
+          <ListChecks size={13} className="shrink-0 text-[color:var(--ob-soft)]" aria-hidden="true" />
+          <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--ob-soft)]">
+            Tus actividades
+          </span>
+          <span className="text-xs text-[color:var(--ob-faint)]">
+            {cleanTasks.length}/{HYBRID_TASK_SLOT_COUNT}
+          </span>
+        </div>
+        <p className="mb-3 text-left text-[11px] leading-snug text-[color:var(--ob-faint)]">
+          {HYBRID_BRIDGE_TEXT}
+        </p>
+
+        <div className="space-y-3">
           {tasks.map((value, index) => (
             <TaskSlot key={index} index={index} value={value} onOpen={setOpenIndex} />
           ))}
