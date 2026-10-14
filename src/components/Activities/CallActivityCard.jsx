@@ -92,7 +92,7 @@ export default function CallActivityCard({ event }) {
         onDiscard={() => removeEvent(event.id)}
       >
         <div
-          className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900
+          className="flex items-center gap-3 rounded-xl funnel-card border border-zinc-200 bg-white dark:border-slate-800 dark:bg-slate-900
                      p-3.5"
         >
           <div className="min-w-0 flex-1">
@@ -109,8 +109,8 @@ export default function CallActivityCard({ event }) {
             </p>
             {/* Sin `truncate`: un nombre largo se acomoda en dos líneas en
                 vez de cortarse — mismo criterio que `ActionCardBase.jsx`. */}
-            <p className="break-words text-sm font-semibold text-white">{prospectName}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+            <p className="break-words text-sm font-semibold text-zinc-900 dark:text-white">{prospectName}</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-slate-500">
               <Clock size={11} aria-hidden="true" />
               {event.time || 'Sin hora'}
             </p>

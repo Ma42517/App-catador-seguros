@@ -144,6 +144,13 @@
   html.theme-cream .bg-indigo-500:hover {
     background-color: #15362a;
   }
+
+  /* Tarjetas del embudo (Cita, Propuesta, Cobro, Entrega...): marfil cálido con
+     borde beige en crema, en lugar del blanco puro del modo claro. */
+  html.theme-cream .funnel-card {
+    background-color: #FFFDF9;
+    border-color: #DFD5C0;
+  }
 }
 
 /*

@@ -41,10 +41,10 @@ export default function ActionCardBase({
 }) {
   const card = (
     <div
-      className={`flex items-center gap-3 rounded-xl border p-3.5 transition-colors ${
+      className={`funnel-card flex items-center gap-3 rounded-xl border p-3.5 transition-colors ${
         isWarning
-          ? 'animate-pulse border-amber-500/60 bg-slate-900'
-          : 'border-slate-800 bg-slate-900'
+          ? 'animate-pulse border-amber-500/60 bg-white dark:bg-slate-900'
+          : 'border-zinc-200 bg-white dark:border-slate-800 dark:bg-slate-900'
       }`}
     >
       <div className="min-w-0 flex-1">
@@ -64,9 +64,9 @@ export default function ActionCardBase({
           caso de una palabra sin espacios más ancha que la columna (un
           correo, un teléfono pegado), que sí se saldría del borde.
         */}
-        <p className="break-words text-sm font-semibold text-white">{title}</p>
-        {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
-        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+        <p className="break-words text-sm font-semibold text-zinc-900 dark:text-white">{title}</p>
+        {subtitle && <p className="mt-0.5 break-words text-xs text-zinc-500 dark:text-slate-500">{subtitle}</p>}
+        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-slate-500">
           <Clock size={11} aria-hidden="true" />
           {time || 'Sin hora'}
           {meta}

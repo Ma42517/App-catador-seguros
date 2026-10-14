@@ -195,10 +195,10 @@ export default function InitialMeetingCard({ event, onStartSession, onReportResu
             onDiscard={() => removeEvent(event.id)}
           >
             <div
-              className={`rounded-xl border p-3.5 transition-colors ${
+              className={`funnel-card rounded-xl border p-3.5 transition-colors ${
                 isWarning
-                  ? 'animate-pulse border-amber-500/60 bg-slate-900'
-                  : 'border-slate-800 bg-slate-900'
+                  ? 'animate-pulse border-amber-500/60 bg-white dark:bg-slate-900'
+                  : 'border-zinc-200 bg-white dark:border-slate-800 dark:bg-slate-900'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -214,8 +214,8 @@ export default function InitialMeetingCard({ event, onStartSession, onReportResu
                     Cita Inicial
                   </p>
                   {/* Sin `truncate`: ver la nota de `ActionCardBase.jsx`. */}
-                  <p className="break-words text-sm font-semibold text-white">{prospectName}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                  <p className="break-words text-sm font-semibold text-zinc-900 dark:text-white">{prospectName}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-slate-500">
                     <Clock size={11} aria-hidden="true" />
                     {event.time || 'Sin hora'}
                     {!sessionStarted && isWarning && minutesUntilPenalty !== null && (
