@@ -852,3 +852,132 @@ html:not(.dark):not(.theme-cream) .rh-capture .bg-neutral-900 { background-color
 html:not(.dark):not(.theme-cream) .rh-capture .border-neutral-800 { border-color: #E5E7EB; }
 html:not(.dark):not(.theme-cream) .rh-capture input { color: #0F172A; }
 html:not(.dark):not(.theme-cream) .rh-capture input::placeholder { color: #94A3B8; }
+
+/*
+  ══════════════════════════════════════════════════════════════════════════════
+  DIAGNÓSTICO FINANCIERO 360 — colorimetría del TEMA CREMA (Editorial Ejecutivo)
+  ══════════════════════════════════════════════════════════════════════════════
+  El Diagnóstico vive en un shell que fuerza `className="dark"` y `bg-black`
+  (App.jsx) porque se diseñó como tablero oscuro. Eso impedía que el tema crema
+  llegara al interior. En lugar de tocar el JSX de los ~15 archivos de pasos
+  —cada uno con `text-zinc-*`, inputs y tarjetas fijos— se reconstruye aquí la
+  colorimetría SÓLO para el tema crema, acotada a `.df360-shell`. El tema negro
+  (default) y el blanco quedan intactos: siguen usando el shell oscuro forzado,
+  que es legible. NO se toca ni el motor de cálculo ni las gráficas: esto es
+  exclusivamente color.
+
+  Nota de especificidad: `html.theme-cream .df360-shell <clase>` tiene más peso y
+  viene después que las utilidades de Tailwind, así que gana sin `!important`.
+  Las reglas atacan tanto las clases fijas como las variantes `dark:*` que el
+  `.dark` del shell activa dentro.
+
+  Paleta Beige: #F2ECE1 fondo · #FFFDF9 marfil · #E6DEC8 arena · #DFD5C0 borde
+  · #231F1B expreso · #5C5346 carbón · #85796A topo · #1B4332 verde · #B45309 cobre
+*/
+
+/* ── Fondo del shell y de la cuadrícula ambiental ── */
+html.theme-cream .df360-shell { background-color: #F2ECE1; color: #231F1B; }
+html.theme-cream .df360-shell.bg-black,
+html.theme-cream .df360-shell .bg-black { background-color: #F2ECE1; }
+/* La iluminación de cuadrícula (bg-grid-fade) es un halo pensado para negro;
+   sobre crema ensucia el fondo, así que se apaga. */
+html.theme-cream .df360-grid { display: none; }
+
+/* ── Textos: la escala zinc clara (texto sobre oscuro) → tonos cálidos oscuros ── */
+html.theme-cream .df360-shell .text-white,
+html.theme-cream .df360-shell .text-zinc-50,
+html.theme-cream .df360-shell .text-zinc-100,
+html.theme-cream .df360-shell .text-zinc-200 { color: #231F1B; }
+html.theme-cream .df360-shell .text-zinc-300,
+html.theme-cream .df360-shell .text-zinc-400 { color: #5C5346; }
+html.theme-cream .df360-shell .text-zinc-500,
+html.theme-cream .df360-shell .text-zinc-600 { color: #85796A; }
+
+/* ── Fondos oscuros fijos / variantes dark → marfil y arena ── */
+html.theme-cream .df360-shell .bg-zinc-950,
+html.theme-cream .df360-shell .bg-zinc-950\/60,
+html.theme-cream .df360-shell .bg-zinc-950\/40,
+html.theme-cream .df360-shell .bg-zinc-950\/80,
+html.theme-cream .df360-shell .bg-zinc-950\/30,
+html.theme-cream .df360-shell .bg-zinc-900,
+html.theme-cream .df360-shell .bg-zinc-900\/70,
+html.theme-cream .df360-shell .bg-zinc-900\/60,
+html.theme-cream .df360-shell .bg-zinc-900\/40,
+html.theme-cream .df360-shell .bg-zinc-900\/30 { background-color: #FFFDF9; }
+html.theme-cream .df360-shell .bg-zinc-800,
+html.theme-cream .df360-shell .bg-zinc-800\/70,
+html.theme-cream .df360-shell .bg-zinc-800\/60,
+html.theme-cream .df360-shell .bg-zinc-800\/40,
+html.theme-cream .df360-shell .bg-zinc-700\/40 { background-color: #E6DEC8; }
+
+/* ── Bordes oscuros → borde arena del tema ── */
+html.theme-cream .df360-shell .border-zinc-700,
+html.theme-cream .df360-shell .border-zinc-700\/60,
+html.theme-cream .df360-shell .border-zinc-700\/50,
+html.theme-cream .df360-shell .border-zinc-800,
+html.theme-cream .df360-shell .border-zinc-800\/60,
+html.theme-cream .df360-shell .border-zinc-600,
+html.theme-cream .df360-shell .border-zinc-600\/60,
+html.theme-cream .df360-shell .border-dashed { border-color: #DFD5C0; }
+
+/* ── Inputs (ui/Field.jsx `baseInput`): el caso crítico de los formularios ──
+   `border-zinc-800 bg-zinc-950/60 text-zinc-100 placeholder:text-zinc-500`.
+   Se re-pintan como marfil con borde arena, texto expreso y foco verde bosque. */
+html.theme-cream .df360-shell input,
+html.theme-cream .df360-shell select,
+html.theme-cream .df360-shell textarea {
+  background-color: #FFFDF9;
+  border-color: #DFD5C0;
+  color: #231F1B;
+}
+html.theme-cream .df360-shell input::placeholder,
+html.theme-cream .df360-shell textarea::placeholder { color: #A89B88; }
+html.theme-cream .df360-shell .placeholder\:text-zinc-500::placeholder { color: #A89B88; }
+html.theme-cream .df360-shell input:focus,
+html.theme-cream .df360-shell select:focus,
+html.theme-cream .df360-shell textarea:focus { border-color: #1B4332; }
+/* La flecha del Select es un SVG gris embebido; se recolorea el fondo del wrapper. */
+html.theme-cream .df360-shell .hover\:border-zinc-700:hover { border-color: #C9BBA0; }
+
+/* ── Checkbox / SegmentedControl ── */
+html.theme-cream .df360-shell .border-zinc-600 { border-color: #C9BBA0; }
+
+/* ── Footer / divisores ── */
+html.theme-cream .df360-shell footer .border-zinc-800 { border-color: #DFD5C0; }
+
+/*
+  ── Superficies dentro del shell ──
+  CLAVE: el shell del Diagnóstico fuerza `.dark`, así que Tailwind activa las
+  variantes `dark:` de `.surface`/`.surface-sunken` (`dark:bg-zinc-900/80`,
+  `dark:bg-black/50`) y las tarjetas salían oscuras aunque el tema global sea
+  crema. Aquí se re-pintan explícitamente dentro de `.df360-shell` para el tema
+  crema, con especificidad suficiente para ganarle a esa variante dark.
+*/
+html.theme-cream .df360-shell .surface {
+  background-color: #FFFDF9;
+  border-color: #DFD5C0;
+  box-shadow: 0 4px 14px rgba(35, 31, 27, 0.05);
+}
+html.theme-cream .df360-shell .surface-sunken {
+  background-color: #E6DEC8;
+  border-color: #DFD5C0;
+}
+
+/*
+  Los pocos pares `dark:*` que usan los componentes del Diagnóstico también se
+  activan por el `.dark` forzado del shell. Se neutralizan en crema para que no
+  salgan oscuros sueltos dentro de un módulo que ahora es beige.
+*/
+html.theme-cream .df360-shell .dark\:bg-zinc-950\/60 { background-color: #FFFDF9; }
+html.theme-cream .df360-shell .dark\:bg-zinc-900 { background-color: #FFFDF9; }
+html.theme-cream .df360-shell .dark\:bg-zinc-800 { background-color: #E6DEC8; }
+html.theme-cream .df360-shell .dark\:border-zinc-700 { border-color: #DFD5C0; }
+html.theme-cream .df360-shell .dark\:text-zinc-300 { color: #5C5346; }
+html.theme-cream .df360-shell .dark\:text-zinc-200 { color: #231F1B; }
+
+/*
+  Acentos ya resueltos globalmente bajo html.theme-cream (índigo→verde bosque,
+  ámbar→cobre), así que los semáforos y botones de acento del Diagnóstico migran
+  solos. Aquí se completó lo que faltaba: fondo, textos zinc, bordes, inputs y
+  las superficies (porque el `.dark` del shell activaba su variante oscura).
+*/

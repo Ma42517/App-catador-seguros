@@ -797,10 +797,10 @@ function Shell({
           fuerza la clase `dark` para que conserve su legibilidad incluso con
           el tema claro activo, en lugar de mostrarse ilegible.
         */
-        <div className="dark relative min-h-screen bg-black">
+        <div className="df360-shell dark relative min-h-screen bg-black">
           {/* Iluminación ambiental fija del fondo */}
           <div
-            className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-grid-fade"
+            className="df360-grid pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-grid-fade"
             aria-hidden="true"
           />
 
