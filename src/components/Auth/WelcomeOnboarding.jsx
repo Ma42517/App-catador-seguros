@@ -109,7 +109,8 @@ export default function WelcomeOnboarding({ onFinish }) {
 
   return (
     <div
-      className={`relative flex min-h-screen w-full flex-col overflow-hidden px-6 ${bg}`}
+      /* Pantalla fija al alto real del móvil (dvh), sin scroll ni rebote. */
+      className={`relative flex h-[100dvh] w-full flex-col overflow-hidden px-6 ${bg}`}
       style={t.bgStyle}
     >
       {/* Saltar: siempre a la mano, discreto. No en la pantalla final. */}

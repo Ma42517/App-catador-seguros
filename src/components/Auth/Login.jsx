@@ -280,7 +280,12 @@ export default function Login() {
 
   return (
     <div
-      className={`relative flex min-h-screen w-full flex-col overflow-hidden px-6 py-10 ${bg}`}
+      /*
+        Pantalla fija, sin scroll: `h-[100dvh]` usa el alto REAL del viewport del
+        móvil (descuenta la barra del navegador, cosa que `100vh`/`min-h-screen` no
+        hace y por eso dejaba arrastrar de más). `overflow-hidden` sella el rebote.
+      */
+      className={`relative flex h-[100dvh] w-full flex-col overflow-hidden px-6 py-8 ${bg}`}
       style={t.bgStyle}
     >
       {/* Resplandor con el acento del tema, muy suave, para dar vida al fondo. */}
