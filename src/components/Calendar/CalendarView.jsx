@@ -3,8 +3,6 @@ import { CalendarDays, Bell, Calendar as CalendarIcon } from 'lucide-react';
 import { useEvents, todayKey } from '../../context/EventContext';
 import TaskOptionsSheet from '../Activities/TaskOptionsSheet';
 import ActionableCard from '../Activities/ActionableCard';
-import ActivityGroup from '../Activities/ActivityGroup';
-import { groupActivities } from '../../lib/activityGroups';
 import SwipeableCard from '../Layout/SwipeableCard';
 import { getEventStatus, eventStatusStyles } from '../Activities/eventStatus';
 import useNow from '../../lib/useNow';
@@ -155,34 +153,7 @@ export default function CalendarView({
               </h2>
 
               <ul className="flex flex-col gap-2">
-                {/*
-                  Dentro de cada día, los eventos pasan por `groupActivities`
-                  antes de pintarse: un tipo con más de cuatro actividades vivas
-                  se colapsa en una sola tarjeta de grupo (`ActivityGroup`), que
-                  al tocarse abre la lista completa en una pantalla con scroll.
-                  Mismo criterio que "Hoy", para que una agenda con muchas citas
-                  del mismo tipo no se vuelva una lista interminable que trabe la
-                  vista. Los recordatorios y los eventos ya completados nunca se
-                  agrupan (el agrupador les da clave propia), así que conservan
-                  su fila con el gesto de deslizar.
-                */}
-                {groupActivities(items).map((cell) => {
-                  if (cell.kind === 'group') {
-                    return (
-                      <li key={`group-${date}-${cell.tipo}`}>
-                        <ActivityGroup
-                          tipo={cell.tipo}
-                          events={cell.events}
-                          onStartSession={onStartSession}
-                          onReportResult={onReportResult}
-                          onOpenRequirements={onOpenRequirements}
-                          onRouteToActivity={onRouteToActivity}
-                        />
-                      </li>
-                    );
-                  }
-
-                  const event = cell.event;
+                {items.map((event) => {
                   /*
                     Una actividad del embudo todavía viva se dibuja con su
                     tarjeta real, la misma de "Hoy": así su botón de

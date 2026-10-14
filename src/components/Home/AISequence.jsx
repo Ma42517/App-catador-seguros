@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useEvents } from '../../context/EventContext';
 import ActionableCard from '../Activities/ActionableCard';
-import ActivityGroup from '../Activities/ActivityGroup';
-import { groupActivities } from '../../lib/activityGroups';
 import PriorityAlerts from './PriorityAlerts';
 import useTypewriter from '../../lib/useTypewriter';
 import useNow from '../../lib/useNow';
@@ -52,6 +50,38 @@ export default function AISequence({
   onStartSession, onReportResult, onOpenRequirements, onRouteToActivity,
 }) {
   const { highPriorityToday, activeToday } = useEvents();
+
+  /*
+    Cuántos avisos de la promotoría están activos ahora mismo. Lo reporta
+    `PriorityAlerts` hacia arriba, porque esa cuenta vive en sus datos
+    (`alertsRepo`) y no en el `EventContext`. Se usa sólo para decidir el scroll
+    de "Hoy", más abajo.
+  */
+  const [alertCount, setAlertCount] = useState(0);
+
+  /*
+    ── Scroll de "Hoy", condicionado ──────────────────────────────────────────
+
+    "Hoy" debe quedarse fija —sin scroll— mientras hay poco contenido; antes
+    rebotaba y dejaba desplazar una pantalla que ya cabía entera. Sólo a partir
+    del cuarto elemento (contando los avisos de la promotoría junto con las
+    actividades del día) se suelta el scroll, que es justo cuando el contenido
+    empieza a no caber.
+
+    El scroll de la app es el del documento (ver `App.css`, `#root`
+    `min-height:100dvh`), así que se gobierna congelando o liberando el `body`.
+    Al salir de "Hoy" el efecto restaura el valor previo, de modo que la Agenda
+    y el resto de pantallas —que sí deben desplazarse— no quedan bloqueadas.
+  */
+  const SCROLL_THRESHOLD = 4;
+  const homeItemCount = highPriorityToday.length + alertCount;
+
+  useEffect(() => {
+    const lock = homeItemCount < SCROLL_THRESHOLD;
+    const previous = document.body.style.overflowY;
+    document.body.style.overflowY = lock ? 'hidden' : '';
+    return () => { document.body.style.overflowY = previous; };
+  }, [homeItemCount]);
 
   /*
     "Push" de Diagnósticos 360 (`DiagnosticPushNudge.jsx`): siempre que la
@@ -233,45 +263,22 @@ export default function AISequence({
           texto y dejaría de alinearse con los eventos de abajo.
         */}
         <div className={`w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
-          <PriorityAlerts />
+          <PriorityAlerts onActiveCountChange={setAlertCount} />
         </div>
 
-        {/*
-          Eventos de máxima prioridad para hoy, accionables al tocarlos.
-
-          No se pintan uno a uno: pasan antes por `groupActivities`, que colapsa
-          en una sola tarjeta de grupo (`ActivityGroup`) cada tipo con más de
-          cuatro actividades. Así la pantalla principal nunca se llena de
-          decenas de tarjetas del mismo tipo —lo que la hacía sentir trabada—;
-          el excedente vive detrás de la tarjeta de grupo, en su propia pantalla
-          con scroll. Los tipos con cuatro o menos siguen sueltos, igual que
-          antes.
-        */}
+        {/* Eventos de máxima prioridad para hoy, accionables al tocarlos */}
         {highPriorityToday.length > 0 && (
           <ul className={`mt-10 w-full max-w-md ${revealClass}`} aria-hidden={isTyping}>
-            {groupActivities(highPriorityToday).map((cell) => (
-              cell.kind === 'group' ? (
-                <li key={`group-${cell.tipo}`} className="mb-3">
-                  <ActivityGroup
-                    tipo={cell.tipo}
-                    events={cell.events}
-                    onStartSession={onStartSession}
-                    onReportResult={onReportResult}
-                    onOpenRequirements={onOpenRequirements}
-                    onRouteToActivity={onRouteToActivity}
-                  />
-                </li>
-              ) : (
-                <li key={cell.event.id} className="mb-3">
-                  <ActionableCard
-                    event={cell.event}
-                    onStartSession={onStartSession}
-                    onReportResult={onReportResult}
-                    onOpenRequirements={onOpenRequirements}
-                    onRouteToActivity={onRouteToActivity}
-                  />
-                </li>
-              )
+            {highPriorityToday.map((event) => (
+              <li key={event.id} className="mb-3">
+                <ActionableCard
+                  event={event}
+                  onStartSession={onStartSession}
+                  onReportResult={onReportResult}
+                  onOpenRequirements={onOpenRequirements}
+                  onRouteToActivity={onRouteToActivity}
+                />
+              </li>
             ))}
           </ul>
         )}
