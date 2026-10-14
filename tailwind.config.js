@@ -14,6 +14,8 @@ export default {
           'Inter var', 'Inter', 'ui-sans-serif', 'system-ui',
           '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif',
         ],
+        // Letra manuscrita cálida y legible para los remates del onboarding.
+        hand: ['Caveat', 'ui-rounded', 'cursive'],
       },
       boxShadow: {
         // Resplandores de acento para tarjetas de métrica y botones primarios.

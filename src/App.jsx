@@ -10,6 +10,7 @@ import { STEPS, FIRST_INSIGHT_STEP } from './components/Wizard/steps';
 import ExecutiveDashboard from './components/Dashboard/ExecutiveDashboard';
 import SplashScreen from './components/SplashScreen';
 import Login from './components/Auth/Login';
+import WelcomeOnboarding from './components/Auth/WelcomeOnboarding';
 import PendingApproval from './components/Auth/PendingApproval';
 import OnboardingFlow from './components/Auth/OnboardingFlow';
 import AdminLayout from './components/Layout/AdminLayout';
@@ -33,6 +34,7 @@ import {
   DashboardVersionContext, DASHBOARD_VERSIONS, readVersion, writeVersion,
 } from './context/dashboardVersion';
 import { readPreference, writePreference } from './lib/uiPreference';
+import { hasSeenWelcome } from './lib/welcomeOnboarding';
 import { prospectNameFrom } from './lib/prospectText';
 import { hasCapturedData } from './data/defaults';
 import ConversationalWizard from './components/Wizard/ConversationalWizard';
@@ -877,6 +879,14 @@ function Gate({ isPreview }) {
     status, identity, isApproved, canManage, isAdmin, role, signOut, refreshIdentity,
   } = useSession();
 
+  /*
+    Bienvenida breve antes del registro. Se decide una vez al montar (no en cada
+    render) para que al terminarla —marcándola como vista— este estado baste para
+    pasar al login sin recargar la página. En la vista previa del onboarding no
+    estorba: ese entorno tiene su propio recorrido y no pasa por aquí.
+  */
+  const [welcomeDone, setWelcomeDone] = useState(() => isPreview || hasSeenWelcome());
+
   // Dentro del iframe de vista previa no se repite el splash: molesta al
   // estar cambiando de dispositivo constantemente.
   const [isAppReady, setIsAppReady] = useState(isPreview);
@@ -904,7 +914,13 @@ function Gate({ isPreview }) {
   // mantiene el splash en vez de asomar el login y quitarlo enseguida.
   if (status === SESSION_STATUS.LOADING) return <SplashScreen />;
 
-  if (status === SESSION_STATUS.ANON || !identity) return <Login />;
+  if (status === SESSION_STATUS.ANON || !identity) {
+    // Antes del login, la bienvenida breve —una sola vez por dispositivo—.
+    if (!welcomeDone) {
+      return <WelcomeOnboarding onFinish={() => setWelcomeDone(true)} />;
+    }
+    return <Login />;
+  }
 
   /*
     Sólo entran los roles aprobados. Se comprueba en positivo a propósito: antes
