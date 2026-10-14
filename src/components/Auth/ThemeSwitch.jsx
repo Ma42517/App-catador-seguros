@@ -12,18 +12,22 @@ import { APP_THEMES, writeAppTheme } from '../../lib/appTheme';
  * repinte sin recargar. Es discreto a propósito —circulitos pequeños en una
  * esquina—: es un ajuste, no un paso del recorrido.
  */
-export default function ThemeSwitch({ value, onChange, className = '' }) {
+export default function ThemeSwitch({ value, onChange, className = '', compact = false }) {
   const choose = (next) => {
     writeAppTheme(next);
     onChange(next);
   };
 
+  // `compact`: versión más chica para esquinas donde el espacio es escaso.
+  const dot = compact ? 'h-6 w-6' : 'h-8 w-8';
+  const wrap = compact ? 'gap-2 px-2 py-1.5' : 'gap-3 px-3 py-2';
+
   return (
     <div
       role="radiogroup"
       aria-label="Color de la app"
-      className={`flex items-center gap-3 rounded-full border border-black/10 bg-black/5
-                  px-3 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 ${className}`}
+      className={`flex items-center rounded-full border border-black/10 bg-black/5
+                  backdrop-blur-sm dark:border-white/10 dark:bg-white/5 ${wrap} ${className}`}
     >
       {APP_THEMES.map((option) => {
         const active = value === option.value;
@@ -36,7 +40,7 @@ export default function ThemeSwitch({ value, onChange, className = '' }) {
             aria-label={option.label}
             title={option.label}
             onClick={() => choose(option.value)}
-            className={`h-8 w-8 rounded-full border transition-all active:scale-90
+            className={`${dot} rounded-full border transition-all active:scale-90
                         ${active
                           ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-transparent scale-110 border-transparent'
                           : 'opacity-80 hover:opacity-100'}`}

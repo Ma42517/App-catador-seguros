@@ -2374,15 +2374,16 @@ export default function FirstLoginIntro({
       )}
 
       {/*
-        Conmutador de tema flotante, igual que en el onboarding pre-registro: deja
-        cambiar negro/blanco/crema al instante y probar los tres aquí también.
-        `stopPropagation` para que tocarlo no acelere la máquina de escribir.
+        Conmutador de tema flotante en la esquina superior derecha: ahí no choca con
+        los botones de acción de las láminas de captura (antes iba abajo al centro y
+        se encimaba). `stopPropagation` para que tocarlo no acelere la máquina de
+        escribir.
       */}
       <div
-        className="fixed bottom-5 left-1/2 z-[99] -translate-x-1/2"
+        className="fixed right-4 top-4 z-[99]"
         onClick={(e) => e.stopPropagation()}
       >
-        <ThemeSwitch value={themeValue} onChange={setThemeValue} />
+        <ThemeSwitch value={themeValue} onChange={setThemeValue} compact />
       </div>
 
       <TypewriterSpeedContext.Provider value={fastTyping ? 2 : 1}>
