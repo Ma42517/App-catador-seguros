@@ -2400,13 +2400,13 @@ export default function FirstLoginIntro({
       )}
 
       {/*
-        Conmutador de tema flotante en la esquina superior derecha: ahí no choca con
-        los botones de acción de las láminas de captura (antes iba abajo al centro y
-        se encimaba). `stopPropagation` para que tocarlo no acelere la máquina de
-        escribir.
+        Conmutador de tema flotante en la esquina INFERIOR derecha: arriba tapaba el
+        título "Para desbloquear...". Abajo-derecha queda junto a los botones de salida
+        sin encimarse con el contenido. `stopPropagation` para que tocarlo no acelere
+        la máquina de escribir.
       */}
       <div
-        className="fixed right-4 top-4 z-[99]"
+        className="fixed bottom-4 right-4 z-[99]"
         onClick={(e) => e.stopPropagation()}
       >
         <ThemeSwitch value={themeValue} onChange={setThemeValue} compact />
