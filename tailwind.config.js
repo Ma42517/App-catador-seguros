@@ -16,6 +16,8 @@ export default {
         ],
         // Letra manuscrita cálida y legible para los remates del onboarding.
         hand: ['Caveat', 'ui-rounded', 'cursive'],
+        // Serif elegante y con carácter para frases de bienvenida/motivación.
+        display: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
       },
       boxShadow: {
         // Resplandores de acento para tarjetas de métrica y botones primarios.

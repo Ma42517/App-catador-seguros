@@ -50,10 +50,10 @@ function MotivationCascade({ colorClass, accentColor }) {
     history.push({ text: MOTIVATION[index - k], depth: k });
   }
 
-  const fade = { 1: 'opacity-40 blur-[0.4px] text-lg', 2: 'opacity-20 blur-[1px] text-base' };
+  const fade = { 1: 'opacity-45 blur-[0.3px] text-base', 2: 'opacity-25 blur-[1px] text-sm' };
 
   return (
-    <div className="flex min-h-[8rem] flex-col items-center justify-end gap-2">
+    <div className="flex min-h-[7rem] flex-col items-center justify-end gap-2.5">
       <AnimatePresence initial={false}>
         {history.map((h) => (
           <motion.p
@@ -62,7 +62,7 @@ function MotivationCascade({ colorClass, accentColor }) {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className={`max-w-[18rem] text-center font-light leading-snug ${colorClass}
+            className={`whitespace-nowrap text-center font-display italic ${colorClass}
                         ${fade[h.depth] ?? fade[2]}`}
           >
             {h.text}
@@ -71,16 +71,16 @@ function MotivationCascade({ colorClass, accentColor }) {
       </AnimatePresence>
 
       {/*
-        La frase viva reserva de antemano el alto de DOS renglones (`min-h`) y se
-        alinea abajo: así, cuando una frase larga pasa de una línea a dos a mitad de
-        la escritura, el bloque no crece de golpe ni empuja al resto —el salto que se
-        veía justo en "Tu esfuerzo de hoy, tu libertad de mañana."—. El ancho fijo
-        hace que el reparto en líneas sea estable, no dependiente de cada letra.
+        Una sola línea siempre (`whitespace-nowrap`): el salto feo venía de que una
+        frase larga se partía en dos. En serif itálica (`font-display`) y a un tamaño
+        que deja caber la frase más larga completa. El alto se reserva para que el
+        bloque no brinque cuando entra la siguiente.
       */}
-      <div className="flex min-h-[3.5rem] w-[18rem] items-end justify-center">
-        <p className={`text-center text-xl font-light leading-snug ${colorClass}`}>
+      <div className="flex min-h-[2.5rem] items-end justify-center">
+        <p className={`whitespace-nowrap text-center font-display text-[1.05rem] italic
+                       leading-snug sm:text-2xl ${colorClass}`}>
           {typed}
-          {isTyping && <span style={{ color: accentColor }} className="animate-pulse">|</span>}
+          {isTyping && <span style={{ color: accentColor }} className="animate-pulse not-italic">|</span>}
         </p>
       </div>
     </div>
