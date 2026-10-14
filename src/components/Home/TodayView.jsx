@@ -53,9 +53,18 @@ export default function TodayView({
   const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
-    if (showFirstLoginIntro) return; // Espera a que termine el intro de primer ingreso.
+    if (showFirstLoginIntro) return undefined; // Espera al intro de primer ingreso.
     const alreadySeen = hasSeenTutorialHoy(username) || Boolean(identity?.tutorialHoySeen);
-    if (!alreadySeen) setShowTour(true);
+    if (alreadySeen) return undefined;
+    /*
+      Respiro inicial antes de abrir el tour: "Hoy" entra con una máquina de
+      escribir y un fundido, y lanzarlo de inmediato lo mostraba sobre una
+      pantalla a medio cargar. Con esta espera, más la verificación de
+      visibilidad del propio motor (`GuidedTour` no pinta hasta que el elemento
+      está visible), el tutorial aparece ya con todo asentado.
+    */
+    const timer = setTimeout(() => setShowTour(true), 1200);
+    return () => clearTimeout(timer);
   }, [showFirstLoginIntro, username, identity?.tutorialHoySeen]);
 
   /*

@@ -31,13 +31,37 @@ const PAD = 10; // Aire alrededor del elemento iluminado.
 const CARD_W = 320; // Ancho de referencia de la tarjeta.
 const GAP = 14; // Separación entre el recorte y la tarjeta.
 
-/** Lee el rect del elemento marcado con `data-tour={target}`, o null. */
+/**
+ * Lee el rect del elemento marcado con `data-tour={target}`, o null si todavía
+ * no existe o no está REALMENTE visible. "Visible" aquí es estricto a propósito:
+ * la pantalla "Hoy" entra con una máquina de escribir y un fundido, así que un
+ * elemento puede estar ya en el DOM pero con `opacity: 0` o aún sin tamaño. Si se
+ * iluminara en ese estado, el tour señalaría un hueco vacío (como pasó: el botón
+ * "+" todavía no había aparecido). Devolver null mantiene el tour en espera.
+ */
 function readRect(target) {
   const el = document.querySelector(`[data-tour="${target}"]`);
   if (!el) return null;
+
   const r = el.getBoundingClientRect();
-  // Si el elemento no está visible (0x0), se trata como ausente.
+  // Sin tamaño real → aún no montado/medible.
   if (r.width === 0 && r.height === 0) return null;
+  // Fuera del viewport (todavía por entrar) → esperar.
+  if (r.bottom < 0 || r.top > window.innerHeight) return null;
+
+  /*
+    Opacidad del elemento o de cualquier ancestro cercano: si algo en la cadena
+    está en transición de fundido (opacity < 1), aún no "terminó de aparecer".
+    Se recorre hacia arriba unos niveles, que es donde viven los wrappers con
+    `transition-opacity` de AISequence.
+  */
+  let node = el;
+  for (let i = 0; i < 6 && node; i += 1) {
+    const op = parseFloat(window.getComputedStyle(node).opacity);
+    if (!Number.isNaN(op) && op < 0.99) return null;
+    node = node.parentElement;
+  }
+
   return r;
 }
 
@@ -66,22 +90,39 @@ export default function GuidedTour({
   // Mide el elemento del paso actual; re-mide al cambiar de paso, al
   // redimensionar y al hacer scroll (el layout puede moverse).
   const measure = useCallback(() => {
-    if (!isOpen || !step) return;
-    setRect(readRect(step.target));
+    if (!isOpen || !step) return null;
+    const r = readRect(step.target);
+    setRect(r);
+    return r;
   }, [isOpen, step]);
 
+  /*
+    Espera ACTIVA a que el elemento del paso aparezca y esté visible. La pantalla
+    "Hoy" entra con una animación (máquina de escribir + fundido), así que al
+    arrancar el tour el elemento puede no estar listo todavía. En vez de adivinar
+    un tiempo fijo, se reintenta la medición cada 150 ms hasta que `readRect`
+    devuelve algo (ya visible); mientras tanto `rect` es null y no se pinta ni el
+    recorte ni la tarjeta —el tour queda "esperando" sin señalar un hueco vacío—.
+    Un tope de ~8 s evita quedarse reintentando para siempre si un paso apunta a
+    algo que de verdad no existe.
+  */
   useLayoutEffect(() => {
-    measure();
     if (!isOpen) return undefined;
+
+    setRect(null); // Cada paso arranca "esperando" hasta confirmar su elemento.
+    let tries = 0;
+    const poll = setInterval(() => {
+      tries += 1;
+      const r = measure();
+      if (r || tries > 50) clearInterval(poll);
+    }, 150);
+
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
-    // Un reintento diferido: si el elemento aún no estaba montado (p. ej. la
-    // pantalla acaba de aparecer), se vuelve a medir un instante después.
-    const t = setTimeout(measure, 120);
     return () => {
+      clearInterval(poll);
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
-      clearTimeout(t);
     };
   }, [measure, isOpen, index]);
 
@@ -109,18 +150,25 @@ export default function GuidedTour({
 
   if (!isOpen || !step) return null;
 
+  /*
+    Mientras el elemento del paso no esté medido y visible (`rect` null), el tour
+    NO pinta nada: ni el fondo oscuro ni la tarjeta. Así se evita el defecto de
+    mostrar la tarjeta flotando en el centro sobre una pantalla a medio cargar
+    —que es justo lo que se veía—. El polling del effect sigue intentando; en
+    cuanto el elemento aparece y termina su fundido, se pinta todo de una vez.
+  */
+  if (!rect) return null;
+
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // Geometría del recorte iluminado (si se encontró el elemento).
-  const hole = rect
-    ? {
-      top: rect.top - PAD,
-      left: rect.left - PAD,
-      width: rect.width + PAD * 2,
-      height: rect.height + PAD * 2,
-    }
-    : null;
+  // Geometría del recorte iluminado.
+  const hole = {
+    top: rect.top - PAD,
+    left: rect.left - PAD,
+    width: rect.width + PAD * 2,
+    height: rect.height + PAD * 2,
+  };
 
   /*
     Posición de la tarjeta: debajo del elemento si cabe, si no arriba. Centrada
@@ -129,22 +177,17 @@ export default function GuidedTour({
   */
   let cardStyle;
   let caretBelow = false; // true = la flecha sale de la parte de ARRIBA de la tarjeta (elemento arriba).
-  let caretLeft = vw / 2;
-  if (hole) {
-    const spaceBelow = vh - (hole.top + hole.height);
-    const placeBelow = spaceBelow > 220;
-    const cx = hole.left + hole.width / 2;
-    const left = Math.min(Math.max(cx - CARD_W / 2, 12), vw - CARD_W - 12);
-    caretLeft = Math.min(Math.max(cx, left + 24), left + CARD_W - 24);
-    if (placeBelow) {
-      cardStyle = { top: hole.top + hole.height + GAP, left, width: CARD_W };
-      caretBelow = true;
-    } else {
-      cardStyle = { bottom: vh - hole.top + GAP, left, width: CARD_W };
-      caretBelow = false;
-    }
+  const spaceBelow = vh - (hole.top + hole.height);
+  const placeBelow = spaceBelow > 220;
+  const cx = hole.left + hole.width / 2;
+  const left = Math.min(Math.max(cx - CARD_W / 2, 12), vw - CARD_W - 12);
+  const caretLeft = Math.min(Math.max(cx, left + 24), left + CARD_W - 24);
+  if (placeBelow) {
+    cardStyle = { top: hole.top + hole.height + GAP, left, width: CARD_W };
+    caretBelow = true;
   } else {
-    cardStyle = { top: '50%', left: '50%', width: CARD_W, transform: 'translate(-50%, -50%)' };
+    cardStyle = { bottom: vh - hole.top + GAP, left, width: CARD_W };
+    caretBelow = false;
   }
 
   const title = (step.title || '').replace('{name}', name || '');
@@ -158,33 +201,23 @@ export default function GuidedTour({
       aria-label={`Tutorial, paso ${index + 1} de ${total}`}
     >
       {/*
-        Capa que oscurece y recorta. Si hay elemento, es un rectángulo con una
-        sombra gigante que tapa todo menos ese hueco, más un aro verde. Si no se
-        encontró el elemento, un velo liso cubre la pantalla. Capturar el clic
-        aquí avanza el tour (tocar fuera de la tarjeta = siguiente), para que
-        quien no vea los botones igual pueda continuar.
+        Capa que oscurece y recorta: un rectángulo sobre el elemento con una
+        sombra gigante que tapa todo MENOS ese hueco, más el aro verde. Tocar
+        fuera de la tarjeta avanza el tour, para que quien no vea los botones
+        igual pueda continuar.
       */}
-      {hole ? (
-        <div
-          aria-hidden="true"
-          onClick={next}
-          className="absolute rounded-2xl transition-all duration-300"
-          style={{
-            top: hole.top,
-            left: hole.left,
-            width: hole.width,
-            height: hole.height,
-            boxShadow: '0 0 0 9999px rgba(0,0,0,0.62), 0 0 0 3px rgba(27,67,50,0.9), 0 0 24px 6px rgba(27,67,50,0.55)',
-          }}
-        />
-      ) : (
-        <button
-          type="button"
-          aria-label="Siguiente"
-          onClick={next}
-          className="absolute inset-0 h-full w-full cursor-default bg-black/60 backdrop-blur-[2px]"
-        />
-      )}
+      <div
+        aria-hidden="true"
+        onClick={next}
+        className="absolute rounded-2xl transition-all duration-300"
+        style={{
+          top: hole.top,
+          left: hole.left,
+          width: hole.width,
+          height: hole.height,
+          boxShadow: '0 0 0 9999px rgba(0,0,0,0.62), 0 0 0 3px rgba(27,67,50,0.9), 0 0 24px 6px rgba(27,67,50,0.55)',
+        }}
+      />
 
       {/* ── Tarjeta del tutorial ── */}
       <div
