@@ -814,20 +814,23 @@ export default function OnboardingFlow({
   useEffect(() => () => setAlive(false), []);
 
   /*
-    Mismo bloqueo de scroll que el login/bienvenida: el onboarding es una pantalla
-    fija, no un documento que se arrastra. Quita el desplazamiento sobrante. Para
-    recargar queda el botón de recargar del navegador —el "jalar para actualizar"
-    es justo ese arrastre que estamos quitando, así que no se puede conservar sin
-    traer de vuelta el problema—. Se restaura al desmontar.
+    `overscroll-behavior: contain` en vez de `overflow: hidden`: así se corta el
+    rebote elástico y el arrastre sobrante (lo que molestaba), PERO se conserva el
+    "jalar para actualizar" nativo del navegador —ese gesto necesita que la página
+    siga siendo desplazable desde el borde, cosa que `overflow: hidden` mataba—. Se
+    restaura el valor previo al desmontar.
   */
   useEffect(() => {
     const { body, documentElement: html } = document;
-    const prev = { body: body.style.overflow, html: html.style.overflow };
-    body.style.overflow = 'hidden';
-    html.style.overflow = 'hidden';
+    const prev = {
+      bodyOverscroll: body.style.overscrollBehavior,
+      htmlOverscroll: html.style.overscrollBehavior,
+    };
+    body.style.overscrollBehavior = 'contain';
+    html.style.overscrollBehavior = 'contain';
     return () => {
-      body.style.overflow = prev.body;
-      html.style.overflow = prev.html;
+      body.style.overscrollBehavior = prev.bodyOverscroll;
+      html.style.overscrollBehavior = prev.htmlOverscroll;
     };
   }, []);
 
@@ -915,12 +918,12 @@ export default function OnboardingFlow({
   return (
     <div
       /*
-        Alto fijo al viewport real (`h-[100dvh]`) con scroll interno de respaldo
-        (`overflow-y-auto`): el documento ya no se arrastra (ver bloqueo de body),
-        pero si un paso con mucho contenido —el mapa de 24 horas en un teléfono
-        chico— no cabe, se puede desplazar dentro sin cortarse.
+        `min-h-[100dvh]`: ocupa al menos la pantalla, y crece si un paso trae mucho
+        contenido (el mapa de 24 horas en un teléfono chico). No se fija con alto
+        rígido para que el "jalar para actualizar" del navegador siga disponible; el
+        rebote sobrante lo controla `overscroll-behavior: contain` (ver useEffect).
       */
-      className={`relative flex h-[100dvh] w-full items-center justify-center overflow-y-auto
+      className={`relative flex min-h-[100dvh] w-full items-center justify-center
                   px-4 py-10 ${theme.bgStyle ? '' : theme.bg}`}
       style={{
         ...(theme.bgStyle ?? {}),
