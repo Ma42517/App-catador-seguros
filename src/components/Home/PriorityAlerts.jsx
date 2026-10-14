@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BellRing, Check, X, Loader2 } from 'lucide-react';
+import { BellRing, Check, X, Loader2, ChevronRight } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import { useEvents } from '../../context/EventContext';
 import {
   fetchPendingAlerts, respondToAlert, ALERT_RESPONSE,
 } from '../../data/alertsRepo';
 import { isAlertActive } from '../../lib/alertExpiry';
+import { GROUP_THRESHOLD } from '../../lib/activityGroups';
+import FullScreenView from '../Layout/FullScreenView';
 import useNow from '../../lib/useNow';
 
 /** Fecha y hora del evento, en una línea corta. */
@@ -46,6 +48,14 @@ export default function PriorityAlerts() {
   const [busyId, setBusyId] = useState(null);
 
   /*
+    Cuando hay demasiados avisos (más de GROUP_THRESHOLD) no se apilan en la
+    pantalla de inicio —la llenaban y obligaban a hacer scroll en una pantalla
+    que debe quedarse fija—: se colapsan en una sola tarjeta de grupo que abre
+    esta pantalla completa, que sí tiene scroll propio.
+  */
+  const [isGroupOpen, setGroupOpen] = useState(false);
+
+  /*
     El reloj de `useNow` es lo que hace que un aviso desaparezca solo al
     cruzar las 4:00 AM del día siguiente, sin que nadie tenga que refrescar
     la pantalla. El mismo hook ya lo usa `ActionableCard.jsx` para el estado
@@ -79,6 +89,18 @@ export default function PriorityAlerts() {
   }, [wallId, identity?.key]);
 
   useEffect(() => { load(); }, [load]);
+
+  /*
+    Si la lista de avisos activos baja a GROUP_THRESHOLD o menos (porque se
+    contestaron desde la pantalla de grupo), se cierra esa pantalla: ya no hay
+    grupo que mostrar y los pocos que queden vuelven a aparecer sueltos en la
+    pantalla de inicio. Va en un efecto y no en el render para no llamar a
+    `setState` mientras se pinta.
+  */
+  useEffect(() => {
+    const activeCount = alerts.filter((a) => isAlertActive(a.eventDate, now)).length;
+    if (isGroupOpen && activeCount <= GROUP_THRESHOLD) setGroupOpen(false);
+  }, [alerts, isGroupOpen, now]);
 
   const answer = async (alert, response) => {
     setBusyId(alert.id);
@@ -126,15 +148,18 @@ export default function PriorityAlerts() {
 
   if (activeAlerts.length === 0) return null;
 
-  return (
-    <section className="mt-6 flex flex-col gap-2" aria-label="Avisos de tu promotoría">
-      {activeAlerts.map((alert) => {
-        const busy = busyId === alert.id;
-        const when = eventLabel(alert.eventDate, alert.eventTime);
+  /*
+    Una tarjeta de aviso. Se extrajo a una función para pintarla igual en los
+    dos sitios donde ahora aparece: suelta en la pantalla de inicio (cuando son
+    pocos) y dentro de la pantalla de grupo con scroll (cuando son muchos).
+  */
+  const renderAlert = (alert) => {
+    const busy = busyId === alert.id;
+    const when = eventLabel(alert.eventDate, alert.eventTime);
 
-        return (
-          <article
-            key={alert.id}
+    return (
+      <article
+        key={alert.id}
             /*
               Tarjeta delgada, del mismo lenguaje que la agenda: fondo oscuro,
               esquinas redondeadas, nada de cartel.
@@ -228,9 +253,82 @@ export default function PriorityAlerts() {
                 No
               </button>
             </div>
-          </article>
-        );
-      })}
+      </article>
+    );
+  };
+
+  /*
+    Pocos avisos (3 o menos): se muestran sueltos como siempre, directo en la
+    pantalla de inicio.
+  */
+  if (activeAlerts.length <= GROUP_THRESHOLD) {
+    return (
+      <section className="mt-6 flex flex-col gap-2" aria-label="Avisos de tu promotoría">
+        {activeAlerts.map(renderAlert)}
+      </section>
+    );
+  }
+
+  /*
+    Muchos avisos (más de 3): se colapsan en una sola tarjeta de grupo —misma
+    forma que la de las actividades (`ActivityGroup.jsx`): contador grande,
+    rótulo y flecha— para no llenar la pantalla de inicio. Al tocarla se abre
+    la pantalla completa con todos los avisos, que sí tiene scroll propio.
+  */
+  const count = activeAlerts.length;
+  const heading = `${count} Avisos`;
+
+  return (
+    <section className="mt-6" aria-label="Avisos de tu promotoría">
+      <button
+        type="button"
+        onClick={() => setGroupOpen(true)}
+        aria-label={`Ver ${heading} de tu promotoría`}
+        className="animate-alert-glow flex w-full items-center gap-3 rounded-xl bg-white p-4
+                   text-left transition-all active:scale-[0.98] focus-visible:outline-none
+                   focus-visible:ring-2 focus-visible:ring-rose-400 dark:bg-zinc-900"
+      >
+        <span
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-rose-500/10
+                     text-rose-600 dark:text-rose-300"
+          aria-hidden="true"
+        >
+          <span className="text-lg font-black leading-none">{count}</span>
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase
+                           tracking-wider text-rose-500 dark:text-rose-400"
+          >
+            <BellRing size={10} aria-hidden="true" />
+            Avisos de tu promotoría
+          </span>
+          <span className="mt-0.5 block text-[15px] font-bold text-zinc-900 dark:text-white">
+            {heading} por confirmar
+          </span>
+          <span className="mt-0.5 block text-xs text-zinc-500">
+            Toca para verlos todos
+          </span>
+        </span>
+
+        <ChevronRight size={20} className="shrink-0 text-zinc-400" aria-hidden="true" />
+      </button>
+
+      <FullScreenView
+        isOpen={isGroupOpen}
+        onClose={() => setGroupOpen(false)}
+        label={heading}
+        title="Avisos de tu promotoría"
+      >
+        {/*
+          Si al contestar los avisos la lista baja del umbral, un efecto cierra
+          esta pantalla sola (ver arriba): quedarse en una pantalla casi vacía
+          sería un callejón sin salida.
+        */}
+        <div className="mx-auto flex w-full max-w-md flex-col gap-2 px-4 py-6">
+          {activeAlerts.map(renderAlert)}
+        </div>
+      </FullScreenView>
     </section>
   );
 }

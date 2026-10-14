@@ -4,13 +4,14 @@ import {
 } from 'lucide-react';
 
 /*
-  Umbral de agrupamiento. A partir de MÁS de este número de actividades del
-  mismo tipo, se colapsan en una sola tarjeta de grupo. Pedido explícito del
-  usuario: la pantalla principal nunca debe mostrar más de 4 tarjetas de un
-  mismo tipo, para que la app no se "trabe" ni se sienta abrumadora. Con 4 o
-  menos se muestran sueltas; con 5 o más, se agrupan.
+  Umbral de agrupamiento. A partir de MÁS de este número de elementos del mismo
+  tipo, se colapsan en una sola tarjeta de grupo. Pedido explícito del usuario:
+  la pantalla principal nunca debe llenarse de tarjetas de un mismo tipo, para
+  que la app no se "trabe" ni se sienta abrumadora. Con 3 o menos se muestran
+  sueltas; con 4 o más, se agrupan. El mismo umbral vale para actividades,
+  avisos de la promotoría y recordatorios.
 */
-export const GROUP_THRESHOLD = 4;
+export const GROUP_THRESHOLD = 3;
 
 /*
   Metadatos por `tipo_actividad`: etiqueta en singular/plural e ícono. La
@@ -32,37 +33,52 @@ export const ACTIVITY_TYPE_META = {
 };
 
 /*
-  Fallback para recordatorios y eventos viejos sin `tipo_actividad`. Nunca se
-  agrupan entre sí (no son etapas del embudo), pero necesitan una entrada para
-  que el agrupador los reconozca y los deje pasar sueltos.
+  Clave especial de la familia "recordatorios". Los recordatorios y los eventos
+  viejos sin `tipo_actividad` no son etapas del embudo, pero sí deben agruparse
+  entre sí cuando hay demasiados —pedido del usuario—, así que comparten esta
+  única clave en lugar de una por `id`. La tarjeta de grupo que les corresponde
+  usa su propia etiqueta ("4 Recordatorios").
 */
-const FALLBACK_META = { singular: 'Actividad', plural: 'Actividades', icon: Bell };
+export const REMINDER_GROUP_KEY = 'recordatorio';
 
-/** Devuelve la etiqueta/ícono de un tipo, o el fallback si no se reconoce. */
+/*
+  Metadatos de la familia de recordatorios: la tarjeta de grupo necesita una
+  etiqueta e ícono igual que cualquier tipo del embudo.
+*/
+const REMINDER_META = { singular: 'Recordatorio', plural: 'Recordatorios', icon: Bell };
+
+/** Devuelve la etiqueta/ícono de un tipo (o de la familia de recordatorios). */
 export function metaForType(tipo) {
-  return ACTIVITY_TYPE_META[tipo] ?? FALLBACK_META;
+  if (tipo === REMINDER_GROUP_KEY) return REMINDER_META;
+  return ACTIVITY_TYPE_META[tipo] ?? REMINDER_META;
 }
 
 /*
-  Clave de agrupamiento de un evento. Sólo las actividades del embudo (con
-  `tipo_actividad` reconocido) pueden agruparse; todo lo demás —recordatorios,
-  eventos sin tipo— recibe una clave única por `id` para que jamás se agrupe
-  con otro, aunque haya muchos.
+  ¿Es este evento un recordatorio (o un evento viejo sin tipo de embudo)? Son
+  los que no tienen un `tipo_actividad` reconocido del catálogo. Se agrupan
+  aparte, en su propia familia.
+*/
+export function isReminderEvent(event) {
+  return !(event.tipo_actividad && ACTIVITY_TYPE_META[event.tipo_actividad]);
+}
+
+/*
+  Clave de agrupamiento de un evento.
+
+  - Actividad del embudo VIVA → su `tipo_actividad` (se agrupa con las de su
+    tipo). Una ya completada se deja suelta (clave única por `id`) porque en la
+    agenda se pinta tachada con su propia fila —no con la tarjeta del embudo que
+    lleva el grupo—, así que meterla al grupo la mandaría a `ActionableCard`,
+    que asume una tarea por resolver. En "Hoy" los completados ni llegan.
+  - Recordatorio/evento sin tipo VIVO → la familia común de recordatorios, para
+    que varios se colapsen juntos cuando pasan de tres. Completado → suelto.
 */
 function groupKey(event) {
-  /*
-    Sólo las actividades del embudo VIVAS se agrupan. Una ya completada se deja
-    suelta (clave única por `id`) porque en la agenda se pinta tachada con su
-    propia fila —no con la tarjeta del embudo que lleva el grupo—, así que
-    meterla al grupo la mandaría a `ActionableCard`, que asume una tarea por
-    resolver. En "Hoy" los completados ni siquiera llegan (la lista los filtra),
-    de modo que esta guarda sólo cambia algo en la agenda, que es donde conviven
-    vivos y completados.
-  */
-  if (event.tipo_actividad && ACTIVITY_TYPE_META[event.tipo_actividad] && !event.completed) {
+  if (event.completed) return `__solo__${event.id}`;
+  if (event.tipo_actividad && ACTIVITY_TYPE_META[event.tipo_actividad]) {
     return event.tipo_actividad;
   }
-  return `__solo__${event.id}`;
+  return REMINDER_GROUP_KEY;
 }
 
 /**
@@ -97,11 +113,22 @@ export function groupActivities(events, threshold = GROUP_THRESHOLD) {
   const cells = [];
   order.forEach((key) => {
     const items = buckets.get(key);
-    const tipo = items[0].tipo_actividad;
-    const groupable = Boolean(tipo && ACTIVITY_TYPE_META[tipo]);
+    /*
+      Agrupables: los tipos del embudo y la familia de recordatorios. Las
+      claves `__solo__<id>` (eventos completados) nunca se agrupan — son una
+      por evento, así que jamás pasarían del umbral de todos modos.
+    */
+    const groupable = key === REMINDER_GROUP_KEY || Boolean(ACTIVITY_TYPE_META[key]);
+    const isReminderGroup = key === REMINDER_GROUP_KEY;
 
     if (groupable && items.length > threshold) {
-      cells.push({ kind: 'group', tipo, events: items });
+      /*
+        `tipo` lleva la clave del grupo (un `tipo_actividad` del embudo, o la
+        clave de recordatorios): `metaForType` sabe traducir ambas a su
+        etiqueta e ícono. `isReminder` le dice a la pantalla de grupo que estas
+        tarjetas van con su fila propia (deslizable), no con `ActionableCard`.
+      */
+      cells.push({ kind: 'group', tipo: key, isReminder: isReminderGroup, events: items });
     } else {
       items.forEach((event) => cells.push({ kind: 'single', event }));
     }
