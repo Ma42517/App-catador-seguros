@@ -1024,7 +1024,7 @@ function Gate({ isPreview }) {
 
   return (
     <FinanceProvider>
-      <ReferralProvider>
+      <ReferralProvider username={identity.key}>
         {/* Todo lo que se guarda por persona usa la misma clave de identidad. */}
         <EventProvider username={identity.key}>
           {/*
@@ -1276,7 +1276,7 @@ function OnboardingPreview({ isPreview }) {
       <div className="relative min-h-screen">
         <InjectedSession value={sessionValue}>
           <FinanceProvider>
-            <ReferralProvider>
+            <ReferralProvider username={PREVIEW_KEY}>
               <EventProvider username={PREVIEW_KEY}>
                 <AccessProvider username={PREVIEW_KEY} forcedPromoter>
                   <GoalsProvider username={PREVIEW_KEY}>
@@ -1326,7 +1326,7 @@ function OnboardingPreview({ isPreview }) {
         <div className="relative min-h-screen">
           <InjectedSession value={sessionValue}>
             <FinanceProvider>
-              <ReferralProvider>
+              <ReferralProvider username={PREVIEW_KEY}>
                 <EventProvider username={PREVIEW_KEY}>
                   <AccessProvider username={PREVIEW_KEY} forcedPromoter={false}>
                     <GoalsProvider username={PREVIEW_KEY}>
