@@ -197,15 +197,23 @@ export default function GuidedTour({
 
   /*
     ¿El elemento es casi cuadrado (como el botón "+")? Entonces el recorte es
-    circular, no un rectángulo con esquinas: así el halo abraza el botón redondo
-    en lugar de encajonarlo. El radio se calcula para cubrir el elemento + aire.
+    circular; si es alargado (barra, mensaje) se usan esquinas suaves. Así el
+    halo abraza la forma real en lugar de encajonarla.
   */
   const isRound = Math.abs(rect.width - rect.height) < 12;
-  const holeRadius = isRound ? '9999px' : '20px';
-  // Centro y radio del resplandor difuso que rodea el elemento.
+  const holeRadius = isRound ? '9999px' : '18px';
+
+  /*
+    El resplandor es una ELIPSE que sigue la forma del elemento, no un círculo
+    basado en el lado mayor —eso hacía que un mensaje ancho tuviera un halo del
+    tamaño de media pantalla—. Se extiende un margen fijo alrededor del elemento,
+    igual en ancho y alto, para que el halo "respire" sin desbordarse.
+  */
+  const GLOW_MARGIN = 40;
   const glowCx = hole.left + hole.width / 2;
   const glowCy = hole.top + hole.height / 2;
-  const glowR = Math.max(hole.width, hole.height) / 2 + 46;
+  const glowW = hole.width + GLOW_MARGIN * 2;
+  const glowH = hole.height + GLOW_MARGIN * 2;
 
   /*
     Posición de la tarjeta: debajo del elemento si cabe, si no arriba. Centrada
@@ -260,28 +268,33 @@ export default function GuidedTour({
           height: hole.height,
           borderRadius: holeRadius,
           opacity: on ? 1 : 0,
-          boxShadow: '0 0 0 9999px rgba(0,0,0,0.62)',
+          boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
         }}
       />
 
       {/*
-        Resplandor difuso alrededor del elemento: una luz radial clara que se
-        desvanece hacia afuera, SIN bordes duros —el efecto suave de la
-        referencia—. Va encima del oscurecimiento y no intercepta toques
-        (`pointer-events-none`). El `blur` remata el degradado para que no quede
-        ningún filo del círculo.
+        Resplandor que ABRAZA el elemento: una elipse que sigue su forma (ancho y
+        alto propios, no un círculo del lado mayor), así un mensaje ancho no tiene
+        un halo de media pantalla. El centro es TRANSPARENTE para que el elemento
+        apuntado se vea nítido —la luz vive en el anillo exterior y se desvanece—.
+        No intercepta toques (`pointer-events-none`).
       */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute rounded-full transition-opacity duration-500 ease-out"
+        className="pointer-events-none absolute transition-opacity duration-500 ease-out"
         style={{
-          top: glowCy - glowR,
-          left: glowCx - glowR,
-          width: glowR * 2,
-          height: glowR * 2,
+          top: glowCy - glowH / 2,
+          left: glowCx - glowW / 2,
+          width: glowW,
+          height: glowH,
           opacity: on ? 1 : 0,
-          background: 'radial-gradient(circle, rgba(255,253,249,0.55) 30%, rgba(190,242,210,0.28) 55%, transparent 72%)',
-          filter: 'blur(6px)',
+          /*
+            Centro transparente hasta ~55% (no tapa el elemento), luego el brillo
+            marfil/verde y desvanecido a transparente en el borde. `closest-side`
+            hace que el degradado respete la proporción de la elipse.
+          */
+          background: 'radial-gradient(ellipse closest-side, transparent 52%, rgba(255,253,249,0.5) 70%, rgba(190,242,210,0.3) 84%, transparent 100%)',
+          filter: 'blur(10px)',
         }}
       />
 
