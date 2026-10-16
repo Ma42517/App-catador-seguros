@@ -37,7 +37,7 @@ export default function QuickAddMenu({ isOpen, onClose, onSelect }) {
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} label="Acciones rápidas">
-      <div className="flex flex-col gap-4">
+      <div data-tour="hoy-step-menu" className="flex flex-col gap-4">
         {ACTIONS.map(({ key, title, subtitle, Icon, accent }) => (
           <button
             key={key}

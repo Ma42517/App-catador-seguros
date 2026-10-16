@@ -13,13 +13,31 @@
  * la persona para que el saludo sea personal.
  */
 
-/** Pasos del tutorial de la pestaña "Hoy". */
+/*
+ * Pasos del tutorial de la pestaña "Hoy".
+ *
+ * Un paso puede ser de dos clases:
+ *  - Normal: ilumina su elemento y avanza con el botón "Entendido".
+ *  - `awaitClick: true`: en vez de "Entendido", INVITA a tocar el elemento real
+ *    (el motor deja pasar el toque). El tour avanza solo cuando aparece el
+ *    elemento del paso siguiente (p. ej. al abrirse el menú del botón "+").
+ *    `cue` es la línea de llamada a la acción ("Tócalo para ver...").
+ */
 export const HOY_TOUR = [
   {
     target: 'hoy-step-1',
     title: '¡Hola, {name}! Este es tu botón principal',
     body: 'Tócalo siempre que quieras agregar una nueva actividad, registrar un '
       + 'cliente o agendar una cita. ¡Es tu punto de partida!',
+    awaitClick: true,
+    cue: '👇 Tócalo para ver qué puedes crear',
+  },
+  {
+    target: 'hoy-step-menu',
+    title: 'Aquí eliges qué crear',
+    body: 'Nueva Actividad: bloquea una cita o actividad en tu agenda. '
+      + 'Nuevo Recordatorio: un aviso con fecha y hora para no olvidarlo. '
+      + 'Nota Rápida: captura una idea ahora y ordénala después.',
   },
   {
     target: 'hoy-step-2',

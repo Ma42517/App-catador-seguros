@@ -149,6 +149,17 @@ export default function AdminLayout({
 
   useEffect(() => { refreshPending(); }, [refreshPending]);
 
+  /*
+    El tutorial de "Hoy" abre el menú del botón "+" (QuickAdd) como parte de su
+    paso interactivo. Cuando el tutorial avanza o se cierra desde ese paso, emite
+    este evento para que el menú se cierre y no quede tapando la pantalla.
+  */
+  useEffect(() => {
+    const closeQuickAdd = () => setQuickAddOpen(false);
+    window.addEventListener('expandia:tour-close-quickadd', closeQuickAdd);
+    return () => window.removeEventListener('expandia:tour-close-quickadd', closeQuickAdd);
+  }, []);
+
   // Qué formulario está abierto: 'actividad' | 'recordatorio' | 'nota' | null.
   const [activeForm, setActiveForm] = useState(null);
 

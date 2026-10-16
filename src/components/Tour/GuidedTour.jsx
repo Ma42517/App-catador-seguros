@@ -138,6 +138,22 @@ export default function GuidedTour({
   }, [measure, isOpen, index]);
 
   /*
+    Paso interactivo (`awaitClick`): en vez de avanzar con un botón, se espera a
+    que la persona TOQUE el elemento real (el botón "+"). Se engancha un listener
+    al propio elemento; cuando se activa, el tour pasa al siguiente paso. El menú
+    que ese toque abre se vuelve el objetivo del paso siguiente, así que el
+    avance se siente natural: toco "+", el tour ya está explicando el menú.
+  */
+  useEffect(() => {
+    if (!isOpen || !step?.awaitClick) return undefined;
+    const el = document.querySelector(`[data-tour="${step.target}"]`);
+    if (!el) return undefined;
+    const onClick = () => setIndex((i) => (i < total - 1 ? i + 1 : i));
+    el.addEventListener('click', onClick);
+    return () => el.removeEventListener('click', onClick);
+  }, [isOpen, step, index, total]);
+
+  /*
     Cuando el elemento ya está medido (`rect`), se enciende `visible` en el frame
     siguiente —no en el mismo— para que la transición CSS de opacidad/escala
     arranque desde el estado inicial y se vea el fundido. Encenderlo en el mismo
@@ -150,13 +166,31 @@ export default function GuidedTour({
   }, [rect]);
 
   // Al cerrar, se apaga `visible` (fade-out) y se desmonta tras la transición
+  /*
+    Si al dejar un paso el elemento era un panel que el propio tour hizo abrir
+    (el menú del botón "+"), se avisa para cerrarlo —si no, quedaría abierto
+    tapando los pasos siguientes o la pantalla al terminar—. Desacoplado por un
+    evento de ventana, que AdminLayout escucha para cerrar el QuickAdd.
+  */
+  const closeMenuIfOnMenu = () => {
+    if (step?.target === 'hoy-step-menu') {
+      window.dispatchEvent(new Event('expandia:tour-close-quickadd'));
+    }
+  };
+
   // de 500 ms, para que la salida también sea suave y no un corte seco.
-  const finish = () => { setVisible(false); setShown(false); setTimeout(() => onFinish?.(), 420); };
-  const skip = () => { setVisible(false); setShown(false); setTimeout(() => onSkip?.(), 420); };
+  const finish = () => {
+    closeMenuIfOnMenu();
+    setVisible(false); setShown(false); setTimeout(() => onFinish?.(), 420);
+  };
+  const skip = () => {
+    closeMenuIfOnMenu();
+    setVisible(false); setShown(false); setTimeout(() => onSkip?.(), 420);
+  };
 
   const next = () => {
     if (isLast) finish();
-    else setIndex((i) => i + 1);
+    else { closeMenuIfOnMenu(); setIndex((i) => i + 1); }
   };
 
   // Cerrar con Escape = omitir. Bloquea el scroll del fondo mientras está abierto.
@@ -242,6 +276,7 @@ export default function GuidedTour({
   // `shown` para el cierre. El recorte también transiciona su posición/tamaño,
   // así que al pasar de un paso a otro el halo se "desliza" al nuevo elemento.
   const on = shown && visible;
+  const awaitClick = Boolean(step.awaitClick);
 
   return createPortal(
     <div
@@ -259,8 +294,9 @@ export default function GuidedTour({
       */}
       <div
         aria-hidden="true"
-        onClick={next}
-        className="absolute transition-all duration-500 ease-out"
+        onClick={awaitClick ? undefined : next}
+        className={`absolute transition-all duration-500 ease-out
+                    ${awaitClick ? 'pointer-events-none' : ''}`}
         style={{
           top: hole.top,
           left: hole.left,
@@ -335,26 +371,50 @@ export default function GuidedTour({
           {step.body}
         </p>
 
-        <div className="mt-4 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={skip}
-            className="rounded-full px-3 py-2 text-sm font-semibold text-[#5C5346]
-                       transition-colors hover:text-[#231F1B] dark:text-zinc-400
-                       dark:hover:text-white"
-          >
-            Omitir
-          </button>
-          <button
-            type="button"
-            onClick={next}
-            className="rounded-full bg-[#1B4332] px-5 py-2.5 text-sm font-bold text-white
-                       shadow-md transition-all hover:brightness-110 active:scale-95
-                       dark:bg-emerald-600"
-          >
-            {isLast ? '¡Listo, empezar! ✓' : 'Entendido ➔'}
-          </button>
-        </div>
+        {awaitClick ? (
+          /*
+            Paso interactivo: no hay "Entendido". Se muestra la llamada a la acción
+            (que invita a tocar el elemento real, iluminado abajo) con un pulso
+            suave, y sólo queda "Omitir" por si la persona no quiere continuar.
+          */
+          <>
+            <p className="mt-3 animate-pulse text-sm font-bold text-[#1B4332] dark:text-emerald-400">
+              {step.cue || 'Tócalo para continuar'}
+            </p>
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={skip}
+                className="rounded-full px-3 py-2 text-sm font-semibold text-[#5C5346]
+                           transition-colors hover:text-[#231F1B] dark:text-zinc-400
+                           dark:hover:text-white"
+              >
+                Omitir
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="mt-4 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={skip}
+              className="rounded-full px-3 py-2 text-sm font-semibold text-[#5C5346]
+                         transition-colors hover:text-[#231F1B] dark:text-zinc-400
+                         dark:hover:text-white"
+            >
+              Omitir
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              className="rounded-full bg-[#1B4332] px-5 py-2.5 text-sm font-bold text-white
+                         shadow-md transition-all hover:brightness-110 active:scale-95
+                         dark:bg-emerald-600"
+            >
+              {isLast ? '¡Listo, empezar! ✓' : 'Entendido ➔'}
+            </button>
+          </div>
+        )}
       </div>
     </div>,
     document.body,
