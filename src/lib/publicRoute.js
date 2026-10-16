@@ -13,6 +13,8 @@
  * que vivir en una dirección de verdad.
  */
 
+import { publicBaseUrl } from './publicBaseUrl';
+
 /** Prefijo de la dirección pública: `/p/<id del asesor>`. */
 const PREFIX = '/p/';
 
@@ -50,5 +52,7 @@ export function publicCardIdFromPath() {
 /** Dirección completa de la tarjeta de un asesor, para compartirla. */
 export function publicCardUrl(advisorId) {
   if (typeof window === 'undefined' || !advisorId) return '';
-  return `${window.location.origin}${PREFIX}${advisorId}`;
+  // Dominio PÚBLICO fijo (no el de preview), para que el QR/enlace se abra sin el
+  // muro de Vercel. Ver `publicBaseUrl.js`.
+  return `${publicBaseUrl()}${PREFIX}${advisorId}`;
 }

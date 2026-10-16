@@ -6,6 +6,8 @@
  * así el cliente que abre su tarjeta —y entra con su propio Google— nunca toca
  * el Gate ni crea una ficha de asesor.
  */
+import { publicBaseUrl } from './publicBaseUrl';
+
 const ROOT = '/mi-tarjeta';
 const PREFIX = `${ROOT}/`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -29,5 +31,7 @@ export function giftCardRoute(pathname) {
 
 export function giftCardUrl(cardId) {
   if (typeof window === 'undefined' || !cardId) return '';
-  return `${window.location.origin}${PREFIX}${cardId}`;
+  // Dominio PÚBLICO fijo (no el de preview), para que el QR/enlace se pueda abrir
+  // sin el muro de Vercel. Ver `publicBaseUrl.js`.
+  return `${publicBaseUrl()}${PREFIX}${cardId}`;
 }
