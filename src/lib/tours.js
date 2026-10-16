@@ -14,6 +14,13 @@
  */
 
 /*
+ * Interruptor general de los mini-tutoriales. En `false` no se muestran solos ni
+ * aparece "Ver tutorial de nuevo" en Ver más. Para reactivarlos basta con
+ * ponerlo en `true`: el motor, los pasos y la persistencia siguen intactos.
+ */
+export const TUTORIALS_ENABLED = false;
+
+/*
  * Pasos del tutorial de la pestaña "Hoy".
  *
  * Un paso puede ser de dos clases:

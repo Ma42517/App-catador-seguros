@@ -3,7 +3,7 @@ import AISequence from './AISequence';
 import WelcomeGreeting from './WelcomeGreeting';
 import FirstLoginIntro from './FirstLoginIntro';
 import GuidedTour from '../Tour/GuidedTour';
-import { HOY_TOUR } from '../../lib/tours';
+import { HOY_TOUR, TUTORIALS_ENABLED } from '../../lib/tours';
 import { useDailyPoints } from '../../store/gamificationStore';
 import { useSession } from '../../context/SessionContext';
 import { saveTutorialHoySeen } from '../../data/profilesRepo';
@@ -53,6 +53,7 @@ export default function TodayView({
   const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
+    if (!TUTORIALS_ENABLED) return undefined; // Tutoriales apagados temporalmente.
     if (showFirstLoginIntro) return undefined; // Espera al intro de primer ingreso.
     const alreadySeen = hasSeenTutorialHoy(username) || Boolean(identity?.tutorialHoySeen);
     if (alreadySeen) return undefined;
@@ -73,6 +74,7 @@ export default function TodayView({
     como visto, porque es una petición explícita de la persona.
   */
   useEffect(() => {
+    if (!TUTORIALS_ENABLED) return undefined;
     const replay = () => setShowTour(true);
     window.addEventListener('expandia:replay-tour', replay);
     return () => window.removeEventListener('expandia:replay-tour', replay);

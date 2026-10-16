@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import { DASHBOARD_VERSIONS, useDashboardVersion } from '../../context/dashboardVersion';
+import { TUTORIALS_ENABLED } from '../../lib/tours';
 
 
 /**
@@ -527,7 +528,9 @@ export default function MoreMenu({
             <MenuRow icon={BadgeCheck} label="Mi Perfil" onClick={onOpenProfile} />
             <MenuRow icon={Settings} label="Configuración" onClick={onOpenSettings} />
             {/* Re-lanza el mini-tutorial de la pestaña Hoy desde cero. */}
-            <MenuRow icon={GraduationCap} label="Ver tutorial de nuevo" onClick={onReplayTutorial} />
+            {TUTORIALS_ENABLED && (
+              <MenuRow icon={GraduationCap} label="Ver tutorial de nuevo" onClick={onReplayTutorial} />
+            )}
           </SectionCard>
 
           {/*
