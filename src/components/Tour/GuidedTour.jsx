@@ -280,7 +280,14 @@ export default function GuidedTour({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[120]"
+      /*
+        En un paso interactivo el contenedor entero deja pasar los toques
+        (`pointer-events-none`) para que el clic llegue al elemento real (el botón
+        "+"); la tarjeta vuelve a capturarlos con `pointer-events-auto` para que
+        "Omitir" siga funcionando. En un paso normal, el contenedor sí intercepta
+        (bloquea el fondo y avanza al tocar fuera de la tarjeta).
+      */
+      className={`fixed inset-0 z-[120] ${awaitClick ? 'pointer-events-none' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={`Tutorial, paso ${index + 1} de ${total}`}
@@ -336,8 +343,8 @@ export default function GuidedTour({
 
       {/* ── Tarjeta del tutorial (fade + deslizamiento/escala suaves) ── */}
       <div
-        className="absolute rounded-2xl border-2 border-[#1B4332] bg-[#F9F6F0] p-4 text-left
-                   shadow-2xl transition-all duration-500 ease-out
+        className="pointer-events-auto absolute rounded-2xl border-2 border-[#1B4332]
+                   bg-[#F9F6F0] p-4 text-left shadow-2xl transition-all duration-500 ease-out
                    dark:border-emerald-500/60 dark:bg-zinc-900"
         style={{
           ...cardStyle,
