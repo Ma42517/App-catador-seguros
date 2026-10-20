@@ -69,8 +69,8 @@ export default function AlertPublisher({ onPublished }) {
           <Check size={22} strokeWidth={2.2} />
         </span>
 
-        <p className="text-sm font-bold text-white">Aviso publicado</p>
-        <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-400">
+        <p className="text-sm font-bold text-zinc-900 dark:text-white">Aviso publicado</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
           Ya aparece en el muro del Workplace de todo tu equipo, marcado como
           importante.
         </p>
@@ -78,8 +78,9 @@ export default function AlertPublisher({ onPublished }) {
         <button
           type="button"
           onClick={() => setDone(false)}
-          className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs
-                     font-semibold text-zinc-300 transition-colors hover:bg-white/10"
+          className="mt-4 rounded-xl border border-zinc-200 bg-zinc-900/5 px-4 py-2 text-xs
+                     font-semibold text-zinc-700 transition-colors hover:bg-zinc-900/10
+                     dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10"
         >
           Publicar otro
         </button>
@@ -88,7 +89,7 @@ export default function AlertPublisher({ onPublished }) {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-white/10 bg-[#1a1a1a] p-4">
+    <form onSubmit={submit} className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-[#1a1a1a]">
       <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest
                     text-rose-400"
       >
@@ -102,7 +103,7 @@ export default function AlertPublisher({ onPublished }) {
       </p>
 
       <label
-        className="mb-1.5 mt-4 block text-[11px] font-medium uppercase tracking-wide text-zinc-400"
+        className="mb-1.5 mt-4 block text-[11px] font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400"
         htmlFor="alert-title"
       >
         Título
@@ -113,13 +114,15 @@ export default function AlertPublisher({ onPublished }) {
         onChange={(e) => { setTitle(e.target.value); setError(''); }}
         placeholder="Junta extraordinaria el viernes"
         maxLength={120}
-        className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm
-                   text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500
-                   focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm
+                   text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500
+                   dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100
+                   dark:placeholder:text-zinc-600"
       />
 
       <label
-        className="mb-1.5 mt-3 block text-[11px] font-medium uppercase tracking-wide text-zinc-400"
+        className="mb-1.5 mt-3 block text-[11px] font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400"
         htmlFor="alert-content"
       >
         Detalle
@@ -131,9 +134,11 @@ export default function AlertPublisher({ onPublished }) {
         onChange={(e) => setContent(e.target.value)}
         rows={4}
         placeholder="A las 9:00 en la sala. Traigan sus números de la semana."
-        className="w-full resize-none rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5
-                   text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500
-                   focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full resize-none rounded-xl border border-zinc-300 bg-white px-3 py-2.5
+                   text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500
+                   dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100
+                   dark:placeholder:text-zinc-600"
       />
 
       {error && (

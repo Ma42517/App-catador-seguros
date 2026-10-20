@@ -16,8 +16,9 @@ function Avatar({ url, name }) {
   }
   return (
     <span
-      className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/10
-                 bg-white/5 text-sm font-bold text-zinc-400"
+      className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-zinc-200
+                 bg-zinc-100 text-sm font-bold text-zinc-500 dark:border-white/10
+                 dark:bg-white/5 dark:text-zinc-400"
       aria-hidden="true"
     >
       {(name || '?').trim().charAt(0).toUpperCase()}
@@ -86,13 +87,15 @@ export default function AdvisorCard({ advisor, onOpenDetail }) {
     : online === false ? relativeTime(advisor.lastSeen) : 'Sin actividad';
 
   return (
-    <article className="flex flex-col rounded-xl border border-white/10 bg-[#1a1a1a] p-4">
+    <article className="flex flex-col rounded-xl border border-zinc-200 bg-white p-4
+                        dark:border-white/10 dark:bg-[#1a1a1a]"
+    >
       {/* ── Cabecera ── */}
       <header className="flex items-start gap-3">
         <Avatar url={advisor.avatarUrl} name={advisor.fullName || advisor.email} />
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold leading-tight text-white">
+          <p className="truncate text-sm font-bold leading-tight text-zinc-900 dark:text-white">
             {advisor.fullName || 'Sin nombre'}
           </p>
           <p className="mt-0.5 truncate text-[11px] text-zinc-500">
@@ -112,7 +115,7 @@ export default function AdvisorCard({ advisor, onOpenDetail }) {
           className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5
             ${online === true
             ? 'border-emerald-500/30 bg-emerald-500/10'
-            : 'border-white/10 bg-white/5'}`}
+            : 'border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5'}`}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${online === true
@@ -131,7 +134,9 @@ export default function AdvisorCard({ advisor, onOpenDetail }) {
       <p className="mt-2 truncate text-[11px] text-zinc-600">{advisor.email}</p>
 
       {/* ── Métricas ── */}
-      <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg border border-white/5 bg-black/30 p-2.5">
+      <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg border border-zinc-200 bg-zinc-50
+                      p-2.5 dark:border-white/5 dark:bg-black/30"
+      >
         {metrics.map(({ key, label, value }) => (
           <div key={key} className="text-center">
             <p className="text-lg font-bold leading-none tabular-nums text-zinc-600">

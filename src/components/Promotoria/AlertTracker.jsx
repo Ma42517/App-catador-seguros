@@ -33,7 +33,7 @@ function ResponseGroup({ label, people, tone, Icon }) {
       ) : (
         <ul className="flex flex-col gap-0.5">
           {people.map((person) => (
-            <li key={person.id} className="truncate text-[11px] text-zinc-300">
+            <li key={person.id} className="truncate text-[11px] text-zinc-700 dark:text-zinc-300">
               {person.fullName || person.email}
             </li>
           ))}
@@ -204,18 +204,18 @@ export default function AlertTracker({ promotorId, team }) {
           const pending = team.filter((p) => !responses[p.id]);
 
           return (
-            <li key={alert.id} className="overflow-hidden rounded-xl border border-white/10
-                                          bg-[#1a1a1a]"
+            <li key={alert.id} className="overflow-hidden rounded-xl border border-zinc-200
+                                          bg-white dark:border-white/10 dark:bg-[#1a1a1a]"
             >
               <button
                 type="button"
                 onClick={() => toggle(alert.id)}
                 aria-expanded={isOpen}
                 className="flex w-full items-center gap-3 p-3 text-left transition-colors
-                           hover:bg-white/5"
+                           hover:bg-zinc-50 dark:hover:bg-white/5"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-zinc-100">{alert.title}</p>
+                  <p className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{alert.title}</p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500">
                     {alert.eventDate && (
                       <>
@@ -239,7 +239,7 @@ export default function AlertTracker({ promotorId, team }) {
               </button>
 
               {isOpen && (
-                <div className="animate-rise border-t border-white/10 p-3">
+                <div className="animate-rise border-t border-zinc-200 p-3 dark:border-white/10">
                   {responsesError ? (
                     /*
                       Se nombra la causa en lugar de dejar a todos en "sin

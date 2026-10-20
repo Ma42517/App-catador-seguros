@@ -112,7 +112,7 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
   return (
     <section className="mb-6 rounded-2xl border border-indigo-500/25 bg-indigo-500/[0.07] p-4">
       <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest
-                    text-indigo-300"
+                    text-indigo-600 dark:text-indigo-300"
       >
         <KeyRound size={13} aria-hidden="true" />
         Código de tu promotoría
@@ -137,10 +137,11 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
             autoCapitalize="characters"
             spellCheck="false"
             maxLength={15}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5
-                       text-center font-mono text-xl tracking-[0.12em] text-zinc-100
-                       placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none
-                       focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5
+                       text-center font-mono text-xl tracking-[0.12em] text-zinc-900
+                       placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none
+                       focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950/60
+                       dark:text-zinc-100 dark:placeholder:text-zinc-600"
           />
 
           <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
@@ -183,12 +184,12 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
             tiene que verse sin esfuerzo.
           */}
           <p className="mt-2.5 select-all font-mono text-3xl font-bold tracking-[0.15em]
-                        text-white"
+                        text-zinc-900 dark:text-white"
           >
             {code}
           </p>
 
-          <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
             Compártelo con tus asesores. Al usarlo quedarán en espera de que tú los
             apruebes, así que puedes difundirlo sin riesgo: el código no da acceso,
             sólo pide entrar.
@@ -198,10 +199,11 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
             <button
               type="button"
               onClick={copy}
-              className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-[11px]
-                         font-semibold text-zinc-100 transition-colors hover:bg-white/15
+              className="flex items-center gap-1.5 rounded-lg bg-zinc-900/5 px-3 py-2 text-[11px]
+                         font-semibold text-zinc-700 transition-colors hover:bg-zinc-900/10
                          active:scale-95 focus-visible:outline-none focus-visible:ring-2
-                         focus-visible:ring-indigo-400"
+                         focus-visible:ring-indigo-400 dark:bg-white/10 dark:text-zinc-100
+                         dark:hover:bg-white/15"
             >
               {isCopied
                 ? <Check size={12} aria-hidden="true" />
@@ -212,10 +214,11 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
             <button
               type="button"
               onClick={share}
-              className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-[11px]
-                         font-semibold text-zinc-100 transition-colors hover:bg-white/15
+              className="flex items-center gap-1.5 rounded-lg bg-zinc-900/5 px-3 py-2 text-[11px]
+                         font-semibold text-zinc-700 transition-colors hover:bg-zinc-900/10
                          active:scale-95 focus-visible:outline-none focus-visible:ring-2
-                         focus-visible:ring-indigo-400"
+                         focus-visible:ring-indigo-400 dark:bg-white/10 dark:text-zinc-100
+                         dark:hover:bg-white/15"
             >
               <Share2 size={12} aria-hidden="true" />
               Compartir
@@ -228,10 +231,11 @@ export default function InviteCodeCard({ code, promotoriaName, onSaved, promoter
             <button
               type="button"
               onClick={() => { setDraft(code); setEditing(true); setError(''); }}
-              className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-[11px]
-                         font-semibold text-zinc-100 transition-colors hover:bg-white/15
+              className="flex items-center gap-1.5 rounded-lg bg-zinc-900/5 px-3 py-2 text-[11px]
+                         font-semibold text-zinc-700 transition-colors hover:bg-zinc-900/10
                          active:scale-95 focus-visible:outline-none focus-visible:ring-2
-                         focus-visible:ring-indigo-400"
+                         focus-visible:ring-indigo-400 dark:bg-white/10 dark:text-zinc-100
+                         dark:hover:bg-white/15"
             >
               <Pencil size={12} aria-hidden="true" />
               Editar

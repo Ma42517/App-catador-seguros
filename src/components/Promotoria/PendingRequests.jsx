@@ -50,12 +50,13 @@ export default function PendingRequests({
                   src={advisor.avatarUrl}
                   alt=""
                   referrerPolicy="no-referrer"
-                  className="h-9 w-9 shrink-0 rounded-full border border-white/15 object-cover"
+                  className="h-9 w-9 shrink-0 rounded-full border border-zinc-200 object-cover dark:border-white/15"
                 />
               ) : (
                 <span
                   className="grid h-9 w-9 shrink-0 place-items-center rounded-full
-                             border border-white/10 bg-white/5 text-xs font-bold text-zinc-400"
+                             border border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-500
+                             dark:border-white/10 dark:bg-white/5 dark:text-zinc-400"
                   aria-hidden="true"
                 >
                   {(advisor.fullName || advisor.email || '?').trim().charAt(0).toUpperCase()}
@@ -68,10 +69,10 @@ export default function PendingRequests({
                   primer lugar: es el dato con el que el promotor reconoce a la
                   persona. El correo va debajo para desempatar homónimos.
                 */}
-                <p className="truncate text-sm font-bold leading-tight text-white">
+                <p className="truncate text-sm font-bold leading-tight text-zinc-900 dark:text-white">
                   {advisor.fullName || 'Sin nombre'}
                 </p>
-                <p className="truncate text-[11px] text-zinc-400">{advisor.email}</p>
+                <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">{advisor.email}</p>
                 <p className="mt-0.5 text-[10px] text-zinc-600">
                   {advisor.createdAt ? `Solicitó el ${requestedOn(advisor.createdAt)}` : ''}
                   {/*
@@ -140,11 +141,13 @@ export default function PendingRequests({
                   disabled={busy}
                   title="Bloquear: no podrá volver a solicitar entrar"
                   aria-label={`Bloquear a ${advisor.fullName || advisor.email}`}
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-zinc-700
-                             text-zinc-500 transition-colors hover:border-zinc-500
-                             hover:text-zinc-300 active:scale-95 disabled:cursor-wait
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-zinc-300
+                             text-zinc-500 transition-colors hover:border-zinc-400
+                             hover:text-zinc-700 active:scale-95 disabled:cursor-wait
                              disabled:opacity-60 focus-visible:outline-none
-                             focus-visible:ring-2 focus-visible:ring-zinc-400"
+                             focus-visible:ring-2 focus-visible:ring-zinc-400
+                             dark:border-zinc-700 dark:hover:border-zinc-500
+                             dark:hover:text-zinc-300"
                 >
                   <Ban size={15} strokeWidth={2.5} aria-hidden="true" />
                 </button>

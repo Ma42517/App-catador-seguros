@@ -75,7 +75,8 @@ export default function TeamTabs({ activeTab, onChange, total, pendingCount }) {
                 ? 'border-indigo-500 bg-indigo-500/15 shadow-lg shadow-indigo-600/20'
                 : alerts
                   ? 'border-amber-500/40 bg-amber-500/10 hover:border-amber-500/60'
-                  : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'}`}
+                  : 'border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10'
+                    + ' dark:bg-white/[0.03] dark:hover:border-white/20 dark:hover:bg-white/[0.06]'}`}
           >
             {/*
               El ícono en su caja, y el conteo colgado de la esquina como
@@ -87,22 +88,29 @@ export default function TeamTabs({ activeTab, onChange, total, pendingCount }) {
               <span
                 className={`grid h-9 w-9 place-items-center rounded-lg transition-colors
                   ${isActive
-                    ? 'bg-indigo-500/20 text-indigo-200'
+                    ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-200'
                     : alerts
-                      ? 'bg-amber-500/15 text-amber-300'
-                      : 'bg-white/5 text-zinc-400 group-hover:text-zinc-300'}`}
+                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
+                      : 'bg-zinc-100 text-zinc-500 group-hover:text-zinc-700'
+                        + ' dark:bg-white/5 dark:text-zinc-400 dark:group-hover:text-zinc-300'}`}
                 aria-hidden="true"
               >
                 <Icon size={17} strokeWidth={1.9} />
               </span>
 
               {counts && value > 0 && (
+                /*
+                  El anillo toma el color del fondo real de la app, no un negro
+                  fijo: así el distintivo se recorta limpio tanto en el tema
+                  negro como en el crema. Con `ring-[#111111]` a secas, en el
+                  tema claro aparecía un borde oscuro alrededor del número que lo
+                  hacía ver sucio y poco legible.
+                */
                 <span
                   className={`absolute -right-1.5 -top-1.5 grid h-5 min-w-[1.25rem] place-items-center
-                    rounded-full px-1 text-[10px] font-bold tabular-nums ring-2 ring-[#111111]
-                    ${alerts
-                      ? 'bg-amber-500 text-black'
-                      : 'bg-indigo-500 text-white'}`}
+                    rounded-full px-1 text-[10px] font-bold tabular-nums text-white ring-2
+                    ring-white dark:ring-[#111111]
+                    ${alerts ? 'bg-amber-600' : 'bg-indigo-500'}`}
                 >
                   {value}
                 </span>
@@ -110,7 +118,10 @@ export default function TeamTabs({ activeTab, onChange, total, pendingCount }) {
             </span>
 
             <span className={`text-[11px] font-semibold uppercase leading-tight tracking-wide
-              ${isActive ? 'text-indigo-100' : 'text-zinc-400 group-hover:text-zinc-300'}`}
+              ${isActive
+                ? 'text-indigo-700 dark:text-indigo-100'
+                : 'text-zinc-500 group-hover:text-zinc-700'
+                  + ' dark:text-zinc-400 dark:group-hover:text-zinc-300'}`}
             >
               {label}
             </span>

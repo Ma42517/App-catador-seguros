@@ -169,7 +169,9 @@ export default function PromotorDashboard() {
               <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
                 Mi Promotoría
               </p>
-              <h1 className="mt-0.5 text-2xl font-bold leading-tight tracking-tight text-white">
+              <h1 className="mt-0.5 text-2xl font-bold leading-tight tracking-tight
+                             text-zinc-900 dark:text-white"
+              >
                 Gestión de Equipo
               </h1>
             </div>
@@ -188,10 +190,11 @@ export default function PromotorDashboard() {
                 title="Gestionar asistentes"
                 aria-label="Gestionar asistentes"
                 className="flex shrink-0 items-center gap-1.5 rounded-lg border
-                           border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-semibold
-                           text-zinc-400 transition-colors hover:border-indigo-500/40
-                           hover:text-indigo-300 focus-visible:outline-none focus-visible:ring-2
-                           focus-visible:ring-indigo-500"
+                           border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold
+                           text-zinc-600 transition-colors hover:border-indigo-500/40
+                           hover:text-indigo-500 focus-visible:outline-none focus-visible:ring-2
+                           focus-visible:ring-indigo-500 dark:border-white/10 dark:bg-white/[0.03]
+                           dark:text-zinc-400 dark:hover:text-indigo-300"
               >
                 <UserCog size={13} aria-hidden="true" />
                 {assistants.length > 0 ? `Asistentes · ${assistants.length}` : 'Asistentes'}
@@ -204,11 +207,12 @@ export default function PromotorDashboard() {
               disabled={isLoading}
               title="Actualizar"
               aria-label="Actualizar"
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10
-                         bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-zinc-400
-                         transition-colors hover:border-indigo-500/40 hover:text-indigo-300
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200
+                         bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600
+                         transition-colors hover:border-indigo-500/40 hover:text-indigo-500
                          disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2
-                         focus-visible:ring-indigo-500"
+                         focus-visible:ring-indigo-500 dark:border-white/10 dark:bg-white/[0.03]
+                         dark:text-zinc-400 dark:hover:text-indigo-300"
             >
               {isLoading
                 ? <Loader2 size={13} className="animate-spin" aria-hidden="true" />
@@ -218,7 +222,7 @@ export default function PromotorDashboard() {
           </div>
         </div>
 
-        <p className="mt-3 text-xs leading-relaxed text-zinc-400">
+        <p className="mt-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
           Aquí das seguimiento a tus asesores: quién está activo, quién necesita
           apoyo y quién espera tu autorización para entrar.
         </p>
@@ -302,9 +306,13 @@ export default function PromotorDashboard() {
             nunca va a encontrar.
           */}
           {isAssistant && (
-            <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="text-xl font-bold text-white">Panel Operativo de Promotoría</h2>
-              <p className="mt-2 text-sm text-zinc-400">
+            <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-6
+                            dark:border-white/10 dark:bg-white/[0.03]"
+            >
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+                Panel Operativo de Promotoría
+              </h2>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 Desde aquí puedes gestionar las aprobaciones, publicar en el muro y
                 monitorear la actividad del equipo.
               </p>
@@ -334,10 +342,10 @@ export default function PromotorDashboard() {
                 </div>
               </section>
             ) : (
-              <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03]
-                              px-6 py-10 text-center"
+              <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50
+                              px-6 py-10 text-center dark:border-white/15 dark:bg-white/[0.03]"
               >
-                <p className="text-sm font-semibold text-zinc-300">
+                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                   Todavía no tienes asesores aprobados
                 </p>
                 <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
@@ -365,10 +373,12 @@ export default function PromotorDashboard() {
                 onBlock={(advisor) => respond(advisor, (a) => blockAdvisor(a.id))}
               />
             ) : (
-              <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03]
-                              px-6 py-10 text-center"
+              <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50
+                              px-6 py-10 text-center dark:border-white/15 dark:bg-white/[0.03]"
               >
-                <p className="text-sm font-semibold text-zinc-300">Sin solicitudes pendientes</p>
+                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                  Sin solicitudes pendientes
+                </p>
                 <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
                   Cuando alguien use tu código aparecerá aquí con su nombre completo
                   para aprobarlo, rechazarlo o bloquearlo.
@@ -412,8 +422,8 @@ export default function PromotorDashboard() {
                 {blocked.map((advisor) => (
                   <li
                     key={advisor.id}
-                    className="flex items-center gap-3 rounded-xl border border-white/10
-                               bg-white/[0.03] p-3"
+                    className="flex items-center gap-3 rounded-xl border border-zinc-200
+                               bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/[0.03]"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-zinc-400">
@@ -445,18 +455,19 @@ export default function PromotorDashboard() {
             ficha del asesor: no hay ninguna pantalla que lo haga todavía.
           */}
           {isEmpty && activeTab === 'asesores' && (
-            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03]
-                            px-6 py-12 text-center"
+            <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50
+                            px-6 py-12 text-center dark:border-white/15 dark:bg-white/[0.03]"
             >
               <span
                 className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border
-                           border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+                           border-indigo-500/30 bg-indigo-500/10 text-indigo-600
+                           dark:text-indigo-300"
                 aria-hidden="true"
               >
                 <TrendingUp size={22} strokeWidth={1.9} />
               </span>
 
-              <p className="text-sm font-semibold text-zinc-200">
+              <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
                 Todavía no tienes asesores en tu promotoría.
               </p>
               <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-500">

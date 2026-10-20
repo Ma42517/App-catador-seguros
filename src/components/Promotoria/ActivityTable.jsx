@@ -22,10 +22,10 @@ import { relativeTime } from '../../data/announcements';
 export default function ActivityTable({ advisors }) {
   if (advisors.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-6 py-10
-                      text-center"
+      <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-10
+                      text-center dark:border-white/15 dark:bg-white/[0.03]"
       >
-        <p className="text-sm font-semibold text-zinc-300">Todavía no hay equipo que medir</p>
+        <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Todavía no hay equipo que medir</p>
         <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
           Cuando apruebes a tus primeros asesores, su actividad aparecerá aquí.
         </p>
@@ -47,23 +47,23 @@ export default function ActivityTable({ advisors }) {
         columnas cortas y numéricas, y convertidas en tarjetas se pierde la
         comparación entre personas, que es para lo único que sirve una tabla.
       */}
-      <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#1a1a1a]">
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-[#1a1a1a]">
         <table className="w-full min-w-[30rem] border-collapse text-left">
           <thead>
-            <tr className="border-b border-white/10">
-              <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+            <tr className="border-b border-zinc-200 dark:border-white/10">
+              <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-500">
                 Asesor
               </th>
-              <th className="px-2 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+              <th className="px-2 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-500">
                 Llamadas
               </th>
-              <th className="px-2 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+              <th className="px-2 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-500">
                 Citas
               </th>
-              <th className="px-2 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+              <th className="px-2 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-500">
                 Cierres
               </th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+              <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-500">
                 Conexión
               </th>
             </tr>
@@ -73,16 +73,16 @@ export default function ActivityTable({ advisors }) {
             {advisors.map((advisor) => {
               const online = isOnline(advisor.lastSeen);
               return (
-                <tr key={advisor.id} className="border-b border-white/5 last:border-0">
+                <tr key={advisor.id} className="border-b border-zinc-200 last:border-0 dark:border-white/5">
                   <td className="px-3 py-2.5">
-                    <p className="truncate text-xs font-semibold text-zinc-200">
+                    <p className="truncate text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                       {advisor.fullName || 'Sin nombre'}
                     </p>
-                    <p className="truncate text-[10px] text-zinc-600">{advisor.email}</p>
+                    <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-600">{advisor.email}</p>
                   </td>
-                  <td className="px-2 py-2.5 text-right text-sm tabular-nums text-zinc-600">—</td>
-                  <td className="px-2 py-2.5 text-right text-sm tabular-nums text-zinc-600">—</td>
-                  <td className="px-2 py-2.5 text-right text-sm tabular-nums text-zinc-600">—</td>
+                  <td className="px-2 py-2.5 text-right text-sm tabular-nums text-zinc-400 dark:text-zinc-600">—</td>
+                  <td className="px-2 py-2.5 text-right text-sm tabular-nums text-zinc-400 dark:text-zinc-600">—</td>
+                  <td className="px-2 py-2.5 text-right text-sm tabular-nums text-zinc-400 dark:text-zinc-600">—</td>
                   <td className="px-3 py-2.5 text-right">
                     <span className={`whitespace-nowrap text-[10px] font-semibold ${online === true
                       ? 'text-emerald-400'
@@ -99,14 +99,14 @@ export default function ActivityTable({ advisors }) {
           </tbody>
 
           <tfoot>
-            <tr className="border-t border-white/10 bg-black/30">
-              <td className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+            <tr className="border-t border-zinc-200 bg-zinc-50 dark:border-white/10 dark:bg-black/30">
+              <td className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Total del equipo
               </td>
-              <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-zinc-600">—</td>
-              <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-zinc-600">—</td>
-              <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-zinc-600">—</td>
-              <td className="px-3 py-2.5 text-right text-[10px] font-bold tabular-nums text-zinc-400">
+              <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-zinc-400 dark:text-zinc-600">—</td>
+              <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-zinc-400 dark:text-zinc-600">—</td>
+              <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-zinc-400 dark:text-zinc-600">—</td>
+              <td className="px-3 py-2.5 text-right text-[10px] font-bold tabular-nums text-zinc-600 dark:text-zinc-400">
                 {advisors.filter((a) => isOnline(a.lastSeen) === true).length}
                 {' '}
                 en línea
