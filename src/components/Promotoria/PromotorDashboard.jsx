@@ -145,63 +145,80 @@ export default function PromotorDashboard() {
 
   return (
     <div className="animate-rise py-6">
+      {/*
+        ── Encabezado ──
+
+        Rediseñado para dar jerarquía: un ícono en su placa a la izquierda ancla
+        el bloque, con el eyebrow y el título pegados; el subtítulo debajo, y las
+        acciones agrupadas arriba a la derecha con el mismo tratamiento de botón.
+        El ícono salió de dentro del `h1` —donde competía con el texto— a su
+        propia placa, que es lo que antes se veía apretado.
+      */}
       <header className="mb-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
-              Mi Promotoría
-            </p>
-            <h1 className="mt-1 flex items-center gap-2.5 text-2xl font-bold leading-tight
-                           tracking-tight text-white"
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border
+                         border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+              aria-hidden="true"
             >
-              <Users
-                size={24}
-                strokeWidth={1.9}
-                className="shrink-0 text-indigo-400"
-                aria-hidden="true"
-              />
-              Gestión de Equipo y Rendimiento
-            </h1>
+              <Users size={22} strokeWidth={1.9} />
+            </span>
+
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-400">
+                Mi Promotoría
+              </p>
+              <h1 className="mt-0.5 text-2xl font-bold leading-tight tracking-tight text-white">
+                Gestión de Equipo
+              </h1>
+            </div>
           </div>
 
-          {/*
-            Gestionar asistentes vive aquí arriba y no en una pestaña: se usa una vez
-            cada varios meses, y una pestaña permanente para eso le robaría sitio a lo
-            que se usa a diario. Sólo lo ve el titular.
-          */}
-          {isPromoterOwner && (
+          <div className="flex shrink-0 items-center gap-2">
+            {/*
+              Gestionar asistentes vive aquí arriba y no en una pestaña: se usa una vez
+              cada varios meses, y una pestaña permanente para eso le robaría sitio a lo
+              que se usa a diario. Sólo lo ve el titular.
+            */}
+            {isPromoterOwner && (
+              <button
+                type="button"
+                onClick={() => setAssistantsOpen(true)}
+                title="Gestionar asistentes"
+                aria-label="Gestionar asistentes"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border
+                           border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-semibold
+                           text-zinc-400 transition-colors hover:border-indigo-500/40
+                           hover:text-indigo-300 focus-visible:outline-none focus-visible:ring-2
+                           focus-visible:ring-indigo-500"
+              >
+                <UserCog size={13} aria-hidden="true" />
+                {assistants.length > 0 ? `Asistentes · ${assistants.length}` : 'Asistentes'}
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={() => setAssistantsOpen(true)}
-              title="Gestionar asistentes"
-              aria-label="Gestionar asistentes"
-              className="mt-1 flex shrink-0 items-center gap-1.5 rounded-lg border
-                         border-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-400
+              onClick={load}
+              disabled={isLoading}
+              title="Actualizar"
+              aria-label="Actualizar"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10
+                         bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-zinc-400
                          transition-colors hover:border-indigo-500/40 hover:text-indigo-300
-                         focus-visible:outline-none focus-visible:ring-2
+                         disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2
                          focus-visible:ring-indigo-500"
             >
-              <UserCog size={13} aria-hidden="true" />
-              {assistants.length > 0 ? `Asistentes · ${assistants.length}` : 'Asistentes'}
+              {isLoading
+                ? <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                : <RefreshCw size={13} aria-hidden="true" />}
+              <span className="hidden sm:inline">{isLoading ? 'Cargando' : 'Actualizar'}</span>
             </button>
-          )}
-
-          <button
-            type="button"
-            onClick={load}
-            disabled={isLoading}
-            className="mt-1 flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[11px]
-                       font-semibold uppercase tracking-wider text-zinc-500 transition-colors
-                       hover:text-indigo-400 disabled:cursor-wait"
-          >
-            {isLoading
-              ? <Loader2 size={12} className="animate-spin" aria-hidden="true" />
-              : <RefreshCw size={12} aria-hidden="true" />}
-            {isLoading ? 'Cargando' : 'Actualizar'}
-          </button>
+          </div>
         </div>
 
-        <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+        <p className="mt-3 text-xs leading-relaxed text-zinc-400">
           Aquí das seguimiento a tus asesores: quién está activo, quién necesita
           apoyo y quién espera tu autorización para entrar.
         </p>
@@ -285,7 +302,7 @@ export default function PromotorDashboard() {
             nunca va a encontrar.
           */}
           {isAssistant && (
-            <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+            <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <h2 className="text-xl font-bold text-white">Panel Operativo de Promotoría</h2>
               <p className="mt-2 text-sm text-zinc-400">
                 Desde aquí puedes gestionar las aprobaciones, publicar en el muro y
@@ -317,7 +334,7 @@ export default function PromotorDashboard() {
                 </div>
               </section>
             ) : (
-              <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40
+              <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03]
                               px-6 py-10 text-center"
               >
                 <p className="text-sm font-semibold text-zinc-300">
@@ -348,7 +365,7 @@ export default function PromotorDashboard() {
                 onBlock={(advisor) => respond(advisor, (a) => blockAdvisor(a.id))}
               />
             ) : (
-              <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40
+              <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03]
                               px-6 py-10 text-center"
               >
                 <p className="text-sm font-semibold text-zinc-300">Sin solicitudes pendientes</p>
@@ -395,8 +412,8 @@ export default function PromotorDashboard() {
                 {blocked.map((advisor) => (
                   <li
                     key={advisor.id}
-                    className="flex items-center gap-3 rounded-xl border border-white/5
-                               bg-zinc-900/40 p-3"
+                    className="flex items-center gap-3 rounded-xl border border-white/10
+                               bg-white/[0.03] p-3"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-zinc-400">
@@ -428,7 +445,7 @@ export default function PromotorDashboard() {
             ficha del asesor: no hay ninguna pantalla que lo haga todavía.
           */}
           {isEmpty && activeTab === 'asesores' && (
-            <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40
+            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03]
                             px-6 py-12 text-center"
             >
               <span

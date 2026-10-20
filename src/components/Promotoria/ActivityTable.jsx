@@ -22,7 +22,7 @@ import { relativeTime } from '../../data/announcements';
 export default function ActivityTable({ advisors }) {
   if (advisors.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 px-6 py-10
+      <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-6 py-10
                       text-center"
       >
         <p className="text-sm font-semibold text-zinc-300">Todavía no hay equipo que medir</p>
