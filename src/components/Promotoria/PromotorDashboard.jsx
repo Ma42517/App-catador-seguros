@@ -16,6 +16,7 @@ import AlertTracker from './AlertTracker';
 import ActivityTable from './ActivityTable';
 import PendingRequests from './PendingRequests';
 import AdvisorCard from './AdvisorCard';
+import AdvisorDetailSheet from './AdvisorDetailSheet';
 
 /**
  * Gestión de Promotoría: el equipo del promotor.
@@ -81,6 +82,9 @@ export default function PromotorDashboard() {
     });
   }, [approved, assistants, isAssistant, identity?.promotorId, identity?.key, identity?.name]);
   const [isAssistantsOpen, setAssistantsOpen] = useState(false);
+  // Asesor cuyo detalle está abierto (null = cerrado). Lo abre "Ver detalles"
+  // de su tarjeta; el panel reutiliza `load` para releer tras cada acción.
+  const [detailAdvisor, setDetailAdvisor] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [needsMigration, setNeedsMigration] = useState(false);
@@ -337,7 +341,11 @@ export default function PromotorDashboard() {
                 */}
                 <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {approved.map((advisor) => (
-                    <AdvisorCard key={advisor.id} advisor={advisor} />
+                    <AdvisorCard
+                      key={advisor.id}
+                      advisor={advisor}
+                      onOpenDetail={setDetailAdvisor}
+                    />
                   ))}
                 </div>
               </section>
@@ -493,6 +501,26 @@ export default function PromotorDashboard() {
           isOpen={isAssistantsOpen}
           onClose={() => setAssistantsOpen(false)}
           assistants={assistants}
+          onChanged={load}
+        />
+      )}
+
+      {/*
+        Detalle del asesor, abierto desde "Ver detalles" de su tarjeta. Fuera del
+        contenido de las pestañas por lo mismo que el modal de asistentes: es una
+        capa a pantalla completa, y montada dentro se desmontaría al cambiar de
+        pestaña por debajo.
+
+        `onChanged={load}` reusa la relectura que ya emplea el tablero tras cada
+        acción: así bloquear o ascender desde el detalle deja la lista al día sin
+        una ruta de datos nueva. `isOwner` gobierna si aparecen las acciones de
+        asistente —sólo el titular nombra a otros—.
+      */}
+      {detailAdvisor && (
+        <AdvisorDetailSheet
+          advisor={detailAdvisor}
+          isOwner={isPromoterOwner}
+          onClose={() => setDetailAdvisor(null)}
           onChanged={load}
         />
       )}
