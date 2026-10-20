@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react';
 import {
   Gauge, Settings, LogOut, ChevronRight, ChevronDown, X, MonitorSmartphone,
   StickyNote, Wand2, Eraser, BadgeCheck, Database, UserCheck, IdCard, ShieldCheck,
-  Users, FlaskConical, Ticket, GraduationCap,
+  Users, FlaskConical, Ticket, GraduationCap, PauseCircle, Trophy, Store,
 } from 'lucide-react';
 import { useSession } from '../../context/SessionContext';
 import { DASHBOARD_VERSIONS, useDashboardVersion } from '../../context/dashboardVersion';
 import { TUTORIALS_ENABLED } from '../../lib/tours';
+import { readLeads } from '../../data/leads';
+import { listMyLeads } from '../../data/leadsRepo';
+import { fetchWalletSummary } from '../../data/walletRepo';
+import { readOrphans } from '../../data/orphanProspects';
+import { readDiscardedProspects } from '../../data/prospectStatus';
 
 
 /**
@@ -272,11 +277,40 @@ export default function MoreMenu({
   onOpenCard, onLogout, onLoadDemo,
   onClearAgenda, canUsePreview = false, isAdminUser = false, isPromoterUser = false,
   onOpenPromotoria, pendingCount = 0,
+  username, onOpenLeads, onOpenPaused, onOpenRanking, onOpenStore,
 }) {
   const { identity } = useSession();
   const { version } = useDashboardVersion();
   const [isAdminOpen, setAdminOpen] = useState(false);
   const [isDiagOpen, setDiagOpen] = useState(false);
+
+  // Conteos que acompañan las filas de "Mi actividad" y "Recompensas". Antes
+  // vivían en "Mi Perfil"; se mudaron aquí con sus secciones, porque "Ver más"
+  // es el mapa de destinos de la app y el sitio natural para encontrarlas.
+  const [leadCount, setLeadCount] = useState(0);
+  // Prospectos que salieron del embudo sin cerrarse (citas archivadas por el
+  // Reloj de Arena + descartados). Se cuentan juntos porque la pantalla que
+  // abre esta fila también los muestra en una sola lista.
+  const [pausedCount, setPausedCount] = useState(0);
+  // Saldo de monedas y puntos del mes, para el resumen del ranking.
+  const [wallet, setWallet] = useState(null);
+
+  // Se relee en cada apertura, no con un temporizador: sólo cambia cuando
+  // alguien deja sus datos, y al reabrir el menú ya está actualizado.
+  useEffect(() => {
+    if (!open) return undefined;
+    let active = true;
+    const localLeadCount = readLeads(username).length;
+    setLeadCount(localLeadCount);
+    listMyLeads().then(({ data }) => {
+      if (active) setLeadCount(localLeadCount + (data?.length ?? 0));
+    });
+    fetchWalletSummary().then(({ data }) => {
+      if (active && data?.outcome === 'READY') setWallet(data);
+    });
+    setPausedCount(readOrphans(username).length + readDiscardedProspects(username).length);
+    return () => { active = false; };
+  }, [open, username]);
 
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -521,6 +555,67 @@ export default function MoreMenu({
               <MenuRow icon={Users} label="Mi Promotoría" onClick={onOpenPromotoria} />
             )}
           </SectionCard>
+
+          {/*
+            ── Mi actividad ──
+
+            Prospectos capturados y en pausa: las dos caras del mismo inventario
+            de contactos, los que entraron y los que se quedaron a medias. Antes
+            estaban escondidos dentro de "Mi Perfil", donde nadie los buscaba;
+            aquí quedan a la vista y con su conteo.
+          */}
+          {(onOpenLeads || onOpenPaused) && (
+            <>
+              <SectionTitle>Mi actividad</SectionTitle>
+              <SectionCard>
+                {onOpenLeads && (
+                  <MenuRow
+                    icon={Users}
+                    label="Prospectos capturados"
+                    badge={leadCount > 0 ? leadCount : undefined}
+                    badgeHint="personas"
+                    onClick={onOpenLeads}
+                  />
+                )}
+                {onOpenPaused && (
+                  <MenuRow
+                    icon={PauseCircle}
+                    label="Prospectos en pausa"
+                    badge={pausedCount > 0 ? pausedCount : undefined}
+                    badgeHint="fuera del embudo"
+                    onClick={onOpenPaused}
+                  />
+                )}
+              </SectionCard>
+            </>
+          )}
+
+          {/*
+            ── Recompensas ──
+
+            Ranking/monedas y la tienda donde se gastan. También estaban
+            escondidas en "Mi Perfil". El distintivo del ranking muestra el saldo
+            de monedas, que es lo que motiva volver a abrirlo.
+          */}
+          {(onOpenRanking || onOpenStore) && (
+            <>
+              <SectionTitle>Recompensas</SectionTitle>
+              <SectionCard>
+                {onOpenRanking && (
+                  <MenuRow
+                    icon={Trophy}
+                    label="Ranking y monedas"
+                    badge={wallet && wallet.coinsBalance > 0 ? wallet.coinsBalance : undefined}
+                    badgeHint="monedas"
+                    onClick={onOpenRanking}
+                  />
+                )}
+                {onOpenStore && (
+                  <MenuRow icon={Store} label="Tienda" onClick={onOpenStore} />
+                )}
+              </SectionCard>
+            </>
+          )}
 
           {/* ── Cuenta ── */}
           <SectionTitle>Cuenta</SectionTitle>

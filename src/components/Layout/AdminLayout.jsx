@@ -338,11 +338,6 @@ export default function AdminLayout({
         isOpen={profileOpen}
         onClose={() => setProfileOpen(false)}
         username={username}
-        onEditCard={() => { setProfileOpen(false); setCardEditOpen(true); }}
-        onOpenLeads={() => { setProfileOpen(false); setLeadsOpen(true); }}
-        onOpenPaused={() => { setProfileOpen(false); setPausedOpen(true); }}
-        onOpenRanking={() => { setProfileOpen(false); setRankingOpen(true); }}
-        onOpenStore={() => { setProfileOpen(false); setStoreOpen(true); }}
       />
 
       {/* Sin permiso no se monta: perder el permiso con el panel abierto lo cierra. */}
@@ -419,6 +414,15 @@ export default function AdminLayout({
         isPromoterUser={isPromoterUser}
         onOpenPromotoria={() => { setMoreOpen(false); onOpenPromotoria?.(); }}
         pendingCount={pendingCount}
+        /*
+          Las secciones que antes vivían escondidas en "Mi Perfil" ahora se
+          abren desde aquí. El username alimenta los conteos de las filas.
+        */
+        username={username}
+        onOpenLeads={() => { setMoreOpen(false); setLeadsOpen(true); }}
+        onOpenPaused={() => { setMoreOpen(false); setPausedOpen(true); }}
+        onOpenRanking={() => { setMoreOpen(false); setRankingOpen(true); }}
+        onOpenStore={() => { setMoreOpen(false); setStoreOpen(true); }}
       />
     </div>
   );

@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Palette, Check } from 'lucide-react';
+import { Palette, Check, Type } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
+import TextScaleControl from '../ui/TextScaleControl';
 import { APP_THEMES, readAppTheme, writeAppTheme, applyAppTheme } from '../../lib/appTheme';
 
 /**
  * src/components/Profile/SettingsView.jsx
  *
- * Pantalla de Configuración, abierta desde "Ver más → Configuración". Hoy aloja
- * un solo ajuste —el color de la app— pero se deja como pantalla propia (y no un
- * modal diminuto) para que quepan los ajustes que vengan después.
+ * Pantalla de Configuración, abierta desde "Ver más → Configuración". Reúne los
+ * ajustes de apariencia de la app: el color del tema y el tamaño del texto. Este
+ * último vivía antes en "Mi Perfil", pero no es un dato del asesor sino de cómo
+ * se ve la app, así que es hermano del color y su sitio es aquí.
  *
  * El cambio de tema se aplica EN VIVO: `applyAppTheme` reescribe la clase del
  * `<html>` y toda la app repinta sin recargar, así que la propia pantalla de
@@ -100,6 +102,31 @@ export default function SettingsView({ isOpen, onClose }) {
                   </button>
                 );
               })}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Tamaño de texto ── */}
+        <section>
+          <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest
+                         text-zinc-500 dark:text-zinc-400"
+          >
+            <Type size={13} aria-hidden="true" />
+            Tamaño de texto
+          </h2>
+
+          <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-5
+                          dark:border-zinc-800 dark:bg-zinc-900/60"
+          >
+            <p className="text-center text-base font-bold text-zinc-900 dark:text-white">
+              Ajusta qué tan grande se ve la app
+            </p>
+            <p className="mt-1 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              Toca una letra. El cambio se ve al instante.
+            </p>
+
+            <div className="mt-5 flex justify-center">
+              <TextScaleControl />
             </div>
           </div>
         </section>

@@ -1,16 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  BadgeCheck, Phone, UserRound, IdCard, ChevronRight, Users, Video, PauseCircle, Trophy, Store,
-} from 'lucide-react';
+import { BadgeCheck, Phone, UserRound, Video } from 'lucide-react';
 import FullScreenView from '../Layout/FullScreenView';
 import Toast from '../Layout/Toast';
-import TextScaleControl from '../ui/TextScaleControl';
 import { readAdvisorProfile, saveAdvisorProfile, initialsFrom } from '../../data/advisorProfile';
-import { readLeads } from '../../data/leads';
-import { listMyLeads } from '../../data/leadsRepo';
-import { fetchWalletSummary } from '../../data/walletRepo';
-import { readOrphans } from '../../data/orphanProspects';
-import { readDiscardedProspects } from '../../data/prospectStatus';
 
 /** Campo minimalista: sin caja, sólo un filo inferior que se enciende al enfocar. */
 function MinimalField({ id, label, placeholder, value, onChange, icon: Icon, ...rest }) {
@@ -43,86 +35,31 @@ function MinimalField({ id, label, placeholder, value, onChange, icon: Icon, ...
 }
 
 /**
- * Perfil del asesor. Captura el nombre y el teléfono que después se
- * estamparán como marca de agua en los flyers compartidos.
+ * Perfil del asesor. Es sólo su identidad: el nombre y el teléfono que se
+ * estamparán como marca de agua en los flyers, y el enlace fijo de videollamada.
+ *
+ * Lo que antes vivía aquí escondido —Ranking, Tienda, Prospectos capturados y
+ * en pausa— se mudó a "Ver más", que es el mapa de destinos de la app y donde
+ * esas secciones sí se encuentran. El ajuste de tamaño de texto se mudó a
+ * Configuración, junto al color del tema: los dos cambian cómo se ve la app, no
+ * quién es el asesor. Así esta pantalla deja de ser un cajón de sastre.
  */
-/** Fila de acceso del perfil, con distintivo opcional. */
-function ProfileRow({ icon: Icon, title, subtitle, badge, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4
-                 text-left transition-colors hover:border-indigo-400
-                 dark:border-zinc-800 dark:bg-zinc-900"
-    >
-      <span
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-zinc-100
-                   text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-        aria-hidden="true"
-      >
-        <Icon size={19} />
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-zinc-900 dark:text-white">
-          {title}
-        </span>
-        <span className="block text-[11px] text-zinc-500">{subtitle}</span>
-      </span>
-
-      {badge ? (
-        <span
-          className="shrink-0 rounded-full bg-indigo-500/15 px-2 py-0.5 text-[11px] font-bold
-                     text-indigo-600 dark:text-indigo-300"
-        >
-          {badge}
-        </span>
-      ) : (
-        <ChevronRight size={16} className="shrink-0 text-zinc-400" aria-hidden="true" />
-      )}
-    </button>
-  );
-}
-
-export default function UserProfile({
-  isOpen, onClose, username, onEditCard, onOpenLeads, onOpenPaused, onOpenRanking, onOpenStore,
-}) {
+export default function UserProfile({ isOpen, onClose, username }) {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   // Enlace fijo de Zoom/Meet: lo usa `InitialMeetingCard.jsx` para las citas
   // virtuales, así el asesor no lo escribe en cada cita que agenda.
   const [zoomLink, setZoomLink] = useState('');
   const [toast, setToast] = useState('');
-  const [leadCount, setLeadCount] = useState(0);
-  // Prospectos que salieron del embudo sin cerrarse (citas archivadas por el
-  // Reloj de Arena + descartados). Se cuentan juntos porque la pantalla que
-  // abre esta fila también los muestra en una sola lista.
-  const [pausedCount, setPausedCount] = useState(0);
-  // Saldo de monedas y puntos del mes, para el resumen del ranking en el perfil.
-  const [wallet, setWallet] = useState(null);
 
   // Cada apertura carga lo guardado, para editar en vez de volver a capturar.
-  // El conteo se relee aquí y no con un temporizador: sólo cambia cuando alguien
-  // deja sus datos, y al volver a esta pantalla ya está actualizado.
   useEffect(() => {
-    if (!isOpen) return undefined;
-    let active = true;
+    if (!isOpen) return;
     const saved = readAdvisorProfile(username);
-    const localLeadCount = readLeads(username).length;
     setDisplayName(saved.displayName);
     setPhone(saved.phone);
     setZoomLink(saved.zoomLink);
-    setLeadCount(localLeadCount);
-    listMyLeads().then(({ data }) => {
-      if (active) setLeadCount(localLeadCount + (data?.length ?? 0));
-    });
-    fetchWalletSummary().then(({ data }) => {
-      if (active && data?.outcome === 'READY') setWallet(data);
-    });
-    setPausedCount(readOrphans(username).length + readDiscardedProspects(username).length);
     setToast('');
-    return () => { active = false; };
   }, [isOpen, username]);
 
   const clearToast = useCallback(() => setToast(''), []);
@@ -172,96 +109,6 @@ export default function UserProfile({
           Así aparecerán tus datos en los flyers que compartas.
         </p>
       </section>
-
-      {/*
-        Mismo ajuste que en la pantalla de acceso, para quien lo quiera
-        cambiar después de haber entrado: no todo el mundo lo necesita desde
-        el primer momento, y aquí queda a la mano sin ocupar espacio en el
-        login para quien nunca lo toca.
-      */}
-      <section className="mb-6 flex items-center justify-between gap-3 rounded-2xl
-                          border border-zinc-200 bg-white p-4
-                          dark:border-zinc-800 dark:bg-zinc-900"
-      >
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-zinc-900 dark:text-white">
-            Tamaño de texto
-          </p>
-          <p className="text-[11px] text-zinc-500">
-            Ajusta qué tan grande se ve la app
-          </p>
-        </div>
-        <TextScaleControl />
-      </section>
-
-      {/*
-        Accesos a la tarjeta y a los prospectos. Viven aquí y no en la pantalla de
-        la tarjeta porque esa es para mostrarla: separar el editar del mostrar es
-        lo que evita tener un formulario delante del prospecto.
-      */}
-      <div className="mb-6 flex flex-col gap-2">
-        {onEditCard && (
-          <ProfileRow
-            icon={IdCard}
-            title="Editar mi tarjeta digital"
-            subtitle="Foto, título, cédula, especialidades y contacto"
-            onClick={onEditCard}
-          />
-        )}
-
-        {onOpenRanking && (
-          <ProfileRow
-            icon={Trophy}
-            title="Ranking y monedas"
-            subtitle={wallet
-              ? `${wallet.coinsBalance.toLocaleString('es-MX')} monedas`
-                + ` · ${wallet.monthPoints.toLocaleString('es-MX')} pts este mes`
-              : 'Tu posición y tu saldo para la tienda'}
-            badge={wallet && wallet.coinsBalance > 0 ? wallet.coinsBalance : undefined}
-            onClick={onOpenRanking}
-          />
-        )}
-
-        {onOpenStore && (
-          <ProfileRow
-            icon={Store}
-            title="Tienda"
-            subtitle="Compra pases de diagnóstico con tus monedas"
-            onClick={onOpenStore}
-          />
-        )}
-
-        {onOpenLeads && (
-          <ProfileRow
-            icon={Users}
-            title="Prospectos capturados"
-            subtitle={leadCount > 0
-              ? `${leadCount} ${leadCount === 1 ? 'persona' : 'personas'} · envía diagnósticos aquí`
-              : 'Aquí aparecerán las personas y sus pases'}
-            badge={leadCount > 0 ? leadCount : undefined}
-            onClick={onOpenLeads}
-          />
-        )}
-
-        {/*
-          Los prospectos que salieron del embudo sin cerrarse. Vive junto a
-          "Prospectos capturados" porque son las dos caras del mismo
-          inventario de contactos: los que entraron y los que se quedaron a
-          medias. Hasta que existió esta fila, las dos listas que alimenta
-          se escribían sin que nadie pudiera leerlas.
-        */}
-        {onOpenPaused && (
-          <ProfileRow
-            icon={PauseCircle}
-            title="Prospectos en pausa"
-            subtitle={pausedCount > 0
-              ? `${pausedCount} ${pausedCount === 1 ? 'salió' : 'salieron'} del embudo sin cerrarse`
-              : 'Ninguno quedó fuera del embudo'}
-            badge={pausedCount > 0 ? pausedCount : undefined}
-            onClick={onOpenPaused}
-          />
-        )}
-      </div>
 
       <form onSubmit={handleSubmit}>
         <MinimalField
